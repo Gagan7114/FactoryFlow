@@ -10,9 +10,36 @@ interface MaterialConsumptionTableProps {
   readOnly?: boolean;
 }
 
+const toNumber = (value?: string) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatQuantity = (value?: string) => toNumber(value).toFixed(3);
+const formatPercentage = (value?: string) => toNumber(value).toFixed(2);
+
+function getConsumptionValues(material: MaterialUsage) {
+  const bomQuantity = material.bom_quantity ?? material.opening_qty;
+  const wastageQuantity = material.wastage_quantity ?? '0';
+  const wastagePercentage = material.wastage_percentage
+    ?? (toNumber(bomQuantity) > 0
+      ? ((toNumber(wastageQuantity) / toNumber(bomQuantity)) * 100).toString()
+      : '0');
+  const finalConsumptionQuantity = material.final_consumption_quantity
+    ?? (toNumber(bomQuantity) + toNumber(wastageQuantity)).toString();
+
+  return {
+    bomQuantity,
+    wastageQuantity,
+    wastagePercentage,
+    finalConsumptionQuantity,
+  };
+}
+
 export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty, readOnly }: MaterialConsumptionTableProps) {
   const [editingMaterial, setEditingMaterial] = useState<MaterialUsage | null>(null);
   const [closingValue, setClosingValue] = useState('');
+  const editingConsumption = editingMaterial ? getConsumptionValues(editingMaterial) : null;
 
   const openEdit = (m: MaterialUsage) => {
     setEditingMaterial(m);
@@ -38,12 +65,15 @@ export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty,
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-left p-2 font-medium">Code</th>
               <th className="text-left p-2 font-medium">Material</th>
-              <th className="text-right p-2 font-medium">Opening</th>
+              <th className="text-right p-2 font-medium">BOM Qty</th>
+              <th className="text-right p-2 font-medium">Wastage %</th>
+              <th className="text-right p-2 font-medium">Wastage Qty</th>
+              <th className="text-right p-2 font-medium">Final Consumption</th>
               <th className="text-right p-2 font-medium">Issued</th>
               <th className="text-right p-2 font-medium">Closing</th>
               <th className="text-left p-2 font-medium">UoM</th>
@@ -53,23 +83,36 @@ export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty,
           <tbody>
             {materials.map((m) => {
               const closingEmpty = !m.closing_qty || parseFloat(m.closing_qty) === 0;
+              const consumption = getConsumptionValues(m);
               return (
                 <tr key={m.id} className="border-b hover:bg-muted/30">
                   <td className="p-2 font-mono text-xs">{m.material_code}</td>
                   <td className="p-2">{m.material_name}</td>
-                  <td className="p-2 text-right">{m.opening_qty}</td>
-                  <td className="p-2 text-right">{m.issued_qty}</td>
+                  <td className="p-2 text-right">{formatQuantity(consumption.bomQuantity)}</td>
+                  <td className="p-2 text-right">{formatPercentage(consumption.wastagePercentage)}%</td>
+                  <td className="p-2 text-right text-red-600 dark:text-red-400">
+                    {formatQuantity(consumption.wastageQuantity)}
+                  </td>
+                  <td className="p-2 text-right font-medium">
+                    {formatQuantity(consumption.finalConsumptionQuantity)}
+                  </td>
+                  <td className="p-2 text-right">{formatQuantity(m.issued_qty)}</td>
                   <td className="p-2 text-right">
                     {closingEmpty ? (
                       <span className="text-amber-600 dark:text-amber-400 italic text-xs">Not entered</span>
                     ) : (
-                      m.closing_qty
+                      formatQuantity(m.closing_qty)
                     )}
                   </td>
                   <td className="p-2">{m.uom}</td>
                   {!readOnly && onUpdateClosingQty && (
                     <td className="p-2">
-                      <button onClick={() => openEdit(m)} className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground">
+                      <button
+                        type="button"
+                        title="Edit closing quantity"
+                        onClick={() => openEdit(m)}
+                        className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </td>
@@ -78,7 +121,7 @@ export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty,
               );
             })}
             {materials.length === 0 && (
-              <tr><td colSpan={!readOnly && onUpdateClosingQty ? 7 : 6} className="p-4 text-center text-muted-foreground">No materials recorded</td></tr>
+              <tr><td colSpan={!readOnly && onUpdateClosingQty ? 10 : 9} className="p-4 text-center text-muted-foreground">No materials recorded</td></tr>
             )}
           </tbody>
         </table>
@@ -88,7 +131,7 @@ export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty,
       <Dialog open={!!editingMaterial} onOpenChange={(open) => { if (!open) setEditingMaterial(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Update Material</DialogTitle></DialogHeader>
-          {editingMaterial && (
+          {editingMaterial && editingConsumption && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -100,12 +143,20 @@ export function MaterialConsumptionTable({ materials, onAdd, onUpdateClosingQty,
                   <p className="font-medium">{editingMaterial.material_name}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Opening Qty</span>
-                  <p className="font-medium">{editingMaterial.opening_qty}</p>
+                  <span className="text-muted-foreground">BOM Qty</span>
+                  <p className="font-medium">{formatQuantity(editingConsumption.bomQuantity)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Wastage Qty</span>
+                  <p className="font-medium">{formatQuantity(editingConsumption.wastageQuantity)}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Final Consumption</span>
+                  <p className="font-medium">{formatQuantity(editingConsumption.finalConsumptionQuantity)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Issued Qty</span>
-                  <p className="font-medium">{editingMaterial.issued_qty}</p>
+                  <p className="font-medium">{formatQuantity(editingMaterial.issued_qty)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">UoM</span>

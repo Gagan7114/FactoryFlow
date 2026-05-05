@@ -74,15 +74,29 @@ function YieldReportPage() {
     : '-';
 
   // Material metrics
-  const totalMaterialInput = materials.reduce(
-    (sum, m) => sum + parseFloat(m.opening_qty || '0') + parseFloat(m.issued_qty || '0'), 0
+  const parseMaterialQuantity = (value?: string) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const totalBomQuantity = materials.reduce(
+    (sum, m) => sum + parseMaterialQuantity(m.bom_quantity ?? m.opening_qty), 0
   );
   const totalMaterialClosing = materials.reduce(
-    (sum, m) => sum + parseFloat(m.closing_qty || '0'), 0
+    (sum, m) => sum + parseMaterialQuantity(m.closing_qty), 0
   );
-  const totalMaterialConsumed = totalMaterialInput - totalMaterialClosing;
   const totalWastage = materials.reduce(
-    (sum, m) => sum + parseFloat(m.wastage_qty || '0'), 0
+    (sum, m) => sum + parseMaterialQuantity(m.wastage_quantity), 0
+  );
+  const totalMaterialConsumed = materials.reduce(
+    (sum, m) => {
+      const finalConsumption = m.final_consumption_quantity
+        ?? (
+          parseMaterialQuantity(m.bom_quantity ?? m.opening_qty) +
+          parseMaterialQuantity(m.wastage_quantity)
+        ).toString();
+      return sum + parseMaterialQuantity(finalConsumption);
+    },
+    0,
   );
 
   // Breakdown summary
@@ -237,20 +251,20 @@ function YieldReportPage() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-xs text-muted-foreground">Total Input (Opening + Issued)</p>
-              <p className="text-xl font-bold">{totalMaterialInput.toFixed(3)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Closing</p>
-              <p className="text-xl font-bold">{totalMaterialClosing.toFixed(3)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Consumed</p>
-              <p className="text-xl font-bold">{totalMaterialConsumed.toFixed(3)}</p>
+              <p className="text-xs text-muted-foreground">Total BOM Qty</p>
+              <p className="text-xl font-bold">{totalBomQuantity.toFixed(3)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Total Wastage</p>
               <p className="text-xl font-bold text-red-600">{totalWastage.toFixed(3)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Final Consumption</p>
+              <p className="text-xl font-bold">{totalMaterialConsumed.toFixed(3)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Closing</p>
+              <p className="text-xl font-bold">{totalMaterialClosing.toFixed(3)}</p>
             </div>
           </div>
           <MaterialConsumptionTable
