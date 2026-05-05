@@ -284,6 +284,10 @@ export interface MaterialUsage {
   issued_qty: string;
   closing_qty: string;
   wastage_qty: string;
+  bom_quantity?: string;
+  wastage_percentage?: string;
+  wastage_quantity?: string;
+  final_consumption_quantity?: string;
   uom: string;
   created_at: string;
   updated_at: string;
@@ -408,6 +412,9 @@ export interface WasteLog {
   hod_signed_by: number | null;
   hod_signed_at: string | null;
   wastage_approval_status: WasteApprovalStatus;
+  approved_sign?: string;
+  approved_by?: number | null;
+  approved_at?: string | null;
   created_at: string;
   updated_at: string;
 }

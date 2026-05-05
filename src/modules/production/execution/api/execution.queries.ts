@@ -732,8 +732,9 @@ export function useCreateWasteLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateWasteLogRequest) => executionApi.createWasteLog(data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'waste'] });
+      qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.materials(variables.production_run_id) });
     },
   });
 }
@@ -745,6 +746,7 @@ export function useUpdateWasteLog() {
       executionApi.updateWasteLog(wasteId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'waste'] });
+      qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'materials'] });
     },
   });
 }
@@ -753,6 +755,18 @@ export function useDeleteWasteLog() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (wasteId: number) => executionApi.deleteWasteLog(wasteId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'waste'] });
+      qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'materials'] });
+    },
+  });
+}
+
+export function useApproveWaste() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ wasteId, data }: { wasteId: number; data: WasteApprovalRequest }) =>
+      executionApi.approveWaste(wasteId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'waste'] });
     },

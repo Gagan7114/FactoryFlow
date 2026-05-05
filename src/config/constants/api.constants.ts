@@ -273,6 +273,8 @@ export const API_ENDPOINTS = {
     // Waste Management
     WASTE: '/production-execution/waste/',
     WASTE_DETAIL: (wasteId: number) => `/production-execution/waste/${wasteId}/`,
+    WASTE_APPROVE: (wasteId: number) =>
+      `/production-execution/waste/${wasteId}/approve/`,
     WASTE_APPROVE_ENGINEER: (wasteId: number) =>
       `/production-execution/waste/${wasteId}/approve/engineer/`,
     WASTE_APPROVE_AM: (wasteId: number) =>

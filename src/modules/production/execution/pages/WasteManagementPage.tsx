@@ -27,10 +27,7 @@ import {
 } from '@/shared/components/ui';
 
 import {
-  useApproveWasteAM,
-  useApproveWasteEngineer,
-  useApproveWasteHOD,
-  useApproveWasteStore,
+  useApproveWaste,
   useCreateWasteLog,
   useMaterials,
   useRuns,
@@ -61,7 +58,7 @@ function toBomWasteRow(material: MaterialUsage): WasteDraftRow {
     material_code: material.material_code,
     material_name: material.material_name,
     uom: material.uom,
-    bom_qty: material.opening_qty || '0',
+    bom_qty: material.bom_quantity ?? material.opening_qty ?? '0',
     wastage_qty: '',
   };
 }
@@ -78,10 +75,7 @@ function WasteManagementPage() {
   const { data: wasteLogs = [], isLoading, refetch: refetchWaste } = useWasteLogs(runIdFilter);
   const { data: runs = [] } = useRuns();
   const createWaste = useCreateWasteLog();
-  const approveEngineer = useApproveWasteEngineer();
-  const approveAM = useApproveWasteAM();
-  const approveStore = useApproveWasteStore();
-  const approveHOD = useApproveWasteHOD();
+  const approveWaste = useApproveWaste();
 
   const [showCreate, setShowCreate] = useState(false);
   const [selectedRunId, setSelectedRunId] = useState<number | undefined>(runIdFilter);
@@ -237,34 +231,31 @@ function WasteManagementPage() {
     }
   };
 
-  const handleApprove = async (wasteId: number, level: 'engineer' | 'am' | 'store' | 'hod') => {
+  const handleApprove = async (wasteId: number) => {
     if (!signName.trim()) { toast.error('Please enter your name'); return; }
     const data = { wasteId, data: { sign: signName } };
     try {
-      if (level === 'engineer') await approveEngineer.mutateAsync(data);
-      else if (level === 'am') await approveAM.mutateAsync(data);
-      else if (level === 'store') await approveStore.mutateAsync(data);
-      else await approveHOD.mutateAsync(data);
-      toast.success(`${level.toUpperCase()} approval recorded`);
+      await approveWaste.mutateAsync(data);
+      toast.success('Waste approval recorded');
       setSelectedWaste(null);
       setSignName('');
       refetchWaste();
     } catch { toast.error('Approval failed'); }
   };
 
-  const getNextApprovalLevel = (w: WasteLog): 'engineer' | 'am' | 'store' | 'hod' | null => {
-    if (!w.engineer_sign) return 'engineer';
-    if (!w.am_sign) return 'am';
-    if (!w.store_sign) return 'store';
-    if (!w.hod_sign) return 'hod';
-    return null;
-  };
+  const getApprovalSign = (w: WasteLog) => (
+    w.approved_sign || w.hod_sign || w.store_sign || w.am_sign || w.engineer_sign || ''
+  );
+
+  const getApprovalAt = (w: WasteLog) => (
+    w.approved_at || w.hod_signed_at || w.store_signed_at || w.am_signed_at || w.engineer_signed_at || null
+  );
 
   return (
     <div className="space-y-6">
       <DashboardHeader
         title="Waste Management"
-        description={filteredRun ? `Run #${filteredRun.run_number} - ${filteredRun.product} (${filteredRun.date})` : 'Waste logs and multi-level approval workflow'}
+        description={filteredRun ? `Run #${filteredRun.run_number} - ${filteredRun.product} (${filteredRun.date})` : 'Waste logs and approval workflow'}
         primaryAction={{
           label: 'Log Waste',
           icon: <Plus className="h-4 w-4 mr-2" />,
@@ -289,8 +280,7 @@ function WasteManagementPage() {
           <SelectContent>
             <SelectItem value="ALL">All Statuses</SelectItem>
             <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="PARTIALLY_APPROVED">Partially Approved</SelectItem>
-            <SelectItem value="FULLY_APPROVED">Fully Approved</SelectItem>
+            <SelectItem value="FULLY_APPROVED">Approved</SelectItem>
           </SelectContent>
         </Select>
         <DateRangePicker
@@ -504,19 +494,20 @@ function WasteManagementPage() {
               </div>
               <p className="text-sm"><span className="text-muted-foreground">Reason:</span> {selectedWaste.reason}</p>
 
-              <div className="grid grid-cols-2 gap-3">
-                <SignatureBlock label="Engineer" sign={selectedWaste.engineer_sign} signedAt={selectedWaste.engineer_signed_at} />
-                <SignatureBlock label="AM" sign={selectedWaste.am_sign} signedAt={selectedWaste.am_signed_at} />
-                <SignatureBlock label="Store" sign={selectedWaste.store_sign} signedAt={selectedWaste.store_signed_at} />
-                <SignatureBlock label="HOD" sign={selectedWaste.hod_sign} signedAt={selectedWaste.hod_signed_at} />
+              <div className="grid gap-3">
+                <SignatureBlock label="Approved By" sign={getApprovalSign(selectedWaste)} signedAt={getApprovalAt(selectedWaste)} />
               </div>
 
-              {getNextApprovalLevel(selectedWaste) && (
+              {selectedWaste.wastage_approval_status !== 'FULLY_APPROVED' && (
                 <div className="border-t pt-4 space-y-3">
-                  <p className="text-sm font-medium">Approve as {getNextApprovalLevel(selectedWaste)!.toUpperCase()}</p>
+                  <p className="text-sm font-medium">Approve Waste</p>
                   <Input placeholder="Your name / designation" value={signName} onChange={(e) => setSignName(e.target.value)} />
-                  <Button onClick={() => handleApprove(selectedWaste.id, getNextApprovalLevel(selectedWaste)!)} className="w-full">
-                    Sign & Approve
+                  <Button
+                    onClick={() => handleApprove(selectedWaste.id)}
+                    disabled={approveWaste.isPending}
+                    className="w-full"
+                  >
+                    {approveWaste.isPending ? 'Approving...' : 'Sign & Approve'}
                   </Button>
                 </div>
               )}

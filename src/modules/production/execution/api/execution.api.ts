@@ -538,6 +538,11 @@ export const executionApi = {
     await apiClient.delete(EP.WASTE_DETAIL(wasteId));
   },
 
+  async approveWaste(wasteId: number, data: WasteApprovalRequest): Promise<WasteLog> {
+    const res = await apiClient.post<WasteLog>(EP.WASTE_APPROVE(wasteId), data);
+    return res.data;
+  },
+
   async approveWasteEngineer(wasteId: number, data: WasteApprovalRequest): Promise<WasteLog> {
     const res = await apiClient.post<WasteLog>(EP.WASTE_APPROVE_ENGINEER(wasteId), data);
     return res.data;

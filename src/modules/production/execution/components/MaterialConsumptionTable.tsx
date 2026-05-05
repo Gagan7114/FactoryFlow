@@ -1,6 +1,8 @@
-import { useState } from 'react';
 import { Pencil } from 'lucide-react';
+import { useState } from 'react';
+
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label } from '@/shared/components/ui';
+
 import type { MaterialUsage } from '../types';
 
 interface MaterialConsumptionTableProps {
@@ -13,11 +15,38 @@ interface MaterialConsumptionTableProps {
   requiredQty?: number;
 }
 
+const toNumber = (value?: string) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatQuantity = (value?: string | number) => toNumber(String(value ?? '0')).toFixed(3);
+const formatPercentage = (value?: string) => toNumber(value).toFixed(2);
+
+function getConsumptionValues(material: MaterialUsage) {
+  const bomQuantity = material.bom_quantity ?? material.opening_qty;
+  const wastageQuantity = material.wastage_quantity ?? '0';
+  const wastagePercentage = material.wastage_percentage
+    ?? (toNumber(bomQuantity) > 0
+      ? ((toNumber(wastageQuantity) / toNumber(bomQuantity)) * 100).toString()
+      : '0');
+  const finalConsumptionQuantity = material.final_consumption_quantity
+    ?? (toNumber(bomQuantity) + toNumber(wastageQuantity)).toString();
+
+  return {
+    bomQuantity,
+    wastageQuantity,
+    wastagePercentage,
+    finalConsumptionQuantity,
+  };
+}
+
 function calcExpectedClosing(m: MaterialUsage, actualProduction: number, requiredQty: number): number | null {
   if (requiredQty <= 0) return null;
-  const opening = parseFloat(m.opening_qty || '0');
-  const issued = parseFloat(m.issued_qty || '0');
-  const expectedConsumed = (actualProduction / requiredQty) * opening;
+  const opening = toNumber(m.opening_qty);
+  const issued = toNumber(m.issued_qty);
+  const bomQuantity = toNumber(m.bom_quantity ?? m.opening_qty);
+  const expectedConsumed = (actualProduction / requiredQty) * bomQuantity;
   return opening + issued - expectedConsumed;
 }
 
@@ -30,16 +59,17 @@ export function MaterialConsumptionTable({
 }: MaterialConsumptionTableProps) {
   const [editingMaterial, setEditingMaterial] = useState<MaterialUsage | null>(null);
   const [closingValue, setClosingValue] = useState('');
+  const editingConsumption = editingMaterial ? getConsumptionValues(editingMaterial) : null;
 
   const canCalcExpected = actualProduction != null && actualProduction > 0 && requiredQty != null && requiredQty > 0;
+  const showExpected = canCalcExpected;
 
   const openEdit = (m: MaterialUsage) => {
     setEditingMaterial(m);
-    const existing = m.closing_qty && parseFloat(m.closing_qty) > 0 ? m.closing_qty : '';
+    const existing = m.closing_qty && toNumber(m.closing_qty) > 0 ? m.closing_qty : '';
     if (existing) {
       setClosingValue(existing);
     } else if (canCalcExpected) {
-      // Auto-fill with expected closing
       const expected = calcExpectedClosing(m, actualProduction!, requiredQty!);
       setClosingValue(expected != null && expected >= 0 ? expected.toFixed(3) : '');
     } else {
@@ -55,7 +85,7 @@ export function MaterialConsumptionTable({
     setClosingValue('');
   };
 
-  const showExpected = canCalcExpected;
+  const columnCount = (showExpected ? 10 : 9) + (!readOnly && onUpdateClosingQty ? 1 : 0);
 
   return (
     <div>
@@ -63,12 +93,15 @@ export function MaterialConsumptionTable({
         <h3 className="font-semibold">Material Consumption</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-left p-2 font-medium">Code</th>
               <th className="text-left p-2 font-medium">Material</th>
-              <th className="text-right p-2 font-medium">Opening</th>
+              <th className="text-right p-2 font-medium">BOM Qty</th>
+              <th className="text-right p-2 font-medium">Wastage %</th>
+              <th className="text-right p-2 font-medium">Wastage Qty</th>
+              <th className="text-right p-2 font-medium">Final Consumption</th>
               <th className="text-right p-2 font-medium">Issued</th>
               {showExpected && <th className="text-right p-2 font-medium">Expected Closing</th>}
               <th className="text-right p-2 font-medium">Closing</th>
@@ -78,14 +111,23 @@ export function MaterialConsumptionTable({
           </thead>
           <tbody>
             {materials.map((m) => {
-              const closingEmpty = !m.closing_qty || parseFloat(m.closing_qty) === 0;
+              const closingEmpty = !m.closing_qty || toNumber(m.closing_qty) === 0;
               const expected = showExpected ? calcExpectedClosing(m, actualProduction!, requiredQty!) : null;
+              const consumption = getConsumptionValues(m);
+
               return (
                 <tr key={m.id} className="border-b hover:bg-muted/30">
                   <td className="p-2 font-mono text-xs">{m.material_code}</td>
                   <td className="p-2">{m.material_name}</td>
-                  <td className="p-2 text-right">{m.opening_qty}</td>
-                  <td className="p-2 text-right">{m.issued_qty}</td>
+                  <td className="p-2 text-right">{formatQuantity(consumption.bomQuantity)}</td>
+                  <td className="p-2 text-right">{formatPercentage(consumption.wastagePercentage)}%</td>
+                  <td className="p-2 text-right text-red-600 dark:text-red-400">
+                    {formatQuantity(consumption.wastageQuantity)}
+                  </td>
+                  <td className="p-2 text-right font-medium">
+                    {formatQuantity(consumption.finalConsumptionQuantity)}
+                  </td>
+                  <td className="p-2 text-right">{formatQuantity(m.issued_qty)}</td>
                   {showExpected && (
                     <td className="p-2 text-right text-muted-foreground">
                       {expected != null ? expected.toFixed(3) : '-'}
@@ -95,13 +137,18 @@ export function MaterialConsumptionTable({
                     {closingEmpty ? (
                       <span className="text-amber-600 dark:text-amber-400 italic text-xs">Not entered</span>
                     ) : (
-                      m.closing_qty
+                      formatQuantity(m.closing_qty)
                     )}
                   </td>
                   <td className="p-2">{m.uom}</td>
                   {!readOnly && onUpdateClosingQty && (
                     <td className="p-2">
-                      <button onClick={() => openEdit(m)} className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground">
+                      <button
+                        type="button"
+                        title="Edit closing quantity"
+                        onClick={() => openEdit(m)}
+                        className="rounded p-1 hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                     </td>
@@ -110,18 +157,24 @@ export function MaterialConsumptionTable({
               );
             })}
             {materials.length === 0 && (
-              <tr><td colSpan={showExpected ? 8 : 7} className="p-4 text-center text-muted-foreground">No materials recorded</td></tr>
+              <tr>
+                <td colSpan={columnCount} className="p-4 text-center text-muted-foreground">
+                  No materials recorded
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Edit Material Dialog */}
       <Dialog open={!!editingMaterial} onOpenChange={(open) => { if (!open) setEditingMaterial(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Update Closing Qty</DialogTitle></DialogHeader>
-          {editingMaterial && (() => {
-            const expected = canCalcExpected ? calcExpectedClosing(editingMaterial, actualProduction!, requiredQty!) : null;
+          <DialogHeader><DialogTitle>Update Material</DialogTitle></DialogHeader>
+          {editingMaterial && editingConsumption && (() => {
+            const expected = canCalcExpected
+              ? calcExpectedClosing(editingMaterial, actualProduction!, requiredQty!)
+              : null;
+
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -134,12 +187,20 @@ export function MaterialConsumptionTable({
                     <p className="font-medium">{editingMaterial.material_name}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Opening Qty</span>
-                    <p className="font-medium">{editingMaterial.opening_qty}</p>
+                    <span className="text-muted-foreground">BOM Qty</span>
+                    <p className="font-medium">{formatQuantity(editingConsumption.bomQuantity)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Wastage Qty</span>
+                    <p className="font-medium">{formatQuantity(editingConsumption.wastageQuantity)}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Final Consumption</span>
+                    <p className="font-medium">{formatQuantity(editingConsumption.finalConsumptionQuantity)}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Issued Qty</span>
-                    <p className="font-medium">{editingMaterial.issued_qty}</p>
+                    <p className="font-medium">{formatQuantity(editingMaterial.issued_qty)}</p>
                   </div>
                   {expected != null && (
                     <div>
