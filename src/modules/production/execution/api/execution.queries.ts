@@ -15,6 +15,7 @@ import type {
   CreateLabourRequest,
   CreateLineClearanceRequest,
   CreateLineRequest,
+  CreateLineSkuConfigPayload,
   CreateMachineCostRequest,
   CreateMachineRequest,
   CreateManpowerRequest,
@@ -28,12 +29,11 @@ import type {
   ResolveBreakdownRequest,
   StopProductionRequest,
   UpdateBreakdownRemarksRequest,
-  UpdateSegmentRequest,
   UpdateLineClearanceRequest,
-  UpdateRunRequest,
-  WasteApprovalRequest,
-  CreateLineSkuConfigPayload,
   UpdateLineSkuConfigPayload,
+  UpdateRunRequest,
+  UpdateSegmentRequest,
+  WasteApprovalRequest,
 } from '../types';
 import { executionApi } from './execution.api';
 
@@ -77,11 +77,9 @@ export const EXECUTION_QUERY_KEYS = {
   electricity: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'electricity', runId] as const,
   water: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'water', runId] as const,
   gas: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'gas', runId] as const,
-  compressedAir: (runId: number) =>
-    [...EXECUTION_QUERY_KEYS.all, 'compressed-air', runId] as const,
+  compressedAir: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'compressed-air', runId] as const,
   labour: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'labour', runId] as const,
-  machineCosts: (runId: number) =>
-    [...EXECUTION_QUERY_KEYS.all, 'machine-costs', runId] as const,
+  machineCosts: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'machine-costs', runId] as const,
   overhead: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'overhead', runId] as const,
   // Cost
   runCost: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'cost', runId] as const,
@@ -91,12 +89,9 @@ export const EXECUTION_QUERY_KEYS = {
   inProcessQC: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'qc-inprocess', runId] as const,
   finalQC: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'qc-final', runId] as const,
   // Reports
-  dailyReport: (date?: string) =>
-    [...EXECUTION_QUERY_KEYS.all, 'daily-report', date] as const,
-  yieldReport: (runId: number) =>
-    [...EXECUTION_QUERY_KEYS.all, 'yield-report', runId] as const,
-  oeeAnalytics: (params?: AnalyticsParams) =>
-    [...EXECUTION_QUERY_KEYS.all, 'oee', params] as const,
+  dailyReport: (date?: string) => [...EXECUTION_QUERY_KEYS.all, 'daily-report', date] as const,
+  yieldReport: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'yield-report', runId] as const,
+  oeeAnalytics: (params?: AnalyticsParams) => [...EXECUTION_QUERY_KEYS.all, 'oee', params] as const,
   downtimeAnalytics: (params?: AnalyticsParams) =>
     [...EXECUTION_QUERY_KEYS.all, 'downtime', params] as const,
   wasteAnalytics: (params?: AnalyticsParams) =>
@@ -181,13 +176,8 @@ export function useCreateMachine() {
 export function useUpdateMachine() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      machineId,
-      data,
-    }: {
-      machineId: number;
-      data: Partial<CreateMachineRequest>;
-    }) => executionApi.updateMachine(machineId, data),
+    mutationFn: ({ machineId, data }: { machineId: number; data: Partial<CreateMachineRequest> }) =>
+      executionApi.updateMachine(machineId, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'machines'] }),
   });
 }
@@ -436,8 +426,13 @@ export function useUpdateSegment(runId: number) {
 export function useUpdateBreakdownRemarks(runId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ breakdownId, data }: { breakdownId: number; data: UpdateBreakdownRemarksRequest }) =>
-      executionApi.updateBreakdownRemarks(runId, breakdownId, data),
+    mutationFn: ({
+      breakdownId,
+      data,
+    }: {
+      breakdownId: number;
+      data: UpdateBreakdownRemarksRequest;
+    }) => executionApi.updateBreakdownRemarks(runId, breakdownId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.runDetail(runId) });
     },
@@ -529,13 +524,8 @@ export function useCreateMachineRuntime(runId: number) {
 export function useUpdateMachineRuntime(runId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      runtimeId,
-      data,
-    }: {
-      runtimeId: number;
-      data: Partial<CreateRuntimeRequest>;
-    }) => executionApi.updateMachineRuntime(runId, runtimeId, data),
+    mutationFn: ({ runtimeId, data }: { runtimeId: number; data: Partial<CreateRuntimeRequest> }) =>
+      executionApi.updateMachineRuntime(runId, runtimeId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.machineRuntime(runId) });
     },
@@ -751,13 +741,8 @@ export function useCreateWasteLog() {
 export function useUpdateWasteLog() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      wasteId,
-      data,
-    }: {
-      wasteId: number;
-      data: Partial<CreateWasteLogRequest>;
-    }) => executionApi.updateWasteLog(wasteId, data),
+    mutationFn: ({ wasteId, data }: { wasteId: number; data: Partial<CreateWasteLogRequest> }) =>
+      executionApi.updateWasteLog(wasteId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'waste'] });
     },
@@ -959,8 +944,7 @@ export function useCompressedAir(runId: number) {
 export function useCreateCompressedAir(runId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateCompressedAirRequest) =>
-      executionApi.createCompressedAir(runId, data),
+    mutationFn: (data: CreateCompressedAirRequest) => executionApi.createCompressedAir(runId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.compressedAir(runId) });
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.runCost(runId) });
@@ -971,8 +955,13 @@ export function useCreateCompressedAir(runId: number) {
 export function useUpdateCompressedAir(runId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ entryId, data }: { entryId: number; data: Partial<CreateCompressedAirRequest> }) =>
-      executionApi.updateCompressedAir(runId, entryId, data),
+    mutationFn: ({
+      entryId,
+      data,
+    }: {
+      entryId: number;
+      data: Partial<CreateCompressedAirRequest>;
+    }) => executionApi.updateCompressedAir(runId, entryId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.compressedAir(runId) });
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.runCost(runId) });
@@ -1162,13 +1151,8 @@ export function useCreateInProcessQC(runId: number) {
 export function useUpdateInProcessQC(runId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      checkId,
-      data,
-    }: {
-      checkId: number;
-      data: Partial<CreateInProcessQCRequest>;
-    }) => executionApi.updateInProcessQC(runId, checkId, data),
+    mutationFn: ({ checkId, data }: { checkId: number; data: Partial<CreateInProcessQCRequest> }) =>
+      executionApi.updateInProcessQC(runId, checkId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.inProcessQC(runId) });
     },
@@ -1339,6 +1323,7 @@ export function useLineConfigs(lineId?: number) {
   return useQuery({
     queryKey: [...EXECUTION_QUERY_KEYS.all, 'line-configs', lineId],
     queryFn: () => executionApi.getLineConfigs(lineId),
+    enabled: lineId !== undefined,
   });
 }
 
