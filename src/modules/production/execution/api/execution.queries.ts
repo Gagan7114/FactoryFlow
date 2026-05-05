@@ -64,8 +64,8 @@ export const EXECUTION_QUERY_KEYS = {
   machineRuntime: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'runtime', runId] as const,
   manpower: (runId: number) => [...EXECUTION_QUERY_KEYS.all, 'manpower', runId] as const,
   // Line Clearance
-  clearances: (lineId?: number, status?: string) =>
-    [...EXECUTION_QUERY_KEYS.all, 'clearances', { lineId, status }] as const,
+  clearances: (lineId?: number, status?: string, date?: string) =>
+    [...EXECUTION_QUERY_KEYS.all, 'clearances', { lineId, status, date }] as const,
   clearanceDetail: (id: number) => [...EXECUTION_QUERY_KEYS.all, 'clearance', id] as const,
   // Checklists
   checklists: (machineId?: number, date?: string, month?: number, year?: number) =>
@@ -593,10 +593,11 @@ export function useDeleteManpower(runId: number) {
 // Line Clearance
 // ============================================================================
 
-export function useLineClearances(lineId?: number, status?: string) {
+export function useLineClearances(lineId?: number, status?: string, date?: string, enabled = true) {
   return useQuery({
-    queryKey: EXECUTION_QUERY_KEYS.clearances(lineId, status),
-    queryFn: () => executionApi.getLineClearances(lineId, status),
+    queryKey: EXECUTION_QUERY_KEYS.clearances(lineId, status, date),
+    queryFn: () => executionApi.getLineClearances(lineId, status, date),
+    enabled,
     staleTime: 30 * 1000,
   });
 }

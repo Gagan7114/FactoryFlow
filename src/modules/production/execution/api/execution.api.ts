@@ -9,49 +9,54 @@ import type {
   BulkChecklistRequest,
   ChecklistTemplate,
   CompleteRunRequest,
+  CostAnalysisReport,
   CreateBreakdownCategoryRequest,
   CreateChecklistEntryRequest,
   CreateCompressedAirRequest,
   CreateElectricityRequest,
+  CreateFinalQCRequest,
   CreateGasRequest,
+  CreateInProcessQCRequest,
   CreateLabourRequest,
   CreateLineClearanceRequest,
+  CreateLineRequest,
+  CreateLineSkuConfigPayload,
   CreateMachineCostRequest,
   CreateMachineRequest,
   CreateManpowerRequest,
   CreateMaterialUsageRequest,
-  CreateLineRequest,
   CreateOverheadRequest,
   CreateRunRequest,
   CreateRuntimeRequest,
   CreateTemplateRequest,
   CreateWasteLogRequest,
   CreateWaterRequest,
-  CreateInProcessQCRequest,
-  CreateFinalQCRequest,
-  DailyProductionReport,
   DowntimeAnalytics,
+  DowntimeParetoReport,
   FinalQCCheck,
   InProcessQCCheck,
   LineClearance,
   LineClearanceDetail,
+  LineSkuConfig,
   Machine,
   MachineBreakdown,
   MachineChecklistEntry,
   MachineRuntime,
   Manpower,
   MaterialUsage,
+  MonthlySummaryReport,
   OEEAnalytics,
+  OEETrendReport,
+  PlanVsProductionReport,
+  ProcurementVsPlannedReport,
   ProductionLine,
   ProductionRun,
   ProductionRunCost,
   ProductionRunDetail,
   ProductionSegment,
   ResolveBreakdownRequest,
-  StopProductionRequest,
-  UpdateBreakdownRemarksRequest,
-  UpdateSegmentRequest,
   ResourceCompressedAir,
+  ResourceConsumptionReport,
   ResourceElectricity,
   ResourceGas,
   ResourceLabour,
@@ -62,23 +67,17 @@ import type {
   SAPItem,
   SAPOrderDetail,
   SAPProductionOrder,
+  StopProductionRequest,
+  UpdateBreakdownRemarksRequest,
   UpdateLineClearanceRequest,
+  UpdateLineSkuConfigPayload,
   UpdateRunRequest,
+  UpdateSegmentRequest,
   WasteAnalytics,
   WasteApprovalRequest,
   WasteLog,
-  YieldReport,
-  ResourceConsumptionReport,
-  MonthlySummaryReport,
-  PlanVsProductionReport,
-  ProcurementVsPlannedReport,
-  OEETrendReport,
-  DowntimeParetoReport,
-  CostAnalysisReport,
   WasteTrendReport,
-  LineSkuConfig,
-  CreateLineSkuConfigPayload,
-  UpdateLineSkuConfigPayload,
+  YieldReport,
 } from '../types';
 
 const EP = API_ENDPOINTS.PRODUCTION_EXECUTION;
@@ -317,7 +316,10 @@ export const executionApi = {
     breakdownId: number,
     data: UpdateBreakdownRemarksRequest,
   ): Promise<MachineBreakdown> {
-    const res = await apiClient.patch<MachineBreakdown>(EP.BREAKDOWN_UPDATE(runId, breakdownId), data);
+    const res = await apiClient.patch<MachineBreakdown>(
+      EP.BREAKDOWN_UPDATE(runId, breakdownId),
+      data,
+    );
     return res.data;
   },
 
@@ -409,10 +411,7 @@ export const executionApi = {
     manpowerId: number,
     data: Partial<CreateManpowerRequest>,
   ): Promise<Manpower> {
-    const res = await apiClient.patch<Manpower>(
-      EP.RUN_MANPOWER_DETAIL(runId, manpowerId),
-      data,
-    );
+    const res = await apiClient.patch<Manpower>(EP.RUN_MANPOWER_DETAIL(runId, manpowerId), data);
     return res.data;
   },
 
@@ -424,10 +423,15 @@ export const executionApi = {
   // Line Clearance
   // =========================================================================
 
-  async getLineClearances(lineId?: number, status?: string): Promise<LineClearance[]> {
+  async getLineClearances(
+    lineId?: number,
+    status?: string,
+    date?: string,
+  ): Promise<LineClearance[]> {
     const params: Record<string, string | number> = {};
     if (lineId) params.line_id = lineId;
     if (status) params.status = status;
+    if (date) params.date = date;
     const res = await apiClient.get<LineClearance[]>(EP.LINE_CLEARANCE, { params });
     return res.data;
   },
@@ -494,7 +498,10 @@ export const executionApi = {
   },
 
   async bulkCreateChecklists(data: BulkChecklistRequest): Promise<MachineChecklistEntry[]> {
-    const res = await apiClient.post<MachineChecklistEntry[]>(EP.MACHINE_CHECKLISTS_BULK, data.entries);
+    const res = await apiClient.post<MachineChecklistEntry[]>(
+      EP.MACHINE_CHECKLISTS_BULK,
+      data.entries,
+    );
     return res.data;
   },
 
@@ -673,10 +680,7 @@ export const executionApi = {
     entryId: number,
     data: Partial<CreateLabourRequest>,
   ): Promise<ResourceLabour> {
-    const res = await apiClient.patch<ResourceLabour>(
-      EP.RUN_LABOUR_DETAIL(runId, entryId),
-      data,
-    );
+    const res = await apiClient.patch<ResourceLabour>(EP.RUN_LABOUR_DETAIL(runId, entryId), data);
     return res.data;
   },
   async deleteLabour(runId: number, entryId: number): Promise<void> {
@@ -791,10 +795,7 @@ export const executionApi = {
     return res.data;
   },
 
-  async updateFinalQC(
-    runId: number,
-    data: Partial<CreateFinalQCRequest>,
-  ): Promise<FinalQCCheck> {
+  async updateFinalQC(runId: number, data: Partial<CreateFinalQCRequest>): Promise<FinalQCCheck> {
     const res = await apiClient.patch<FinalQCCheck>(EP.RUN_QC_FINAL(runId), data);
     return res.data;
   },
@@ -845,22 +846,33 @@ export const executionApi = {
   // =========================================================================
 
   async getResourceConsumptionReport(params?: AnalyticsParams): Promise<ResourceConsumptionReport> {
-    const res = await apiClient.get<ResourceConsumptionReport>(EP.REPORTS_RESOURCE_CONSUMPTION, { params });
+    const res = await apiClient.get<ResourceConsumptionReport>(EP.REPORTS_RESOURCE_CONSUMPTION, {
+      params,
+    });
     return res.data;
   },
 
-  async getMonthlySummaryReport(params: { year: number; line?: number }): Promise<MonthlySummaryReport> {
+  async getMonthlySummaryReport(params: {
+    year: number;
+    line?: number;
+  }): Promise<MonthlySummaryReport> {
     const res = await apiClient.get<MonthlySummaryReport>(EP.REPORTS_MONTHLY_SUMMARY, { params });
     return res.data;
   },
 
   async getPlanVsProductionReport(params?: AnalyticsParams): Promise<PlanVsProductionReport> {
-    const res = await apiClient.get<PlanVsProductionReport>(EP.REPORTS_PLAN_VS_PRODUCTION, { params });
+    const res = await apiClient.get<PlanVsProductionReport>(EP.REPORTS_PLAN_VS_PRODUCTION, {
+      params,
+    });
     return res.data;
   },
 
-  async getProcurementVsPlannedReport(params: { sap_doc_entry: number }): Promise<ProcurementVsPlannedReport> {
-    const res = await apiClient.get<ProcurementVsPlannedReport>(EP.REPORTS_PROCUREMENT_VS_PLANNED, { params });
+  async getProcurementVsPlannedReport(params: {
+    sap_doc_entry: number;
+  }): Promise<ProcurementVsPlannedReport> {
+    const res = await apiClient.get<ProcurementVsPlannedReport>(EP.REPORTS_PROCUREMENT_VS_PLANNED, {
+      params,
+    });
     return res.data;
   },
 
@@ -868,7 +880,9 @@ export const executionApi = {
   // Phase 2 Reports
   // =========================================================================
 
-  async getOEETrendReport(params?: AnalyticsParams & { group_by?: string }): Promise<OEETrendReport> {
+  async getOEETrendReport(
+    params?: AnalyticsParams & { group_by?: string },
+  ): Promise<OEETrendReport> {
     const res = await apiClient.get<OEETrendReport>(EP.REPORTS_OEE_TREND, { params });
     return res.data;
   },

@@ -1,40 +1,119 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ClipboardCheck, FileText, Link, Loader2, Play, Send, Shield, Trash2, Warehouse } from 'lucide-react';
-import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
-  Button, Card, CardContent, CardHeader, CardTitle,
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-  Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
-} from '@/shared/components/ui';
+  ArrowLeft,
+  CheckCircle2,
+  ClipboardCheck,
+  FileText,
+  Link,
+  Loader2,
+  Play,
+  Send,
+  Shield,
+  Trash2,
+  Warehouse,
+} from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
-import {
-  useRunDetail, useRunCost, useLabour,
-  useMaterials, useCreateMaterial, useUpdateMaterial,
-  useMachines,
-  useStartProduction, useStopProduction, useAddBreakdown, useResolveBreakdown,
-  useUpdateSegment, useUpdateBreakdownRemarks,
-  useBreakdownCategories,
-  useLineClearances, useWasteLogs, useMachineChecklists,
-} from '../api';
 import { useProductionQCRunSessions } from '@/modules/qc/api/productionQC';
-import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
-import { RunSummaryCards } from '../components/RunSummaryCards';
-import { ProductionTimeline } from '../components/ProductionTimeline';
-import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
-import { MachineTimeTable } from '../components/MachineTimeTable';
-import {
-  addBreakdownSchema, type AddBreakdownFormData,
-  stopProductionSchema, type StopProductionFormData,
-  createMaterialSchema, type CreateMaterialFormData,
-} from '../schemas';
-import type { MachineBreakdown, ProductionSegment } from '../types';
 import { useCreateBOMRequest, useCreateFGReceipt } from '@/modules/warehouse/api';
+import {
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+} from '@/shared/components/ui';
+import { getErrorMessage } from '@/shared/utils/error';
+
+import {
+  useAddBreakdown,
+  useBreakdownCategories,
+  useCreateMaterial,
+  useLabour,
+  useLineClearances,
+  useMachineChecklists,
+  useMachines,
+  useMaterials,
+  useResolveBreakdown,
+  useRunCost,
+  useRunDetail,
+  useStartProduction,
+  useStopProduction,
+  useUpdateBreakdownRemarks,
+  useUpdateMaterial,
+  useUpdateSegment,
+  useWasteLogs,
+} from '../api';
+import { MachineTimeTable } from '../components/MachineTimeTable';
+import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
+import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
+import { ProductionTimeline } from '../components/ProductionTimeline';
+import { RunSummaryCards } from '../components/RunSummaryCards';
+import {
+  type AddBreakdownFormData,
+  addBreakdownSchema,
+  type CreateMaterialFormData,
+  createMaterialSchema,
+  type StopProductionFormData,
+  stopProductionSchema,
+} from '../schemas';
+import type { LineClearance, MachineBreakdown, ProductionSegment } from '../types';
+
+const LINE_CLEARANCE_START_MESSAGE =
+  'Line clearance must be CLEARED by QA before production can start.';
+
+function isClearedForStart(clearance?: LineClearance) {
+  return clearance?.status === 'CLEARED' && clearance.qa_approved;
+}
+
+function getApplicableLineClearance(
+  clearances: LineClearance[],
+  runId: number,
+  lineId: number,
+  runDate: string,
+) {
+  const dateClearances = clearances
+    .filter(
+      (clearance) =>
+        clearance.line === lineId &&
+        clearance.date === runDate &&
+        (clearance.production_run === runId || clearance.production_run === null),
+    )
+    .sort((a, b) => {
+      const bTime = Date.parse(b.updated_at || b.created_at || '') || 0;
+      const aTime = Date.parse(a.updated_at || a.created_at || '') || 0;
+      return bTime - aTime || b.id - a.id;
+    });
+
+  const runSpecificClearance = dateClearances.find(
+    (clearance) => clearance.production_run === runId,
+  );
+
+  if (runSpecificClearance) return runSpecificClearance;
+
+  return (
+    dateClearances.find(
+      (clearance) => clearance.production_run === null && isClearedForStart(clearance),
+    ) ?? dateClearances.find((clearance) => clearance.production_run === null)
+  );
+}
 
 function WarehouseApprovalBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; cls: string }> = {
@@ -46,7 +125,9 @@ function WarehouseApprovalBadge({ status }: { status: string }) {
   };
   const c = config[status] ?? config.NOT_REQUESTED;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.cls}`}>
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${c.cls}`}
+    >
       <Warehouse className="h-3 w-3" />
       {c.label}
     </span>
@@ -68,7 +149,7 @@ function RunDetailPage() {
   const { data: allMachines = [] } = useMachines();
   const runMachines = allMachines.filter((m) => run?.machine_ids?.includes(m.id));
   const { data: breakdownCategories = [] } = useBreakdownCategories();
-  const { data: clearances = [] } = useLineClearances(run?.line);
+  const { data: clearances = [] } = useLineClearances(run?.line, undefined, run?.date, !!run?.line);
   const { data: wasteLogs = [] } = useWasteLogs(numRunId);
   const { data: machineChecklists = [] } = useMachineChecklists(undefined, run?.date);
   const { data: qcSessions = [] } = useProductionQCRunSessions(numRunId || null);
@@ -89,15 +170,28 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const [dialog, setDialog] = useState<'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | null>(null);
+  const [dialog, setDialog] = useState<
+    'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | null
+  >(null);
   const [selectedSegment, setSelectedSegment] = useState<ProductionSegment | null>(null);
   const [selectedBreakdown, setSelectedBreakdown] = useState<MachineBreakdown | null>(null);
   const [editRemarks, setEditRemarks] = useState('');
-  const [editProducedCases, setEditProducedCases] = useState('');
   const isCompleted = run?.status === 'COMPLETED';
   const hasActiveSegment = run?.segments?.some((s) => s.is_active) ?? false;
   const hasActiveBreakdown = run?.breakdowns?.some((b) => b.is_active) ?? false;
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && run?.status === 'IN_PROGRESS';
+  const runClearance = run
+    ? getApplicableLineClearance(clearances, run.id, run.line, run.date)
+    : undefined;
+  const isLineClearedForStart = isClearedForStart(runClearance);
+  const startProductionBlockReason =
+    run?.warehouse_approval_status === 'PENDING'
+      ? 'Cannot start production while warehouse approval is pending.'
+      : run?.warehouse_approval_status === 'REJECTED'
+        ? 'Cannot start production because warehouse approval was rejected.'
+        : !isLineClearedForStart
+          ? LINE_CLEARANCE_START_MESSAGE
+          : undefined;
 
   // ---------------------------------------------------------------------------
   // Breakdown form
@@ -138,9 +232,18 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   // Material form
   // ---------------------------------------------------------------------------
-  const materialForm = useForm<CreateMaterialFormData>({ resolver: zodResolver(createMaterialSchema) });
+  const materialForm = useForm<CreateMaterialFormData>({
+    resolver: zodResolver(createMaterialSchema),
+  });
   const onSubmitMaterial = async (data: CreateMaterialFormData) => {
-    try { await createMaterial.mutateAsync(data); toast.success('Material added'); setDialog(null); materialForm.reset(); } catch { toast.error('Failed to add material'); }
+    try {
+      await createMaterial.mutateAsync(data);
+      toast.success('Material added');
+      setDialog(null);
+      materialForm.reset();
+    } catch {
+      toast.error('Failed to add material');
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -148,15 +251,23 @@ function RunDetailPage() {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleStartProduction = async () => {
+    if (startProductionBlockReason) {
+      toast.error(startProductionBlockReason);
+      return;
+    }
+
     try {
       await startProduction.mutateAsync();
       toast.success('Production started');
-    } catch {
-      toast.error('Failed to start production');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to start production'));
     }
   };
 
-  const handleResolveBreakdown = async (breakdownId: number, action: 'start_production' | 'stop_production' | 'stop_unrecovered') => {
+  const handleResolveBreakdown = async (
+    breakdownId: number,
+    action: 'start_production' | 'stop_production' | 'stop_unrecovered',
+  ) => {
     try {
       await resolveBreakdown.mutateAsync({ breakdownId, data: { action } });
       toast.success('Breakdown resolved');
@@ -168,7 +279,6 @@ function RunDetailPage() {
   const handleSegmentClick = (segment: ProductionSegment) => {
     setSelectedSegment(segment);
     setEditRemarks(segment.remarks || '');
-    setEditProducedCases(segment.produced_cases || '0');
     setDialog('segment-detail');
   };
 
@@ -187,14 +297,18 @@ function RunDetailPage() {
       });
       toast.success('Segment updated');
       setDialog(null);
-    } catch { toast.error('Failed to update segment'); }
+    } catch {
+      toast.error('Failed to update segment');
+    }
   };
 
   const handleUpdateClosingQty = async (materialId: number, closingQty: string) => {
     try {
       await updateMaterial.mutateAsync({ materialId, data: { closing_qty: closingQty } });
       toast.success('Closing qty updated');
-    } catch { toast.error('Failed to update closing qty'); }
+    } catch {
+      toast.error('Failed to update closing qty');
+    }
   };
 
   const handleSaveBreakdownRemarks = async () => {
@@ -206,14 +320,17 @@ function RunDetailPage() {
       });
       toast.success('Breakdown updated');
       setDialog(null);
-    } catch { toast.error('Failed to update breakdown'); }
+    } catch {
+      toast.error('Failed to update breakdown');
+    }
   };
 
   // ---------------------------------------------------------------------------
   // ---------------------------------------------------------------------------
   // Loading / Error states
   // ---------------------------------------------------------------------------
-  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading run details...</div>;
+  if (isLoading)
+    return <div className="p-8 text-center text-muted-foreground">Loading run details...</div>;
   if (!run) return <div className="p-8 text-center text-muted-foreground">Run not found</div>;
 
   return (
@@ -226,13 +343,19 @@ function RunDetailPage() {
           </Button>
           <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-2xl font-bold">Run #{run.run_number}</h2>
-            <ProductionStatusBadge status={
-              isCompleted ? 'COMPLETED' :
-              hasActiveBreakdown ? 'BREAKDOWN' :
-              hasActiveSegment ? 'RUNNING' :
-              run.status === 'IN_PROGRESS' ? 'STOPPED' :
-              run.status
-            } />
+            <ProductionStatusBadge
+              status={
+                isCompleted
+                  ? 'COMPLETED'
+                  : hasActiveBreakdown
+                    ? 'BREAKDOWN'
+                    : hasActiveSegment
+                      ? 'RUNNING'
+                      : run.status === 'IN_PROGRESS'
+                        ? 'STOPPED'
+                        : run.status
+              }
+            />
             <WarehouseApprovalBadge status={run.warehouse_approval_status ?? 'NOT_REQUESTED'} />
           </div>
         </div>
@@ -244,7 +367,8 @@ function RunDetailPage() {
         <div className="flex flex-wrap gap-2">
           {!isCompleted && run.warehouse_approval_status === 'NOT_REQUESTED' && (
             <Button
-              variant="outline" size="sm"
+              variant="outline"
+              size="sm"
               disabled={createBOMRequest.isPending}
               onClick={async () => {
                 const qty = parseFloat(run.required_qty || '0');
@@ -258,35 +382,69 @@ function RunDetailPage() {
                     required_qty: qty,
                   });
                   toast.success('BOM request submitted to warehouse');
-                } catch { /* interceptor handles */ }
+                } catch {
+                  /* interceptor handles */
+                }
               }}
             >
-              {createBOMRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+              {createBOMRequest.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Send className="h-4 w-4 mr-1" />
+              )}
               Submit BOM to Warehouse
             </Button>
           )}
           {!isCompleted && !hasActiveSegment && !hasActiveBreakdown && (
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleStartProduction} disabled={startProduction.isPending || run.warehouse_approval_status === 'PENDING' || run.warehouse_approval_status === 'REJECTED'}>
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleStartProduction}
+              disabled={startProduction.isPending || Boolean(startProductionBlockReason)}
+              title={startProductionBlockReason}
+            >
               <Play className="h-4 w-4 mr-1" /> Start Production
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/yield`)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/production/execution/runs/${run.id}/yield`)}
+          >
             <FileText className="h-4 w-4 mr-1" /> Yield
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/resources`)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/production/execution/runs/${run.id}/resources`)}
+          >
             <Link className="h-4 w-4 mr-1" /> Resources
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/qc/production/runs/${run.id}`)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/qc/production/runs/${run.id}`)}
+          >
             <CheckCircle2 className="h-4 w-4 mr-1" /> QC
           </Button>
           {!isCompleted && (
-            <Button onClick={() => navigate(`/production/execution/runs/${run.id}/yield?complete=true`)} disabled={!canComplete} title={!canComplete ? 'Stop all running segments and resolve all breakdowns first' : undefined}>
+            <Button
+              onClick={() => navigate(`/production/execution/runs/${run.id}/yield?complete=true`)}
+              disabled={!canComplete}
+              title={
+                !canComplete
+                  ? 'Stop all running segments and resolve all breakdowns first'
+                  : undefined
+              }
+            >
               <CheckCircle2 className="h-4 w-4 mr-1" /> Complete Run
             </Button>
           )}
           {isCompleted && (
             <Button
-              variant="outline" size="sm"
+              variant="outline"
+              size="sm"
               disabled={createFGReceipt.isPending}
               onClick={async () => {
                 try {
@@ -295,10 +453,16 @@ function RunDetailPage() {
                     posting_date: run.date,
                   });
                   toast.success('FG receipt created — warehouse notified');
-                } catch { /* interceptor handles */ }
+                } catch {
+                  /* interceptor handles */
+                }
               }}
             >
-              {createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
+              {createFGReceipt.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Warehouse className="h-4 w-4 mr-1" />
+              )}
               Create FG Receipt
             </Button>
           )}
@@ -312,7 +476,13 @@ function RunDetailPage() {
       {(() => {
         const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
         const plannedLabour = run.labour_count;
-        const c = cost ? { labour: parseFloat(cost.labour_cost), total: parseFloat(cost.total_cost), perUnit: parseFloat(cost.per_unit_cost) } : null;
+        const c = cost
+          ? {
+              labour: parseFloat(cost.labour_cost),
+              total: parseFloat(cost.total_cost),
+              perUnit: parseFloat(cost.per_unit_cost),
+            }
+          : null;
         return (
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
             <Card>
@@ -352,13 +522,17 @@ function RunDetailPage() {
             <Card>
               <CardContent className="p-3">
                 <div className="text-xs text-muted-foreground mb-1">Total Cost</div>
-                <p className="text-lg font-bold text-green-600">{c ? `₹${c.total.toLocaleString()}` : '₹0'}</p>
+                <p className="text-lg font-bold text-green-600">
+                  {c ? `₹${c.total.toLocaleString()}` : '₹0'}
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-3">
                 <div className="text-xs text-muted-foreground mb-1">Per Unit Cost</div>
-                <p className="text-lg font-bold">{c && c.perUnit > 0 ? `₹${c.perUnit.toFixed(2)}` : '-'}</p>
+                <p className="text-lg font-bold">
+                  {c && c.perUnit > 0 ? `₹${c.perUnit.toFixed(2)}` : '-'}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -369,15 +543,23 @@ function RunDetailPage() {
       <div className="flex flex-wrap gap-3">
         {/* Line Clearance Status */}
         {(() => {
-          const runClearance = clearances.find(
-            (c) => c.production_run === run.id
-          );
           if (!runClearance) {
             return (
               <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2 text-sm">
                 <Shield className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-800 dark:text-amber-200">Line Clearance: <span className="font-medium">Not Done</span></span>
-                <Button variant="link" size="sm" className="h-auto p-0 text-amber-700" onClick={() => navigate(`/production/execution/line-clearance/create?run_id=${run.id}`)}>Create</Button>
+                <span className="text-amber-800 dark:text-amber-200">
+                  Line Clearance: <span className="font-medium">Not Done</span>
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-amber-700"
+                  onClick={() =>
+                    navigate(`/production/execution/line-clearance/create?run_id=${run.id}`)
+                  }
+                >
+                  Create
+                </Button>
               </div>
             );
           }
@@ -387,12 +569,29 @@ function RunDetailPage() {
             CLEARED: 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800',
             NOT_CLEARED: 'border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800',
           };
-          const statusText = { DRAFT: 'Draft', SUBMITTED: 'Submitted', CLEARED: 'Cleared', NOT_CLEARED: 'Not Cleared' };
+          const statusText = {
+            DRAFT: 'Draft',
+            SUBMITTED: 'Submitted',
+            CLEARED: 'Cleared',
+            NOT_CLEARED: 'Not Cleared',
+          };
           return (
-            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${statusColors[runClearance.status]}`}>
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${statusColors[runClearance.status]}`}
+            >
               <Shield className="h-4 w-4" />
-              <span>Line Clearance: <span className="font-medium">{statusText[runClearance.status]}</span></span>
-              <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/line-clearance/${runClearance.id}`)}>View</Button>
+              <span>
+                Line Clearance:{' '}
+                <span className="font-medium">{statusText[runClearance.status]}</span>
+              </span>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={() => navigate(`/production/execution/line-clearance/${runClearance.id}`)}
+              >
+                View
+              </Button>
             </div>
           );
         })()}
@@ -400,8 +599,15 @@ function RunDetailPage() {
         {/* Waste Logs */}
         <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
           <Trash2 className="h-4 w-4 text-muted-foreground" />
-          <span>Waste Logs: <span className="font-medium">{wasteLogs.length}</span></span>
-          <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}>
+          <span>
+            Waste Logs: <span className="font-medium">{wasteLogs.length}</span>
+          </span>
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto p-0"
+            onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}
+          >
             {wasteLogs.length > 0 ? 'View' : 'Log Waste'}
           </Button>
         </div>
@@ -409,7 +615,11 @@ function RunDetailPage() {
         {/* Machine Checklists */}
         {(() => {
           const runMachineIds = run.machine_ids || [];
-          const checkedMachineIds = new Set(machineChecklists.filter((c) => runMachineIds.includes(c.machine)).map((c) => c.machine));
+          const checkedMachineIds = new Set(
+            machineChecklists
+              .filter((c) => runMachineIds.includes(c.machine))
+              .map((c) => c.machine),
+          );
           const checkedCount = checkedMachineIds.size;
           const totalMachines = runMachineIds.length;
           const allDone = totalMachines > 0 && checkedCount >= totalMachines;
@@ -418,11 +628,25 @@ function RunDetailPage() {
             ? `/production/execution/machine-checklists?machine_id=${firstUnfilledId}&date=${run.date}`
             : `/production/execution/machine-checklists?machine_id=${runMachineIds[0]}&date=${run.date}`;
           return (
-            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${allDone ? 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800' : 'border-gray-200'}`}>
-              <ClipboardCheck className={`h-4 w-4 ${allDone ? 'text-green-600' : 'text-muted-foreground'}`} />
-              <span>Machine Checklists: <span className="font-medium">{checkedCount}/{totalMachines}</span></span>
+            <div
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${allDone ? 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800' : 'border-gray-200'}`}
+            >
+              <ClipboardCheck
+                className={`h-4 w-4 ${allDone ? 'text-green-600' : 'text-muted-foreground'}`}
+              />
+              <span>
+                Machine Checklists:{' '}
+                <span className="font-medium">
+                  {checkedCount}/{totalMachines}
+                </span>
+              </span>
               {totalMachines > 0 && (
-                <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(fillLink)}>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
+                  onClick={() => navigate(fillLink)}
+                >
                   {allDone ? 'View' : 'Fill'}
                 </Button>
               )}
@@ -461,7 +685,12 @@ function RunDetailPage() {
         <TabsContent value="materials">
           <Card>
             <CardContent className="p-4">
-              <MaterialConsumptionTable materials={materials} onAdd={() => setDialog('material')} onUpdateClosingQty={handleUpdateClosingQty} readOnly={isCompleted} />
+              <MaterialConsumptionTable
+                materials={materials}
+                onAdd={() => setDialog('material')}
+                onUpdateClosingQty={handleUpdateClosingQty}
+                readOnly={isCompleted}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -469,7 +698,11 @@ function RunDetailPage() {
         <TabsContent value="runtime">
           <Card>
             <CardContent className="p-4">
-              <MachineTimeTable machines={runMachines} segments={run.segments} breakdowns={run.breakdowns} />
+              <MachineTimeTable
+                machines={runMachines}
+                segments={run.segments}
+                breakdowns={run.breakdowns}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -479,7 +712,11 @@ function RunDetailPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Quality Control Sessions</h3>
-                <Button size="sm" variant="outline" onClick={() => navigate(`/qc/production/runs/${run.id}`)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate(`/qc/production/runs/${run.id}`)}
+                >
                   Open QC Page
                 </Button>
               </div>
@@ -509,33 +746,43 @@ function RunDetailPage() {
                       >
                         <td className="p-2 font-medium">#{s.session_number}</td>
                         <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.session_type === 'FINAL'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                              : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                              s.session_type === 'FINAL'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                                : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
+                            }`}
+                          >
                             {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
                           </span>
                         </td>
                         <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
-                        <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
-                        <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
+                        <td className="p-2 text-muted-foreground text-xs">
+                          {new Date(s.checked_at).toLocaleString()}
+                        </td>
+                        <td className="p-2 text-center">
+                          {s.pass_count}/{s.total_params}
+                        </td>
                         <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.workflow_status === 'SUBMITTED'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                              s.workflow_status === 'SUBMITTED'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                            }`}
+                          >
                             {s.workflow_status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
                           </span>
                         </td>
                         <td className="p-2">
                           {s.overall_result ? (
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                              s.overall_result === 'PASS'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                            }`}>
+                            <span
+                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                s.overall_result === 'PASS'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              }`}
+                            >
                               {s.overall_result}
                             </span>
                           ) : (
@@ -550,23 +797,34 @@ function RunDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
       </Tabs>
 
       {/* Add Breakdown Dialog */}
       <Dialog open={dialog === 'breakdown'} onOpenChange={() => setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Breakdown</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Breakdown</DialogTitle>
+          </DialogHeader>
           <form onSubmit={breakdownForm.handleSubmit(onSubmitBreakdown)} className="space-y-4">
             <div>
               <Label>Breakdown Type</Label>
-              <Select onValueChange={(v) => breakdownForm.setValue('breakdown_category_id', Number(v))}>
-                <SelectTrigger><SelectValue placeholder="Select breakdown type" /></SelectTrigger>
+              <Select
+                onValueChange={(v) => breakdownForm.setValue('breakdown_category_id', Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select breakdown type" />
+                </SelectTrigger>
                 <SelectContent>
                   {breakdownCategories.length === 0 ? (
-                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">No breakdown categories found.</div>
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No breakdown categories found.
+                    </div>
                   ) : (
-                    breakdownCategories.map((c) => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))
+                    breakdownCategories.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
@@ -574,22 +832,43 @@ function RunDetailPage() {
             <div>
               <Label>Machine</Label>
               <Select onValueChange={(v) => breakdownForm.setValue('machine_id', Number(v))}>
-                <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select machine" />
+                </SelectTrigger>
                 <SelectContent>
                   {runMachines.length === 0 ? (
-                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">No machines assigned to this run.</div>
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No machines assigned to this run.
+                    </div>
                   ) : (
-                    runMachines.map((m) => (<SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>))
+                    runMachines.map((m) => (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        {m.name}
+                      </SelectItem>
+                    ))
                   )}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Reason</Label><Input {...breakdownForm.register('reason')} /></div>
-            <div><Label>Cases Produced</Label><Input type="number" {...breakdownForm.register('produced_cases')} /></div>
-            <div><Label>Remarks</Label><Textarea {...breakdownForm.register('remarks')} /></div>
+            <div>
+              <Label>Reason</Label>
+              <Input {...breakdownForm.register('reason')} />
+            </div>
+            <div>
+              <Label>Cases Produced</Label>
+              <Input type="number" {...breakdownForm.register('produced_cases')} />
+            </div>
+            <div>
+              <Label>Remarks</Label>
+              <Textarea {...breakdownForm.register('remarks')} />
+            </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
-              <Button type="submit" disabled={addBreakdown.isPending}>{addBreakdown.isPending ? 'Saving...' : 'Add Breakdown'}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={addBreakdown.isPending}>
+                {addBreakdown.isPending ? 'Saving...' : 'Add Breakdown'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -598,22 +877,33 @@ function RunDetailPage() {
       {/* Stop Production Dialog */}
       <Dialog open={dialog === 'stop'} onOpenChange={() => setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Stop Production</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Stop Production</DialogTitle>
+          </DialogHeader>
           <form onSubmit={stopForm.handleSubmit(onSubmitStop)} className="space-y-4">
             <p className="text-sm text-muted-foreground">
               How many cases were produced in this running period?
             </p>
             <div>
               <Label>Cases Produced</Label>
-              <Input type="number" step="0.1" {...stopForm.register('produced_cases')} placeholder="0" />
+              <Input
+                type="number"
+                step="0.1"
+                {...stopForm.register('produced_cases')}
+                placeholder="0"
+              />
             </div>
             <div>
               <Label>Remarks</Label>
               <Textarea {...stopForm.register('remarks')} placeholder="Optional remarks..." />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
-              <Button type="submit" disabled={stopProduction.isPending}>{stopProduction.isPending ? 'Stopping...' : 'Stop Production'}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={stopProduction.isPending}>
+                {stopProduction.isPending ? 'Stopping...' : 'Stop Production'}
+              </Button>
             </div>
           </form>
         </DialogContent>
@@ -622,17 +912,25 @@ function RunDetailPage() {
       {/* Segment Detail Dialog */}
       <Dialog open={dialog === 'segment-detail'} onOpenChange={() => setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Running Segment</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Running Segment</DialogTitle>
+          </DialogHeader>
           {selectedSegment && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Start Time</span>
-                  <p className="font-medium">{new Date(selectedSegment.start_time).toLocaleString()}</p>
+                  <p className="font-medium">
+                    {new Date(selectedSegment.start_time).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">End Time</span>
-                  <p className="font-medium">{selectedSegment.end_time ? new Date(selectedSegment.end_time).toLocaleString() : 'Running...'}</p>
+                  <p className="font-medium">
+                    {selectedSegment.end_time
+                      ? new Date(selectedSegment.end_time).toLocaleString()
+                      : 'Running...'}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Duration</span>
@@ -651,10 +949,16 @@ function RunDetailPage() {
               )}
               <div>
                 <Label>Remarks</Label>
-                <Textarea value={editRemarks} onChange={(e) => setEditRemarks(e.target.value)} placeholder="Add remarks..." />
+                <Textarea
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                  placeholder="Add remarks..."
+                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setDialog(null)}>
+                  Cancel
+                </Button>
                 <Button onClick={handleSaveSegmentRemarks} disabled={updateSegment.isPending}>
                   {updateSegment.isPending ? 'Saving...' : 'Save'}
                 </Button>
@@ -667,13 +971,17 @@ function RunDetailPage() {
       {/* Breakdown Detail Dialog */}
       <Dialog open={dialog === 'breakdown-detail'} onOpenChange={() => setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Breakdown Details</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Breakdown Details</DialogTitle>
+          </DialogHeader>
           {selectedBreakdown && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Machine</span>
-                  <p className="font-medium">{selectedBreakdown.machine_name || `#${selectedBreakdown.machine}`}</p>
+                  <p className="font-medium">
+                    {selectedBreakdown.machine_name || `#${selectedBreakdown.machine}`}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Type</span>
@@ -681,11 +989,17 @@ function RunDetailPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Start Time</span>
-                  <p className="font-medium">{new Date(selectedBreakdown.start_time).toLocaleString()}</p>
+                  <p className="font-medium">
+                    {new Date(selectedBreakdown.start_time).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">End Time</span>
-                  <p className="font-medium">{selectedBreakdown.end_time ? new Date(selectedBreakdown.end_time).toLocaleString() : 'Ongoing...'}</p>
+                  <p className="font-medium">
+                    {selectedBreakdown.end_time
+                      ? new Date(selectedBreakdown.end_time).toLocaleString()
+                      : 'Ongoing...'}
+                  </p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Duration</span>
@@ -698,11 +1012,20 @@ function RunDetailPage() {
               </div>
               <div>
                 <Label>Remarks</Label>
-                <Textarea value={editRemarks} onChange={(e) => setEditRemarks(e.target.value)} placeholder="Add remarks..." />
+                <Textarea
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                  placeholder="Add remarks..."
+                />
               </div>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
-                <Button onClick={handleSaveBreakdownRemarks} disabled={updateBreakdownRemarks.isPending}>
+                <Button variant="outline" onClick={() => setDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveBreakdownRemarks}
+                  disabled={updateBreakdownRemarks.isPending}
+                >
                   {updateBreakdownRemarks.isPending ? 'Saving...' : 'Save'}
                 </Button>
               </div>
@@ -714,28 +1037,49 @@ function RunDetailPage() {
       {/* Material Dialog */}
       <Dialog open={dialog === 'material'} onOpenChange={() => setDialog(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Material</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add Material</DialogTitle>
+          </DialogHeader>
           <form onSubmit={materialForm.handleSubmit(onSubmitMaterial)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Material Code</Label><Input {...materialForm.register('material_code')} /></div>
-              <div><Label>Material Name</Label><Input {...materialForm.register('material_name')} /></div>
+              <div>
+                <Label>Material Code</Label>
+                <Input {...materialForm.register('material_code')} />
+              </div>
+              <div>
+                <Label>Material Name</Label>
+                <Input {...materialForm.register('material_name')} />
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div><Label>Opening Qty</Label><Input {...materialForm.register('opening_qty')} /></div>
-              <div><Label>Issued Qty</Label><Input {...materialForm.register('issued_qty')} /></div>
-              <div><Label>Closing Qty</Label><Input {...materialForm.register('closing_qty')} placeholder="Optional" /></div>
+              <div>
+                <Label>Opening Qty</Label>
+                <Input {...materialForm.register('opening_qty')} />
+              </div>
+              <div>
+                <Label>Issued Qty</Label>
+                <Input {...materialForm.register('issued_qty')} />
+              </div>
+              <div>
+                <Label>Closing Qty</Label>
+                <Input {...materialForm.register('closing_qty')} placeholder="Optional" />
+              </div>
             </div>
             <div>
-              <Label>UoM</Label><Input {...materialForm.register('uom')} />
+              <Label>UoM</Label>
+              <Input {...materialForm.register('uom')} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
-              <Button type="submit" disabled={createMaterial.isPending}>{createMaterial.isPending ? 'Saving...' : 'Add Material'}</Button>
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createMaterial.isPending}>
+                {createMaterial.isPending ? 'Saving...' : 'Add Material'}
+              </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }
