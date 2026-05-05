@@ -55,6 +55,8 @@ export interface LineSkuConfig {
   rated_speed: string | null;
   labour_count: number;
   other_manpower_count: number;
+  electricity_cost_per_unit: string | null;
+  labour_cost_per_hour: string | null;
   supervisor: string;
   operators: string;
   is_active: boolean;
@@ -70,6 +72,8 @@ export interface CreateLineSkuConfigPayload {
   rated_speed?: string | number | null;
   labour_count?: number;
   other_manpower_count?: number;
+  electricity_cost_per_unit?: string | number | null;
+  labour_cost_per_hour?: string | number | null;
   supervisor?: string;
   operators?: string;
 }
@@ -81,6 +85,8 @@ export interface UpdateLineSkuConfigPayload {
   rated_speed?: string | number | null;
   labour_count?: number;
   other_manpower_count?: number;
+  electricity_cost_per_unit?: string | number | null;
+  labour_cost_per_hour?: string | number | null;
   supervisor?: string;
   operators?: string;
 }
@@ -181,6 +187,8 @@ export interface ProductionRun {
   product: string;
   required_qty: string | null;
   rated_speed: string;
+  electricity_cost_per_unit: string | null;
+  labour_cost_per_hour: string | null;
   total_production: string;
   total_running_minutes: number;
   total_breakdown_time: number;
@@ -640,6 +648,8 @@ export interface CreateRunRequest {
   product?: string;
   required_qty?: number | null;
   rated_speed?: string;
+  electricity_cost_per_unit?: string;
+  labour_cost_per_hour?: string;
   machine_ids?: number[];
   labour_count?: number;
   other_manpower_count?: number;
@@ -651,6 +661,8 @@ export interface CreateRunRequest {
 export interface UpdateRunRequest {
   product?: string;
   rated_speed?: string;
+  electricity_cost_per_unit?: string;
+  labour_cost_per_hour?: string;
   machine_ids?: number[];
   labour_count?: number;
   other_manpower_count?: number;
