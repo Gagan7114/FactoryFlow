@@ -1,7 +1,16 @@
 import { Pencil } from 'lucide-react';
 import { useState } from 'react';
 
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label } from '@/shared/components/ui';
+import {
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from '@/shared/components/ui';
 
 import type { MaterialUsage } from '../types';
 
@@ -9,9 +18,7 @@ interface MaterialConsumptionTableProps {
   materials: MaterialUsage[];
   onUpdateClosingQty?: (materialId: number, closingQty: string) => void;
   readOnly?: boolean;
-  /** Actual production cases (from segments or final total) */
   actualProduction?: number;
-  /** BOM target quantity (required_qty on the run) */
   requiredQty?: number;
 }
 
@@ -44,10 +51,63 @@ function getConsumptionValues(material: MaterialUsage) {
 function calcExpectedClosing(m: MaterialUsage, actualProduction: number, requiredQty: number): number | null {
   if (requiredQty <= 0) return null;
   const opening = toNumber(m.opening_qty);
-  const issued = toNumber(m.issued_qty);
   const bomQuantity = toNumber(m.bom_quantity ?? m.opening_qty);
   const expectedConsumed = (actualProduction / requiredQty) * bomQuantity;
-  return opening + issued - expectedConsumed;
+  return opening - expectedConsumed;
+}
+
+function getWarehouseApprovalDisplay(m: MaterialUsage) {
+  if (!m.warehouse_request_id) {
+    return {
+      className: 'bg-slate-50 text-slate-600 border-slate-200',
+      detail: '',
+      label: 'Not Requested',
+    };
+  }
+
+  if (!m.warehouse_line_status) {
+    return {
+      className: 'bg-slate-50 text-slate-600 border-slate-200',
+      detail: 'Not in request',
+      label: m.warehouse_request_status?.replace(/_/g, ' ') ?? 'Submitted',
+    };
+  }
+
+  const requested = parseFloat(m.warehouse_requested_qty || m.opening_qty || '0');
+  const approved = parseFloat(m.warehouse_approved_qty || '0');
+  const qtyDetail = m.warehouse_line_status === 'PENDING'
+    ? ''
+    : `${approved.toLocaleString()} / ${requested.toLocaleString()} ${m.uom}`;
+
+  if (m.warehouse_line_status === 'REJECTED') {
+    return {
+      className: 'bg-red-50 text-red-700 border-red-200',
+      detail: qtyDetail,
+      label: 'Rejected',
+    };
+  }
+
+  if (m.warehouse_line_status === 'PENDING') {
+    return {
+      className: 'bg-amber-50 text-amber-700 border-amber-200',
+      detail: '',
+      label: 'Pending',
+    };
+  }
+
+  if (approved < requested) {
+    return {
+      className: 'bg-amber-50 text-amber-700 border-amber-200',
+      detail: qtyDetail,
+      label: 'Partially Approved',
+    };
+  }
+
+  return {
+    className: 'bg-green-50 text-green-700 border-green-200',
+    detail: qtyDetail,
+    label: 'Approved',
+  };
 }
 
 export function MaterialConsumptionTable({
@@ -63,6 +123,7 @@ export function MaterialConsumptionTable({
 
   const canCalcExpected = actualProduction != null && actualProduction > 0 && requiredQty != null && requiredQty > 0;
   const showExpected = canCalcExpected;
+  const columnCount = 9 + (showExpected ? 1 : 0) + (!readOnly && onUpdateClosingQty ? 1 : 0);
 
   const openEdit = (m: MaterialUsage) => {
     setEditingMaterial(m);
@@ -85,24 +146,22 @@ export function MaterialConsumptionTable({
     setClosingValue('');
   };
 
-  const columnCount = (showExpected ? 10 : 9) + (!readOnly && onUpdateClosingQty ? 1 : 0);
-
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold">Material Consumption</h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-sm">
+        <table className="w-full min-w-[1120px] text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
               <th className="text-left p-2 font-medium">Code</th>
               <th className="text-left p-2 font-medium">Material</th>
+              <th className="text-left p-2 font-medium">Warehouse Approval</th>
               <th className="text-right p-2 font-medium">BOM Qty</th>
               <th className="text-right p-2 font-medium">Wastage %</th>
               <th className="text-right p-2 font-medium">Wastage Qty</th>
               <th className="text-right p-2 font-medium">Final Consumption</th>
-              <th className="text-right p-2 font-medium">Issued</th>
               {showExpected && <th className="text-right p-2 font-medium">Expected Closing</th>}
               <th className="text-right p-2 font-medium">Closing</th>
               <th className="text-left p-2 font-medium">UoM</th>
@@ -114,11 +173,22 @@ export function MaterialConsumptionTable({
               const closingEmpty = !m.closing_qty || toNumber(m.closing_qty) === 0;
               const expected = showExpected ? calcExpectedClosing(m, actualProduction!, requiredQty!) : null;
               const consumption = getConsumptionValues(m);
+              const approval = getWarehouseApprovalDisplay(m);
 
               return (
                 <tr key={m.id} className="border-b hover:bg-muted/30">
                   <td className="p-2 font-mono text-xs">{m.material_code}</td>
                   <td className="p-2">{m.material_name}</td>
+                  <td className="p-2">
+                    <Badge variant="outline" className={approval.className}>
+                      {approval.label}
+                    </Badge>
+                    {approval.detail && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {approval.detail}
+                      </div>
+                    )}
+                  </td>
                   <td className="p-2 text-right">{formatQuantity(consumption.bomQuantity)}</td>
                   <td className="p-2 text-right">{formatPercentage(consumption.wastagePercentage)}%</td>
                   <td className="p-2 text-right text-red-600 dark:text-red-400">
@@ -127,7 +197,6 @@ export function MaterialConsumptionTable({
                   <td className="p-2 text-right font-medium">
                     {formatQuantity(consumption.finalConsumptionQuantity)}
                   </td>
-                  <td className="p-2 text-right">{formatQuantity(m.issued_qty)}</td>
                   {showExpected && (
                     <td className="p-2 text-right text-muted-foreground">
                       {expected != null ? expected.toFixed(3) : '-'}
@@ -197,10 +266,6 @@ export function MaterialConsumptionTable({
                   <div>
                     <span className="text-muted-foreground">Final Consumption</span>
                     <p className="font-medium">{formatQuantity(editingConsumption.finalConsumptionQuantity)}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Issued Qty</span>
-                    <p className="font-medium">{formatQuantity(editingMaterial.issued_qty)}</p>
                   </div>
                   {expected != null && (
                     <div>

@@ -176,7 +176,8 @@ function ResourceTrackingPage() {
   const electricityCostPerUnit =
     activeEditedCosts?.electricity ?? run?.electricity_cost_per_unit ?? '';
   const labourCostPerHour = activeEditedCosts?.labour ?? run?.labour_cost_per_hour ?? '';
-  const labourCount = run?.labour_count ?? 0;
+  const actualLabourCount = labour.reduce((sum, entry) => sum + entry.worker_count, 0);
+  const labourCount = actualLabourCount || run?.labour_count || 0;
   const totalLabourCostPerHour = labourCount * parseCost(labourCostPerHour);
   const hasManualResourceCosts =
     activeEditedCosts?.electricity !== undefined || activeEditedCosts?.labour !== undefined;

@@ -289,6 +289,12 @@ export interface MaterialUsage {
   wastage_quantity?: string;
   final_consumption_quantity?: string;
   uom: string;
+  warehouse_request_id?: number | null;
+  warehouse_request_status?: 'PENDING' | 'APPROVED' | 'PARTIALLY_APPROVED' | 'REJECTED' | null;
+  warehouse_line_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  warehouse_requested_qty?: string | null;
+  warehouse_approved_qty?: string | null;
+  warehouse_available_stock?: string | null;
   created_at: string;
   updated_at: string;
 }

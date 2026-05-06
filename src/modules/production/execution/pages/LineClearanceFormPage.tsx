@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Send, XCircle } from 'lucide-react';
+import { ArrowLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
@@ -10,12 +10,9 @@ import {
   Switch,
 } from '@/shared/components/ui';
 
-import { useHasPermission } from '@/core/auth/hooks/usePermission';
-import { EXECUTION_PERMISSIONS } from '@/config/permissions/production.permissions';
-
 import {
   useCreateLineClearance, useLineClearanceDetail, useUpdateLineClearance,
-  useSubmitLineClearance, useApproveLineClearance, useLines, useRunDetail,
+  useSubmitLineClearance, useLines, useRunDetail,
 } from '../api';
 import { ClearanceStatusBadge } from '../components/ClearanceStatusBadge';
 
@@ -34,9 +31,6 @@ function LineClearanceFormPage() {
   const createClearance = useCreateLineClearance();
   const updateClearance = useUpdateLineClearance(numId || 0);
   const submitClearance = useSubmitLineClearance(numId || 0);
-  const approveClearance = useApproveLineClearance(numId || 0);
-
-  const canApproveQA = useHasPermission(EXECUTION_PERMISSIONS.APPROVE_CLEARANCE_QA);
 
   const [lineId, setLineId] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -80,13 +74,6 @@ function LineClearanceFormPage() {
     }
   };
 
-  const handleApprove = async (approved: boolean) => {
-    try {
-      await approveClearance.mutateAsync({ approved });
-      toast.success(approved ? 'Clearance approved' : 'Clearance rejected');
-    } catch { toast.error('Failed to update approval'); }
-  };
-
   if (!isNew && isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
 
   return (
@@ -101,47 +88,45 @@ function LineClearanceFormPage() {
             title="New Line Clearance"
             description={linkedRun ? `For Run #${linkedRun.run_number} — ${linkedRun.line_name} — ${linkedRun.product}` : 'Create a pre-production line clearance checklist'}
           />
-          <Card className="max-w-lg">
-            <CardContent className="p-6 space-y-4">
-              {linkedRun ? (
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Production Run</span>
-                    <p className="font-medium">Run #{linkedRun.run_number}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Product</span>
-                    <p className="font-medium">{linkedRun.product}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Line</span>
-                    <p className="font-medium">{linkedRun.line_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Date</span>
-                    <p className="font-medium">{linkedRun.date}</p>
-                  </div>
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4 border-y py-4">
+            {linkedRun ? (
+              <>
+                <div className="min-w-[8rem]">
+                  <span className="text-sm text-muted-foreground">Production Run</span>
+                  <p className="font-medium">Run #{linkedRun.run_number}</p>
                 </div>
-              ) : (
-                <>
-                  <div>
-                    <Label>Production Line</Label>
-                    <Select onValueChange={(v) => setLineId(Number(v))}>
-                      <SelectTrigger><SelectValue placeholder="Select line" /></SelectTrigger>
-                      <SelectContent>{lines?.map((l) => (<SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>))}</SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Date</Label>
-                    <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-                  </div>
-                </>
-              )}
-              <Button onClick={handleCreate} disabled={(!linkedRun && !lineId) || createClearance.isPending}>
-                {createClearance.isPending ? 'Creating...' : 'Create Clearance'}
-              </Button>
-            </CardContent>
-          </Card>
+                <div className="min-w-[16rem] flex-1">
+                  <span className="text-sm text-muted-foreground">Product</span>
+                  <p className="font-medium">{linkedRun.product}</p>
+                </div>
+                <div className="min-w-[8rem]">
+                  <span className="text-sm text-muted-foreground">Line</span>
+                  <p className="font-medium">{linkedRun.line_name}</p>
+                </div>
+                <div className="min-w-[8rem]">
+                  <span className="text-sm text-muted-foreground">Date</span>
+                  <p className="font-medium">{linkedRun.date}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="min-w-[16rem]">
+                  <Label>Production Line</Label>
+                  <Select onValueChange={(v) => setLineId(Number(v))}>
+                    <SelectTrigger><SelectValue placeholder="Select line" /></SelectTrigger>
+                    <SelectContent>{lines?.map((l) => (<SelectItem key={l.id} value={String(l.id)}>{l.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-[12rem]">
+                  <Label>Date</Label>
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+              </>
+            )}
+            <Button onClick={handleCreate} disabled={(!linkedRun && !lineId) || createClearance.isPending}>
+              {createClearance.isPending ? 'Creating...' : 'Create Clearance'}
+            </Button>
+          </div>
         </>
       ) : clearance ? (
         <>
@@ -221,17 +206,7 @@ function LineClearanceFormPage() {
                 {submitClearance.isPending ? 'Submitting...' : 'Submit for QA Approval'}
               </Button>
             )}
-            {clearance.status === 'SUBMITTED' && canApproveQA && (
-              <>
-                <Button variant="destructive" onClick={() => handleApprove(false)} disabled={approveClearance.isPending}>
-                  <XCircle className="h-4 w-4 mr-1" /> Reject
-                </Button>
-                <Button onClick={() => handleApprove(true)} disabled={approveClearance.isPending}>
-                  <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
-                </Button>
-              </>
-            )}
-            {clearance.status === 'SUBMITTED' && !canApproveQA && (
+            {clearance.status === 'SUBMITTED' && (
               <p className="text-sm text-muted-foreground italic">Waiting for QA approval</p>
             )}
             {clearance.status === 'CLEARED' && (

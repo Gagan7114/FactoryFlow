@@ -17,7 +17,7 @@ export const WAREHOUSE_QUERY_KEYS = {
   all: ['warehouse'] as const,
   bomRequests: (status?: string) => [...WAREHOUSE_QUERY_KEYS.all, 'bom-requests', { status }] as const,
   bomRequestDetail: (id: number) => [...WAREHOUSE_QUERY_KEYS.all, 'bom-request', id] as const,
-  fgReceipts: (status?: string) => [...WAREHOUSE_QUERY_KEYS.all, 'fg-receipts', { status }] as const,
+  fgReceipts: (status?: string, productionRunId?: number) => [...WAREHOUSE_QUERY_KEYS.all, 'fg-receipts', { status, productionRunId }] as const,
   fgReceiptDetail: (id: number) => [...WAREHOUSE_QUERY_KEYS.all, 'fg-receipt', id] as const,
 };
 
@@ -108,10 +108,18 @@ export function useStockCheck(itemCodes: string[], enabled = false) {
 // FG Receipt Queries
 // ============================================================================
 
-export function useFGReceipts(status?: string) {
+export function useFGReceipts(
+  status?: string,
+  productionRunId?: number,
+  enabled: boolean = true,
+) {
   return useQuery({
-    queryKey: WAREHOUSE_QUERY_KEYS.fgReceipts(status),
-    queryFn: () => warehouseApi.getFGReceipts(status ? { status } : undefined),
+    queryKey: WAREHOUSE_QUERY_KEYS.fgReceipts(status, productionRunId),
+    queryFn: () => warehouseApi.getFGReceipts({
+      ...(status ? { status } : {}),
+      ...(productionRunId ? { production_run_id: productionRunId } : {}),
+    }),
+    enabled,
   });
 }
 

@@ -1,39 +1,71 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, FileText, Link, Loader2, Pencil, Play, Plus, Send, Shield, Trash2, Warehouse } from 'lucide-react';
-import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
-  Button, Card, CardContent, CardHeader, CardTitle,
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Link,
+  Loader2,
+  Pencil,
+  Play,
+  Plus,
+  Send,
+  Shield,
+  Trash2,
+  Warehouse,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import { useWarehouses } from '@/modules/grpo/api';
+import type { Warehouse as SAPWarehouse } from '@/modules/grpo/types';
+import { useProductionQCRunSessions } from '@/modules/qc/api/productionQC';
+import { useCreateBOMRequest, useCreateFGReceipt, useFGReceipts } from '@/modules/warehouse/api';
+import type { FGReceipt } from '@/modules/warehouse/types';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import {
+  Button, Card, CardContent,
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@/shared/components/ui';
 
 import {
-  useRunDetail, useRunCost, useLabour, useCreateLabour, useUpdateLabour, useDeleteLabour,
-  useMaterials, useCreateMaterial, useUpdateMaterial,
-  useStartProduction, useStopProduction, useAddBreakdown, useResolveBreakdown,
-  useUpdateSegment, useUpdateBreakdownRemarks,
+  useAddBreakdown,
   useBreakdownCategories,
-  useLineClearances, useWasteLogs,
+  useCreateLabour,
+  useCreateMaterial,
+  useDeleteLabour,
+  useLabour,
+  useLineClearances,
+  useMaterials,
+  useResolveBreakdown,
+  useRunCost,
+  useRunDetail,
+  useStartProduction,
+  useStopProduction,
+  useUpdateBreakdownRemarks,
+  useUpdateLabour,
+  useUpdateMaterial,
+  useUpdateSegment,
+  useWasteLogs,
 } from '../api';
-import { useProductionQCRunSessions } from '@/modules/qc/api/productionQC';
-import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
-import { RunSummaryCards } from '../components/RunSummaryCards';
-import { ProductionTimeline } from '../components/ProductionTimeline';
 import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
+import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
+import { ProductionTimeline } from '../components/ProductionTimeline';
+import { RunSummaryCards } from '../components/RunSummaryCards';
 import {
-  addBreakdownSchema, type AddBreakdownFormData,
-  stopProductionSchema, type StopProductionFormData,
-  createMaterialSchema, type CreateMaterialFormData,
-  createLabourSchema, type CreateLabourFormData,
+  type AddBreakdownFormData,
+  addBreakdownSchema,
+  type CreateLabourFormData,
+  createLabourSchema,
+  type CreateMaterialFormData,
+  createMaterialSchema,
+  type StopProductionFormData,
+  stopProductionSchema,
 } from '../schemas';
 import type { MachineBreakdown, ProductionSegment, ResourceLabour } from '../types';
-import { useCreateBOMRequest, useCreateFGReceipt } from '@/modules/warehouse/api';
 
 function WarehouseApprovalBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; cls: string }> = {
@@ -52,6 +84,14 @@ function WarehouseApprovalBadge({ status }: { status: string }) {
   );
 }
 
+function getFGReceiptButtonLabel(receipt?: FGReceipt) {
+  if (!receipt) return 'Create FG Receipt';
+  if (receipt.status === 'PENDING') return 'Edit FG Receipt';
+  if (receipt.status === 'RECEIVED') return 'FG Receipt Received';
+  if (receipt.status === 'SAP_POSTED') return 'FG Posted to SAP';
+  return 'FG Receipt Locked';
+}
+
 function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
@@ -61,7 +101,7 @@ function RunDetailPage() {
   // Data hooks
   // ---------------------------------------------------------------------------
   const { data: run, isLoading } = useRunDetail(numRunId || null);
-  const { data: materials = [] } = useMaterials(numRunId);
+  const { data: materials = [], refetch: refetchMaterials } = useMaterials(numRunId);
   const { data: cost } = useRunCost(numRunId);
   const { data: labourEntries = [] } = useLabour(numRunId);
   const { data: breakdownCategories = [] } = useBreakdownCategories();
@@ -69,6 +109,11 @@ function RunDetailPage() {
   const { data: wasteLogs = [] } = useWasteLogs(numRunId);
 
   const { data: qcSessions = [] } = useProductionQCRunSessions(numRunId || null);
+  const { data: fgReceipts = [], isLoading: fgReceiptsLoading } = useFGReceipts(
+    undefined,
+    numRunId || undefined,
+    !!numRunId && run?.status === 'COMPLETED',
+  );
 
   // ---------------------------------------------------------------------------
   // Mutations
@@ -86,20 +131,50 @@ function RunDetailPage() {
   const removeLabour = useDeleteLabour(numRunId);
   const createBOMRequest = useCreateBOMRequest();
   const createFGReceipt = useCreateFGReceipt();
+
+  useEffect(() => {
+    if (
+      run?.warehouse_approval_status &&
+      run.warehouse_approval_status !== 'NOT_REQUESTED'
+    ) {
+      void refetchMaterials();
+    }
+  }, [refetchMaterials, run?.warehouse_approval_status]);
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const [dialog, setDialog] = useState<'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | 'labour' | null>(null);
+  const [dialog, setDialog] = useState<'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | 'labour' | 'fg-receipt' | null>(null);
   const [editingLabour, setEditingLabour] = useState<ResourceLabour | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<ProductionSegment | null>(null);
   const [selectedBreakdown, setSelectedBreakdown] = useState<MachineBreakdown | null>(null);
   const [editRemarks, setEditRemarks] = useState('');
-  const [editProducedCases, setEditProducedCases] = useState('');
+  const [selectedFGWarehouse, setSelectedFGWarehouse] = useState('');
+  const [fgWarehouseError, setFGWarehouseError] = useState('');
+  const { data: fgWarehouses = [], isLoading: fgWarehousesLoading, isError: fgWarehousesError } = useWarehouses(dialog === 'fg-receipt');
   const isCompleted = run?.status === 'COMPLETED';
+  const lockedFGReceipt = fgReceipts.find((receipt) =>
+    receipt.status !== 'PENDING' || Boolean(receipt.received_at)
+  );
+  const editableFGReceipt = fgReceipts.find((receipt) =>
+    receipt.status === 'PENDING' && !receipt.received_at
+  );
+  const existingFGReceipt = lockedFGReceipt || editableFGReceipt;
+  const canEditFGReceipt = !lockedFGReceipt;
   const hasActiveSegment = run?.segments?.some((s) => s.is_active) ?? false;
   const hasActiveBreakdown = run?.breakdowns?.some((b) => b.is_active) ?? false;
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && run?.status === 'IN_PROGRESS';
-  const hasClearedClearance = clearances.some((c) => c.production_run === run?.id && c.status === 'CLEARED');
+  const runClearance = clearances.find((c) => c.production_run === run?.id);
+  const hasClearedClearance = runClearance?.status === 'CLEARED';
+  const startProductionBlockReason =
+    run?.warehouse_approval_status === 'NOT_REQUESTED'
+      ? 'Submit the BOM request to warehouse before starting production.'
+      : run?.warehouse_approval_status === 'PENDING'
+        ? 'Cannot start production while warehouse approval is pending.'
+        : run?.warehouse_approval_status === 'REJECTED'
+          ? 'Cannot start production because warehouse approval was rejected.'
+          : !hasClearedClearance
+            ? 'Cannot start production — line clearance has not been approved by QA.'
+            : undefined;
 
   // ---------------------------------------------------------------------------
   // Breakdown form
@@ -164,8 +239,8 @@ function RunDetailPage() {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleStartProduction = async () => {
-    if (!hasClearedClearance) {
-      toast.error('Cannot start production — line clearance has not been approved by QA.');
+    if (startProductionBlockReason) {
+      toast.error(startProductionBlockReason);
       return;
     }
     try {
@@ -188,7 +263,6 @@ function RunDetailPage() {
   const handleSegmentClick = (segment: ProductionSegment) => {
     setSelectedSegment(segment);
     setEditRemarks(segment.remarks || '');
-    setEditProducedCases(segment.produced_cases || '0');
     setDialog('segment-detail');
   };
 
@@ -217,6 +291,25 @@ function RunDetailPage() {
     } catch { toast.error('Failed to update closing qty'); }
   };
 
+  const handleCreateFGReceipt = async () => {
+    if (!selectedFGWarehouse) {
+      setFGWarehouseError('Select a warehouse');
+      return;
+    }
+    try {
+      const wasEditing = Boolean(editableFGReceipt);
+      await createFGReceipt.mutateAsync({
+        production_run_id: run.id,
+        posting_date: run.date,
+        warehouse: selectedFGWarehouse,
+      });
+      toast.success(wasEditing ? 'FG receipt updated' : 'FG receipt created - warehouse notified');
+      setDialog(null);
+      setSelectedFGWarehouse('');
+      setFGWarehouseError('');
+    } catch { /* interceptor handles */ }
+  };
+
   const handleSaveBreakdownRemarks = async () => {
     if (!selectedBreakdown) return;
     try {
@@ -235,6 +328,15 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading run details...</div>;
   if (!run) return <div className="p-8 text-center text-muted-foreground">Run not found</div>;
+
+  const clearanceStatusText = runClearance
+    ? {
+        DRAFT: 'Draft',
+        SUBMITTED: 'Submitted',
+        CLEARED: 'Cleared',
+        NOT_CLEARED: 'Not Cleared',
+      }[runClearance.status] ?? runClearance.status
+    : 'Not Done';
 
   return (
     <div className="space-y-6">
@@ -262,9 +364,22 @@ function RunDetailPage() {
           {run.sap_doc_entry && <> &middot; SAP DocEntry: {run.sap_doc_entry}</>}
         </p>
         <div className="flex flex-wrap gap-2">
+          {!isCompleted && !hasActiveSegment && !hasActiveBreakdown && (
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleStartProduction}
+              disabled={startProduction.isPending || Boolean(startProductionBlockReason)}
+              title={startProductionBlockReason}
+            >
+              <Play className="h-4 w-4 mr-1" /> Start Production
+            </Button>
+          )}
           {!isCompleted && run.warehouse_approval_status === 'NOT_REQUESTED' && (
             <Button
               variant="outline" size="sm"
+              className="border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
               disabled={createBOMRequest.isPending}
               onClick={async () => {
                 const qty = parseFloat(run.required_qty || '0');
@@ -282,22 +397,36 @@ function RunDetailPage() {
               }}
             >
               {createBOMRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-              Submit BOM to Warehouse
+              Submit BOM to WH
             </Button>
           )}
-          {!isCompleted && !hasActiveSegment && !hasActiveBreakdown && (
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleStartProduction} disabled={startProduction.isPending || run.warehouse_approval_status === 'PENDING' || run.warehouse_approval_status === 'REJECTED'}>
-              <Play className="h-4 w-4 mr-1" /> Start Production
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className={
+              hasClearedClearance
+                ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800'
+                : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800'
+            }
+            title={`Line Clearance: ${clearanceStatusText}`}
+            onClick={() =>
+              navigate(
+                runClearance
+                  ? `/production/execution/line-clearance/${runClearance.id}`
+                  : `/production/execution/line-clearance/create?run_id=${run.id}`,
+              )
+            }
+          >
+            <Shield className="h-4 w-4 mr-1" /> Line Clearance
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/yield`)}>
             <FileText className="h-4 w-4 mr-1" /> Yield
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/resources`)}>
             <Link className="h-4 w-4 mr-1" /> Resources
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/qc/production/runs/${run.id}`)}>
-            <CheckCircle2 className="h-4 w-4 mr-1" /> QC
+          <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Waste Logs: {wasteLogs.length}
           </Button>
           {!isCompleted && (
             <Button onClick={() => navigate(`/production/execution/runs/${run.id}/yield?complete=true`)} disabled={!canComplete} title={!canComplete ? 'Stop all running segments and resolve all breakdowns first' : undefined}>
@@ -307,19 +436,16 @@ function RunDetailPage() {
           {isCompleted && (
             <Button
               variant="outline" size="sm"
-              disabled={createFGReceipt.isPending}
-              onClick={async () => {
-                try {
-                  await createFGReceipt.mutateAsync({
-                    production_run_id: run.id,
-                    posting_date: run.date,
-                  });
-                  toast.success('FG receipt created — warehouse notified');
-                } catch { /* interceptor handles */ }
+              disabled={fgReceiptsLoading || createFGReceipt.isPending || !canEditFGReceipt}
+              title={!canEditFGReceipt ? 'Warehouse has already received this FG receipt' : undefined}
+              onClick={() => {
+                setSelectedFGWarehouse(editableFGReceipt?.warehouse || '');
+                setFGWarehouseError('');
+                setDialog('fg-receipt');
               }}
             >
-              {createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
-              Create FG Receipt
+              {fgReceiptsLoading || createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
+              {fgReceiptsLoading ? 'Loading FG Receipt...' : getFGReceiptButtonLabel(existingFGReceipt)}
             </Button>
           )}
         </div>
@@ -331,7 +457,7 @@ function RunDetailPage() {
       {/* Manpower & Cost Summary */}
       {(() => {
         const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
-        const plannedLabour = run.labour_count;
+        const labourCount = actualLabourCount || run.labour_count || 0;
         const c = cost ? { labour: parseFloat(cost.labour_cost), total: parseFloat(cost.total_cost), perUnit: parseFloat(cost.per_unit_cost) } : null;
         return (
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -341,17 +467,7 @@ function RunDetailPage() {
                   <span className="text-xs text-muted-foreground">Labour</span>
                   <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
-                {actualLabourCount > 0 ? (
-                  <>
-                    <p className="text-lg font-bold">{actualLabourCount}</p>
-                    <p className="text-xs text-muted-foreground">planned: {plannedLabour}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg font-bold text-muted-foreground">{plannedLabour}</p>
-                    <p className="text-xs text-amber-600">planned (no actual added)</p>
-                  </>
-                )}
+                <p className="text-lg font-bold">{labourCount}</p>
               </CardContent>
             </Card>
             <Card>
@@ -387,49 +503,6 @@ function RunDetailPage() {
           </div>
         );
       })()}
-
-      {/* Status Indicators */}
-      <div className="flex flex-wrap gap-3">
-        {/* Line Clearance Status */}
-        {(() => {
-          const runClearance = clearances.find(
-            (c) => c.production_run === run.id
-          );
-          if (!runClearance) {
-            return (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2 text-sm">
-                <Shield className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-800 dark:text-amber-200">Line Clearance: <span className="font-medium">Not Done</span></span>
-                <Button variant="link" size="sm" className="h-auto p-0 text-amber-700" onClick={() => navigate(`/production/execution/line-clearance/create?run_id=${run.id}`)}>Create</Button>
-              </div>
-            );
-          }
-          const statusColors = {
-            DRAFT: 'border-gray-300 bg-gray-50 dark:bg-gray-950/20 dark:border-gray-800',
-            SUBMITTED: 'border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800',
-            CLEARED: 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800',
-            NOT_CLEARED: 'border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800',
-          };
-          const statusText = { DRAFT: 'Draft', SUBMITTED: 'Submitted', CLEARED: 'Cleared', NOT_CLEARED: 'Not Cleared' };
-          return (
-            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${statusColors[runClearance.status]}`}>
-              <Shield className="h-4 w-4" />
-              <span>Line Clearance: <span className="font-medium">{statusText[runClearance.status]}</span></span>
-              <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/line-clearance/${runClearance.id}`)}>View</Button>
-            </div>
-          );
-        })()}
-
-        {/* Waste Logs */}
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
-          <span>Waste Logs: <span className="font-medium">{wasteLogs.length}</span></span>
-          <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}>
-            {wasteLogs.length > 0 ? 'View' : 'Log Waste'}
-          </Button>
-        </div>
-
-      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="timeline" className="space-y-4">
@@ -713,6 +786,82 @@ function RunDetailPage() {
               <Button type="submit" disabled={createMaterial.isPending}>{createMaterial.isPending ? 'Saving...' : 'Add Material'}</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* FG Receipt Dialog */}
+      <Dialog open={dialog === 'fg-receipt'} onOpenChange={(open) => { if (!open) setDialog(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editableFGReceipt ? 'Edit FG Receipt' : 'Create FG Receipt'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Run</span>
+                <p className="font-medium">#{run.run_number}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Posting Date</span>
+                <p className="font-medium">{run.date}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Product</span>
+                <p className="font-medium">{run.product}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Good Qty</span>
+                <p className="font-medium">
+                  {(parseFloat(run.total_production || '0') - parseFloat(run.rejected_qty || '0')).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <SearchableSelect<SAPWarehouse>
+              value={selectedFGWarehouse}
+              items={fgWarehouses}
+              isLoading={fgWarehousesLoading}
+              isError={fgWarehousesError}
+              label="Warehouse"
+              required
+              inputId="fg-receipt-warehouse"
+              placeholder="Select warehouse..."
+              getItemKey={(wh) => wh.warehouse_code}
+              getItemLabel={(wh) => `${wh.warehouse_code} - ${wh.warehouse_name}`}
+              filterFn={(wh, search) => {
+                const term = search.toLowerCase();
+                return (
+                  wh.warehouse_code.toLowerCase().includes(term) ||
+                  wh.warehouse_name.toLowerCase().includes(term)
+                );
+              }}
+              renderItem={(wh) => (
+                <div>
+                  <span className="text-sm font-medium">{wh.warehouse_code}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{wh.warehouse_name}</span>
+                </div>
+              )}
+              onItemSelect={(wh) => {
+                setSelectedFGWarehouse(wh.warehouse_code);
+                setFGWarehouseError('');
+              }}
+              onClear={() => {
+                setSelectedFGWarehouse('');
+                setFGWarehouseError('');
+              }}
+              loadingText="Loading warehouses..."
+              emptyText="No warehouses found"
+              notFoundText="No matching warehouses"
+              errorText="Failed to load warehouses"
+              error={fgWarehouseError}
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+              <Button type="button" onClick={handleCreateFGReceipt} disabled={createFGReceipt.isPending || fgWarehousesLoading}>
+                {createFGReceipt.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                {editableFGReceipt ? 'Save Receipt' : 'Create Receipt'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

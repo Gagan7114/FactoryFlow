@@ -599,6 +599,8 @@ export function useLineClearances(lineId?: number, status?: string) {
     queryKey: EXECUTION_QUERY_KEYS.clearances(lineId, status),
     queryFn: () => executionApi.getLineClearances(lineId, status),
     staleTime: 30 * 1000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -648,9 +650,13 @@ export function useApproveLineClearance(clearanceId: number) {
   return useMutation({
     mutationFn: (data: ApproveClearanceRequest) =>
       executionApi.approveLineClearance(clearanceId, data),
-    onSuccess: () => {
+    onSuccess: (clearance) => {
       qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.clearanceDetail(clearanceId) });
       qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'clearances'] });
+      qc.invalidateQueries({ queryKey: [...EXECUTION_QUERY_KEYS.all, 'runs'] });
+      if (clearance.production_run) {
+        qc.invalidateQueries({ queryKey: EXECUTION_QUERY_KEYS.runDetail(clearance.production_run) });
+      }
     },
   });
 }

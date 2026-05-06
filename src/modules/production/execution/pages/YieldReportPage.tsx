@@ -93,6 +93,13 @@ function YieldReportPage() {
     ? ((actualProduction / runningMinutes) * 60).toFixed(1)
     : '-';
 
+  const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
+  const labourCount = actualLabourCount > 0 ? actualLabourCount : run.labour_count;
+  const electricityUnitsConsumed = electricityEntries.reduce(
+    (sum, entry) => sum + parseFloat(entry.units_consumed || '0'),
+    0,
+  );
+
   const totalBomQuantity = materials.reduce(
     (sum, m) => sum + parseMaterialQuantity(m.bom_quantity ?? m.opening_qty),
     0,
@@ -124,12 +131,6 @@ function YieldReportPage() {
 
   const totalCost = cost ? parseFloat(cost.total_cost || '0') : 0;
   const perUnitCost = actualProduction > 0 ? (totalCost / actualProduction).toFixed(2) : '-';
-  const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
-  const labourCount = actualLabourCount > 0 ? actualLabourCount : run.labour_count;
-  const electricityUnitsConsumed = electricityEntries.reduce(
-    (sum, entry) => sum + parseFloat(entry.units_consumed || '0'),
-    0,
-  );
 
   const hasActiveSegment = run.segments.some((s) => s.is_active);
   const hasActiveBreakdown = run.breakdowns.some((b) => b.is_active);

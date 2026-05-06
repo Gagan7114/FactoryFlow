@@ -390,7 +390,7 @@ function StartRunPage() {
                 )}
               </div>
               <div>
-                <Label>Required Quantity (units)</Label>
+                <Label>Required FG Quantity (cases/boxes)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -398,7 +398,7 @@ function StartRunPage() {
                   placeholder="e.g., 500"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  BOM materials will scale based on this quantity
+                  BOM materials scale from this finished-good case/box quantity
                 </p>
               </div>
             </div>
@@ -581,7 +581,7 @@ function StartRunPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Expected Labour</Label>
+                <Label>Labour</Label>
                 <Input
                   type="number"
                   min={0}
@@ -594,7 +594,7 @@ function StartRunPage() {
                 )}
               </div>
               <div>
-                <Label>Expected Other Manpower</Label>
+                <Label>Other Manpower</Label>
                 <Input
                   type="number"
                   min={0}
