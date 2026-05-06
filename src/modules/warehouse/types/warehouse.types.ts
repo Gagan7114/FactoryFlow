@@ -151,7 +151,7 @@ export interface RejectBOMRequestPayload {
 
 export interface MaterialIssuePayload {
   posting_date?: string;
-  lines?: { line_id: number; quantity: number }[];
+  lines?: { line_id: number; quantity: number; warehouse?: string }[];
 }
 
 export interface CreateFGReceiptPayload {

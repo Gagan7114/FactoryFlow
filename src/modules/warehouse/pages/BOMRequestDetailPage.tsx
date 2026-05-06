@@ -30,6 +30,11 @@ import {
 } from '../api';
 import type { BOMLineApproval, BOMRequestLine } from '../types';
 
+type IssueLineSelection = {
+  quantity: number;
+  warehouse: string;
+};
+
 // ============================================================================
 // Line Row Component
 // ============================================================================
@@ -158,6 +163,7 @@ export default function BOMRequestDetailPage() {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [issueOpen, setIssueOpen] = useState(false);
+  const [issueSelections, setIssueSelections] = useState<Record<number, IssueLineSelection>>({});
 
   const isPending = detail?.status === 'PENDING';
   const isApproved = detail?.status === 'APPROVED' || detail?.status === 'PARTIALLY_APPROVED';
@@ -183,6 +189,59 @@ export default function BOMRequestDetailPage() {
   const hasApprovedLine = pendingApprovalLines.some((line) =>
     line.status === 'APPROVED' && line.approved_qty > 0
   );
+  const approvedIssueLines = detail?.lines.filter((line) => {
+    const approved = parseFloat(line.approved_qty) || 0;
+    const issued = parseFloat(line.issued_qty) || 0;
+    return line.status === 'APPROVED' && approved > issued;
+  }) ?? [];
+
+  const getRemainingIssueQty = (line: BOMRequestLine) =>
+    Math.max((parseFloat(line.approved_qty) || 0) - (parseFloat(line.issued_qty) || 0), 0);
+
+  const getDefaultIssueWarehouse = (line: BOMRequestLine) => {
+    if (line.warehouse) return line.warehouse;
+    const stockedWarehouse = line.stock_warehouses?.find((wh) => wh.Available > 0 || wh.OnHand > 0);
+    return stockedWarehouse?.WhsCode ?? line.stock_warehouses?.[0]?.WhsCode ?? '';
+  };
+
+  const getWarehouseOptions = (line: BOMRequestLine) => {
+    const options = new Map<string, { WhsCode: string; OnHand?: number; Available?: number }>();
+    if (line.warehouse) {
+      options.set(line.warehouse, { WhsCode: line.warehouse });
+    }
+    line.stock_warehouses?.forEach((wh) => {
+      if (wh.WhsCode) options.set(wh.WhsCode, wh);
+    });
+    return [...options.values()];
+  };
+
+  const getIssueSelection = (line: BOMRequestLine): IssueLineSelection =>
+    issueSelections[line.id] ?? {
+      quantity: getRemainingIssueQty(line),
+      warehouse: getDefaultIssueWarehouse(line),
+    };
+
+  const updateIssueSelection = (lineId: number, patch: Partial<IssueLineSelection>) => {
+    const line = detail?.lines.find((l) => l.id === lineId);
+    if (!line) return;
+    const current = getIssueSelection(line);
+    setIssueSelections((prev) => ({
+      ...prev,
+      [lineId]: { ...current, ...patch },
+    }));
+  };
+
+  const openIssueDialog = () => {
+    const defaults: Record<number, IssueLineSelection> = {};
+    approvedIssueLines.forEach((line) => {
+      defaults[line.id] = {
+        quantity: getRemainingIssueQty(line),
+        warehouse: getDefaultIssueWarehouse(line),
+      };
+    });
+    setIssueSelections(defaults);
+    setIssueOpen(true);
+  };
 
   const handleApprove = async () => {
     if (!detail) return;
@@ -221,8 +280,28 @@ export default function BOMRequestDetailPage() {
 
   const handleIssue = async () => {
     if (!detail) return;
+    const lines = approvedIssueLines.map((line) => {
+      const selection = getIssueSelection(line);
+      return {
+        line_id: line.id,
+        quantity: Math.min(selection.quantity, getRemainingIssueQty(line)),
+        warehouse: selection.warehouse,
+      };
+    });
+    if (lines.length === 0) {
+      toast.error('No approved materials remain to issue');
+      return;
+    }
+    if (lines.some((line) => !line.warehouse)) {
+      toast.error('Select a warehouse for each material before issuing');
+      return;
+    }
+    if (lines.some((line) => !line.quantity || line.quantity <= 0)) {
+      toast.error('Enter a valid issue quantity for each material');
+      return;
+    }
     try {
-      await issueMut.mutateAsync({ requestId: detail.id });
+      await issueMut.mutateAsync({ requestId: detail.id, data: { lines } });
       toast.success('Materials issued to SAP');
       setIssueOpen(false);
     } catch {
@@ -349,7 +428,7 @@ export default function BOMRequestDetailPage() {
         )}
 
         {isApproved && detail.material_issue_status !== 'FULLY_ISSUED' && (
-          <Button onClick={() => setIssueOpen(true)}>
+          <Button onClick={openIssueDialog}>
             <Send className="h-4 w-4 mr-1" /> Issue Materials to SAP
           </Button>
         )}
@@ -415,16 +494,85 @@ export default function BOMRequestDetailPage() {
 
       {/* Issue Confirmation Dialog */}
       <Dialog open={issueOpen} onOpenChange={setIssueOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Issue Materials to SAP</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               This will create an SAP Goods Issue document (InventoryGenExits) for all approved
-              materials with remaining quantity. Stock will be deducted from the respective
-              warehouses.
+              materials with remaining quantity.
             </p>
+            <div className="max-h-[55vh] overflow-auto border rounded-md">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0">
+                  <tr className="border-b text-left">
+                    <th className="py-2 px-3">Material</th>
+                    <th className="py-2 px-3 text-right">Remaining</th>
+                    <th className="py-2 px-3">Issue Qty</th>
+                    <th className="py-2 px-3">Issue From</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {approvedIssueLines.map((line) => {
+                    const selection = getIssueSelection(line);
+                    const remaining = getRemainingIssueQty(line);
+                    const warehouses = getWarehouseOptions(line);
+                    return (
+                      <tr key={line.id} className="border-b last:border-0">
+                        <td className="py-2 px-3">
+                          <p className="font-medium">{line.item_code}</p>
+                          <p className="text-xs text-muted-foreground">{line.item_name}</p>
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          {remaining.toLocaleString()} {line.uom}
+                        </td>
+                        <td className="py-2 px-3">
+                          <Input
+                            type="number"
+                            min={0}
+                            max={remaining}
+                            step="any"
+                            className="h-8 w-28"
+                            value={selection.quantity}
+                            onChange={(e) =>
+                              updateIssueSelection(line.id, {
+                                quantity: Math.min(
+                                  parseFloat(e.target.value) || 0,
+                                  remaining,
+                                ),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="py-2 px-3">
+                          <select
+                            className="w-full min-w-[12rem] border rounded-md px-2 py-1.5 text-sm bg-background"
+                            value={selection.warehouse}
+                            onChange={(e) =>
+                              updateIssueSelection(line.id, { warehouse: e.target.value })
+                            }
+                          >
+                            {!selection.warehouse && <option value="">Select warehouse</option>}
+                            {warehouses.map((warehouse) => (
+                              <option key={warehouse.WhsCode} value={warehouse.WhsCode}>
+                                {warehouse.WhsCode}
+                                {typeof warehouse.OnHand === 'number'
+                                  ? ` - On hand ${warehouse.OnHand.toLocaleString()}`
+                                  : ''}
+                                {typeof warehouse.Available === 'number'
+                                  ? ` | Available ${warehouse.Available.toLocaleString()}`
+                                  : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setIssueOpen(false)}>
                 Cancel
