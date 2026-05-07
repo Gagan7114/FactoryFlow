@@ -1,17 +1,16 @@
+import { Boxes, Clock, Package, ScanBarcode, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { ScanBarcode, Package, Boxes, Clock, XCircle } from 'lucide-react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets, useBoxes } from '../api';
+import { useBoxes, usePallets } from '../api';
 
 export default function BarcodeDashboardPage() {
   const navigate = useNavigate();
   const { data: activePallets = [] } = usePallets({ status: 'ACTIVE' });
   const { data: allPallets = [] } = usePallets();
   const { data: activeBoxes = [] } = useBoxes({ status: 'ACTIVE' });
-  const { data: allBoxes = [] } = useBoxes();
 
   const voidedPallets = allPallets.filter((p) => p.status === 'VOID').length;
 
@@ -48,10 +47,7 @@ export default function BarcodeDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader
-        title="Barcode"
-        subtitle="Pallet and box tracking, label management"
-      />
+      <DashboardHeader title="Barcode" subtitle="Pallet and box tracking, label management" />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {cards.map((card) => {
@@ -94,12 +90,14 @@ export default function BarcodeDashboardPage() {
                   <div>
                     <p className="text-sm font-medium">{pallet.pallet_id}</p>
                     <p className="text-xs text-muted-foreground">
-                      {pallet.item_name || pallet.item_code} &middot; Batch: {pallet.batch_number} &middot;{' '}
-                      {pallet.box_count} boxes
+                      {pallet.item_name || pallet.item_code} &middot; Batch: {pallet.batch_number}{' '}
+                      &middot; {pallet.box_count} boxes
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{pallet.total_qty} {pallet.uom}</p>
+                    <p className="text-sm font-medium">
+                      {pallet.total_qty} {pallet.uom}
+                    </p>
                     <p className="text-xs text-muted-foreground">{pallet.current_warehouse}</p>
                   </div>
                 </div>

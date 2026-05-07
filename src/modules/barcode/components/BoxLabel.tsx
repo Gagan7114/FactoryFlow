@@ -1,5 +1,7 @@
-import Barcode1D from './Barcode1D';
+import { QRCodeSVG } from 'qrcode.react';
 import { forwardRef } from 'react';
+
+import { LABEL_HEIGHT, LABEL_WIDTH } from './labelPrint';
 
 export interface BoxLabelData {
   type: string;
@@ -24,9 +26,8 @@ interface BoxLabelProps {
 }
 
 const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
-  const barcodeValue = `B${data.barcode.replace(/[^A-Za-z0-9]/g, '')}`;
+  const qrValue = data.qr_payload || data.barcode;
 
-  // Format date as DD/MM/YY to match factory labels
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -37,58 +38,133 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
     return `${dd}/${mm}/${yy}`;
   };
 
-  const td = { fontSize: '8px', padding: '1px 0', verticalAlign: 'top' } as const;
-  const label = { ...td, fontWeight: 'bold' as const, whiteSpace: 'nowrap' as const, paddingRight: '2px' };
+  const cell = {
+    fontSize: '6.1px',
+    padding: '0 0 0.42mm 0',
+    verticalAlign: 'top',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as const;
+  const label = {
+    ...cell,
+    width: '10.5mm',
+    fontWeight: 'bold',
+  } as const;
 
   return (
     <div
       ref={ref}
-      className="bg-white text-black"
+      className="barcode-label bg-white text-black"
       style={{
-        width: '2.5in',
-        padding: '6px 8px',
-        pageBreakAfter: 'always',
+        width: LABEL_WIDTH,
+        height: LABEL_HEIGHT,
+        padding: '1.3mm',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
         fontFamily: 'Arial, Helvetica, sans-serif',
-        lineHeight: '1.3',
+        lineHeight: '1.1',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* Header */}
-      <div style={{ fontWeight: 'bold', fontSize: '10px', textAlign: 'center', marginBottom: '2px' }}>
-        JIVO WELLNESS
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '0.8mm',
+        }}
+      >
+        <div style={{ fontWeight: 'bold', fontSize: '8px', letterSpacing: 0 }}>JIVO WELLNESS</div>
+        <div
+          style={{
+            fontWeight: 'bold',
+            fontSize: '6.5px',
+            border: '1px solid #000',
+            padding: '0.2mm 0.8mm',
+          }}
+        >
+          BOX
+        </div>
       </div>
 
-      {/* Product Name */}
-      <div style={{ fontWeight: 'bold', fontSize: '8px', textAlign: 'center', marginBottom: '4px' }}>
-        {data.item_name.toUpperCase()}
-      </div>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: '1.2mm' }}>
+        <div
+          style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.7mm' }}
+        >
+          <div
+            style={{
+              fontWeight: 'bold',
+              fontSize: '7px',
+              lineHeight: '1.12',
+              maxHeight: '8mm',
+              overflow: 'hidden',
+              textTransform: 'uppercase',
+            }}
+          >
+            {data.item_name}
+          </div>
 
-      {/* 2-column layout: 3 rows each */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <tbody>
-          <tr>
-            <td style={label}>QTY</td>
-            <td style={td}>: {data.qty}</td>
-            <td style={{ ...label, paddingLeft: '8px' }}>MFG DATE</td>
-            <td style={td}>: {formatDate(data.mfg_date)}</td>
-          </tr>
-          <tr>
-            <td style={label}>IT.CODE</td>
-            <td style={td}>: {data.item_code}</td>
-            <td style={{ ...label, paddingLeft: '8px' }}>G.WEIGHT</td>
-            <td style={td}>: {data.g_weight || ''}</td>
-          </tr>
-          <tr>
-            <td style={label}>B.NO</td>
-            <td style={td}>: {data.batch_number}</td>
-            <td style={{ ...label, paddingLeft: '8px' }}>N.WEIGHT</td>
-            <td style={td}>: {data.n_weight || '0'}</td>
-          </tr>
-        </tbody>
-      </table>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <tbody>
+              <tr>
+                <td style={label}>QTY</td>
+                <td style={cell}>
+                  : {data.qty} {data.uom}
+                </td>
+              </tr>
+              <tr>
+                <td style={label}>IT.CODE</td>
+                <td style={cell}>: {data.item_code}</td>
+              </tr>
+              <tr>
+                <td style={label}>B.NO</td>
+                <td style={cell}>: {data.batch_number}</td>
+              </tr>
+              <tr>
+                <td style={label}>MFG</td>
+                <td style={cell}>: {formatDate(data.mfg_date)}</td>
+              </tr>
+              <tr>
+                <td style={label}>G/N WT</td>
+                <td style={cell}>
+                  : {data.g_weight || '-'} / {data.n_weight || '0'}
+                </td>
+              </tr>
+              <tr>
+                <td style={label}>WH</td>
+                <td style={cell}>: {data.warehouse}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      {/* Barcode */}
-      <div style={{ textAlign: 'center', marginTop: '6px' }}>
-        <Barcode1D value={barcodeValue} width={1.5} height={40} fontSize={8} />
+        <div
+          style={{ width: '24mm', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+        >
+          <QRCodeSVG
+            value={qrValue}
+            size={90}
+            level="M"
+            includeMargin={false}
+            style={{ width: '23mm', height: '23mm' }}
+          />
+          <div
+            style={{
+              marginTop: '0.8mm',
+              fontSize: '5.8px',
+              fontWeight: 'bold',
+              lineHeight: '1.05',
+              textAlign: 'center',
+              wordBreak: 'break-all',
+              maxHeight: '8mm',
+              overflow: 'hidden',
+            }}
+          >
+            {data.barcode}
+          </div>
+        </div>
       </div>
     </div>
   );

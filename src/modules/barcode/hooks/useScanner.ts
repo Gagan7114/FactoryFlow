@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseScannerOptions {
   onScan: (decodedText: string) => void;
@@ -40,7 +40,7 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
         },
         () => {
           // Scan failure — ignore (camera still scanning)
-        }
+        },
       );
 
       setIsScanning(true);

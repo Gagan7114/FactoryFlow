@@ -1,18 +1,19 @@
-import { useState, useRef, useCallback } from 'react';
-import { useReactToPrint } from 'react-to-print';
 import { Printer } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useBoxes, usePallets, usePrintBoxLabel, usePrintPalletLabel } from '../api';
-import BoxLabel from '../components/BoxLabel';
-import PalletLabel from '../components/PalletLabel';
-import type { LabelData, Box, Pallet } from '../types';
 import type { BoxLabelData } from '../components/BoxLabel';
+import BoxLabel from '../components/BoxLabel';
+import { LABEL_PRINT_PAGE_STYLE } from '../components/labelPrint';
 import type { PalletLabelData } from '../components/PalletLabel';
+import PalletLabel from '../components/PalletLabel';
+import type { Box, LabelData, Pallet } from '../types';
 
 export default function ReprintPage() {
   const [searchType, setSearchType] = useState<'BOX' | 'PALLET'>('BOX');
@@ -24,13 +25,17 @@ export default function ReprintPage() {
   const [currentLabel, setCurrentLabel] = useState<LabelData | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = useReactToPrint({ contentRef: printRef, documentTitle: 'Reprint Label' });
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: 'Reprint Label 60x40mm',
+    pageStyle: LABEL_PRINT_PAGE_STYLE,
+  });
 
   const { data: boxes = [], isLoading: loadingBoxes } = useBoxes(
-    searchType === 'BOX' && boxSearch.length >= 2 ? { search: boxSearch } : undefined
+    searchType === 'BOX' && boxSearch.length >= 2 ? { search: boxSearch } : undefined,
   );
   const { data: pallets = [], isLoading: loadingPallets } = usePallets(
-    searchType === 'PALLET' && palletSearch.length >= 2 ? { search: palletSearch } : undefined
+    searchType === 'PALLET' && palletSearch.length >= 2 ? { search: palletSearch } : undefined,
   );
 
   const handleBoxSearch = useCallback((s: string) => setBoxSearch(s), []);
@@ -63,7 +68,10 @@ export default function ReprintPage() {
       toast.success('Label ready — printing...');
       setTimeout(() => handlePrint(), 300);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to print');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Failed to print',
+      );
     }
   };
 
@@ -81,14 +89,22 @@ export default function ReprintPage() {
                 <Button
                   size="sm"
                   variant={searchType === 'BOX' ? 'default' : 'outline'}
-                  onClick={() => { setSearchType('BOX'); setSelectedId(null); setSelectedLabel(''); }}
+                  onClick={() => {
+                    setSearchType('BOX');
+                    setSelectedId(null);
+                    setSelectedLabel('');
+                  }}
                 >
                   Box
                 </Button>
                 <Button
                   size="sm"
                   variant={searchType === 'PALLET' ? 'default' : 'outline'}
-                  onClick={() => { setSearchType('PALLET'); setSelectedId(null); setSelectedLabel(''); }}
+                  onClick={() => {
+                    setSearchType('PALLET');
+                    setSelectedId(null);
+                    setSelectedLabel('');
+                  }}
                 >
                   Pallet
                 </Button>
@@ -109,11 +125,23 @@ export default function ReprintPage() {
                       <div>
                         <span className="font-mono text-xs font-medium">{b.box_barcode}</span>
                         <span className="ml-2 text-sm">{b.item_name || b.item_code}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">Batch: {b.batch_number}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          Batch: {b.batch_number}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs">{b.qty} {b.uom}</span>
-                        <Badge className={b.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>{b.status}</Badge>
+                        <span className="text-xs">
+                          {b.qty} {b.uom}
+                        </span>
+                        <Badge
+                          className={
+                            b.status === 'ACTIVE'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {b.status}
+                        </Badge>
                       </div>
                     </div>
                   )}
@@ -125,8 +153,14 @@ export default function ReprintPage() {
                   emptyText="Type at least 2 characters"
                   notFoundText="No boxes found"
                   onSearchChange={handleBoxSearch}
-                  onItemSelect={(b) => { setSelectedId(b.id); setSelectedLabel(b.box_barcode); }}
-                  onClear={() => { setSelectedId(null); setSelectedLabel(''); }}
+                  onItemSelect={(b) => {
+                    setSelectedId(b.id);
+                    setSelectedLabel(b.box_barcode);
+                  }}
+                  onClear={() => {
+                    setSelectedId(null);
+                    setSelectedLabel('');
+                  }}
                 />
               ) : (
                 <SearchableSelect<Pallet>
@@ -141,11 +175,21 @@ export default function ReprintPage() {
                       <div>
                         <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                         <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">Batch: {p.batch_number}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          Batch: {p.batch_number}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs">{p.box_count} boxes</span>
-                        <Badge className={p.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>{p.status}</Badge>
+                        <Badge
+                          className={
+                            p.status === 'ACTIVE'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {p.status}
+                        </Badge>
                       </div>
                     </div>
                   )}
@@ -157,8 +201,14 @@ export default function ReprintPage() {
                   emptyText="Type at least 2 characters"
                   notFoundText="No pallets found"
                   onSearchChange={handlePalletSearch}
-                  onItemSelect={(p) => { setSelectedId(p.id); setSelectedLabel(p.pallet_id); }}
-                  onClear={() => { setSelectedId(null); setSelectedLabel(''); }}
+                  onItemSelect={(p) => {
+                    setSelectedId(p.id);
+                    setSelectedLabel(p.pallet_id);
+                  }}
+                  onClear={() => {
+                    setSelectedId(null);
+                    setSelectedLabel('');
+                  }}
                 />
               )}
             </div>
@@ -168,7 +218,9 @@ export default function ReprintPage() {
           {selectedId && (
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground">Reprint Reason *</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Reprint Reason *
+                </label>
                 <input
                   className="w-full border rounded px-3 py-2 text-sm mt-1"
                   placeholder="e.g. Label damaged, fell off, new repack"
@@ -178,21 +230,29 @@ export default function ReprintPage() {
               </div>
               <Button
                 onClick={handleReprint}
-                disabled={printBoxMutation.isPending || printPalletMutation.isPending || !reprintReason.trim()}
+                disabled={
+                  printBoxMutation.isPending ||
+                  printPalletMutation.isPending ||
+                  !reprintReason.trim()
+                }
               >
                 <Printer className="h-4 w-4 mr-1" />
-                {printBoxMutation.isPending || printPalletMutation.isPending ? 'Printing...' : `Reprint ${selectedLabel}`}
+                {printBoxMutation.isPending || printPalletMutation.isPending
+                  ? 'Printing...'
+                  : `Reprint ${selectedLabel}`}
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Hidden print area */}
-      <div className="hidden">
-        <div ref={printRef}>
+      {/* Off-screen print area */}
+      <div aria-hidden style={{ position: 'fixed', left: '-10000px', top: 0 }}>
+        <div ref={printRef} className="barcode-print-sheet">
           {currentLabel?.type === 'BOX' && <BoxLabel data={currentLabel as BoxLabelData} />}
-          {currentLabel?.type === 'PALLET' && <PalletLabel data={currentLabel as PalletLabelData} />}
+          {currentLabel?.type === 'PALLET' && (
+            <PalletLabel data={currentLabel as PalletLabelData} />
+          )}
         </div>
       </div>
     </div>

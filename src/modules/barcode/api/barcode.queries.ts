@@ -17,6 +17,7 @@ import type {
   PalletSplitPayload,
   PrintHistoryFilters,
   PrintRequestPayload,
+  ProductionReleaseOilRow,
   RepackPayload,
   ScanRequestPayload,
   VoidPayload,
@@ -33,8 +34,12 @@ export const BARCODE_QUERY_KEYS = {
   boxDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'box', id] as const,
   pallets: (filters?: PalletFilters) => [...BARCODE_QUERY_KEYS.all, 'pallets', filters] as const,
   palletDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'pallet', id] as const,
-  printHistory: (filters?: PrintHistoryFilters) => [...BARCODE_QUERY_KEYS.all, 'print-history', filters] as const,
-  looseStock: (filters?: LooseStockFilters) => [...BARCODE_QUERY_KEYS.all, 'loose', filters] as const,
+  printHistory: (filters?: PrintHistoryFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'print-history', filters] as const,
+  productionReleaseOil: (search?: string) =>
+    [...BARCODE_QUERY_KEYS.all, 'production-release-oil', search] as const,
+  looseStock: (filters?: LooseStockFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'loose', filters] as const,
   looseStockDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'loose', id] as const,
 };
 
@@ -231,6 +236,17 @@ export function usePrintBulk() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.printHistory() });
     },
+  });
+}
+
+export function useProductionReleaseOil(search = '') {
+  return useQuery<ProductionReleaseOilRow[]>({
+    queryKey: BARCODE_QUERY_KEYS.productionReleaseOil(search),
+    queryFn: () =>
+      barcodeApi.getProductionReleaseOil({
+        search: search.trim() || undefined,
+        limit: 100,
+      }),
   });
 }
 

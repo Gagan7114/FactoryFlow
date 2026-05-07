@@ -1,5 +1,7 @@
-import Barcode1D from './Barcode1D';
+import { QRCodeSVG } from 'qrcode.react';
 import { forwardRef } from 'react';
+
+import { LABEL_HEIGHT, LABEL_WIDTH } from './labelPrint';
 
 export interface PalletLabelData {
   type: string;
@@ -22,86 +24,142 @@ interface PalletLabelProps {
   data: PalletLabelData;
 }
 
-/**
- * Pallet label — larger format with Code 128 barcode.
- * Same field layout as box but with pallet-specific info.
- */
 const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref) => {
-  const barcodeValue = `P${data.barcode.replace(/[^A-Za-z0-9]/g, '')}`;
+  const qrValue = data.qr_payload || data.barcode;
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = String(d.getFullYear()).slice(2);
+    return `${dd}/${mm}/${yy}`;
+  };
+
+  const cell = {
+    fontSize: '6.1px',
+    padding: '0 0 0.42mm 0',
+    verticalAlign: 'top',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  } as const;
+  const label = {
+    ...cell,
+    width: '10.5mm',
+    fontWeight: 'bold',
+  } as const;
 
   return (
     <div
       ref={ref}
-      className="bg-white text-black font-sans"
+      className="barcode-label bg-white text-black font-sans"
       style={{
-        width: '4in',
-        height: '6in',
-        padding: '10px 14px',
-        pageBreakAfter: 'always',
-        fontSize: '11px',
-        lineHeight: '1.4',
+        width: LABEL_WIDTH,
+        height: LABEL_HEIGHT,
+        padding: '1.3mm',
+        boxSizing: 'border-box',
+        overflow: 'hidden',
+        fontFamily: 'Arial, Helvetica, sans-serif',
+        lineHeight: '1.1',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* Header Banner */}
-      <div style={{
-        fontWeight: 'bold', fontSize: '14px', textAlign: 'center',
-        backgroundColor: '#000', color: '#fff', padding: '4px 0', marginBottom: '6px',
-        letterSpacing: '3px',
-      }}>
-        PALLET
+      <div
+        style={{
+          fontWeight: 'bold',
+          fontSize: '8px',
+          textAlign: 'center',
+          backgroundColor: '#000',
+          color: '#fff',
+          padding: '0.8mm 0',
+          marginBottom: '0.8mm',
+          letterSpacing: 0,
+        }}
+      >
+        PALLET - JIVO WELLNESS
       </div>
 
-      {/* Company */}
-      <div style={{ fontWeight: 'bold', fontSize: '12px', textAlign: 'center', marginBottom: '8px' }}>
-        JIVO WELLNESS
-      </div>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: '1.2mm' }}>
+        <div
+          style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.7mm' }}
+        >
+          <div
+            style={{
+              fontWeight: 'bold',
+              fontSize: '7px',
+              lineHeight: '1.12',
+              maxHeight: '8mm',
+              overflow: 'hidden',
+              textTransform: 'uppercase',
+            }}
+          >
+            {data.item_name}
+          </div>
 
-      {/* Product Name */}
-      <div style={{ fontWeight: 'bold', fontSize: '11px', textAlign: 'center', marginBottom: '10px' }}>
-        {data.item_name.toUpperCase()}
-      </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <tbody>
+              <tr>
+                <td style={label}>IT.CODE</td>
+                <td style={cell}>: {data.item_code}</td>
+              </tr>
+              <tr>
+                <td style={label}>B.NO</td>
+                <td style={cell}>: {data.batch_number}</td>
+              </tr>
+              <tr>
+                <td style={label}>BOXES</td>
+                <td style={cell}>: {data.box_count}</td>
+              </tr>
+              <tr>
+                <td style={label}>QTY</td>
+                <td style={cell}>
+                  : {data.total_qty} {data.uom}
+                </td>
+              </tr>
+              <tr>
+                <td style={label}>MFG</td>
+                <td style={cell}>: {formatDate(data.mfg_date)}</td>
+              </tr>
+              <tr>
+                <td style={label}>EXP</td>
+                <td style={cell}>: {formatDate(data.exp_date)}</td>
+              </tr>
+              <tr>
+                <td style={label}>WH</td>
+                <td style={cell}>: {data.warehouse}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      {/* Details */}
-      <table style={{ width: '100%', fontSize: '10px', borderCollapse: 'collapse' }}>
-        <tbody>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>IT.CODE</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.item_code}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>B.NO</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.batch_number}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>BOXES</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.box_count}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>TOTAL QTY</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.total_qty} {data.uom}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>MFG DATE</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.mfg_date}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>EXP DATE</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.exp_date}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>WH</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.warehouse}</td>
-          </tr>
-          <tr>
-            <td style={{ fontWeight: 'bold', paddingRight: '6px', whiteSpace: 'nowrap', paddingBottom: '3px' }}>PALLET ID</td>
-            <td style={{ paddingBottom: '3px' }}>: {data.barcode}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      {/* Barcode */}
-      <div style={{ textAlign: 'center', marginTop: '12px' }}>
-        <Barcode1D value={barcodeValue} width={2} height={60} fontSize={10} />
+        <div
+          style={{ width: '24mm', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+        >
+          <QRCodeSVG
+            value={qrValue}
+            size={90}
+            level="M"
+            includeMargin={false}
+            style={{ width: '23mm', height: '23mm' }}
+          />
+          <div
+            style={{
+              marginTop: '0.8mm',
+              fontSize: '5.8px',
+              fontWeight: 'bold',
+              lineHeight: '1.05',
+              textAlign: 'center',
+              wordBreak: 'break-all',
+              maxHeight: '8mm',
+              overflow: 'hidden',
+            }}
+          >
+            {data.barcode}
+          </div>
+        </div>
       </div>
     </div>
   );

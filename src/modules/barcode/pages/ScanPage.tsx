@@ -1,10 +1,10 @@
+import { Boxes, ExternalLink, Package, ScanBarcode } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ScanBarcode, Package, Boxes, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge, Button } from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useProcessScan } from '../api';
 import BarcodeScanner from '../components/BarcodeScanner';
@@ -24,7 +24,9 @@ export default function ScanPage() {
       setScanResults((prev) => [result, ...prev]);
 
       if (result.result === 'SUCCESS') {
-        toast.success(`Found: ${result.entity_type} — ${(result.entity_data as Record<string, string>)?.item_name || (result.entity_data as Record<string, string>)?.item_code || barcode}`);
+        toast.success(
+          `Found: ${result.entity_type} — ${(result.entity_data as Record<string, string>)?.item_name || (result.entity_data as Record<string, string>)?.item_code || barcode}`,
+        );
       } else {
         toast.error(`Not found: ${barcode}`);
       }
@@ -66,7 +68,13 @@ export default function ScanPage() {
                       <div className="flex items-center gap-2">
                         {isBox && <Boxes className="h-4 w-4 text-blue-600" />}
                         {isPallet && <Package className="h-4 w-4 text-purple-600" />}
-                        <Badge className={scan.result === 'SUCCESS' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                        <Badge
+                          className={
+                            scan.result === 'SUCCESS'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }
+                        >
                           {scan.result}
                         </Badge>
                         <Badge className="bg-gray-100 text-gray-800">{scan.entity_type}</Badge>
@@ -82,25 +90,54 @@ export default function ScanPage() {
                       <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                         {isBox && (
                           <>
-                            <div><span className="text-muted-foreground">Barcode:</span> <span className="font-mono text-xs">{data.box_barcode as string}</span></div>
-                            <div><span className="text-muted-foreground">Item:</span> {data.item_name as string || data.item_code as string}</div>
-                            <div><span className="text-muted-foreground">Qty:</span> {data.qty as string} {data.uom as string}</div>
-                            <div><span className="text-muted-foreground">WH:</span> {data.current_warehouse as string}</div>
+                            <div>
+                              <span className="text-muted-foreground">Barcode:</span>{' '}
+                              <span className="font-mono text-xs">
+                                {data.box_barcode as string}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Item:</span>{' '}
+                              {(data.item_name as string) || (data.item_code as string)}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Qty:</span>{' '}
+                              {data.qty as string} {data.uom as string}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">WH:</span>{' '}
+                              {data.current_warehouse as string}
+                            </div>
                           </>
                         )}
                         {isPallet && (
                           <>
-                            <div><span className="text-muted-foreground">Pallet:</span> <span className="font-mono text-xs">{data.pallet_id as string}</span></div>
-                            <div><span className="text-muted-foreground">Item:</span> {data.item_name as string || data.item_code as string}</div>
-                            <div><span className="text-muted-foreground">Boxes:</span> {data.box_count as number} · {data.total_qty as string} {data.uom as string}</div>
-                            <div><span className="text-muted-foreground">WH:</span> {data.current_warehouse as string}</div>
+                            <div>
+                              <span className="text-muted-foreground">Pallet:</span>{' '}
+                              <span className="font-mono text-xs">{data.pallet_id as string}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Item:</span>{' '}
+                              {(data.item_name as string) || (data.item_code as string)}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Boxes:</span>{' '}
+                              {data.box_count as number} · {data.total_qty as string}{' '}
+                              {data.uom as string}
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">WH:</span>{' '}
+                              {data.current_warehouse as string}
+                            </div>
                           </>
                         )}
                       </div>
                     )}
 
                     {!data && (
-                      <p className="mt-1 text-sm text-muted-foreground font-mono">{scan.barcode_raw}</p>
+                      <p className="mt-1 text-sm text-muted-foreground font-mono">
+                        {scan.barcode_raw}
+                      </p>
                     )}
                   </div>
                 );

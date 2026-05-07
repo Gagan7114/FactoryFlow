@@ -1,4 +1,4 @@
-import { ScanBarcode, Package, Boxes } from 'lucide-react';
+import { ScanBarcode } from 'lucide-react';
 import { lazy } from 'react';
 
 import { BARCODE_PERMISSIONS } from '@/config/permissions/barcode.permissions';

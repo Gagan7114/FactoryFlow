@@ -13,6 +13,7 @@ import type {
   GenerateBoxesPayload,
   LabelData,
   LabelPrintLog,
+  LookupResponse,
   LooseStock,
   LooseStockFilters,
   Pallet,
@@ -25,10 +26,10 @@ import type {
   PalletSplitPayload,
   PrintHistoryFilters,
   PrintRequestPayload,
+  ProductionReleaseOilRow,
   RepackPayload,
   ScanRequestPayload,
   ScanResponse,
-  LookupResponse,
   VoidPayload,
 } from '../types';
 
@@ -103,7 +104,10 @@ export const barcodeApi = {
     return res.data;
   },
 
-  async removeBoxesFromPallet(palletId: number, data: PalletRemoveBoxesPayload): Promise<PalletDetail> {
+  async removeBoxesFromPallet(
+    palletId: number,
+    data: PalletRemoveBoxesPayload,
+  ): Promise<PalletDetail> {
     const res = await apiClient.post<PalletDetail>(EP.PALLET_REMOVE_BOXES(palletId), data);
     return res.data;
   },
@@ -134,6 +138,16 @@ export const barcodeApi = {
 
   async getPrintHistory(params?: PrintHistoryFilters): Promise<LabelPrintLog[]> {
     const res = await apiClient.get<LabelPrintLog[]>(EP.PRINT_HISTORY, { params });
+    return res.data;
+  },
+
+  async getProductionReleaseOil(params?: {
+    search?: string;
+    limit?: number;
+  }): Promise<ProductionReleaseOilRow[]> {
+    const res = await apiClient.get<ProductionReleaseOilRow[]>(EP.PRODUCTION_RELEASE_OIL, {
+      params,
+    });
     return res.data;
   },
 

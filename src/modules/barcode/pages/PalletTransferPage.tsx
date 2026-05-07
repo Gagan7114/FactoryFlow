@@ -1,14 +1,14 @@
-import { useState, useCallback } from 'react';
 import { Truck } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
 import { useWMSWarehouses } from '@/modules/warehouse/api';
 import type { WarehouseOption } from '@/modules/warehouse/types';
+import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets, useMovePallet } from '../api';
+import { useMovePallet, usePallets } from '../api';
 import type { Pallet } from '../types';
 
 export default function PalletTransferPage() {
@@ -17,7 +17,7 @@ export default function PalletTransferPage() {
   const [toWarehouse, setToWarehouse] = useState('');
 
   const { data: pallets = [], isLoading } = usePallets(
-    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined
+    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined,
   );
   const { data: whData } = useWMSWarehouses();
   const warehouses: WarehouseOption[] = whData?.warehouses ?? [];
@@ -40,7 +40,10 @@ export default function PalletTransferPage() {
       try {
         await moveMutation.mutateAsync({
           palletId: pallet.id,
-          data: { to_warehouse: toWarehouse, notes: `Bulk godown transfer (${selectedPallets.length} pallets)` },
+          data: {
+            to_warehouse: toWarehouse,
+            notes: `Bulk godown transfer (${selectedPallets.length} pallets)`,
+          },
         });
         successCount++;
       } catch {
@@ -58,7 +61,10 @@ export default function PalletTransferPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Godown Transfer" subtitle="Bulk transfer pallets between warehouses (e.g., BH-PF → GP-FG)" />
+      <DashboardHeader
+        title="Godown Transfer"
+        subtitle="Bulk transfer pallets between warehouses (e.g., BH-PF → GP-FG)"
+      />
 
       <Card>
         <CardContent className="p-4 space-y-4">
@@ -75,7 +81,9 @@ export default function PalletTransferPage() {
                     <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                     <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{p.box_count} boxes · {p.current_warehouse}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.box_count} boxes · {p.current_warehouse}
+                  </span>
                 </div>
               )}
               placeholder="Search and add pallets..."
@@ -127,13 +135,18 @@ export default function PalletTransferPage() {
 
             <div className="space-y-2 mb-4">
               {selectedPallets.map((p) => (
-                <div key={p.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between p-2 bg-muted/50 rounded"
+                >
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                     <span className="text-sm">{p.item_name || p.item_code}</span>
                     <span className="text-xs text-muted-foreground">{p.batch_number}</span>
                     <span className="text-xs">{p.box_count} boxes</span>
-                    <Badge className="bg-blue-100 text-blue-800 text-xs">{p.current_warehouse}</Badge>
+                    <Badge className="bg-blue-100 text-blue-800 text-xs">
+                      {p.current_warehouse}
+                    </Badge>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => removePallet(p.id)}>
                     Remove

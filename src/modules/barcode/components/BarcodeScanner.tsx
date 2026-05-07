@@ -1,5 +1,5 @@
 import { Camera, CameraOff } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
@@ -101,9 +101,7 @@ export default function BarcodeScanner({
           )}
         </div>
 
-        {error && (
-          <p className="text-sm text-red-600 text-center">{error}</p>
-        )}
+        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
         {isScanning && (
           <p className="text-xs text-center text-muted-foreground">

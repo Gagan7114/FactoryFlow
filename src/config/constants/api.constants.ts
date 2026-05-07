@@ -425,6 +425,7 @@ export const API_ENDPOINTS = {
     SCAN_HISTORY: '/barcode/scan/history/',
     LOOKUP: (barcode: string) => `/barcode/lookup/${encodeURIComponent(barcode)}/`,
     // Production Integration
+    PRODUCTION_RELEASE_OIL: '/barcode/production-release-oil/',
     PRODUCTION_LABELS: (runId: number) => `/barcode/production/${runId}/generate-labels/`,
     PRODUCTION_PALLET: (runId: number) => `/barcode/production/${runId}/create-pallet/`,
   },

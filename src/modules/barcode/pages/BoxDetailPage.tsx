@@ -1,13 +1,23 @@
-import { useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Clock, XCircle, Link2, Plus } from 'lucide-react';
+import { ArrowLeft, Clock, Link2, Plus, XCircle } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui';
 
-import { useBoxDetail, useVoidBox, usePallets, useAddBoxesToPallet, useCreatePallet } from '../api';
+import { useAddBoxesToPallet, useBoxDetail, useCreatePallet, usePallets, useVoidBox } from '../api';
 import type { BoxMovementType, Pallet } from '../types';
 
 const MOVEMENT_COLORS: Record<BoxMovementType, string> = {
@@ -33,7 +43,9 @@ export default function BoxDetailPage() {
   const handlePalletSearch = useCallback((s: string) => setPalletSearch(s), []);
 
   const { data: searchPallets = [], isLoading: loadingPallets } = usePallets(
-    linkDialogOpen && palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined
+    linkDialogOpen && palletSearch.length >= 2
+      ? { search: palletSearch, status: 'ACTIVE' }
+      : undefined,
   );
 
   const handleVoid = () => {
@@ -52,7 +64,9 @@ export default function BoxDetailPage() {
       setLinkDialogOpen(false);
       setSelectedPalletId(null);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
+      );
     }
   };
 
@@ -68,7 +82,9 @@ export default function BoxDetailPage() {
       setLinkDialogOpen(false);
       navigate(`/barcode/pallets/${pallet.id}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
+      );
     }
   };
 
@@ -91,12 +107,16 @@ export default function BoxDetailPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge className={`mt-1 ${{
-              ACTIVE: 'bg-green-100 text-green-800',
-              PARTIAL: 'bg-amber-100 text-amber-800',
-              DISMANTLED: 'bg-orange-100 text-orange-800',
-              VOID: 'bg-red-100 text-red-800',
-            }[box.status] || 'bg-gray-100 text-gray-800'}`}>
+            <Badge
+              className={`mt-1 ${
+                {
+                  ACTIVE: 'bg-green-100 text-green-800',
+                  PARTIAL: 'bg-amber-100 text-amber-800',
+                  DISMANTLED: 'bg-orange-100 text-orange-800',
+                  VOID: 'bg-red-100 text-red-800',
+                }[box.status] || 'bg-gray-100 text-gray-800'
+              }`}
+            >
               {box.status}
             </Badge>
           </CardContent>
@@ -104,7 +124,9 @@ export default function BoxDetailPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Quantity</p>
-            <p className="text-2xl font-bold">{box.qty} <span className="text-sm font-normal">{box.uom}</span></p>
+            <p className="text-2xl font-bold">
+              {box.qty} <span className="text-sm font-normal">{box.uom}</span>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -133,14 +155,34 @@ export default function BoxDetailPage() {
       {/* Detail */}
       <Card>
         <CardContent className="p-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-muted-foreground">Item Code:</span> <span className="font-medium">{box.item_code}</span></div>
-          <div><span className="text-muted-foreground">Item Name:</span> <span className="font-medium">{box.item_name}</span></div>
-          <div><span className="text-muted-foreground">Batch:</span> <span className="font-mono">{box.batch_number}</span></div>
-          <div><span className="text-muted-foreground">Mfg Date:</span> {box.mfg_date}</div>
-          <div><span className="text-muted-foreground">Exp Date:</span> {box.exp_date}</div>
-          <div><span className="text-muted-foreground">Line:</span> {box.production_line || '—'}</div>
-          <div><span className="text-muted-foreground">Created By:</span> {box.created_by_name || '—'}</div>
-          <div><span className="text-muted-foreground">Created:</span> {new Date(box.created_at).toLocaleString()}</div>
+          <div>
+            <span className="text-muted-foreground">Item Code:</span>{' '}
+            <span className="font-medium">{box.item_code}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Item Name:</span>{' '}
+            <span className="font-medium">{box.item_name}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Batch:</span>{' '}
+            <span className="font-mono">{box.batch_number}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Mfg Date:</span> {box.mfg_date}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Exp Date:</span> {box.exp_date}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Line:</span> {box.production_line || '—'}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Created By:</span> {box.created_by_name || '—'}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Created:</span>{' '}
+            {new Date(box.created_at).toLocaleString()}
+          </div>
         </CardContent>
       </Card>
 
@@ -148,11 +190,22 @@ export default function BoxDetailPage() {
       {(box.status === 'ACTIVE' || box.status === 'PARTIAL') && (
         <div className="flex gap-2">
           {!box.pallet && (
-            <Button size="sm" onClick={() => { setLinkDialogOpen(true); setSelectedPalletId(null); }}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setLinkDialogOpen(true);
+                setSelectedPalletId(null);
+              }}
+            >
               <Link2 className="h-4 w-4 mr-1" /> Link to Pallet
             </Button>
           )}
-          <Button variant="destructive" size="sm" onClick={handleVoid} disabled={voidMutation.isPending}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleVoid}
+            disabled={voidMutation.isPending}
+          >
             <XCircle className="h-4 w-4 mr-1" /> Void Box
           </Button>
         </div>
@@ -165,11 +218,16 @@ export default function BoxDetailPage() {
             <h3 className="font-semibold mb-3 text-orange-700">Dismantled Into (Loose Stock)</h3>
             <div className="space-y-2">
               {box.dismantled_into.map((ls) => (
-                <div key={ls.id} className="flex items-center justify-between p-2 bg-orange-50 rounded text-sm">
+                <div
+                  key={ls.id}
+                  className="flex items-center justify-between p-2 bg-orange-50 rounded text-sm"
+                >
                   <div>
                     <span className="font-medium">{ls.qty} units</span>
                     <span className="ml-2 text-muted-foreground">Reason: {ls.reason}</span>
-                    <Badge className={`ml-2 ${ls.status === 'REPACKED' ? 'bg-blue-100 text-blue-800' : ls.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                    <Badge
+                      className={`ml-2 ${ls.status === 'REPACKED' ? 'bg-blue-100 text-blue-800' : ls.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}
+                    >
                       {ls.status}
                     </Badge>
                   </div>
@@ -199,7 +257,10 @@ export default function BoxDetailPage() {
             <h3 className="font-semibold mb-3 text-blue-700">Repacked From (Source Boxes)</h3>
             <div className="space-y-2">
               {box.repacked_from.map((ls) => (
-                <div key={ls.id} className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm">
+                <div
+                  key={ls.id}
+                  className="flex items-center justify-between p-2 bg-blue-50 rounded text-sm"
+                >
                   <div>
                     <span className="font-medium">{ls.qty} units</span>
                     <span className="ml-2 text-muted-foreground">Reason: {ls.reason}</span>
@@ -229,19 +290,27 @@ export default function BoxDetailPage() {
             <div className="space-y-3">
               {box.movements.map((m) => (
                 <div key={m.id} className="flex items-start gap-3 p-2 bg-muted/30 rounded">
-                  <div className={`text-xs font-bold uppercase ${MOVEMENT_COLORS[m.movement_type]}`}>
+                  <div
+                    className={`text-xs font-bold uppercase ${MOVEMENT_COLORS[m.movement_type]}`}
+                  >
                     {m.movement_type}
                   </div>
                   <div className="flex-1 text-sm">
                     {m.from_warehouse && m.to_warehouse ? (
-                      <span>{m.from_warehouse} → {m.to_warehouse}</span>
+                      <span>
+                        {m.from_warehouse} → {m.to_warehouse}
+                      </span>
                     ) : m.to_warehouse ? (
                       <span>→ {m.to_warehouse}</span>
                     ) : m.from_warehouse ? (
                       <span>{m.from_warehouse} →</span>
                     ) : null}
-                    {m.to_pallet_id && <span className="ml-2 text-xs">→ Pallet {m.to_pallet_id}</span>}
-                    {m.from_pallet_id && <span className="ml-2 text-xs">← Pallet {m.from_pallet_id}</span>}
+                    {m.to_pallet_id && (
+                      <span className="ml-2 text-xs">→ Pallet {m.to_pallet_id}</span>
+                    )}
+                    {m.from_pallet_id && (
+                      <span className="ml-2 text-xs">← Pallet {m.from_pallet_id}</span>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground text-right">
                     <div>{m.performed_by_name || '—'}</div>
@@ -280,11 +349,15 @@ export default function BoxDetailPage() {
                     <div>
                       <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                       <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
-                      <span className={`ml-1 text-xs ${batchMatch ? 'text-muted-foreground' : 'text-amber-700'}`}>
+                      <span
+                        className={`ml-1 text-xs ${batchMatch ? 'text-muted-foreground' : 'text-amber-700'}`}
+                      >
                         Batch: {p.batch_number}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{p.box_count} boxes · {p.current_warehouse}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.box_count} boxes · {p.current_warehouse}
+                    </span>
                   </div>
                 );
               }}
@@ -313,7 +386,9 @@ export default function BoxDetailPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleLinkToPallet}
               disabled={addBoxesMutation.isPending || !selectedPalletId}

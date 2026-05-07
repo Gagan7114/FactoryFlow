@@ -1,13 +1,23 @@
+import { ArrowLeft, Boxes, Clock, Plus, Scissors, XCircle } from 'lucide-react';
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Package, Boxes, Clock, XCircle, Scissors, Plus } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/shared/components/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui';
 
-import { usePalletDetail, useVoidPallet, useBoxes, useAddBoxesToPallet } from '../api';
-import type { PalletStatus, PalletMovementType, BoxStatus } from '../types';
+import { useAddBoxesToPallet, useBoxes, usePalletDetail, useVoidPallet } from '../api';
+import type { BoxStatus, PalletMovementType, PalletStatus } from '../types';
 
 const STATUS_COLORS: Record<PalletStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
@@ -48,11 +58,15 @@ export default function PalletDetailPage() {
   const { data: availableBoxes = [] } = useBoxes(
     addBoxesOpen && pallet
       ? { item_code: pallet.item_code, unpalletized: 'true', status: 'ACTIVE' }
-      : undefined
+      : undefined,
   );
 
   const handleVoid = () => {
-    if (!pallet || !confirm('Are you sure you want to void this pallet? All boxes will be disassociated.')) return;
+    if (
+      !pallet ||
+      !confirm('Are you sure you want to void this pallet? All boxes will be disassociated.')
+    )
+      return;
     voidMutation.mutate({ palletId: pallet.id, data: { reason: 'Voided from detail page' } });
   };
 
@@ -67,12 +81,17 @@ export default function PalletDetailPage() {
       setAddBoxesOpen(false);
       setSelectedAddBoxIds([]);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to add boxes');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Failed to add boxes',
+      );
     }
   };
 
   const toggleAddBox = (id: number) => {
-    setSelectedAddBoxIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
+    setSelectedAddBoxIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
   };
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -106,7 +125,9 @@ export default function PalletDetailPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Total Qty</p>
-            <p className="text-2xl font-bold">{pallet.total_qty} <span className="text-sm font-normal">{pallet.uom}</span></p>
+            <p className="text-2xl font-bold">
+              {pallet.total_qty} <span className="text-sm font-normal">{pallet.uom}</span>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -120,24 +141,56 @@ export default function PalletDetailPage() {
       {/* Detail Info */}
       <Card>
         <CardContent className="p-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          <div><span className="text-muted-foreground">Item Code:</span> <span className="font-medium">{pallet.item_code}</span></div>
-          <div><span className="text-muted-foreground">Item Name:</span> <span className="font-medium">{pallet.item_name}</span></div>
-          <div><span className="text-muted-foreground">Batch:</span> <span className="font-mono">{pallet.batch_number}</span></div>
-          <div><span className="text-muted-foreground">Mfg Date:</span> {pallet.mfg_date}</div>
-          <div><span className="text-muted-foreground">Exp Date:</span> {pallet.exp_date}</div>
-          <div><span className="text-muted-foreground">Line:</span> {pallet.production_line || '—'}</div>
-          <div><span className="text-muted-foreground">Created By:</span> {pallet.created_by_name || '—'}</div>
-          <div><span className="text-muted-foreground">Created:</span> {new Date(pallet.created_at).toLocaleString()}</div>
+          <div>
+            <span className="text-muted-foreground">Item Code:</span>{' '}
+            <span className="font-medium">{pallet.item_code}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Item Name:</span>{' '}
+            <span className="font-medium">{pallet.item_name}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Batch:</span>{' '}
+            <span className="font-mono">{pallet.batch_number}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Mfg Date:</span> {pallet.mfg_date}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Exp Date:</span> {pallet.exp_date}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Line:</span> {pallet.production_line || '—'}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Created By:</span>{' '}
+            {pallet.created_by_name || '—'}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Created:</span>{' '}
+            {new Date(pallet.created_at).toLocaleString()}
+          </div>
         </CardContent>
       </Card>
 
       {/* Actions */}
       {pallet.status === 'ACTIVE' && (
         <div className="flex gap-2">
-          <Button size="sm" onClick={() => { setAddBoxesOpen(true); setSelectedAddBoxIds([]); }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setAddBoxesOpen(true);
+              setSelectedAddBoxIds([]);
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" /> Add Boxes
           </Button>
-          <Button variant="destructive" size="sm" onClick={handleVoid} disabled={voidMutation.isPending}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleVoid}
+            disabled={voidMutation.isPending}
+          >
             <XCircle className="h-4 w-4 mr-1" /> Void Pallet
           </Button>
         </div>
@@ -168,7 +221,9 @@ export default function PalletDetailPage() {
                       onClick={() => navigate(`/barcode/boxes/${box.id}`)}
                     >
                       <td className="p-2 font-mono text-xs">{box.box_barcode}</td>
-                      <td className="p-2 text-right">{box.qty} {box.uom}</td>
+                      <td className="p-2 text-right">
+                        {box.qty} {box.uom}
+                      </td>
                       <td className="p-2">{box.current_warehouse}</td>
                       <td className="p-2">
                         <Badge className={BOX_STATUS_COLORS[box.status]}>{box.status}</Badge>
@@ -211,9 +266,13 @@ export default function PalletDetailPage() {
                       onClick={() => navigate(`/barcode/boxes/${box.id}`)}
                     >
                       <td className="p-2 font-mono text-xs">{box.box_barcode}</td>
-                      <td className="p-2 text-right">{box.qty} {box.uom}</td>
+                      <td className="p-2 text-right">
+                        {box.qty} {box.uom}
+                      </td>
                       <td className="p-2">{box.current_warehouse}</td>
-                      <td className="p-2 text-xs text-muted-foreground">{box.pallet_code || 'None'}</td>
+                      <td className="p-2 text-xs text-muted-foreground">
+                        {box.pallet_code || 'None'}
+                      </td>
                       <td className="p-2">
                         <Badge className={BOX_STATUS_COLORS[box.status]}>{box.status}</Badge>
                       </td>
@@ -236,12 +295,16 @@ export default function PalletDetailPage() {
             <div className="space-y-3">
               {pallet.movements.map((m) => (
                 <div key={m.id} className="flex items-start gap-3 p-2 bg-muted/30 rounded">
-                  <div className={`text-xs font-bold uppercase ${MOVEMENT_COLORS[m.movement_type]}`}>
+                  <div
+                    className={`text-xs font-bold uppercase ${MOVEMENT_COLORS[m.movement_type]}`}
+                  >
                     {m.movement_type}
                   </div>
                   <div className="flex-1 text-sm">
                     {m.from_warehouse && m.to_warehouse ? (
-                      <span>{m.from_warehouse} → {m.to_warehouse}</span>
+                      <span>
+                        {m.from_warehouse} → {m.to_warehouse}
+                      </span>
                     ) : m.to_warehouse ? (
                       <span>→ {m.to_warehouse}</span>
                     ) : m.from_warehouse ? (
@@ -280,26 +343,39 @@ export default function PalletDetailPage() {
               {availableBoxes.map((box) => {
                 const batchMatch = box.batch_number === pallet.batch_number;
                 return (
-                  <label key={box.id} className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-muted/50 ${batchMatch ? 'bg-muted/30' : 'bg-amber-50 border border-amber-200'}`}>
+                  <label
+                    key={box.id}
+                    className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-muted/50 ${batchMatch ? 'bg-muted/30' : 'bg-amber-50 border border-amber-200'}`}
+                  >
                     <input
                       type="checkbox"
                       checked={selectedAddBoxIds.includes(box.id)}
                       onChange={() => toggleAddBox(box.id)}
                     />
                     <span className="font-mono text-xs">{box.box_barcode}</span>
-                    <span className="text-sm">{box.qty} {box.uom}</span>
-                    <span className={`text-xs ${batchMatch ? 'text-muted-foreground' : 'text-amber-700 font-medium'}`}>
+                    <span className="text-sm">
+                      {box.qty} {box.uom}
+                    </span>
+                    <span
+                      className={`text-xs ${batchMatch ? 'text-muted-foreground' : 'text-amber-700 font-medium'}`}
+                    >
                       Batch: {box.batch_number}
                     </span>
                     <span className="text-xs text-muted-foreground">{box.current_warehouse}</span>
-                    {!batchMatch && <Badge className="bg-amber-100 text-amber-800 text-[10px]">Different batch</Badge>}
+                    {!batchMatch && (
+                      <Badge className="bg-amber-100 text-amber-800 text-[10px]">
+                        Different batch
+                      </Badge>
+                    )}
                   </label>
                 );
               })}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddBoxesOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setAddBoxesOpen(false)}>
+              Cancel
+            </Button>
             <Button
               onClick={handleAddBoxes}
               disabled={addBoxesMutation.isPending || selectedAddBoxIds.length === 0}

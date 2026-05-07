@@ -1,8 +1,10 @@
+import { Printer } from 'lucide-react';
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
-import { Printer } from 'lucide-react';
 
 import { Button } from '@/shared/components/ui';
+
+import { LABEL_PRINT_PAGE_STYLE } from './labelPrint';
 
 interface PrintableLabelProps {
   children: React.ReactNode;
@@ -21,20 +23,19 @@ export default function PrintableLabel({
 
   const handlePrint = useReactToPrint({
     contentRef,
-    documentTitle: 'Barcode Label',
+    documentTitle: 'Barcode Label 60x40mm',
+    pageStyle: LABEL_PRINT_PAGE_STYLE,
   });
 
   return (
     <div>
-      {/* Print trigger button */}
       <Button variant={variant} size={size} onClick={() => handlePrint()}>
         <Printer className="h-4 w-4 mr-1" />
         {triggerLabel}
       </Button>
 
-      {/* Hidden printable area — only visible in print dialog */}
-      <div className="hidden">
-        <div ref={contentRef} className="p-4">
+      <div aria-hidden style={{ position: 'fixed', left: '-10000px', top: 0 }}>
+        <div ref={contentRef} className="barcode-print-sheet">
           {children}
         </div>
       </div>

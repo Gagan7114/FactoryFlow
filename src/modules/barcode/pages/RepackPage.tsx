@@ -1,13 +1,13 @@
+import { PackagePlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PackagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { useWMSWarehouses } from '@/modules/warehouse/api';
 import type { WarehouseOption } from '@/modules/warehouse/types';
+import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useLooseStock, useRepack } from '../api';
 
@@ -21,9 +21,7 @@ export default function RepackPage() {
   const repackMutation = useRepack();
 
   const toggleSelect = (id: number) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const selectedItems = looseItems.filter((i) => selectedIds.includes(i.id));
@@ -43,7 +41,10 @@ export default function RepackPage() {
       toast.success(`Repacked into ${newBox.box_barcode}`);
       navigate(`/barcode/boxes/${newBox.id}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to repack');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Failed to repack',
+      );
     }
   };
 
@@ -87,8 +88,8 @@ export default function RepackPage() {
             <h3 className="font-semibold">Active Loose Stock</h3>
             {selectedIds.length > 0 && (
               <div className="text-sm">
-                Selected: <span className="font-bold">{selectedIds.length}</span> records,
-                Total qty: <span className="font-bold">{totalQty}</span>
+                Selected: <span className="font-bold">{selectedIds.length}</span> records, Total
+                qty: <span className="font-bold">{totalQty}</span>
                 {combos.size > 1 && (
                   <span className="text-red-600 ml-2">Mixed items/batches — must be same</span>
                 )}
@@ -99,7 +100,9 @@ export default function RepackPage() {
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
           ) : looseItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No active loose stock to repack</div>
+            <div className="text-center py-8 text-muted-foreground">
+              No active loose stock to repack
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -126,10 +129,14 @@ export default function RepackPage() {
                       </td>
                       <td className="p-3">
                         <div className="font-medium">{ls.item_code}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">{ls.item_name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {ls.item_name}
+                        </div>
                       </td>
                       <td className="p-3 text-xs font-mono">{ls.batch_number}</td>
-                      <td className="p-3 text-right font-bold">{ls.qty} {ls.uom}</td>
+                      <td className="p-3 text-right font-bold">
+                        {ls.qty} {ls.uom}
+                      </td>
                       <td className="p-3 font-mono text-xs">{ls.source_box_barcode || '—'}</td>
                       <td className="p-3">
                         <Badge className="bg-gray-100 text-gray-800">{ls.reason}</Badge>
@@ -144,17 +151,16 @@ export default function RepackPage() {
 
           {/* Repack button */}
           <div className="mt-4">
-            <Button
-              onClick={handleRepack}
-              disabled={!isValid || repackMutation.isPending}
-            >
+            <Button onClick={handleRepack} disabled={!isValid || repackMutation.isPending}>
               <PackagePlus className="h-4 w-4 mr-1" />
               {repackMutation.isPending
                 ? 'Repacking...'
                 : `Repack ${selectedIds.length} Records (${totalQty} units) → New Box`}
             </Button>
             {combos.size > 1 && selectedIds.length > 0 && (
-              <p className="text-sm text-red-600 mt-2">Cannot repack different items or batches together</p>
+              <p className="text-sm text-red-600 mt-2">
+                Cannot repack different items or batches together
+              </p>
             )}
           </div>
         </CardContent>

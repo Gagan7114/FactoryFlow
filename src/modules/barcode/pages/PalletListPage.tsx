@@ -1,9 +1,9 @@
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, Search } from 'lucide-react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge } from '@/shared/components/ui';
+import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { usePallets } from '../api';
 import type { PalletStatus } from '../types';
@@ -94,7 +94,9 @@ export default function PalletListPage() {
                       </td>
                       <td className="p-3 text-xs">{p.batch_number}</td>
                       <td className="p-3 text-right">{p.box_count}</td>
-                      <td className="p-3 text-right">{p.total_qty} {p.uom}</td>
+                      <td className="p-3 text-right">
+                        {p.total_qty} {p.uom}
+                      </td>
                       <td className="p-3">{p.current_warehouse}</td>
                       <td className="p-3">
                         <Badge className={STATUS_COLORS[p.status]}>{p.status}</Badge>

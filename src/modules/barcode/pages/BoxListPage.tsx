@@ -1,9 +1,9 @@
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search } from 'lucide-react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge } from '@/shared/components/ui';
+import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { useBoxes } from '../api';
 import type { BoxStatus } from '../types';
@@ -99,7 +99,9 @@ export default function BoxListPage() {
                         </div>
                       </td>
                       <td className="p-3 text-xs">{b.batch_number}</td>
-                      <td className="p-3 text-right">{b.qty} {b.uom}</td>
+                      <td className="p-3 text-right">
+                        {b.qty} {b.uom}
+                      </td>
                       <td className="p-3 font-mono text-xs">{b.pallet_code || '—'}</td>
                       <td className="p-3">{b.current_warehouse}</td>
                       <td className="p-3">

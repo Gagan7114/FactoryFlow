@@ -1,12 +1,12 @@
+import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge } from '@/shared/components/ui';
+import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { useLooseStock } from '../api';
-import type { LooseStockStatus, DismantleReason } from '../types';
+import type { DismantleReason, LooseStockStatus } from '../types';
 
 const STATUS_COLORS: Record<LooseStockStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
@@ -54,13 +54,21 @@ export default function LooseStockPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select className="border rounded-md px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select
+          className="border rounded-md px-3 py-2 text-sm"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
           <option value="">All Statuses</option>
           <option value="ACTIVE">Active</option>
           <option value="REPACKED">Repacked</option>
           <option value="CONSUMED">Consumed</option>
         </select>
-        <select className="border rounded-md px-3 py-2 text-sm" value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value)}>
+        <select
+          className="border rounded-md px-3 py-2 text-sm"
+          value={reasonFilter}
+          onChange={(e) => setReasonFilter(e.target.value)}
+        >
           <option value="">All Reasons</option>
           <option value="REPACK">Repack</option>
           <option value="SAMPLE">Sample</option>
@@ -98,20 +106,28 @@ export default function LooseStockPage() {
                     <tr key={ls.id} className="border-b hover:bg-muted/30">
                       <td className="p-3">
                         <div className="font-medium">{ls.item_code}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">{ls.item_name}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {ls.item_name}
+                        </div>
                       </td>
                       <td className="p-3 text-xs font-mono">{ls.batch_number}</td>
-                      <td className="p-3 text-right font-bold">{ls.qty} {ls.uom}</td>
+                      <td className="p-3 text-right font-bold">
+                        {ls.qty} {ls.uom}
+                      </td>
                       <td className="p-3 text-right text-muted-foreground">{ls.original_qty}</td>
                       <td className="p-3">
                         {ls.source_box_barcode ? (
                           <span
                             className="font-mono text-xs text-blue-600 cursor-pointer hover:underline"
-                            onClick={() => ls.source_box && navigate(`/barcode/boxes/${ls.source_box}`)}
+                            onClick={() =>
+                              ls.source_box && navigate(`/barcode/boxes/${ls.source_box}`)
+                            }
                           >
                             {ls.source_box_barcode}
                           </span>
-                        ) : '—'}
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td className="p-3">
                         <Badge className={REASON_COLORS[ls.reason]}>{ls.reason}</Badge>
@@ -124,11 +140,16 @@ export default function LooseStockPage() {
                         {ls.repacked_into_barcode ? (
                           <span
                             className="font-mono text-xs text-blue-600 cursor-pointer hover:underline"
-                            onClick={() => ls.repacked_into_box && navigate(`/barcode/boxes/${ls.repacked_into_box}`)}
+                            onClick={() =>
+                              ls.repacked_into_box &&
+                              navigate(`/barcode/boxes/${ls.repacked_into_box}`)
+                            }
                           >
                             {ls.repacked_into_barcode}
                           </span>
-                        ) : '—'}
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td className="p-3 text-xs text-muted-foreground">
                         {new Date(ls.created_at).toLocaleDateString()}

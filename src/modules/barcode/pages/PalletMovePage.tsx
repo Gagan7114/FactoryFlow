@@ -1,15 +1,15 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
 import { useWMSWarehouses } from '@/modules/warehouse/api';
 import type { WarehouseOption } from '@/modules/warehouse/types';
+import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets, usePalletDetail, useMovePallet } from '../api';
+import { useMovePallet, usePalletDetail, usePallets } from '../api';
 import type { Pallet } from '../types';
 
 export default function PalletMovePage() {
@@ -20,7 +20,7 @@ export default function PalletMovePage() {
   const [notes, setNotes] = useState('');
 
   const { data: pallets = [], isLoading: loadingPallets } = usePallets(
-    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined
+    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined,
   );
   const { data: palletDetail } = usePalletDetail(selectedPalletId);
   const { data: whData } = useWMSWarehouses();
@@ -37,7 +37,10 @@ export default function PalletMovePage() {
       toast.success(`Pallet moved to ${toWarehouse}`);
       navigate(`/barcode/pallets/${selectedPalletId}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to move');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Failed to move',
+      );
     }
   };
 
@@ -60,7 +63,9 @@ export default function PalletMovePage() {
                     <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                     <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{p.box_count} boxes · {p.current_warehouse}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.box_count} boxes · {p.current_warehouse}
+                  </span>
                 </div>
               )}
               placeholder="Search pallet..."
@@ -83,8 +88,12 @@ export default function PalletMovePage() {
                   <span className="font-mono font-medium">{palletDetail.pallet_id}</span>
                   <span>{palletDetail.item_name}</span>
                   <span className="text-muted-foreground">Batch: {palletDetail.batch_number}</span>
-                  <span>{palletDetail.box_count} boxes · {palletDetail.total_qty} {palletDetail.uom}</span>
-                  <Badge className="bg-blue-100 text-blue-800">From: {palletDetail.current_warehouse}</Badge>
+                  <span>
+                    {palletDetail.box_count} boxes · {palletDetail.total_qty} {palletDetail.uom}
+                  </span>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    From: {palletDetail.current_warehouse}
+                  </Badge>
                 </div>
               </div>
 
@@ -114,7 +123,12 @@ export default function PalletMovePage() {
                 </div>
                 <div className="flex-1">
                   <label className="text-xs font-medium text-muted-foreground">Notes</label>
-                  <input className="w-full border rounded px-3 py-2 text-sm mt-1" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional..." />
+                  <input
+                    className="w-full border rounded px-3 py-2 text-sm mt-1"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Optional..."
+                  />
                 </div>
               </div>
 

@@ -6,7 +6,14 @@ export type PalletStatus = 'ACTIVE' | 'CLEARED' | 'SPLIT' | 'VOID';
 export type BoxStatus = 'ACTIVE' | 'PARTIAL' | 'DISMANTLED' | 'VOID';
 export type LabelType = 'BOX' | 'PALLET' | 'BIN' | 'WAREHOUSE';
 export type PrintType = 'ORIGINAL' | 'REPRINT';
-export type PalletMovementType = 'CREATE' | 'MOVE' | 'TRANSFER' | 'DISMANTLE' | 'CLEAR' | 'SPLIT' | 'VOID';
+export type PalletMovementType =
+  | 'CREATE'
+  | 'MOVE'
+  | 'TRANSFER'
+  | 'DISMANTLE'
+  | 'CLEAR'
+  | 'SPLIT'
+  | 'VOID';
 export type BoxMovementType = 'CREATE' | 'MOVE' | 'TRANSFER' | 'PALLETIZE' | 'DEPALLETIZE' | 'VOID';
 
 // ============================================================================
@@ -151,6 +158,26 @@ export interface CreatePalletPayload {
   warehouse: string;
   production_line?: string;
   production_run_id?: number;
+}
+
+export interface ProductionReleaseOilRow {
+  doc_entry: number | null;
+  doc_num: number | null;
+  post_date: string;
+  item_code: string;
+  item_name: string;
+  liter_countable: string;
+  man_btch_num: string;
+  planned_qty: string;
+  box_count: string;
+  liter: string;
+  box_size: string;
+  volume_per_pc: string;
+  volume_per_box: string;
+  batch_number: string;
+  mfg_date: string;
+  exp_date: string;
+  status: string;
 }
 
 export interface VoidPayload {
@@ -322,7 +349,15 @@ export interface LooseStockFilters {
 // Scan
 // ============================================================================
 
-export type ScanType = 'RECEIVE' | 'PUTAWAY' | 'PICK' | 'COUNT' | 'TRANSFER' | 'SHIP' | 'RETURN' | 'LOOKUP';
+export type ScanType =
+  | 'RECEIVE'
+  | 'PUTAWAY'
+  | 'PICK'
+  | 'COUNT'
+  | 'TRANSFER'
+  | 'SHIP'
+  | 'RETURN'
+  | 'LOOKUP';
 
 export interface ScanRequestPayload {
   barcode_raw: string;

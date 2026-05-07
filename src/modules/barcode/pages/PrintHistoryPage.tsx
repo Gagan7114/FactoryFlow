@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { Search } from 'lucide-react';
+import { useState } from 'react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Card, CardContent, Badge } from '@/shared/components/ui';
+import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { usePrintHistory } from '../api';
 
@@ -31,7 +31,10 @@ export default function PrintHistoryPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Print History" subtitle="Audit trail for all label prints and reprints" />
+      <DashboardHeader
+        title="Print History"
+        subtitle="Audit trail for all label prints and reprints"
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -45,12 +48,20 @@ export default function PrintHistoryPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <select className="border rounded-md px-3 py-2 text-sm" value={labelTypeFilter} onChange={(e) => setLabelTypeFilter(e.target.value)}>
+        <select
+          className="border rounded-md px-3 py-2 text-sm"
+          value={labelTypeFilter}
+          onChange={(e) => setLabelTypeFilter(e.target.value)}
+        >
           <option value="">All Types</option>
           <option value="BOX">Box</option>
           <option value="PALLET">Pallet</option>
         </select>
-        <select className="border rounded-md px-3 py-2 text-sm" value={printTypeFilter} onChange={(e) => setPrintTypeFilter(e.target.value)}>
+        <select
+          className="border rounded-md px-3 py-2 text-sm"
+          value={printTypeFilter}
+          onChange={(e) => setPrintTypeFilter(e.target.value)}
+        >
           <option value="">All Prints</option>
           <option value="ORIGINAL">Original</option>
           <option value="REPRINT">Reprint</option>
@@ -80,11 +91,15 @@ export default function PrintHistoryPage() {
                   {logs.map((log) => (
                     <tr key={log.id} className="border-b hover:bg-muted/30">
                       <td className="p-3">
-                        <Badge className={TYPE_COLORS[log.label_type] || 'bg-gray-100'}>{log.label_type}</Badge>
+                        <Badge className={TYPE_COLORS[log.label_type] || 'bg-gray-100'}>
+                          {log.label_type}
+                        </Badge>
                       </td>
                       <td className="p-3 font-mono text-xs">{log.reference_code}</td>
                       <td className="p-3">
-                        <Badge className={PRINT_COLORS[log.print_type] || 'bg-gray-100'}>{log.print_type}</Badge>
+                        <Badge className={PRINT_COLORS[log.print_type] || 'bg-gray-100'}>
+                          {log.print_type}
+                        </Badge>
                       </td>
                       <td className="p-3 text-xs text-muted-foreground max-w-[200px] truncate">
                         {log.reprint_reason || '—'}

@@ -1,15 +1,15 @@
-import { useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Split } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
 import { useWMSWarehouses } from '@/modules/warehouse/api';
 import type { WarehouseOption } from '@/modules/warehouse/types';
+import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets, usePalletDetail, useSplitPallet } from '../api';
+import { usePalletDetail, usePallets, useSplitPallet } from '../api';
 import type { Pallet } from '../types';
 
 export default function PalletSplitPage() {
@@ -20,17 +20,18 @@ export default function PalletSplitPage() {
   const [warehouse, setWarehouse] = useState('');
 
   const { data: pallets = [], isLoading } = usePallets(
-    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined
+    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined,
   );
   const { data: palletDetail } = usePalletDetail(selectedPalletId);
   const { data: whData } = useWMSWarehouses();
   const warehouses: WarehouseOption[] = whData?.warehouses ?? [];
   const splitMutation = useSplitPallet();
 
-  const activeBoxes = palletDetail?.boxes?.filter((b) => b.status === 'ACTIVE' || b.status === 'PARTIAL') || [];
+  const activeBoxes =
+    palletDetail?.boxes?.filter((b) => b.status === 'ACTIVE' || b.status === 'PARTIAL') || [];
 
   const toggleBox = (id: number) => {
-    setSelectedBoxIds((prev) => prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]);
+    setSelectedBoxIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleSplit = async () => {
@@ -43,7 +44,10 @@ export default function PalletSplitPage() {
       toast.success(`Split into new pallet: ${newPallet.pallet_id}`);
       navigate(`/barcode/pallets/${newPallet.id}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to split');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+          'Failed to split',
+      );
     }
   };
 
@@ -53,7 +57,10 @@ export default function PalletSplitPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Split Pallet" subtitle="Move selected boxes from a pallet into a new pallet" />
+      <DashboardHeader
+        title="Split Pallet"
+        subtitle="Move selected boxes from a pallet into a new pallet"
+      />
 
       <Card>
         <CardContent className="p-4 space-y-4">
@@ -70,7 +77,9 @@ export default function PalletSplitPage() {
                     <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                     <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{p.box_count} boxes · {p.current_warehouse}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.box_count} boxes · {p.current_warehouse}
+                  </span>
                 </div>
               )}
               placeholder="Search pallet to split..."
@@ -81,8 +90,14 @@ export default function PalletSplitPage() {
               emptyText="Type at least 2 characters"
               notFoundText="No active pallets found"
               onSearchChange={useCallback((s: string) => setPalletSearch(s), [])}
-              onItemSelect={(p) => { setSelectedPalletId(p.id); setSelectedBoxIds([]); }}
-              onClear={() => { setSelectedPalletId(null); setSelectedBoxIds([]); }}
+              onItemSelect={(p) => {
+                setSelectedPalletId(p.id);
+                setSelectedBoxIds([]);
+              }}
+              onClear={() => {
+                setSelectedPalletId(null);
+                setSelectedBoxIds([]);
+              }}
             />
 
             <SearchableSelect<WarehouseOption>
@@ -117,41 +132,72 @@ export default function PalletSplitPage() {
               <h3 className="font-semibold">
                 Select boxes to split off ({selectedBoxIds.length} of {activeBoxes.length})
               </h3>
-              <Button size="sm" variant="ghost" onClick={() =>
-                setSelectedBoxIds(selectedBoxIds.length === activeBoxes.length ? [] : activeBoxes.map((b) => b.id))
-              }>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSelectedBoxIds(
+                    selectedBoxIds.length === activeBoxes.length
+                      ? []
+                      : activeBoxes.map((b) => b.id),
+                  )
+                }
+              >
                 {selectedBoxIds.length === activeBoxes.length ? 'Deselect all' : 'Select all'}
               </Button>
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-1 mb-4">
               {activeBoxes.map((box) => (
-                <label key={box.id} className="flex items-center gap-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
-                  <input type="checkbox" checked={selectedBoxIds.includes(box.id)} onChange={() => toggleBox(box.id)} />
+                <label
+                  key={box.id}
+                  className="flex items-center gap-3 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedBoxIds.includes(box.id)}
+                    onChange={() => toggleBox(box.id)}
+                  />
                   <span className="font-mono text-xs">{box.box_barcode}</span>
-                  <span className="text-sm">{box.qty} {box.uom}</span>
-                  <Badge className={box.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>{box.status}</Badge>
+                  <span className="text-sm">
+                    {box.qty} {box.uom}
+                  </span>
+                  <Badge
+                    className={
+                      box.status === 'ACTIVE'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }
+                  >
+                    {box.status}
+                  </Badge>
                 </label>
               ))}
             </div>
 
             {selectedBoxIds.length > 0 && (
               <div className="p-3 bg-blue-50 rounded-lg mb-4 text-sm">
-                <strong>New pallet will have:</strong> {selectedBoxIds.length} boxes, {selectedQty} qty → {warehouse || '...'}
+                <strong>New pallet will have:</strong> {selectedBoxIds.length} boxes, {selectedQty}{' '}
+                qty → {warehouse || '...'}
                 <br />
-                <strong>Original pallet keeps:</strong> {activeBoxes.length - selectedBoxIds.length} boxes
+                <strong>Original pallet keeps:</strong> {activeBoxes.length - selectedBoxIds.length}{' '}
+                boxes
               </div>
             )}
 
             {selectedBoxIds.length > 0 && selectedBoxIds.length < activeBoxes.length && (
               <Button onClick={handleSplit} disabled={splitMutation.isPending || !warehouse}>
                 <Split className="h-4 w-4 mr-1" />
-                {splitMutation.isPending ? 'Splitting...' : `Split ${selectedBoxIds.length} boxes → New Pallet`}
+                {splitMutation.isPending
+                  ? 'Splitting...'
+                  : `Split ${selectedBoxIds.length} boxes → New Pallet`}
               </Button>
             )}
 
             {selectedBoxIds.length === activeBoxes.length && (
-              <p className="text-sm text-amber-600">Cannot split all boxes — use Move Pallet instead to move the entire pallet.</p>
+              <p className="text-sm text-amber-600">
+                Cannot split all boxes — use Move Pallet instead to move the entire pallet.
+              </p>
             )}
           </CardContent>
         </Card>

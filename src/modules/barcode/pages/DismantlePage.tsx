@@ -1,13 +1,20 @@
-import { useState, useCallback } from 'react';
-import { Package, Boxes, Scissors } from 'lucide-react';
+import { Boxes, Package, Scissors } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
-import { Card, CardContent, Button, Badge } from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets, useBoxes, usePalletDetail, useBoxDetail, useDismantlePallet, useDismantleBox } from '../api';
-import type { DismantleReason, Pallet, Box } from '../types';
+import {
+  useBoxDetail,
+  useBoxes,
+  useDismantleBox,
+  useDismantlePallet,
+  usePalletDetail,
+  usePallets,
+} from '../api';
+import type { Box, DismantleReason, Pallet } from '../types';
 
 const REASONS: { value: DismantleReason; label: string }[] = [
   { value: 'REPACK', label: 'Repack' },
@@ -28,10 +35,12 @@ export default function DismantlePage() {
   const [looseQty, setLooseQty] = useState('');
 
   const { data: pallets = [], isLoading: loadingPallets } = usePallets(
-    mode === 'pallet' && palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined
+    mode === 'pallet' && palletSearch.length >= 2
+      ? { search: palletSearch, status: 'ACTIVE' }
+      : undefined,
   );
   const { data: boxes = [], isLoading: loadingBoxes } = useBoxes(
-    mode === 'box' && boxSearch.length >= 2 ? { search: boxSearch, status: 'ACTIVE' } : undefined
+    mode === 'box' && boxSearch.length >= 2 ? { search: boxSearch, status: 'ACTIVE' } : undefined,
   );
 
   const handlePalletSearch = useCallback((s: string) => setPalletSearch(s), []);
@@ -44,7 +53,7 @@ export default function DismantlePage() {
 
   const toggleBoxSelect = (boxId: number) => {
     setSelectedBoxIds((prev) =>
-      prev.includes(boxId) ? prev.filter((id) => id !== boxId) : [...prev, boxId]
+      prev.includes(boxId) ? prev.filter((id) => id !== boxId) : [...prev, boxId],
     );
   };
 
@@ -64,7 +73,9 @@ export default function DismantlePage() {
       setSelectedBoxIds([]);
       setReasonNotes('');
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
+      );
     }
   };
 
@@ -84,13 +95,18 @@ export default function DismantlePage() {
       setLooseQty('');
       setReasonNotes('');
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed');
+      toast.error(
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
+      );
     }
   };
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Dismantle" subtitle="Break down pallets into boxes, or boxes into loose items" />
+      <DashboardHeader
+        title="Dismantle"
+        subtitle="Break down pallets into boxes, or boxes into loose items"
+      />
 
       {/* Mode + Search */}
       <Card>
@@ -102,14 +118,20 @@ export default function DismantlePage() {
                 <Button
                   size="sm"
                   variant={mode === 'pallet' ? 'default' : 'outline'}
-                  onClick={() => { setMode('pallet'); setSelectedId(null); }}
+                  onClick={() => {
+                    setMode('pallet');
+                    setSelectedId(null);
+                  }}
                 >
                   <Package className="h-4 w-4 mr-1" /> Pallet
                 </Button>
                 <Button
                   size="sm"
                   variant={mode === 'box' ? 'default' : 'outline'}
-                  onClick={() => { setMode('box'); setSelectedId(null); }}
+                  onClick={() => {
+                    setMode('box');
+                    setSelectedId(null);
+                  }}
                 >
                   <Boxes className="h-4 w-4 mr-1" /> Box
                 </Button>
@@ -129,9 +151,13 @@ export default function DismantlePage() {
                       <div>
                         <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
                         <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">Batch: {p.batch_number}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          Batch: {p.batch_number}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{p.box_count} boxes · {p.current_warehouse}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.box_count} boxes · {p.current_warehouse}
+                      </span>
                     </div>
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
@@ -158,9 +184,13 @@ export default function DismantlePage() {
                       <div>
                         <span className="font-mono text-xs font-medium">{b.box_barcode}</span>
                         <span className="ml-2 text-sm">{b.item_name || b.item_code}</span>
-                        <span className="ml-1 text-xs text-muted-foreground">Batch: {b.batch_number}</span>
+                        <span className="ml-1 text-xs text-muted-foreground">
+                          Batch: {b.batch_number}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">{b.qty} {b.uom} · {b.current_warehouse}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {b.qty} {b.uom} · {b.current_warehouse}
+                      </span>
                     </div>
                   )}
                   placeholder="Search box by barcode, item, or batch..."
@@ -188,7 +218,8 @@ export default function DismantlePage() {
               <div>
                 <h3 className="font-semibold">{palletDetail.pallet_id}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {palletDetail.item_name} — Batch: {palletDetail.batch_number} — {palletDetail.box_count} boxes
+                  {palletDetail.item_name} — Batch: {palletDetail.batch_number} —{' '}
+                  {palletDetail.box_count} boxes
                 </p>
               </div>
               <Badge className="bg-blue-100 text-blue-800">{palletDetail.status}</Badge>
@@ -200,28 +231,44 @@ export default function DismantlePage() {
                 <label className="text-xs font-medium text-muted-foreground">
                   Select boxes to remove (leave empty to dismantle all)
                 </label>
-                <Button size="sm" variant="ghost" onClick={() =>
-                  setSelectedBoxIds(
-                    selectedBoxIds.length === (palletDetail.boxes?.length || 0)
-                      ? []
-                      : (palletDetail.boxes || []).filter((b) => b.status === 'ACTIVE').map((b) => b.id)
-                  )
-                }>
-                  {selectedBoxIds.length === (palletDetail.boxes?.filter((b) => b.status === 'ACTIVE').length || 0) ? 'Deselect all' : 'Select all'}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    setSelectedBoxIds(
+                      selectedBoxIds.length === (palletDetail.boxes?.length || 0)
+                        ? []
+                        : (palletDetail.boxes || [])
+                            .filter((b) => b.status === 'ACTIVE')
+                            .map((b) => b.id),
+                    )
+                  }
+                >
+                  {selectedBoxIds.length ===
+                  (palletDetail.boxes?.filter((b) => b.status === 'ACTIVE').length || 0)
+                    ? 'Deselect all'
+                    : 'Select all'}
                 </Button>
               </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
-                {palletDetail.boxes?.filter((b) => b.status === 'ACTIVE').map((box) => (
-                  <label key={box.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50">
-                    <input
-                      type="checkbox"
-                      checked={selectedBoxIds.includes(box.id)}
-                      onChange={() => toggleBoxSelect(box.id)}
-                    />
-                    <span className="font-mono text-xs">{box.box_barcode}</span>
-                    <span className="text-xs text-muted-foreground">{box.qty} {box.uom}</span>
-                  </label>
-                ))}
+                {palletDetail.boxes
+                  ?.filter((b) => b.status === 'ACTIVE')
+                  .map((box) => (
+                    <label
+                      key={box.id}
+                      className="flex items-center gap-2 p-2 bg-muted/30 rounded cursor-pointer hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedBoxIds.includes(box.id)}
+                        onChange={() => toggleBoxSelect(box.id)}
+                      />
+                      <span className="font-mono text-xs">{box.box_barcode}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {box.qty} {box.uom}
+                      </span>
+                    </label>
+                  ))}
               </div>
             </div>
 
@@ -229,19 +276,34 @@ export default function DismantlePage() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Reason *</label>
-                <select className="w-full border rounded px-3 py-2 text-sm mt-1" value={reason} onChange={(e) => setReason(e.target.value as DismantleReason)}>
-                  {REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm mt-1"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value as DismantleReason)}
+                >
+                  {REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Notes</label>
-                <input className="w-full border rounded px-3 py-2 text-sm mt-1" value={reasonNotes} onChange={(e) => setReasonNotes(e.target.value)} placeholder="Optional details..." />
+                <input
+                  className="w-full border rounded px-3 py-2 text-sm mt-1"
+                  value={reasonNotes}
+                  onChange={(e) => setReasonNotes(e.target.value)}
+                  placeholder="Optional details..."
+                />
               </div>
             </div>
 
             <Button onClick={handleDismantlePallet} disabled={dismantlePalletMutation.isPending}>
               <Scissors className="h-4 w-4 mr-1" />
-              {dismantlePalletMutation.isPending ? 'Dismantling...' : `Dismantle ${selectedBoxIds.length || 'All'} Boxes from Pallet`}
+              {dismantlePalletMutation.isPending
+                ? 'Dismantling...'
+                : `Dismantle ${selectedBoxIds.length || 'All'} Boxes from Pallet`}
             </Button>
           </CardContent>
         </Card>
@@ -255,17 +317,26 @@ export default function DismantlePage() {
               <div>
                 <h3 className="font-semibold">{boxDetail.box_barcode}</h3>
                 <p className="text-sm text-muted-foreground">
-                  {boxDetail.item_name} — Batch: {boxDetail.batch_number} — {boxDetail.qty} {boxDetail.uom}
+                  {boxDetail.item_name} — Batch: {boxDetail.batch_number} — {boxDetail.qty}{' '}
+                  {boxDetail.uom}
                 </p>
               </div>
-              <Badge className={boxDetail.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+              <Badge
+                className={
+                  boxDetail.status === 'ACTIVE'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-amber-100 text-amber-800'
+                }
+              >
                 {boxDetail.status}
               </Badge>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground">Qty to Dismantle</label>
+                <label className="text-xs font-medium text-muted-foreground">
+                  Qty to Dismantle
+                </label>
                 <input
                   type="number"
                   className="w-full border rounded px-3 py-2 text-sm mt-1"
@@ -280,19 +351,34 @@ export default function DismantlePage() {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Reason *</label>
-                <select className="w-full border rounded px-3 py-2 text-sm mt-1" value={reason} onChange={(e) => setReason(e.target.value as DismantleReason)}>
-                  {REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                <select
+                  className="w-full border rounded px-3 py-2 text-sm mt-1"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value as DismantleReason)}
+                >
+                  {REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Notes</label>
-                <input className="w-full border rounded px-3 py-2 text-sm mt-1" value={reasonNotes} onChange={(e) => setReasonNotes(e.target.value)} placeholder="Optional..." />
+                <input
+                  className="w-full border rounded px-3 py-2 text-sm mt-1"
+                  value={reasonNotes}
+                  onChange={(e) => setReasonNotes(e.target.value)}
+                  placeholder="Optional..."
+                />
               </div>
             </div>
 
             <Button onClick={handleDismantleBox} disabled={dismantleBoxMutation.isPending}>
               <Scissors className="h-4 w-4 mr-1" />
-              {dismantleBoxMutation.isPending ? 'Dismantling...' : `Dismantle ${looseQty || boxDetail.qty} ${boxDetail.uom} → Loose`}
+              {dismantleBoxMutation.isPending
+                ? 'Dismantling...'
+                : `Dismantle ${looseQty || boxDetail.qty} ${boxDetail.uom} → Loose`}
             </Button>
           </CardContent>
         </Card>
