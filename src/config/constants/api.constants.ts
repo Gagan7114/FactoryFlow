@@ -218,6 +218,10 @@ export const API_ENDPOINTS = {
     REPORT: '/non-moving-rm/report/',
     ITEM_GROUPS: '/non-moving-rm/item-groups/',
   },
+  // AI Assistant
+  AI: {
+    ASSISTANT_CHAT: '/ai/assistant/chat/',
+  },
   // Production Execution
   PRODUCTION_EXECUTION: {
     // Production Lines
