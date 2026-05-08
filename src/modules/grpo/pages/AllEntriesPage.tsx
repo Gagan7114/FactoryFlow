@@ -79,7 +79,7 @@ export default function AllEntriesPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo')}
+              onClick={() => navigate('/grpo/material')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -180,7 +180,7 @@ export default function AllEntriesPage() {
                           }`}
                           onClick={() => {
                             if (canPreview) {
-                              navigate(`/grpo/preview/${entry.vehicle_entry_id}`);
+                              navigate(`/grpo/material/preview/${entry.vehicle_entry_id}`);
                             }
                           }}
                         >

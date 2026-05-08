@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
 import { ChevronRight, Home, MoreHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getBreadcrumbMeta } from '@/app/registry';
@@ -9,8 +8,9 @@ import { getBreadcrumbMeta } from '@/app/registry';
  * Get display name for a path segment.
  * Uses label overrides from the module registry, falls back to auto-formatting.
  */
-function getDisplayName(segment: string, labels: Map<string, string>): string {
+function getDisplayName(segment: string, path: string, labels: Map<string, string>): string {
   if (/^\d+$/.test(segment)) return `#${segment}`;
+  if (labels.has(path)) return labels.get(path)!;
   if (labels.has(segment)) return labels.get(segment)!;
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
 }
@@ -92,7 +92,7 @@ export function Breadcrumbs() {
         return {
           path,
           segment,
-          displayName: getDisplayName(segment, labels),
+          displayName: getDisplayName(segment, path, labels),
           isNavigable: isNav,
           redirectPath,
           isClickable: !isLast && (isNav || !!redirectPath),

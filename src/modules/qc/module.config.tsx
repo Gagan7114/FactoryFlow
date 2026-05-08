@@ -20,6 +20,12 @@ const QCParametersPage = lazy(() => import('./pages/masterdata/QCParametersPage'
 const ProductionQCDashboardPage = lazy(() => import('./pages/production/ProductionQCDashboardPage'));
 const ProductionQCRunPage = lazy(() => import('./pages/production/ProductionQCRunPage'));
 const ProductionQCSessionPage = lazy(() => import('./pages/production/ProductionQCSessionPage'));
+const CustomerReturnQCDashboardPage = lazy(
+  () => import('./pages/customerReturns/CustomerReturnQCDashboardPage'),
+);
+const CustomerReturnQCDetailPage = lazy(
+  () => import('./pages/customerReturns/CustomerReturnQCDetailPage'),
+);
 
 /**
  * Quality Control module configuration
@@ -91,6 +97,20 @@ export const qcModuleConfig: ModuleConfig = {
       element: <ProductionQCSessionPage />,
       layout: 'main',
       permissions: [QC_PERMISSIONS.PRODUCTION_QC.VIEW],
+    },
+    {
+      path: '/qc/customer-returns',
+      element: <CustomerReturnQCDashboardPage />,
+      layout: 'main',
+      permissions: [QC_PERMISSIONS.INSPECTION.VIEW],
+      breadcrumb: { label: 'Customer Return QC' },
+    },
+    {
+      path: '/qc/customer-returns/:returnId',
+      element: <CustomerReturnQCDetailPage />,
+      layout: 'main',
+      permissions: [QC_PERMISSIONS.INSPECTION.VIEW],
+      breadcrumb: { label: 'Return QC' },
     },
     // ==================== Shared Master Data ====================
     {
@@ -177,6 +197,11 @@ export const qcModuleConfig: ModuleConfig = {
           path: '/qc/production',
           title: 'Production QC',
           permissions: [QC_PERMISSIONS.PRODUCTION_QC.VIEW],
+        },
+        {
+          path: '/qc/customer-returns',
+          title: 'Customer Return QC',
+          permissions: [QC_PERMISSIONS.INSPECTION.VIEW],
         },
         {
           path: '/qc/master/material-types',

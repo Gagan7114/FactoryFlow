@@ -29,6 +29,15 @@ export const transporterSchema = z.object({
     .string()
     .min(1, VALIDATION_MESSAGES.required('Mobile number'))
     .regex(VALIDATION_PATTERNS.phone, VALIDATION_MESSAGES.invalidPhone),
+  gstin: z
+    .string()
+    .max(20, VALIDATION_MESSAGES.maxLength('GSTIN', 20))
+    .refine(
+      (value) =>
+        value.trim() === '' ||
+        /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value.trim()),
+      'Please enter a valid GSTIN',
+    ),
 });
 
 export type TransporterFormData = z.infer<typeof transporterSchema>;

@@ -16,8 +16,10 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 
-type FieldType = 'text' | 'date' | 'number' | 'textarea' | 'select' | 'checkbox';
+type FieldType = 'text' | 'date' | 'time' | 'number' | 'textarea' | 'select' | 'checkbox';
 type SelectOptionConfig = string | { label: string; value: string; disabled?: boolean };
+export type FormValue = string | boolean;
+export type FormValues = Record<string, FormValue>;
 
 export interface GateFormField {
   name: string;
@@ -46,11 +48,13 @@ export interface GateSubmoduleFormConfig {
   afterSavePath?: string;
   entryPrefix?: string;
   saveButtonLabel?: string;
+  deriveValues?: (
+    values: FormValues,
+    changedName: string,
+    changedValue: FormValue,
+  ) => Partial<FormValues>;
   sections: GateFormSection[];
 }
-
-type FormValue = string | boolean;
-type FormValues = Record<string, FormValue>;
 
 function buildInitialValues(sections: GateFormSection[]): FormValues {
   return sections.reduce<FormValues>((acc, section) => {
@@ -90,7 +94,13 @@ export default function GateSubmoduleFormPage({ config }: GateSubmoduleFormPageP
   const [savedAt, setSavedAt] = useState<string>('');
 
   const updateValue = (name: string, value: FormValue) => {
-    setValues((current) => ({ ...current, [name]: value }));
+    setValues((current) => {
+      const nextValues = { ...current, [name]: value };
+      return {
+        ...nextValues,
+        ...(config.deriveValues?.(nextValues, name, value) ?? {}),
+      };
+    });
   };
 
   const handleSave = () => {

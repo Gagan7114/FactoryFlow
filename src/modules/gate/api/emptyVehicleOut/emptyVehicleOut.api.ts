@@ -33,6 +33,9 @@ export interface EmptyVehicleGateOutEntry {
   security_name?: string;
   remarks?: string;
   status: 'COMPLETED' | 'CANCELLED';
+  cancel_reason?: string;
+  cancelled_at?: string | null;
+  cancelled_by?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +52,10 @@ export interface EmptyVehicleGateOutCreateRequest {
   out_time: string;
   security_name?: string;
   remarks?: string;
+}
+
+export interface EmptyVehicleGateOutCancelRequest {
+  cancel_reason: string;
 }
 
 function buildQuery(params?: EmptyVehicleGateOutParams) {
@@ -82,11 +89,29 @@ export const emptyVehicleOutApi = {
     return response.data;
   },
 
+  async get(id: number): Promise<EmptyVehicleGateOutEntry> {
+    const response = await apiClient.get<EmptyVehicleGateOutEntry>(
+      API_ENDPOINTS.GATE_CORE.EMPTY_VEHICLE_OUT_BY_ID(id),
+    );
+    return response.data;
+  },
+
   async create(
     data: EmptyVehicleGateOutCreateRequest,
   ): Promise<EmptyVehicleGateOutEntry> {
     const response = await apiClient.post<EmptyVehicleGateOutEntry>(
       API_ENDPOINTS.GATE_CORE.EMPTY_VEHICLE_OUTS,
+      data,
+    );
+    return response.data;
+  },
+
+  async cancel(
+    id: number,
+    data: EmptyVehicleGateOutCancelRequest,
+  ): Promise<EmptyVehicleGateOutEntry> {
+    const response = await apiClient.post<EmptyVehicleGateOutEntry>(
+      API_ENDPOINTS.GATE_CORE.EMPTY_VEHICLE_OUT_CANCEL_BY_ID(id),
       data,
     );
     return response.data;

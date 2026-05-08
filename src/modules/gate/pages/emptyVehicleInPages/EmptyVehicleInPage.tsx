@@ -1,0 +1,253 @@
+import {
+  CheckCircle2,
+  Clock,
+  FileText,
+  Plus,
+  RefreshCw,
+  Search,
+  Truck,
+  User,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { useGlobalDateRange } from '@/core/store/hooks';
+import {
+  type EmptyVehicleGateInEntry,
+  useEmptyVehicleGateInEntries,
+} from '@/modules/gate/api';
+import { DateRangePicker } from '@/modules/gate/components';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Input,
+} from '@/shared/components/ui';
+
+export default function EmptyVehicleInPage() {
+  const navigate = useNavigate();
+  const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const queryParams = useMemo(
+    () => ({
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+    }),
+    [dateRange.from, dateRange.to],
+  );
+
+  const {
+    data: entries = [],
+    isLoading: isEntriesLoading,
+    refetch: refetchEntries,
+  } = useEmptyVehicleGateInEntries(queryParams);
+
+  const insideEntries = entries.filter(
+    (entry) => !['COMPLETED', 'CANCELLED'].includes(entry.vehicle_entry_status),
+  );
+  const filteredEntries = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return entries;
+
+    return entries.filter((entry) => (
+      [
+        entry.entry_no,
+        entry.vehicle_number,
+        entry.driver_name,
+        entry.driver_mobile,
+        entry.reason,
+        entry.reason_display,
+        entry.sap_doc_num,
+        entry.sap_doc_entry,
+        entry.sap_from_warehouse,
+        entry.sap_to_warehouse,
+        entry.document_reference,
+        entry.document_notes,
+        entry.bst_gate_out_entry_no,
+        entry.gate_in_date,
+        entry.in_time,
+        entry.vehicle_entry_status,
+        entry.security_name,
+      ].some((value) => String(value || '').toLowerCase().includes(query))
+    ));
+  }, [entries, searchTerm]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Empty Vehicle In</h2>
+          <p className="text-muted-foreground">
+            Record empty vehicles entering for BST, dispatch, repair, or job work
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
+          <DateRangePicker
+            date={dateRangeAsDateObjects}
+            onDateChange={(date) => {
+              if (date && 'from' in date) {
+                setDateRange(date);
+              } else {
+                setDateRange(undefined);
+              }
+            }}
+          />
+          <Button variant="outline" onClick={() => refetchEntries()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <Button onClick={() => navigate('/gate/empty-vehicle-in/new')}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Entry
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <Truck className="h-5 w-5 text-blue-600" />
+              <span className="text-2xl font-bold">{insideEntries.length}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Inside</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <span className="text-2xl font-bold">{entries.length}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Total Entries</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <section>
+        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            Empty Vehicle Entries
+          </h3>
+          <div className="relative w-full lg:max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search entry, vehicle, driver, reason"
+              className="pl-9"
+            />
+          </div>
+        </div>
+        {isEntriesLoading ? (
+          <EmptyState text="Loading empty vehicle entries..." />
+        ) : entries.length === 0 ? (
+          <EmptyState text="No empty vehicle entries in this date range" />
+        ) : filteredEntries.length === 0 ? (
+          <EmptyState text="No empty vehicle entries match this search" />
+        ) : (
+          <div className="overflow-hidden rounded-md border">
+            <div className="max-h-[480px] overflow-auto">
+              <table className="w-full min-w-[1040px]">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="p-3 text-left text-sm font-medium">Entry No.</th>
+                    <th className="p-3 text-left text-sm font-medium">Vehicle</th>
+                    <th className="p-3 text-left text-sm font-medium">Driver</th>
+                    <th className="p-3 text-left text-sm font-medium">Reason</th>
+                    <th className="p-3 text-left text-sm font-medium">Document</th>
+                    <th className="p-3 text-left text-sm font-medium">In Date</th>
+                    <th className="p-3 text-left text-sm font-medium">In Time</th>
+                    <th className="p-3 text-left text-sm font-medium">Status</th>
+                    <th className="p-3 text-left text-sm font-medium">Security</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredEntries.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="cursor-pointer border-t hover:bg-muted/40"
+                      onClick={() => navigate(`/gate/empty-vehicle-in/new?entryId=${entry.id}`)}
+                    >
+                      <td className="whitespace-nowrap p-3 text-sm font-medium">
+                        {entry.entry_no}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {entry.vehicle_number}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <span className="inline-flex items-center gap-1">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {entry.driver_name}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <Badge variant="outline">{entry.reason_display}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <DocumentCell entry={entry} />
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {entry.gate_in_date}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {entry.in_time}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <Badge variant="secondary">{entry.vehicle_entry_status}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">
+                        {entry.security_name || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="flex h-24 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+      {text}
+    </div>
+  );
+}
+
+function DocumentCell({ entry }: { entry: EmptyVehicleGateInEntry }) {
+  if (entry.reason === 'BST') {
+    const label = entry.sap_doc_num || entry.sap_doc_entry;
+    if (!label) return <span className="text-muted-foreground">BST not linked</span>;
+
+    return (
+      <span className="inline-flex items-center gap-1">
+        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+        <span>BST {label}</span>
+        {entry.is_bst_document_locked && (
+          <Badge variant="secondary" className="ml-1">
+            Locked
+          </Badge>
+        )}
+      </span>
+    );
+  }
+
+  if (entry.document_reference) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+        {entry.document_reference}
+      </span>
+    );
+  }
+
+  return <span className="text-muted-foreground">-</span>;
+}

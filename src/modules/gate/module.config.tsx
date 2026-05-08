@@ -1,5 +1,6 @@
 import { Truck } from 'lucide-react';
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -70,11 +71,79 @@ const RejectedQCReturnItemsPage = lazy(
 const EmptyVehicleOutPage = lazy(
   () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutPage'),
 );
-const ReturnsFormPage = lazy(() => import('./pages/returnsPages/ReturnsFormPage'));
-const RepairMovementFormPage = lazy(
-  () => import('./pages/repairMovementPages/RepairMovementFormPage'),
+const EmptyVehicleOutNewPage = lazy(
+  () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutNewPage'),
 );
-const JobWorkFormPage = lazy(() => import('./pages/jobWorkPages/JobWorkFormPage'));
+const EmptyVehicleOutDetailPage = lazy(
+  () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutDetailPage'),
+);
+const EmptyVehicleInPage = lazy(
+  () => import('./pages/emptyVehicleInPages/EmptyVehicleInPage'),
+);
+const EmptyVehicleInNewPage = lazy(
+  () => import('./pages/emptyVehicleInPages/EmptyVehicleInNewPage'),
+);
+const BSTOutDashboardPage = lazy(() => import('./pages/bstOutPages/BSTOutDashboardPage'));
+const BSTOutNewPage = lazy(() => import('./pages/bstOutPages/BSTOutNewPage'));
+const BSTOutWeighmentPage = lazy(() => import('./pages/bstOutPages/BSTOutWeighmentPage'));
+const BSTOutAttachmentsPage = lazy(() => import('./pages/bstOutPages/BSTOutAttachmentsPage'));
+const BSTOutReviewPage = lazy(() => import('./pages/bstOutPages/BSTOutReviewPage'));
+const BSTInDashboardPage = lazy(() => import('./pages/bstInPages/BSTInDashboardPage'));
+const BSTInNewPage = lazy(() => import('./pages/bstInPages/BSTInNewPage'));
+const BSTInAttachmentsPage = lazy(() => import('./pages/bstInPages/BSTInAttachmentsPage'));
+const BSTInReviewPage = lazy(() => import('./pages/bstInPages/BSTInReviewPage'));
+const BSTReturnDashboardPage = lazy(
+  () => import('./pages/bstReturnPages/BSTReturnDashboardPage'),
+);
+const BSTReturnNewPage = lazy(() => import('./pages/bstReturnPages/BSTReturnNewPage'));
+const BSTReturnAttachmentsPage = lazy(
+  () => import('./pages/bstReturnPages/BSTReturnAttachmentsPage'),
+);
+const BSTReturnReviewPage = lazy(() => import('./pages/bstReturnPages/BSTReturnReviewPage'));
+const SalesDispatchDashboardPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
+);
+const SalesDispatchNewPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
+);
+const SalesDispatchAttachmentsPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
+);
+const SalesDispatchDetailPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
+);
+const CustomerReturnDashboardPage = lazy(
+  () => import('./pages/customerSalesFlow/CustomerReturnDashboardPage'),
+);
+const CustomerReturnNewPage = lazy(
+  () => import('./pages/customerSalesFlow/CustomerReturnNewPage'),
+);
+const CustomerReturnAttachmentsPage = lazy(
+  () => import('./pages/customerSalesFlow/CustomerReturnAttachmentsPage'),
+);
+const CustomerReturnDetailPage = lazy(
+  () => import('./pages/customerSalesFlow/CustomerReturnDetailPage'),
+);
+const RepairPartsOutDashboardPage = lazy(
+  () => import('./pages/repairMovementPages/RepairPartsOutDashboardPage'),
+);
+const RepairPartsOutFormPage = lazy(
+  () => import('./pages/repairMovementPages/RepairPartsOutFormPage'),
+);
+const RepairPartsDetailPage = lazy(
+  () => import('./pages/repairMovementPages/RepairPartsDetailPage'),
+);
+const RepairPartsInDashboardPage = lazy(
+  () => import('./pages/repairMovementPages/RepairPartsInDashboardPage'),
+);
+const RepairPartsInFormPage = lazy(
+  () => import('./pages/repairMovementPages/RepairPartsInFormPage'),
+);
+const JobWorkDashboardPage = lazy(() => import('./pages/jobWorkPages/JobWorkDashboardPage'));
+const JobWorkNewPage = lazy(() => import('./pages/jobWorkPages/JobWorkNewPage'));
+const JobWorkWeighmentPage = lazy(() => import('./pages/jobWorkPages/JobWorkWeighmentPage'));
+const JobWorkAttachmentsPage = lazy(() => import('./pages/jobWorkPages/JobWorkAttachmentsPage'));
+const JobWorkReviewPage = lazy(() => import('./pages/jobWorkPages/JobWorkReviewPage'));
 
 // Other gate entry type pages
 const DailyNeedsPage = lazy(() => import('./pages/DailyNeedsPage'));
@@ -539,25 +608,204 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Rejected QC Items' },
     },
     {
+      path: '/gate/empty-vehicle-in',
+      element: <EmptyVehicleInPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_IN.VIEW],
+      breadcrumb: { label: 'Empty Vehicle In' },
+    },
+    {
+      path: '/gate/empty-vehicle-in/new',
+      element: <EmptyVehicleInNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE],
+      breadcrumb: { label: 'New Empty Vehicle In' },
+    },
+    {
       path: '/gate/empty-vehicle-out',
       element: <EmptyVehicleOutPage />,
       layout: 'main',
-      permissions: [
-        GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.VIEW,
-        GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.CREATE,
-      ],
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.VIEW],
       breadcrumb: { label: 'Empty Vehicle Out' },
     },
     {
-      path: '/gate/returns',
-      element: <ReturnsFormPage />,
+      path: '/gate/empty-vehicle-out/new',
+      element: <EmptyVehicleOutNewPage />,
       layout: 'main',
-      permissions: [GATE_PERMISSIONS.RETURNS.VIEW, GATE_PERMISSIONS.RETURNS.CREATE],
-      breadcrumb: { label: 'Returns' },
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.CREATE],
+      breadcrumb: { label: 'New Empty Vehicle Out' },
+    },
+    {
+      path: '/gate/empty-vehicle-out/:entryId',
+      element: <EmptyVehicleOutDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.VIEW],
+      breadcrumb: { label: 'Empty Vehicle Out Entry' },
+    },
+    {
+      path: '/gate/bst-out',
+      element: <BSTOutDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.VIEW],
+      breadcrumb: { label: 'BST Out' },
+    },
+    {
+      path: '/gate/bst-out/new',
+      element: <BSTOutNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.CREATE],
+      breadcrumb: { label: 'New BST Out' },
+    },
+    {
+      path: '/gate/bst-out/new/step2',
+      element: <BSTOutWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.CREATE],
+      breadcrumb: { label: 'BST Weighment' },
+    },
+    {
+      path: '/gate/bst-out/new/attachments',
+      element: <BSTOutAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.CREATE],
+      breadcrumb: { label: 'BST Attachments' },
+    },
+    {
+      path: '/gate/bst-out/new/review',
+      element: <BSTOutReviewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.CREATE, GATE_PERMISSIONS.BST_OUT.COMPLETE],
+      breadcrumb: { label: 'BST Review' },
+    },
+    {
+      path: '/gate/bst-in',
+      element: <BSTInDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_IN.VIEW],
+      breadcrumb: { label: 'BST In' },
+    },
+    {
+      path: '/gate/bst-in/new',
+      element: <BSTInNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_IN.CREATE],
+      breadcrumb: { label: 'New BST In' },
+    },
+    {
+      path: '/gate/bst-in/new/step1',
+      element: <BSTInNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_IN.CREATE],
+      breadcrumb: { label: 'New BST In' },
+    },
+    {
+      path: '/gate/bst-in/new/attachments',
+      element: <BSTInAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_IN.CREATE],
+      breadcrumb: { label: 'BST In Attachments' },
+    },
+    {
+      path: '/gate/bst-in/new/review',
+      element: <BSTInReviewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_IN.CREATE, GATE_PERMISSIONS.BST_IN.COMPLETE],
+      breadcrumb: { label: 'BST In Review' },
+    },
+    {
+      path: '/gate/bst-return',
+      element: <BSTReturnDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_RETURN.VIEW],
+      breadcrumb: { label: 'BST Return' },
+    },
+    {
+      path: '/gate/bst-return/new',
+      element: <BSTReturnNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_RETURN.CREATE],
+      breadcrumb: { label: 'New BST Return' },
+    },
+    {
+      path: '/gate/bst-return/new/step1',
+      element: <BSTReturnNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_RETURN.CREATE],
+      breadcrumb: { label: 'New BST Return' },
+    },
+    {
+      path: '/gate/bst-return/new/attachments',
+      element: <BSTReturnAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_RETURN.CREATE],
+      breadcrumb: { label: 'BST Return Attachments' },
+    },
+    {
+      path: '/gate/bst-return/new/review',
+      element: <BSTReturnReviewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_RETURN.CREATE, GATE_PERMISSIONS.BST_RETURN.COMPLETE],
+      breadcrumb: { label: 'BST Return Review' },
+    },
+    {
+      path: '/gate/sales-dispatch',
+      element: <SalesDispatchDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new',
+      element: <SalesDispatchNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'New Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/attachments',
+      element: <SalesDispatchAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Attachments' },
+    },
+    {
+      path: '/gate/sales-dispatch/:entryId',
+      element: <SalesDispatchDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch Entry' },
+    },
+    {
+      path: '/gate/customer-return',
+      element: <CustomerReturnDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.VIEW],
+      breadcrumb: { label: 'Customer Return' },
+    },
+    {
+      path: '/gate/customer-return/new',
+      element: <CustomerReturnNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.CREATE],
+      breadcrumb: { label: 'New Customer Return' },
+    },
+    {
+      path: '/gate/customer-return/new/attachments',
+      element: <CustomerReturnAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.CREATE],
+      breadcrumb: { label: 'Customer Return Attachments' },
+    },
+    {
+      path: '/gate/customer-return/:entryId',
+      element: <CustomerReturnDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.VIEW],
+      breadcrumb: { label: 'Customer Return Entry' },
     },
     {
       path: '/gate/repair-movement',
-      element: <RepairMovementFormPage />,
+      element: <Navigate to="/gate/repair-parts-out" replace />,
       layout: 'main',
       permissions: [
         GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
@@ -566,15 +814,113 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Repair' },
     },
     {
+      path: '/gate/repair-parts-out',
+      element: <RepairPartsOutDashboardPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'Repair Parts Out' },
+    },
+    {
+      path: '/gate/repair-parts-out/new',
+      element: <RepairPartsOutFormPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'New Repair Parts Out' },
+    },
+    {
+      path: '/gate/repair-parts-out/:entryId',
+      element: <RepairPartsDetailPage direction="out" />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'Repair Parts Out Entry' },
+    },
+    {
+      path: '/gate/repair-parts-in',
+      element: <RepairPartsInDashboardPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'Repair Parts In' },
+    },
+    {
+      path: '/gate/repair-parts-in/new',
+      element: <RepairPartsInFormPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'New Repair Parts In' },
+    },
+    {
+      path: '/gate/repair-parts-in/:entryId',
+      element: <RepairPartsDetailPage direction="in" />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+        GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+      ],
+      breadcrumb: { label: 'Repair Parts In Entry' },
+    },
+    {
       path: '/gate/job-work',
-      element: <JobWorkFormPage />,
+      element: <JobWorkDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.JOB_WORK.VIEW],
+      breadcrumb: { label: 'Job Work' },
+    },
+    {
+      path: '/gate/job-work/new',
+      element: <JobWorkNewPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.DASHBOARD.VIEW,
+        GATE_PERMISSIONS.JOB_WORK.CREATE,
+      ],
+      breadcrumb: { label: 'New Job Work' },
+    },
+    {
+      path: '/gate/job-work/new/step2',
+      element: <JobWorkWeighmentPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.DASHBOARD.VIEW,
+        GATE_PERMISSIONS.JOB_WORK.CREATE,
+      ],
+      breadcrumb: { label: 'Job Work Weighment' },
+    },
+    {
+      path: '/gate/job-work/new/attachments',
+      element: <JobWorkAttachmentsPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.DASHBOARD.VIEW,
+        GATE_PERMISSIONS.JOB_WORK.CREATE,
+      ],
+      breadcrumb: { label: 'Job Work Attachments' },
+    },
+    {
+      path: '/gate/job-work/new/review',
+      element: <JobWorkReviewPage />,
       layout: 'main',
       permissions: [
         GATE_PERMISSIONS.DASHBOARD.VIEW,
         GATE_PERMISSIONS.JOB_WORK.VIEW,
         GATE_PERMISSIONS.JOB_WORK.CREATE,
+        GATE_PERMISSIONS.JOB_WORK.COMPLETE,
       ],
-      breadcrumb: { label: 'Job Work' },
+      breadcrumb: { label: 'Job Work Review' },
     },
   ],
   navigation: [
@@ -620,6 +966,14 @@ export const gateModuleConfig: ModuleConfig = {
           ],
         },
         {
+          path: '/gate/empty-vehicle-in',
+          title: 'Empty Vehicle In',
+          permissions: [
+            GATE_PERMISSIONS.EMPTY_VEHICLE_IN.VIEW,
+            GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE,
+          ],
+        },
+        {
           path: '/gate/empty-vehicle-out',
           title: 'Empty Vehicle Out',
           permissions: [
@@ -628,13 +982,56 @@ export const gateModuleConfig: ModuleConfig = {
           ],
         },
         {
-          path: '/gate/returns',
-          title: 'BST / Returns',
-          permissions: [GATE_PERMISSIONS.RETURNS.VIEW, GATE_PERMISSIONS.RETURNS.CREATE],
+          path: '/gate/bst-out',
+          title: 'BST Out',
+          permissions: [
+            GATE_PERMISSIONS.BST_OUT.VIEW,
+            GATE_PERMISSIONS.BST_OUT.CREATE,
+          ],
         },
         {
-          path: '/gate/repair-movement',
-          title: 'Repair Movement',
+          path: '/gate/bst-in',
+          title: 'BST In',
+          permissions: [
+            GATE_PERMISSIONS.BST_IN.VIEW,
+            GATE_PERMISSIONS.BST_IN.CREATE,
+          ],
+        },
+        {
+          path: '/gate/bst-return',
+          title: 'BST Return',
+          permissions: [
+            GATE_PERMISSIONS.BST_RETURN.VIEW,
+            GATE_PERMISSIONS.BST_RETURN.CREATE,
+          ],
+        },
+        {
+          path: '/gate/sales-dispatch',
+          title: 'Sales Dispatch Out',
+          permissions: [
+            GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
+            GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
+          ],
+        },
+        {
+          path: '/gate/customer-return',
+          title: 'Customer Return In',
+          permissions: [
+            GATE_PERMISSIONS.CUSTOMER_RETURN.VIEW,
+            GATE_PERMISSIONS.CUSTOMER_RETURN.CREATE,
+          ],
+        },
+        {
+          path: '/gate/repair-parts-out',
+          title: 'Repair Parts Out',
+          permissions: [
+            GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
+            GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
+          ],
+        },
+        {
+          path: '/gate/repair-parts-in',
+          title: 'Repair Parts In',
           permissions: [
             GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
             GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,

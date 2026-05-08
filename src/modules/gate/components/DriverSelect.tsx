@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { SearchableSelect } from '@/shared/components';
 
@@ -22,7 +22,9 @@ interface DriverSelectProps {
   disabled?: boolean;
   error?: string;
   label?: string;
+  labelAction?: ReactNode;
   required?: boolean;
+  defaultDisplayText?: string;
 }
 
 export function DriverSelect({
@@ -32,7 +34,9 @@ export function DriverSelect({
   disabled = false,
   error,
   label,
+  labelAction,
   required = false,
+  defaultDisplayText,
 }: DriverSelectProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -72,7 +76,9 @@ export function DriverSelect({
       disabled={disabled}
       error={error}
       label={label}
+      labelAction={labelAction}
       required={required}
+      defaultDisplayText={defaultDisplayText}
       inputId="driver-select"
       getItemKey={(d) => d.id}
       getItemLabel={(d) => d.name}

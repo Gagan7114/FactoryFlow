@@ -6,6 +6,7 @@ import type { ModuleConfig, ModuleNavItem, ModuleRoute } from '@/core/types';
 import { authModuleConfig } from '@/modules/auth/module.config';
 import { dashboardModuleConfig } from '@/modules/dashboard/module.config';
 import { dashboardsModuleConfig } from '@/modules/dashboards/module.config';
+import { financeModuleConfig } from '@/modules/finance/module.config';
 import { gateModuleConfig } from '@/modules/gate/module.config';
 import { grpoModuleConfig } from '@/modules/grpo/module.config';
 import { notificationsModuleConfig } from '@/modules/notifications/module.config';
@@ -24,6 +25,7 @@ export const moduleRegistry: ModuleConfig[] = [
   dashboardsModuleConfig,
   gateModuleConfig,
   qcModuleConfig,
+  financeModuleConfig,
   grpoModuleConfig,
   productionModuleConfig,
   warehouseModuleConfig,
@@ -75,11 +77,12 @@ export function getBreadcrumbMeta(): {
     navigablePaths.add(route.path);
 
     if (route.breadcrumb?.label) {
+      labels.set(route.path, route.breadcrumb.label);
       // Extract the last static segment to map label
       // e.g. '/gate/raw-materials' → 'raw-materials' → 'RM'
       const segments = route.path.split('/').filter(Boolean);
       const lastStatic = [...segments].reverse().find((s) => !s.startsWith(':'));
-      if (lastStatic) {
+      if (lastStatic && !labels.has(lastStatic)) {
         labels.set(lastStatic, route.breadcrumb.label);
       }
     }

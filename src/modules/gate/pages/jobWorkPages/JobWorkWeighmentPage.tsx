@@ -1,0 +1,272 @@
+import { Scale } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import type { CreateWeighmentRequest } from '@/modules/gate/api';
+import { useCreateWeighment, useJobWorkGateInByVehicleEntry, useWeighment } from '@/modules/gate/api';
+import {
+  FillDataAlert,
+  StepFooter,
+  StepHeader,
+  StepLoadingSpinner,
+} from '@/modules/gate/components';
+import { useEntryId, useEntryStepTracker } from '@/modules/gate/hooks';
+import { RecordTimestamps } from '@/shared/components';
+import { Card, CardContent, CardHeader, CardTitle, Input, Label } from '@/shared/components/ui';
+import {
+  cn,
+  getErrorMessage,
+  getServerErrorMessage,
+  isNotFoundError as checkNotFoundError,
+  isServerError as checkServerError,
+} from '@/shared/utils';
+
+export default function JobWorkWeighmentPage() {
+  const navigate = useNavigate();
+  const { entryId, entryIdNumber } = useEntryId();
+  useEntryStepTracker();
+  const {
+    data: weighmentData,
+    isLoading: isWeighmentLoading,
+    error: weighmentError,
+  } = useWeighment(entryIdNumber);
+  const { data: jobWork } = useJobWorkGateInByVehicleEntry(entryIdNumber);
+  const createWeighment = useCreateWeighment(entryIdNumber || 0);
+  const [formData, setFormData] = useState({
+    grossWeight: '0',
+    tareWeight: '0',
+    weighbridgeTicketNo: '',
+    firstWeighmentTime: '',
+    secondWeighmentTime: '',
+  });
+  const [error, setError] = useState('');
+  const [fillDataMode, setFillDataMode] = useState(false);
+  const [updateMode, setUpdateMode] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  const isNotFoundError = checkNotFoundError(weighmentError);
+  const hasServerError = checkServerError(weighmentError);
+  const hasNoWeighmentData = !isWeighmentLoading && (!weighmentData || isNotFoundError);
+  const isReadOnly =
+    (!!weighmentData && !fillDataMode && !updateMode) ||
+    (hasNoWeighmentData && !fillDataMode);
+  const canUpdate = !!jobWork && !!weighmentData;
+
+  useEffect(() => {
+    if (weighmentData && !fillDataMode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing form state with fetched weighment data matches the existing gate step pattern.
+      setFormData({
+        grossWeight: weighmentData.gross_weight || '0',
+        tareWeight: weighmentData.tare_weight || '0',
+        weighbridgeTicketNo: weighmentData.weighbridge_slip_no || '',
+        firstWeighmentTime: weighmentData.first_weighment_time
+          ? weighmentData.first_weighment_time.slice(11, 16)
+          : '',
+        secondWeighmentTime: weighmentData.second_weighment_time
+          ? weighmentData.second_weighment_time.slice(11, 16)
+          : '',
+      });
+    }
+  }, [fillDataMode, weighmentData]);
+
+  const netWeight = useMemo(() => {
+    const gross = parseFloat(formData.grossWeight) || 0;
+    const tare = parseFloat(formData.tareWeight) || 0;
+    return Math.max(0, gross - tare).toFixed(3);
+  }, [formData.grossWeight, formData.tareWeight]);
+
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
+    if (isReadOnly) return;
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setError('');
+  };
+
+  const handleFillData = () => {
+    setFillDataMode(true);
+    setUpdateMode(false);
+    setError('');
+    setFormData({
+      grossWeight: '0',
+      tareWeight: '0',
+      weighbridgeTicketNo: '',
+      firstWeighmentTime: '',
+      secondWeighmentTime: '',
+    });
+  };
+
+  const handleUpdate = () => {
+    setUpdateMode(true);
+    setError('');
+  };
+
+  const handleNext = async () => {
+    if (!entryId || !entryIdNumber) {
+      setError('Entry ID is missing. Please start the job work entry again.');
+      return;
+    }
+
+    if (!fillDataMode && (!updateMode || hasNoWeighmentData)) {
+      navigate(`/gate/job-work/new/attachments?entryId=${entryId}`);
+      return;
+    }
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const requestData: CreateWeighmentRequest = {
+        gross_weight: parseFloat(formData.grossWeight) || 0,
+        tare_weight: parseFloat(formData.tareWeight) || 0,
+        weighbridge_slip_no: formData.weighbridgeTicketNo || '',
+        first_weighment_time: formData.firstWeighmentTime
+          ? `${today}T${formData.firstWeighmentTime}:00`
+          : undefined,
+        second_weighment_time: formData.secondWeighmentTime
+          ? `${today}T${formData.secondWeighmentTime}:00`
+          : undefined,
+      };
+
+      await createWeighment.mutateAsync(requestData);
+      setIsNavigating(true);
+      navigate(`/gate/job-work/new/attachments?entryId=${entryId}`);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to save weighment details'));
+    }
+  };
+
+  if (isWeighmentLoading) {
+    return <StepLoadingSpinner />;
+  }
+
+  return (
+    <div className="space-y-6 pb-6">
+      <StepHeader
+        currentStep={2}
+        totalSteps={3}
+        title="Job Work"
+        error={
+          hasServerError
+            ? getServerErrorMessage()
+            : error ||
+              (weighmentError && !isNotFoundError
+                ? getErrorMessage(weighmentError, 'Failed to load weighment data')
+                : null)
+        }
+      />
+
+      {hasNoWeighmentData && !fillDataMode && !hasServerError && (
+        <FillDataAlert
+          message={
+            isNotFoundError
+              ? getErrorMessage(weighmentError, 'Weighment details not found for this entry.')
+              : 'No weighment details found for this entry.'
+          }
+          buttonLabel="Fill Details"
+          onFillData={handleFillData}
+        />
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            Weighment Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="grossWeight">Gross Weight</Label>
+              <Input
+                id="grossWeight"
+                type="number"
+                step="0.001"
+                min="0"
+                value={formData.grossWeight}
+                onChange={(event) => handleInputChange('grossWeight', event.target.value)}
+                disabled={isReadOnly || createWeighment.isPending}
+                className={cn(isReadOnly && 'cursor-not-allowed opacity-50')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tareWeight">Tare Weight</Label>
+              <Input
+                id="tareWeight"
+                type="number"
+                step="0.001"
+                min="0"
+                value={formData.tareWeight}
+                onChange={(event) => handleInputChange('tareWeight', event.target.value)}
+                disabled={isReadOnly || createWeighment.isPending}
+                className={cn(isReadOnly && 'cursor-not-allowed opacity-50')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="netWeight">Net Weight</Label>
+              <Input
+                id="netWeight"
+                value={netWeight === '0.000' ? '' : netWeight}
+                disabled
+                className="cursor-not-allowed bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="weighbridgeTicketNo">Weighbridge Ticket No.</Label>
+              <Input
+                id="weighbridgeTicketNo"
+                value={formData.weighbridgeTicketNo}
+                onChange={(event) => handleInputChange('weighbridgeTicketNo', event.target.value)}
+                disabled={isReadOnly || createWeighment.isPending}
+                placeholder="WB-2026-001"
+                className={cn(isReadOnly && 'cursor-not-allowed opacity-50')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="firstWeighmentTime">First Weighment Time</Label>
+              <Input
+                id="firstWeighmentTime"
+                type="time"
+                value={formData.firstWeighmentTime}
+                onChange={(event) => handleInputChange('firstWeighmentTime', event.target.value)}
+                disabled={isReadOnly || createWeighment.isPending}
+                className={cn(isReadOnly && 'cursor-not-allowed opacity-50')}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="secondWeighmentTime">Second Weighment Time</Label>
+              <Input
+                id="secondWeighmentTime"
+                type="time"
+                value={formData.secondWeighmentTime}
+                onChange={(event) => handleInputChange('secondWeighmentTime', event.target.value)}
+                disabled={isReadOnly || createWeighment.isPending}
+                className={cn(isReadOnly && 'cursor-not-allowed opacity-50')}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {weighmentData?.created_at && (
+        <RecordTimestamps
+          createdAt={weighmentData.created_at}
+          updatedAt={weighmentData.updated_at}
+        />
+      )}
+
+      <StepFooter
+        onPrevious={() => navigate(`/gate/job-work/new?entryId=${entryId}`)}
+        onCancel={() => navigate('/gate/job-work')}
+        onNext={handleNext}
+        showUpdate={canUpdate && !updateMode && !fillDataMode}
+        onUpdate={handleUpdate}
+        isSaving={createWeighment.isPending || isNavigating}
+        isEditMode={!fillDataMode}
+        isUpdateMode={updateMode}
+      />
+    </div>
+  );
+}

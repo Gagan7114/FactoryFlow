@@ -140,21 +140,97 @@ export const ROUTES = {
         path: '/gate/rejected-qc-return',
         title: 'Rejected QC Return',
       },
+      EMPTY_VEHICLE_IN: {
+        path: '/gate/empty-vehicle-in',
+        title: 'Empty Vehicle In',
+      },
+      EMPTY_VEHICLE_IN_NEW: {
+        path: '/gate/empty-vehicle-in/new',
+        title: 'New Empty Vehicle In',
+      },
       EMPTY_VEHICLE_OUT: {
         path: '/gate/empty-vehicle-out',
         title: 'Empty Vehicle Out',
       },
-      RETURNS: {
-        path: '/gate/returns',
-        title: 'BST / Returns',
+      EMPTY_VEHICLE_OUT_NEW: {
+        path: '/gate/empty-vehicle-out/new',
+        title: 'New Empty Vehicle Out',
+      },
+      BST_OUT: {
+        path: '/gate/bst-out',
+        title: 'BST Out',
+      },
+      BST_OUT_NEW: {
+        path: '/gate/bst-out/new',
+        title: 'New BST Out',
+      },
+      BST_IN: {
+        path: '/gate/bst-in',
+        title: 'BST In',
+      },
+      BST_IN_NEW: {
+        path: '/gate/bst-in/new',
+        title: 'New BST In',
+      },
+      BST_RETURN: {
+        path: '/gate/bst-return',
+        title: 'BST Return',
+      },
+      BST_RETURN_NEW: {
+        path: '/gate/bst-return/new',
+        title: 'New BST Return',
+      },
+      SALES_DISPATCH: {
+        path: '/gate/sales-dispatch',
+        title: 'Sales Dispatch Out',
+      },
+      SALES_DISPATCH_NEW: {
+        path: '/gate/sales-dispatch/new',
+        title: 'New Sales Dispatch Out',
+      },
+      SALES_DISPATCH_ATTACHMENTS: {
+        path: '/gate/sales-dispatch/new/attachments',
+        title: 'Sales Dispatch Attachments',
+      },
+      CUSTOMER_RETURN: {
+        path: '/gate/customer-return',
+        title: 'Customer Return In',
+      },
+      CUSTOMER_RETURN_NEW: {
+        path: '/gate/customer-return/new',
+        title: 'New Customer Return In',
+      },
+      CUSTOMER_RETURN_ATTACHMENTS: {
+        path: '/gate/customer-return/new/attachments',
+        title: 'Customer Return Attachments',
       },
       REPAIR_MOVEMENT: {
         path: '/gate/repair-movement',
         title: 'Repair Movement',
       },
+      REPAIR_PARTS_OUT: {
+        path: '/gate/repair-parts-out',
+        title: 'Repair Parts Out',
+      },
+      REPAIR_PARTS_OUT_NEW: {
+        path: '/gate/repair-parts-out/new',
+        title: 'New Repair Parts Out',
+      },
+      REPAIR_PARTS_IN: {
+        path: '/gate/repair-parts-in',
+        title: 'Repair Parts In',
+      },
+      REPAIR_PARTS_IN_NEW: {
+        path: '/gate/repair-parts-in/new',
+        title: 'New Repair Parts In',
+      },
       JOB_WORK: {
         path: '/gate/job-work',
         title: 'Job Work / Oil Refining',
+      },
+      JOB_WORK_NEW: {
+        path: '/gate/job-work/new',
+        title: 'New Job Work',
       },
     },
   },
@@ -175,6 +251,46 @@ export const ROUTES = {
     path: '/settings',
     title: 'Settings',
     showInSidebar: false,
+  },
+
+  QC: {
+    path: '/qc',
+    title: 'Quality Control',
+    icon: 'FlaskConical',
+    showInSidebar: true,
+    hasSubmenu: true,
+    children: {
+      CUSTOMER_RETURNS: {
+        path: '/qc/customer-returns',
+        title: 'Customer Return QC',
+      },
+    },
+  },
+
+  FINANCE: {
+    path: '/finance',
+    title: 'Sales / Finance',
+    icon: 'IndianRupee',
+    showInSidebar: true,
+    hasSubmenu: true,
+    children: {
+      CREDIT_NOTES: {
+        path: '/finance/credit-notes',
+        title: 'Credit Notes',
+      },
+      CREDIT_NOTES_NEW: {
+        path: '/finance/credit-notes/new',
+        title: 'New Credit Note',
+      },
+      DEBIT_NOTES: {
+        path: '/finance/debit-notes',
+        title: 'Debit Notes',
+      },
+      DEBIT_NOTES_NEW: {
+        path: '/finance/debit-notes/new',
+        title: 'New Debit Note',
+      },
+    },
   },
 } as const;
 

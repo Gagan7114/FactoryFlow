@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 
 import { SearchableSelect } from '@/shared/components';
 
@@ -18,12 +18,15 @@ interface VehicleSelectProps {
     transporterName: string;
     transporterContactPerson: string;
     transporterMobile: string;
+    transporterGstin?: string;
   }) => void;
   placeholder?: string;
   disabled?: boolean;
   error?: string;
   label?: string;
+  labelAction?: ReactNode;
   required?: boolean;
+  defaultDisplayText?: string;
 }
 
 export function VehicleSelect({
@@ -33,7 +36,9 @@ export function VehicleSelect({
   disabled = false,
   error,
   label,
+  labelAction,
   required = false,
+  defaultDisplayText,
 }: VehicleSelectProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -64,6 +69,7 @@ export function VehicleSelect({
         transporterName: vehicleDetails.transporter?.name || '',
         transporterContactPerson: vehicleDetails.transporter?.contact_person || '',
         transporterMobile: vehicleDetails.transporter?.mobile_no || '',
+        transporterGstin: vehicleDetails.transporter?.gstin || '',
       });
     }
   }, [vehicleDetails]);
@@ -82,7 +88,9 @@ export function VehicleSelect({
       disabled={disabled}
       error={error}
       label={label}
+      labelAction={labelAction}
       required={required}
+      defaultDisplayText={defaultDisplayText}
       inputId="vehicle-select"
       getItemKey={(v) => v.id}
       getItemLabel={(v) => v.vehicle_number}
@@ -110,6 +118,7 @@ export function VehicleSelect({
           transporterName: '',
           transporterContactPerson: '',
           transporterMobile: '',
+          transporterGstin: '',
         });
       }}
       renderPopoverContent={(selKey) =>
