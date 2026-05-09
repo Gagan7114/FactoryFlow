@@ -1,8 +1,26 @@
-import { ArrowLeft, CalendarClock, FileText, PackageCheck, RotateCcw, Scale, ShieldCheck, Truck, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  CalendarClock,
+  FileText,
+  PackageCheck,
+  Printer,
+  RotateCcw,
+  Scale,
+  ShieldCheck,
+  Truck,
+  XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import {
+  type SalesDispatchGateOut,
+  useCancelSalesDispatchGateOut,
+  useCommitSalesDispatchGatePassPrint,
+  useRejectSalesDispatchGateOut,
+  useSalesDispatchGateOut,
+} from '@/modules/gate/api';
 import {
   Badge,
   Button,
@@ -20,34 +38,74 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 
-import {
-  CUSTOMER_RETURN_KEY,
-  type CustomerFlowEntry,
-  findCustomerFlowEntry,
-  formatCustomerFlowDateTime,
-  formatCustomerFlowTimestamp,
-  getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
-  updateCustomerFlowEntry,
-} from './customerSalesFlow.storage';
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return detail || fallback;
+}
+
+function statusVariant(status: string) {
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'CANCELLED' || status === 'REJECTED') return 'destructive';
+  return 'warning';
+}
 
 export default function SalesDispatchDetailPage() {
   const navigate = useNavigate();
   const { entryId } = useParams();
-  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() => (
-    entryId ? findCustomerFlowEntry(SALES_DISPATCH_KEY, entryId) : null
-  ));
-  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
-  const [cancelError, setCancelError] = useState('');
+  const id = Number(entryId || 0) || null;
+  const { data: entry, isLoading } = useSalesDispatchGateOut(id);
+  const cancelMutation = useCancelSalesDispatchGateOut();
+  const rejectMutation = useRejectSalesDispatchGateOut();
+  const commitMutation = useCommitSalesDispatchGatePassPrint();
+  const [dialogAction, setDialogAction] = useState<'cancel' | 'reject' | null>(null);
+  const [reason, setReason] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const linkedReturns = useMemo(() => {
-    if (!entry) return [];
-    return readCustomerFlowEntries(CUSTOMER_RETURN_KEY)
-      .filter((returnEntry) => returnEntry.status !== 'CANCELLED')
-      .filter((returnEntry) => getCustomerFlowValue(returnEntry, 'dispatchEntry') === entry.entryNo);
-  }, [entry]);
+  const handleAction = async () => {
+    if (!entry || !dialogAction) return;
+    if (!reason.trim()) {
+      setActionError('Please enter a reason');
+      return;
+    }
+
+    try {
+      if (dialogAction === 'cancel') {
+        await cancelMutation.mutateAsync({ id: entry.id, data: { reason } });
+        toast.success('Sales dispatch cancelled');
+      } else {
+        await rejectMutation.mutateAsync({ id: entry.id, data: { reason } });
+        toast.success('Sales dispatch rejected');
+      }
+      setDialogAction(null);
+      setReason('');
+      setActionError('');
+    } catch (apiError) {
+      setActionError(getApiErrorMessage(apiError, 'Failed to update sales dispatch.'));
+    }
+  };
+
+  const handleCommitPrint = async () => {
+    if (!entry) return;
+    try {
+      await commitMutation.mutateAsync(entry.id);
+      toast.success('Printed gate pass committed');
+      window.print();
+    } catch (apiError) {
+      toast.error(getApiErrorMessage(apiError, 'Failed to commit printed gate pass.'));
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => navigate('/gate/sales-dispatch')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        <EmptyState text="Loading sales dispatch entry..." />
+      </div>
+    );
+  }
 
   if (!entry) {
     return (
@@ -61,46 +119,9 @@ export default function SalesDispatchDetailPage() {
     );
   }
 
-  const canCancel = entry.status !== 'CANCELLED' && linkedReturns.length === 0;
-  const cannotCancelReason = linkedReturns.length > 0
-    ? `Cannot cancel because customer return ${linkedReturns[0].entryNo} is linked`
-    : '';
-
-  const handleCancel = () => {
-    const trimmedReason = cancelReason.trim();
-    if (!trimmedReason) {
-      setCancelError('Please enter a cancellation reason');
-      return;
-    }
-
-    if (!canCancel) {
-      setCancelError(cannotCancelReason || 'This dispatch cannot be cancelled');
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const cancelledEntry = updateCustomerFlowEntry(SALES_DISPATCH_KEY, entry.id, (current) => ({
-      ...current,
-      status: 'CANCELLED',
-      values: {
-        ...current.values,
-        cancelReason: trimmedReason,
-        cancelledAt: now,
-      },
-      updatedAt: now,
-    }));
-
-    if (!cancelledEntry) {
-      setCancelError('Failed to cancel dispatch');
-      return;
-    }
-
-    setEntry(cancelledEntry);
-    setCancelReason('');
-    setCancelError('');
-    setIsCancelDialogOpen(false);
-    toast.success('Sales dispatch cancelled');
-  };
+  const canCancel = entry.status === 'IN_PROGRESS' && !entry.print_commit;
+  const canReject = !entry.print_commit && !['CANCELLED', 'REJECTED'].includes(entry.status);
+  const canCommitPrint = entry.status === 'COMPLETED' && !entry.print_commit;
 
   return (
     <div className="space-y-6 pb-6">
@@ -110,45 +131,53 @@ export default function SalesDispatchDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">{entry.entryNo}</h2>
+            <h2 className="text-3xl font-bold tracking-tight">{entry.entry_no}</h2>
             <p className="text-muted-foreground">Sales dispatch gate-out entry</p>
           </div>
         </div>
 
-        {entry.status !== 'CANCELLED' && (
-          <div className="flex flex-col items-start gap-2 lg:items-end">
+        <div className="flex flex-wrap gap-2">
+          {entry.status === 'IN_PROGRESS' ? (
+            <Button variant="outline" onClick={() => navigate(`/gate/sales-dispatch/new?entryId=${entry.id}`)}>
+              Continue Entry
+            </Button>
+          ) : null}
+          {canCommitPrint ? (
+            <Button onClick={handleCommitPrint} disabled={commitMutation.isPending}>
+              <Printer className="mr-2 h-4 w-4" />
+              Commit Printed Gate Pass
+            </Button>
+          ) : null}
+          {canReject ? (
             <Button
               variant="outline"
-              disabled={!canCancel}
-              title={cannotCancelReason}
               className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={() => {
-                setCancelError('');
-                setIsCancelDialogOpen(true);
+                setDialogAction('reject');
+                setReason('');
+                setActionError('');
               }}
             >
               <XCircle className="mr-2 h-4 w-4" />
+              Reject Invoice
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => {
+                setDialogAction('cancel');
+                setReason('');
+                setActionError('');
+              }}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
               Cancel Entry
             </Button>
-            {cannotCancelReason && <p className="text-sm text-muted-foreground">{cannotCancelReason}</p>}
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5" />
-            Weighment
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Gross Weight" value={getCustomerFlowValue(entry, 'grossWeight')} />
-          <InfoItem label="Tare Weight" value={getCustomerFlowValue(entry, 'tareWeight')} />
-          <InfoItem label="Net Weight" value={getCustomerFlowValue(entry, 'netWeight')} />
-          <InfoItem label="Slip No." value={getCustomerFlowValue(entry, 'weighbridgeSlipNo')} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -158,24 +187,14 @@ export default function SalesDispatchDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Entry No." value={entry.entryNo} />
-          <InfoItem label="Outbound Delivery" value={getCustomerFlowValue(entry, 'outboundDeliveryNo')} />
-          <InfoItem label="Sales Order" value={getCustomerFlowValue(entry, 'salesOrderNo')} />
-          <InfoBadge label="Status" value={entry.status} variant={entry.status === 'CANCELLED' ? 'destructive' : 'success'} />
-          <InfoItem label="Gate Out" value={formatCustomerFlowDateTime(entry.values.gateOutDate, entry.values.outTime)} />
-          <InfoItem label="PGI Document" value={getCustomerFlowValue(entry, 'pgiDocumentNo')} />
-          <InfoBadge
-            label="Goods Issue"
-            value={getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes' ? 'POSTED' : 'PENDING'}
-            variant={getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes' ? 'success' : 'warning'}
-          />
-          <InfoItem label="Created" value={formatCustomerFlowTimestamp(entry.createdAt)} />
-          {entry.status === 'CANCELLED' && (
-            <>
-              <InfoItem label="Cancel Reason" value={getCustomerFlowValue(entry, 'cancelReason')} />
-              <InfoItem label="Cancelled At" value={getCustomerFlowValue(entry, 'cancelledAt')} />
-            </>
-          )}
+          <InfoItem label="Entry No." value={entry.entry_no} />
+          <InfoItem label="SAP Invoice" value={entry.sap_invoice_doc_num || entry.sap_invoice_doc_entry} />
+          <InfoItem label="Customer" value={entry.customer_name} />
+          <InfoBadge label="Status" value={entry.status} variant={statusVariant(entry.status)} />
+          <InfoItem label="Gate Out" value={`${entry.gate_out_date} ${entry.out_time?.slice(0, 5)}`} />
+          <InfoItem label="PGI Document" value={entry.pgi_document_no} />
+          <InfoBadge label="Goods Issue" value={entry.goods_issue_posted ? 'POSTED' : 'PENDING'} variant={entry.goods_issue_posted ? 'success' : 'warning'} />
+          <InfoItem label="Print Commit" value={entry.print_commit ? 'Committed' : 'Pending'} />
         </CardContent>
       </Card>
 
@@ -188,10 +207,12 @@ export default function SalesDispatchDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Vehicle" value={getCustomerFlowValue(entry, 'vehicleNo')} />
-            <InfoItem label="Driver" value={getCustomerFlowValue(entry, 'driverName')} />
-            <InfoItem label="Driver Mobile" value={getCustomerFlowValue(entry, 'driverMobile')} />
-            <InfoItem label="Seal No." value={getCustomerFlowValue(entry, 'sealNo')} />
+            <InfoItem label="Vehicle" value={entry.vehicle_number} />
+            <InfoItem label="Vehicle Type" value={entry.vehicle_type} />
+            <InfoItem label="Driver" value={entry.driver_name} />
+            <InfoItem label="Driver Mobile" value={entry.driver_mobile} />
+            <InfoItem label="Transporter" value={entry.transporter_name} />
+            <InfoItem label="Seal No." value={entry.seal_no} />
           </CardContent>
         </Card>
 
@@ -199,19 +220,36 @@ export default function SalesDispatchDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
-              Customer & Documents
+              Documents
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Customer" value={getCustomerFlowValue(entry, 'customerName')} />
-            <InfoItem label="Ship To" value={getCustomerFlowValue(entry, 'shipTo')} />
-            <InfoItem label="Invoice" value={getCustomerFlowValue(entry, 'invoiceNo')} />
-            <InfoItem label="Delivery Note" value={getCustomerFlowValue(entry, 'deliveryNoteNo')} />
-            <InfoItem label="E-way Bill" value={getCustomerFlowValue(entry, 'ewayBillNo')} />
-            <InfoItem label="LR No." value={getCustomerFlowValue(entry, 'lrNo')} />
+            <InfoItem label="Ship To" value={entry.ship_to_address} />
+            <InfoItem label="Invoice Amount" value={entry.invoice_amount} />
+            <InfoItem label="Invoice Checked" value={entry.invoice_checked ? 'Yes' : 'No'} />
+            <InfoItem label="Delivery Note Checked" value={entry.delivery_note_checked ? 'Yes' : 'No'} />
+            <InfoItem label="E-way Bill Checked" value={entry.eway_bill_checked ? 'Yes' : 'No'} />
+            <InfoItem label="LR Checked" value={entry.lr_checked ? 'Yes' : 'No'} />
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            Weighment
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <InfoItem label="Gross Weight" value={entry.gross_weight} />
+          <InfoItem label="Tare Weight" value={entry.tare_weight} />
+          <InfoItem label="Net Weight" value={entry.net_weight} />
+          <InfoItem label="SAP Weight" value={entry.sap_weight} />
+          <InfoItem label="Variance" value={entry.weight_variance} />
+          <InfoItem label="Slip No." value={entry.weighbridge_slip_no} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -229,47 +267,53 @@ export default function SalesDispatchDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5" />
-            Linked Returns
+            Gate Pass
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Return Count" value={linkedReturns.length} />
-          <InfoItem label="Latest Return" value={linkedReturns[0]?.entryNo || ''} />
-          <InfoItem label="Remarks" value={getCustomerFlowValue(entry, 'remarks')} />
-          <InfoItem label="Attachment Notes" value={getCustomerFlowValue(entry, 'attachmentNotes')} />
+          <InfoItem label="Gate Pass No." value={entry.gatepass_no} />
+          <InfoItem label="Gate Pass Code" value={entry.gatepass_code} />
+          <InfoItem label="QR Payload" value={entry.qr_payload} />
+          <InfoItem label="Printed At" value={entry.printed_at} />
+          <InfoItem label="Committed At" value={entry.committed_at} />
+          <InfoItem label="Dock Photo" value={entry.dock_photo ? 'Uploaded' : 'Missing'} />
+          <InfoItem label="Gatepass Document" value={entry.gatepass_document ? 'Uploaded' : 'Missing'} />
+          <InfoItem label="Remarks" value={entry.remarks} />
+          {entry.status === 'CANCELLED' ? <InfoItem label="Cancel Reason" value={entry.cancel_reason} /> : null}
+          {entry.status === 'REJECTED' ? <InfoItem label="Reject Reason" value={entry.rejected_reason} /> : null}
         </CardContent>
       </Card>
 
-      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+      <Dialog open={Boolean(dialogAction)} onOpenChange={(open) => !open && setDialogAction(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Sales Dispatch</DialogTitle>
+            <DialogTitle>{dialogAction === 'reject' ? 'Reject Sales Invoice' : 'Cancel Sales Dispatch'}</DialogTitle>
             <DialogDescription>
-              This keeps the dispatch in history and prevents it from being used for new customer returns.
+              {dialogAction === 'reject'
+                ? 'Rejecting keeps the invoice out of gate-pass commit so dispatch can correct it.'
+                : 'Cancelling closes this in-progress gate entry and keeps the history.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="sales-dispatch-cancel-reason">
-              Cancellation Reason <span className="text-destructive">*</span>
-            </Label>
+            <Label htmlFor="sales-dispatch-action-reason">Reason</Label>
             <Textarea
-              id="sales-dispatch-cancel-reason"
-              value={cancelReason}
+              id="sales-dispatch-action-reason"
+              value={reason}
               onChange={(event) => {
-                setCancelReason(event.target.value);
-                setCancelError('');
+                setReason(event.target.value);
+                setActionError('');
               }}
-              placeholder="Why is this dispatch being cancelled?"
+              placeholder="Enter reason"
             />
-            {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
+            {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setDialogAction(null)}>
               Keep Entry
             </Button>
-            <Button type="button" variant="destructive" onClick={handleCancel}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Cancel Entry
+            <Button type="button" variant="destructive" onClick={handleAction} disabled={cancelMutation.isPending || rejectMutation.isPending}>
+              {dialogAction === 'reject' ? <XCircle className="mr-2 h-4 w-4" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              {dialogAction === 'reject' ? 'Reject Invoice' : 'Cancel Entry'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -278,14 +322,14 @@ export default function SalesDispatchDetailPage() {
   );
 }
 
-function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
+function ItemsTable({ entry }: { entry: SalesDispatchGateOut }) {
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px]">
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left text-sm font-medium">Item Code</th>
+              <th className="p-3 text-left text-sm font-medium">Reference</th>
               <th className="p-3 text-left text-sm font-medium">Item</th>
               <th className="p-3 text-left text-sm font-medium">Order Qty</th>
               <th className="p-3 text-left text-sm font-medium">Dispatch Qty</th>
@@ -295,10 +339,10 @@ function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
           <tbody>
             {entry.items.map((item) => (
               <tr key={item.id} className="border-t">
-                <td className="whitespace-nowrap p-3 text-sm">{item.itemCode}</td>
-                <td className="p-3 text-sm font-medium">{item.itemName}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{item.orderQty}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{item.dispatchedQty}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{item.item_code}</td>
+                <td className="p-3 text-sm font-medium">{item.item_name}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{item.order_qty}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{item.dispatched_qty}</td>
                 <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
               </tr>
             ))}
@@ -313,7 +357,7 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium">{value && value !== '-' ? value : '-'}</p>
+      <p className="mt-1 break-words font-medium">{value && value !== '-' ? value : '-'}</p>
     </div>
   );
 }
@@ -330,7 +374,9 @@ function InfoBadge({
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <Badge variant={variant} className="mt-1">{value}</Badge>
+      <Badge variant={variant} className="mt-1">
+        {value}
+      </Badge>
     </div>
   );
 }

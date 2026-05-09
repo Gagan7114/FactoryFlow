@@ -1,59 +1,67 @@
 import { AlertCircle, Truck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useSalesDispatchGateOut, useUpdateSalesDispatchGateOut } from '@/modules/gate/api';
 import { RequiredWeighmentForm, StepFooter, StepHeader } from '@/modules/gate/components';
 import {
-  calculateRequiredNetWeight,
+  buildRequiredWeighmentDateTime,
   EMPTY_REQUIRED_WEIGHMENT,
   type RequiredWeighmentValues,
   validateRequiredWeighment,
 } from '@/modules/gate/utils';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
 
-import {
-  type CustomerFlowEntry,
-  findCustomerFlowEntry,
-  getCustomerFlowValue,
-  SALES_DISPATCH_KEY,
-  updateCustomerFlowEntry,
-} from './customerSalesFlow.storage';
-
-function getRawString(entry: CustomerFlowEntry, key: string) {
-  const value = entry.values[key];
-  return typeof value === 'string' ? value : '';
+function timeFromDateTime(value?: string | null) {
+  if (!value) return '';
+  const time = value.includes('T') ? value.split('T')[1] : value;
+  return time.slice(0, 5);
 }
 
-function buildValues(entry: CustomerFlowEntry | null): RequiredWeighmentValues {
+function buildValues(entry?: {
+  gross_weight?: string | null;
+  tare_weight?: string | null;
+  weighbridge_slip_no?: string;
+  first_weighment_time?: string | null;
+  second_weighment_time?: string | null;
+}): RequiredWeighmentValues {
   if (!entry) return EMPTY_REQUIRED_WEIGHMENT;
 
   return {
-    grossWeight: getRawString(entry, 'grossWeight'),
-    tareWeight: getRawString(entry, 'tareWeight'),
-    weighbridgeSlipNo: getRawString(entry, 'weighbridgeSlipNo'),
-    firstWeighmentTime: getRawString(entry, 'firstWeighmentTime'),
-    secondWeighmentTime: getRawString(entry, 'secondWeighmentTime'),
+    grossWeight: entry.gross_weight || '',
+    tareWeight: entry.tare_weight || '',
+    weighbridgeSlipNo: entry.weighbridge_slip_no || '',
+    firstWeighmentTime: timeFromDateTime(entry.first_weighment_time),
+    secondWeighmentTime: timeFromDateTime(entry.second_weighment_time),
   };
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return detail || fallback;
 }
 
 export default function SalesDispatchWeighmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const entryId = searchParams.get('entryId') || '';
-  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() => (
-    entryId ? findCustomerFlowEntry(SALES_DISPATCH_KEY, entryId) : null
-  ));
-  const [values, setValues] = useState<RequiredWeighmentValues>(() => buildValues(entry));
+  const entryId = Number(searchParams.get('entryId') || 0) || null;
+  const { data: entry, isLoading } = useSalesDispatchGateOut(entryId);
+  const updateMutation = useUpdateSalesDispatchGateOut();
+  const [values, setValues] = useState<RequiredWeighmentValues>(EMPTY_REQUIRED_WEIGHMENT);
   const [error, setError] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Weighment form follows the loaded entry.
+    if (entry) setValues(buildValues(entry));
+  }, [entry]);
 
   const handleValueChange = (field: keyof RequiredWeighmentValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
     setError('');
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!entry) {
       setError('Sales dispatch details not found.');
       return;
@@ -65,31 +73,32 @@ export default function SalesDispatchWeighmentPage() {
       return;
     }
 
-    setIsSaving(true);
-    const updatedEntry = updateCustomerFlowEntry(SALES_DISPATCH_KEY, entry.id, (current) => ({
-      ...current,
-      values: {
-        ...current.values,
-        grossWeight: values.grossWeight,
-        tareWeight: values.tareWeight,
-        netWeight: calculateRequiredNetWeight(values),
-        weighbridgeSlipNo: values.weighbridgeSlipNo,
-        firstWeighmentTime: values.firstWeighmentTime,
-        secondWeighmentTime: values.secondWeighmentTime,
-      },
-      updatedAt: new Date().toISOString(),
-    }));
-
-    if (!updatedEntry) {
-      setError('Failed to save weighment.');
-      setIsSaving(false);
-      return;
+    try {
+      await updateMutation.mutateAsync({
+        id: entry.id,
+        data: {
+          gross_weight: values.grossWeight,
+          tare_weight: values.tareWeight,
+          weighbridge_slip_no: values.weighbridgeSlipNo,
+          first_weighment_time: buildRequiredWeighmentDateTime(values.firstWeighmentTime) || null,
+          second_weighment_time: buildRequiredWeighmentDateTime(values.secondWeighmentTime) || null,
+        },
+      });
+      toast.success('Weighment saved');
+      navigate(`/gate/sales-dispatch/new/attachments?entryId=${entry.id}`);
+    } catch (apiError) {
+      setError(getApiErrorMessage(apiError, 'Failed to save weighment.'));
     }
-
-    setEntry(updatedEntry);
-    toast.success('Weighment saved');
-    navigate(`/gate/sales-dispatch/new/attachments?entryId=${encodeURIComponent(updatedEntry.id)}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 pb-6">
+        <StepHeader currentStep={2} totalSteps={3} title="Sales Dispatch Out" error={null} />
+        <div className="rounded-md border p-6 text-sm text-muted-foreground">Loading dispatch entry...</div>
+      </div>
+    );
+  }
 
   if (!entry) {
     return (
@@ -120,21 +129,25 @@ export default function SalesDispatchWeighmentPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Entry No." value={entry.entryNo} />
-          <InfoItem label="Vehicle" value={getCustomerFlowValue(entry, 'vehicleNo')} />
-          <InfoItem label="Driver" value={getCustomerFlowValue(entry, 'driverName')} />
-          <InfoItem label="Gate Out" value={`${getCustomerFlowValue(entry, 'gateOutDate')} ${getCustomerFlowValue(entry, 'outTime')}`} />
+          <InfoItem label="Entry No." value={entry.entry_no} />
+          <InfoItem label="Vehicle" value={entry.vehicle_number} />
+          <InfoItem label="Driver" value={entry.driver_name} />
+          <InfoItem label="Gate Out" value={`${entry.gate_out_date} ${entry.out_time}`} />
         </CardContent>
       </Card>
 
-      <RequiredWeighmentForm values={values} onChange={handleValueChange} disabled={isSaving} />
+      <RequiredWeighmentForm
+        values={values}
+        onChange={handleValueChange}
+        disabled={updateMutation.isPending}
+      />
 
       <StepFooter
-        onPrevious={() => navigate(`/gate/sales-dispatch/new?entryId=${encodeURIComponent(entry.id)}`)}
+        onPrevious={() => navigate(`/gate/sales-dispatch/new?entryId=${entry.id}`)}
         onCancel={() => navigate('/gate/sales-dispatch')}
         onNext={handleNext}
-        isSaving={isSaving}
-        nextLabel={isSaving ? 'Saving...' : 'Save and Next'}
+        isSaving={updateMutation.isPending}
+        nextLabel={updateMutation.isPending ? 'Saving...' : 'Save and Next'}
       />
     </div>
   );

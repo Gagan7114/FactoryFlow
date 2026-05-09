@@ -1,8 +1,16 @@
 import { FileText, PackageCheck, ShieldCheck, Truck } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useDispatchBills } from '@/modules/dashboards/dispatch-plans/api';
+import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
+import {
+  useCreateSalesDispatchGateOut,
+  useDispatchGateLock,
+  useSalesDispatchGateOut,
+  useUpdateSalesDispatchGateOut,
+} from '@/modules/gate/api';
 import {
   DriverSelect,
   type DriverSelection,
@@ -11,33 +19,27 @@ import {
   VehicleSelect,
   type VehicleSelection,
 } from '@/modules/gate/components';
-import { Checkbox, Input, Label, NativeSelect, SelectOption } from '@/shared/components/ui';
+import { Input, Label, NativeSelect, SelectOption } from '@/shared/components/ui';
 
-import {
-  buildCustomerFlowEntryNo,
-  type CustomerFlowEntry,
-  findCustomerFlowEntry,
-  getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
-  SAMPLE_DELIVERIES,
-  upsertCustomerFlowEntry,
-} from './customerSalesFlow.storage';
+import type { DispatchPhysicalUOM, SalesDispatchGateOut } from '../../api/salesDispatch';
 
 interface DispatchDraft {
   vehicle: VehicleSelection | null;
   driver: DriverSelection | null;
-  deliveryId: string;
+  invoiceDocEntry: string;
   gateOutDate: string;
   outTime: string;
-  sealNo: string;
   securityName: string;
+  sealNo: string;
+  pgiDocumentNo: string;
+  physicalQuantity: string;
+  physicalUom: DispatchPhysicalUOM;
+  goodsIssuePosted: boolean;
   invoiceChecked: boolean;
   deliveryNoteChecked: boolean;
   ewayBillChecked: boolean;
   lrChecked: boolean;
-  goodsIssuePosted: boolean;
-  pgiDocumentNo: string;
+  remarks: string;
 }
 
 const lockedDateTimeInputClassName =
@@ -56,40 +58,51 @@ function toTimeInputValue(date = new Date()) {
   return `${hours}:${minutes}`;
 }
 
-function getRawString(entry: CustomerFlowEntry, key: string) {
-  const value = entry.values[key];
-  return typeof value === 'string' ? value : '';
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
-function getRawBoolean(entry: CustomerFlowEntry, key: string) {
-  const value = entry.values[key];
-  return typeof value === 'boolean' ? value : value === 'true' || value === 'Yes';
-}
-
-function buildVehicleFromEntry(entry: CustomerFlowEntry): VehicleSelection | null {
-  const vehicleNumber = getRawString(entry, 'vehicleNo');
-  if (!vehicleNumber) return null;
-
+function buildEmptyDraft(): DispatchDraft {
   return {
-    vehicleId: Number(getRawString(entry, 'vehicleId')) || 1,
-    vehicleNumber,
-    vehicleType: getRawString(entry, 'vehicleType'),
+    vehicle: null,
+    driver: null,
+    invoiceDocEntry: '',
+    gateOutDate: toDateInputValue(),
+    outTime: toTimeInputValue(),
+    securityName: '',
+    sealNo: '',
+    pgiDocumentNo: '',
+    physicalQuantity: '',
+    physicalUom: 'BOX',
+    goodsIssuePosted: true,
+    invoiceChecked: false,
+    deliveryNoteChecked: false,
+    ewayBillChecked: false,
+    lrChecked: false,
+    remarks: '',
+  };
+}
+
+function buildVehicleFromEntry(entry: SalesDispatchGateOut): VehicleSelection {
+  return {
+    vehicleId: entry.vehicle,
+    vehicleNumber: entry.vehicle_number,
+    vehicleType: entry.vehicle_type || '',
     vehicleCapacity: '',
-    transporterId: Number(getRawString(entry, 'transporterId')) || 0,
-    transporterName: getRawString(entry, 'transporterName'),
+    transporterId: 0,
+    transporterName: entry.transporter_name || '',
     transporterContactPerson: '',
     transporterMobile: '',
   };
 }
 
-function buildDriverFromEntry(entry: CustomerFlowEntry): DriverSelection | null {
-  const driverName = getRawString(entry, 'driverName');
-  if (!driverName) return null;
-
+function buildDriverFromEntry(entry: SalesDispatchGateOut): DriverSelection {
   return {
-    driverId: Number(getRawString(entry, 'driverId')) || 1,
-    driverName,
-    mobileNumber: getRawString(entry, 'driverMobile'),
+    driverId: entry.driver,
+    driverName: entry.driver_name,
+    mobileNumber: entry.driver_mobile || '',
     drivingLicenseNumber: '',
     idProofType: '',
     idProofNumber: '',
@@ -97,155 +110,237 @@ function buildDriverFromEntry(entry: CustomerFlowEntry): DriverSelection | null 
   };
 }
 
-function getDeliveryIdFromEntry(entry: CustomerFlowEntry) {
-  const savedDeliveryId = getRawString(entry, 'selectedDeliveryId');
-  if (savedDeliveryId) return savedDeliveryId;
-
-  const outboundDeliveryNo = getRawString(entry, 'outboundDeliveryNo');
-  return SAMPLE_DELIVERIES.find(
-    (delivery) => getCustomerFlowValue(delivery, 'outboundDeliveryNo') === outboundDeliveryNo,
-  )?.id || '';
-}
-
-function buildEmptyDraft(): DispatchDraft {
-  return {
-    vehicle: null,
-    driver: null,
-    deliveryId: '',
-    gateOutDate: toDateInputValue(),
-    outTime: toTimeInputValue(),
-    sealNo: '',
-    securityName: '',
-    invoiceChecked: false,
-    deliveryNoteChecked: false,
-    ewayBillChecked: false,
-    lrChecked: false,
-    goodsIssuePosted: true,
-    pgiDocumentNo: '',
-  };
-}
-
-function buildDraftFromEntry(entry: CustomerFlowEntry | null): DispatchDraft {
-  if (!entry) return buildEmptyDraft();
-
+function buildDraftFromEntry(entry: SalesDispatchGateOut): DispatchDraft {
   return {
     vehicle: buildVehicleFromEntry(entry),
     driver: buildDriverFromEntry(entry),
-    deliveryId: getDeliveryIdFromEntry(entry),
-    gateOutDate: getRawString(entry, 'gateOutDate') || toDateInputValue(),
-    outTime: getRawString(entry, 'outTime') || toTimeInputValue(),
-    sealNo: getRawString(entry, 'sealNo'),
-    securityName: getRawString(entry, 'securityName'),
-    invoiceChecked: getRawBoolean(entry, 'invoiceChecked'),
-    deliveryNoteChecked: getRawBoolean(entry, 'deliveryNoteChecked'),
-    ewayBillChecked: getRawBoolean(entry, 'ewayBillChecked'),
-    lrChecked: getRawBoolean(entry, 'lrChecked'),
-    goodsIssuePosted: getRawBoolean(entry, 'goodsIssuePosted'),
-    pgiDocumentNo: getRawString(entry, 'pgiDocumentNo'),
+    invoiceDocEntry: String(entry.sap_invoice_doc_entry),
+    gateOutDate: entry.gate_out_date || toDateInputValue(),
+    outTime: (entry.out_time || toTimeInputValue()).slice(0, 5),
+    securityName: entry.security_name || '',
+    sealNo: entry.seal_no || '',
+    pgiDocumentNo: entry.pgi_document_no || '',
+    physicalQuantity: entry.physical_quantity || '',
+    physicalUom: (entry.physical_uom || 'BOX') as DispatchPhysicalUOM,
+    goodsIssuePosted: entry.goods_issue_posted,
+    invoiceChecked: entry.invoice_checked,
+    deliveryNoteChecked: entry.delivery_note_checked,
+    ewayBillChecked: entry.eway_bill_checked,
+    lrChecked: entry.lr_checked,
+    remarks: entry.remarks || '',
   };
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+  return detail || fallback;
+}
+
+function formatInvoiceOption(bill: DispatchBill) {
+  return [
+    `Invoice ${bill.doc_num}`,
+    bill.doc_date,
+    bill.card_name,
+    `${bill.total_quantity || 0} qty`,
+  ].filter(Boolean).join(' - ');
+}
+
+function buildLineFromBill(bill: DispatchBill, physicalUom: DispatchPhysicalUOM) {
+  return [{
+    line_num: 1,
+    item_code: bill.base_refs || `INV-${bill.doc_num}`,
+    item_name: bill.item_summary || `Invoice ${bill.doc_num}`,
+    order_qty: bill.total_quantity || bill.total_boxes || bill.total_litres || 0,
+    dispatched_qty: bill.total_quantity || bill.total_boxes || bill.total_litres || 0,
+    uom: physicalUom,
+    warehouse: bill.warehouses || '',
+  }];
 }
 
 export default function SalesDispatchNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const entryId = searchParams.get('entryId');
-  const existingEntry = useMemo(
-    () => (entryId ? findCustomerFlowEntry(SALES_DISPATCH_KEY, entryId) : null),
-    [entryId],
-  );
-  const [draft, setDraft] = useState<DispatchDraft>(() => buildDraftFromEntry(existingEntry));
+  const entryId = Number(searchParams.get('entryId') || 0) || null;
+  const [draft, setDraft] = useState<DispatchDraft>(() => buildEmptyDraft());
   const [formError, setFormError] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [invoiceSearch, setInvoiceSearch] = useState('');
 
-  const completedDeliveryNos = useMemo(
-    () => new Set(
-      readCustomerFlowEntries(SALES_DISPATCH_KEY)
-        .filter((entry) => entry.status !== 'CANCELLED' && entry.id !== existingEntry?.id)
-        .map((entry) => getCustomerFlowValue(entry, 'outboundDeliveryNo')),
-    ),
-    [existingEntry?.id],
-  );
-  const availableDeliveries = useMemo(
-    () => SAMPLE_DELIVERIES.filter(
-      (delivery) => !completedDeliveryNos.has(getCustomerFlowValue(delivery, 'outboundDeliveryNo')),
-    ),
-    [completedDeliveryNos],
-  );
-  const selectedDelivery = availableDeliveries.find((delivery) => delivery.id === draft.deliveryId) || null;
+  const dateFilters = useMemo(() => ({
+    date_from: toDateInputValue(addDays(new Date(), -180)),
+    date_to: toDateInputValue(new Date()),
+    booking_status: 'all' as const,
+    search: invoiceSearch,
+    limit: 200,
+  }), [invoiceSearch]);
+
+  const { data: lock } = useDispatchGateLock();
+  const { data: existingEntry, isLoading: isEntryLoading } = useSalesDispatchGateOut(entryId);
+  const { data: billResponse, isFetching: isBillsFetching } = useDispatchBills(dateFilters);
+  const createMutation = useCreateSalesDispatchGateOut();
+  const updateMutation = useUpdateSalesDispatchGateOut();
+
+  useEffect(() => {
+    if (existingEntry) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Step form follows the loaded entry.
+      setDraft(buildDraftFromEntry(existingEntry));
+    }
+  }, [existingEntry]);
+
+  const bills = useMemo(() => billResponse?.data || [], [billResponse?.data]);
+  const selectedBill = useMemo(() => {
+    const fromList = bills.find((bill) => String(bill.doc_entry) === draft.invoiceDocEntry);
+    if (fromList) return fromList;
+    if (!existingEntry) return null;
+
+    return {
+      doc_entry: existingEntry.sap_invoice_doc_entry,
+      doc_num: existingEntry.sap_invoice_doc_num,
+      doc_date: null,
+      create_date: null,
+      create_time: '',
+      card_code: existingEntry.customer_code || '',
+      card_name: existingEntry.customer_name || '',
+      doc_total: Number(existingEntry.invoice_amount || 0),
+      branch_id: null,
+      branch_name: '',
+      ship_to_code: '',
+      ship_to_address: existingEntry.ship_to_address || '',
+      state: '',
+      city: '',
+      bp_gstin: '',
+      sap_dispatch_date: null,
+      sap_bilty_no: '',
+      sap_bilty_date: null,
+      sap_transporter_name: existingEntry.transporter_name || '',
+      sap_vehicle_no: existingEntry.vehicle_number,
+      sap_transporter_invoice: '',
+      sap_lr_number: '',
+      gst_vehicle_no: existingEntry.vehicle_number,
+      gst_transport_date: null,
+      gst_transport_reason: '',
+      line_count: existingEntry.items.length,
+      total_quantity: Number(existingEntry.physical_quantity || 0),
+      total_litres: 0,
+      total_boxes: Number(existingEntry.physical_quantity || 0),
+      total_weight: Number(existingEntry.sap_weight || 0),
+      total_line_amount: Number(existingEntry.invoice_amount || 0),
+      total_gross_amount: Number(existingEntry.invoice_amount || 0),
+      warehouses: '',
+      item_summary: existingEntry.items.map((item) => item.item_name).filter(Boolean).join(', '),
+      base_refs: existingEntry.sap_invoice_doc_num,
+      plan: null,
+    } as DispatchBill;
+  }, [bills, draft.invoiceDocEntry, existingEntry]);
+  const invoiceOptions = useMemo(() => {
+    if (!selectedBill) return bills;
+    if (bills.some((bill) => bill.doc_entry === selectedBill.doc_entry)) return bills;
+    return [selectedBill, ...bills];
+  }, [bills, selectedBill]);
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isReadOnlyInvoice = Boolean(existingEntry);
 
   const updateDraft = <K extends keyof DispatchDraft>(key: K, value: DispatchDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setFormError('');
   };
 
-  const handleSaveAndNext = () => {
-    if (!selectedDelivery) {
-      setFormError('Please select the SAP outbound delivery');
+  const handleInvoiceChange = (docEntry: string) => {
+    const bill = bills.find((item) => String(item.doc_entry) === docEntry);
+    setDraft((current) => ({
+      ...current,
+      invoiceDocEntry: docEntry,
+      physicalQuantity: bill
+        ? String(bill.total_boxes || bill.total_quantity || bill.total_litres || '')
+        : current.physicalQuantity,
+      physicalUom: bill?.total_boxes ? 'BOX' : current.physicalUom,
+    }));
+    setFormError('');
+  };
+
+  const handleSaveAndNext = async () => {
+    if (lock?.locked) {
+      setFormError(lock.reason || 'Sales dispatch gate-out is currently locked.');
       return;
     }
-
+    if (!selectedBill) {
+      setFormError('Please select the SAP invoice / dispatch bill');
+      return;
+    }
     if (!draft.vehicle?.vehicleId) {
       setFormError('Please select a vehicle');
       return;
     }
-
     if (!draft.driver?.driverId) {
       setFormError('Please select a driver');
       return;
     }
-
     if (!draft.sealNo.trim()) {
       setFormError('Please enter the seal number');
       return;
     }
-
-    if (!draft.invoiceChecked || !draft.deliveryNoteChecked || !draft.ewayBillChecked || !draft.lrChecked) {
-      setFormError('Please complete all document checks');
+    if (!draft.physicalQuantity || Number(draft.physicalQuantity) <= 0) {
+      setFormError('Please enter the physical quantity going out');
       return;
     }
 
-    setIsSaving(true);
-    const now = new Date().toISOString();
-    const entry: CustomerFlowEntry = {
-      id: existingEntry?.id || now,
-      entryNo: existingEntry?.entryNo || buildCustomerFlowEntryNo('SDO'),
-      status: existingEntry?.status === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS',
-      values: {
-        ...selectedDelivery.values,
-        ...existingEntry?.values,
-        selectedDeliveryId: selectedDelivery.id,
-        vehicleId: String(draft.vehicle.vehicleId),
-        vehicleNo: draft.vehicle.vehicleNumber,
-        vehicleType: draft.vehicle.vehicleType,
-        transporterId: String(draft.vehicle.transporterId || ''),
-        transporterName: draft.vehicle.transporterName || getCustomerFlowValue(selectedDelivery, 'transporterName'),
-        driverId: String(draft.driver.driverId),
-        driverName: draft.driver.driverName,
-        driverMobile: draft.driver.mobileNumber,
-        gateOutDate: draft.gateOutDate,
-        outTime: draft.outTime,
-        sealNo: draft.sealNo,
-        securityName: draft.securityName,
-        invoiceChecked: draft.invoiceChecked,
-        deliveryNoteChecked: draft.deliveryNoteChecked,
-        ewayBillChecked: draft.ewayBillChecked,
-        lrChecked: draft.lrChecked,
-        goodsIssuePosted: draft.goodsIssuePosted,
-        pgiDocumentNo: draft.pgiDocumentNo,
-      },
-      items: selectedDelivery.items,
-      createdAt: existingEntry?.createdAt || now,
-      updatedAt: now,
-    };
+    try {
+      const payload = {
+        sap_invoice_doc_entry: selectedBill.doc_entry,
+        sap_invoice_doc_num: selectedBill.doc_num,
+        vehicle_id: draft.vehicle.vehicleId,
+        driver_id: draft.driver.driverId,
+        linked_vehicle_entry_id: selectedBill.plan?.linked_vehicle_entry_id || null,
+        customer_code: selectedBill.card_code,
+        customer_name: selectedBill.card_name,
+        ship_to_address: selectedBill.ship_to_address,
+        invoice_amount: selectedBill.doc_total,
+        sap_weight: selectedBill.total_weight,
+        gate_out_date: draft.gateOutDate,
+        out_time: draft.outTime,
+        security_name: draft.securityName,
+        seal_no: draft.sealNo,
+        pgi_document_no: draft.pgiDocumentNo,
+        goods_issue_posted: draft.goodsIssuePosted,
+        invoice_checked: draft.invoiceChecked,
+        delivery_note_checked: draft.deliveryNoteChecked,
+        eway_bill_checked: draft.ewayBillChecked,
+        lr_checked: draft.lrChecked,
+        physical_quantity: draft.physicalQuantity,
+        physical_uom: draft.physicalUom,
+        remarks: draft.remarks,
+        items: buildLineFromBill(selectedBill, draft.physicalUom),
+      };
 
-    upsertCustomerFlowEntry(SALES_DISPATCH_KEY, entry);
-    toast.success('Dispatch details saved');
-    navigate(`/gate/sales-dispatch/new/weighment?entryId=${encodeURIComponent(entry.id)}`);
+      const saved = existingEntry
+        ? await updateMutation.mutateAsync({ id: existingEntry.id, data: payload })
+        : await createMutation.mutateAsync(payload);
+
+      toast.success('Dispatch details saved');
+      navigate(`/gate/sales-dispatch/new/weighment?entryId=${saved.id}`);
+    } catch (error) {
+      setFormError(getApiErrorMessage(error, 'Failed to save dispatch details.'));
+    }
   };
+
+  if (entryId && isEntryLoading) {
+    return (
+      <div className="space-y-6 pb-6">
+        <StepHeader currentStep={1} totalSteps={3} title="Sales Dispatch Out" error={null} />
+        <div className="rounded-md border p-6 text-sm text-muted-foreground">Loading dispatch entry...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-6">
       <StepHeader currentStep={1} totalSteps={3} title="Sales Dispatch Out" error={formError || null} />
+
+      {lock?.locked ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-900">
+          {lock.reason || 'Sales dispatch gate-out is currently locked.'}
+        </div>
+      ) : null}
 
       <div className="space-y-8">
         <FormSection icon={<Truck className="h-5 w-5" />} title="Vehicle & Driver">
@@ -264,10 +359,7 @@ export default function SalesDispatchNewPage() {
               onChange={(driver) => updateDraft('driver', driver.driverId ? driver : null)}
               placeholder="Select driver"
             />
-            <ReadOnlyDateTime
-              dateValue={draft.gateOutDate}
-              timeValue={draft.outTime}
-            />
+            <ReadOnlyDateTime dateValue={draft.gateOutDate} timeValue={draft.outTime} />
             <TextField
               id="sales-dispatch-security"
               label="Security Name"
@@ -278,40 +370,74 @@ export default function SalesDispatchNewPage() {
           </div>
         </FormSection>
 
-        <FormSection icon={<FileText className="h-5 w-5" />} title="SAP Outbound Delivery">
+        <FormSection icon={<FileText className="h-5 w-5" />} title="SAP Invoice & Dispatch Bill">
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="sales-dispatch-delivery">
-                SAP Outbound Delivery <span className="text-destructive">*</span>
+              <Label htmlFor="sales-dispatch-search">Search SAP Bill</Label>
+              <Input
+                id="sales-dispatch-search"
+                value={invoiceSearch}
+                disabled={isReadOnlyInvoice}
+                onChange={(event) => setInvoiceSearch(event.target.value)}
+                placeholder="Search invoice, customer, vehicle, city"
+              />
+            </div>
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="sales-dispatch-invoice">
+                SAP Invoice / Dispatch Bill <span className="text-destructive">*</span>
               </Label>
               <NativeSelect
-                id="sales-dispatch-delivery"
-                value={draft.deliveryId}
+                id="sales-dispatch-invoice"
+                value={draft.invoiceDocEntry}
+                disabled={isReadOnlyInvoice}
                 required
-                placeholder={availableDeliveries.length ? 'Select SAP outbound delivery' : 'No open deliveries'}
-                onChange={(event) => updateDraft('deliveryId', event.target.value)}
+                placeholder={isBillsFetching ? 'Loading SAP bills...' : 'Select invoice'}
+                onChange={(event) => handleInvoiceChange(event.target.value)}
               >
-                {availableDeliveries.map((delivery) => (
-                  <SelectOption key={delivery.id} value={delivery.id}>
-                    {[
-                      getCustomerFlowValue(delivery, 'outboundDeliveryNo'),
-                      getCustomerFlowValue(delivery, 'salesOrderNo'),
-                      getCustomerFlowValue(delivery, 'customerName'),
-                    ].join(' - ')}
+                {invoiceOptions.map((bill) => (
+                  <SelectOption key={bill.doc_entry} value={String(bill.doc_entry)}>
+                    {formatInvoiceOption(bill)}
                   </SelectOption>
                 ))}
               </NativeSelect>
             </div>
 
-            <ReadOnlyTextField label="Customer" value={selectedDelivery ? getCustomerFlowValue(selectedDelivery, 'customerName') : ''} />
-            <ReadOnlyTextField label="Invoice" value={selectedDelivery ? getCustomerFlowValue(selectedDelivery, 'invoiceNo') : ''} />
-            <ReadOnlyTextField label="Delivery Note" value={selectedDelivery ? getCustomerFlowValue(selectedDelivery, 'deliveryNoteNo') : ''} />
-            <ReadOnlyTextField label="Ship To" value={selectedDelivery ? getCustomerFlowValue(selectedDelivery, 'shipTo') : ''} />
+            <ReadOnlyTextField label="Customer" value={selectedBill?.card_name || ''} />
+            <ReadOnlyTextField label="Invoice No." value={selectedBill?.doc_num || ''} />
+            <ReadOnlyTextField label="Invoice Date" value={selectedBill?.doc_date || ''} />
+            <ReadOnlyTextField label="Ship To" value={selectedBill?.ship_to_address || ''} />
+            <ReadOnlyTextField label="SAP Weight" value={selectedBill ? `${selectedBill.total_weight || 0}` : ''} />
+            <ReadOnlyTextField label="Warehouses" value={selectedBill?.warehouses || ''} />
           </div>
         </FormSection>
 
-        <FormSection icon={<PackageCheck className="h-5 w-5" />} title="Delivery Lines">
-          <ItemsTable items={selectedDelivery?.items || []} />
+        <FormSection icon={<PackageCheck className="h-5 w-5" />} title="Physical Quantity">
+          <div className="grid gap-4 lg:grid-cols-3">
+            <TextField
+              id="sales-dispatch-physical-qty"
+              label="Actual Quantity"
+              required
+              type="number"
+              value={draft.physicalQuantity}
+              onChange={(value) => updateDraft('physicalQuantity', value)}
+              placeholder="Actual qty at gate"
+            />
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-uom">
+                UOM <span className="text-destructive">*</span>
+              </Label>
+              <NativeSelect
+                id="sales-dispatch-uom"
+                value={draft.physicalUom}
+                onChange={(event) => updateDraft('physicalUom', event.target.value as DispatchPhysicalUOM)}
+              >
+                <SelectOption value="BOX">Box</SelectOption>
+                <SelectOption value="PCS">Pcs</SelectOption>
+              </NativeSelect>
+            </div>
+            <ReadOnlyTextField label="SAP Quantity" value={selectedBill ? `${selectedBill.total_quantity || selectedBill.total_boxes || 0}` : ''} />
+          </div>
+          <ItemsTable bill={selectedBill} physicalUom={draft.physicalUom} />
         </FormSection>
 
         <FormSection icon={<ShieldCheck className="h-5 w-5" />} title="Gate Checks">
@@ -331,11 +457,11 @@ export default function SalesDispatchNewPage() {
               placeholder="Optional SAP reference"
             />
 
-            <CheckField id="sales-dispatch-invoice" label="Invoice Checked" checked={draft.invoiceChecked} onChange={(value) => updateDraft('invoiceChecked', value)} />
-            <CheckField id="sales-dispatch-dn" label="Delivery Note Checked" checked={draft.deliveryNoteChecked} onChange={(value) => updateDraft('deliveryNoteChecked', value)} />
-            <CheckField id="sales-dispatch-eway" label="E-way Bill Checked" checked={draft.ewayBillChecked} onChange={(value) => updateDraft('ewayBillChecked', value)} />
-            <CheckField id="sales-dispatch-lr" label="LR / Freight Doc Checked" checked={draft.lrChecked} onChange={(value) => updateDraft('lrChecked', value)} />
-            <CheckField id="sales-dispatch-pgi-posted" label="Goods Issue Posted" checked={draft.goodsIssuePosted} onChange={(value) => updateDraft('goodsIssuePosted', value)} />
+            <CheckField label="Invoice Checked" checked={draft.invoiceChecked} onChange={(value) => updateDraft('invoiceChecked', value)} />
+            <CheckField label="Delivery Note Checked" checked={draft.deliveryNoteChecked} onChange={(value) => updateDraft('deliveryNoteChecked', value)} />
+            <CheckField label="E-way Bill Checked" checked={draft.ewayBillChecked} onChange={(value) => updateDraft('ewayBillChecked', value)} />
+            <CheckField label="LR / Freight Doc Checked" checked={draft.lrChecked} onChange={(value) => updateDraft('lrChecked', value)} />
+            <CheckField label="Goods Issue Posted" checked={draft.goodsIssuePosted} onChange={(value) => updateDraft('goodsIssuePosted', value)} />
           </div>
         </FormSection>
       </div>
@@ -397,6 +523,7 @@ function TextField({
   onChange,
   required,
   placeholder,
+  type = 'text',
 }: {
   id: string;
   label: string;
@@ -404,6 +531,7 @@ function TextField({
   onChange: (value: string) => void;
   required?: boolean;
   placeholder?: string;
+  type?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -411,7 +539,7 @@ function TextField({
         {label}
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input id={id} value={value} required={required} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <Input id={id} type={type} value={value} required={required} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -426,52 +554,57 @@ function ReadOnlyTextField({ label, value }: { label: string; value: string }) {
 }
 
 function CheckField({
-  id,
   label,
   checked,
   onChange,
 }: {
-  id: string;
   label: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border px-3 py-2">
-      <Checkbox id={id} checked={checked} onCheckedChange={(value) => onChange(Boolean(value))} />
-      <Label htmlFor={id}>{label}</Label>
-    </div>
+    <label className="flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="h-4 w-4 rounded border-input"
+      />
+      <span className="text-sm font-medium">{label}</span>
+    </label>
   );
 }
 
-function ItemsTable({ items }: { items: CustomerFlowEntry['items'] }) {
+function ItemsTable({ bill, physicalUom }: { bill: DispatchBill | null; physicalUom: DispatchPhysicalUOM }) {
+  const lines = bill ? buildLineFromBill(bill, physicalUom) : [];
+
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px]">
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left text-sm font-medium">Item Code</th>
-              <th className="p-3 text-left text-sm font-medium">Item</th>
+              <th className="p-3 text-left text-sm font-medium">Reference</th>
+              <th className="p-3 text-left text-sm font-medium">Item Summary</th>
               <th className="p-3 text-left text-sm font-medium">Order Qty</th>
               <th className="p-3 text-left text-sm font-medium">Dispatch Qty</th>
               <th className="p-3 text-left text-sm font-medium">UOM</th>
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {lines.length === 0 ? (
               <tr>
                 <td colSpan={5} className="h-20 p-3 text-center text-sm text-muted-foreground">
-                  Select an outbound delivery to view lines
+                  Select a SAP invoice to view dispatch summary
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="whitespace-nowrap p-3 text-sm">{item.itemCode}</td>
-                  <td className="p-3 text-sm font-medium">{item.itemName}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.orderQty}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.dispatchedQty}</td>
+              lines.map((item) => (
+                <tr key={item.line_num} className="border-t">
+                  <td className="whitespace-nowrap p-3 text-sm">{item.item_code}</td>
+                  <td className="p-3 text-sm font-medium">{item.item_name}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">{item.order_qty}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">{item.dispatched_qty}</td>
                   <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
                 </tr>
               ))

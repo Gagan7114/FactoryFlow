@@ -94,6 +94,7 @@ const EMPTY_FORM: FormState = {
 
 function formFromBill(bill: DispatchBill | null): FormState {
   if (!bill) return EMPTY_FORM;
+  const sapVehicleNo = bill.sap_vehicle_no || bill.gst_vehicle_no || '';
   return {
     vehicle_id: bill.plan.vehicle_id ?? null,
     transporter_id: bill.plan.transporter_id ?? null,
@@ -102,11 +103,11 @@ function formFromBill(bill: DispatchBill | null): FormState {
     booking_status: bill.plan.booking_status ?? 'PENDING',
     dispatch_date: bill.plan.dispatch_date ?? '',
     priority: bill.plan.priority ?? '',
-    transporter_name: bill.plan.transporter_name ?? '',
+    transporter_name: bill.plan.transporter_name || bill.sap_transporter_name || '',
     transporter_gstin: bill.plan.transporter_gstin ?? '',
     contact_person: bill.plan.contact_person ?? '',
     mobile_no: bill.plan.mobile_no ?? '',
-    vehicle_no: bill.plan.vehicle_no ?? '',
+    vehicle_no: bill.plan.vehicle_no || sapVehicleNo,
     driver_name: bill.plan.driver_name ?? '',
     driver_mobile_no: bill.plan.driver_mobile_no ?? '',
     driver_license_no: bill.plan.driver_license_no ?? '',
@@ -120,6 +121,12 @@ function formFromBill(bill: DispatchBill | null): FormState {
     kanta_weight: bill.plan.kanta_weight ?? '',
     remarks: bill.plan.remarks ?? '',
   };
+}
+
+function isSapVehicleOnly(bill: DispatchBill | null, form: FormState) {
+  if (!bill || form.vehicle_id) return false;
+  const sapVehicleNo = bill.sap_vehicle_no || bill.gst_vehicle_no || '';
+  return Boolean(sapVehicleNo && form.vehicle_no === sapVehicleNo);
 }
 
 function stringOrNull(value: string): string | null {
@@ -256,20 +263,36 @@ export function DispatchPlanEditSheet({
                 label="Vehicle No."
                 labelAction={
                   form.vehicle_id ? (
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="h-auto px-0"
-                    onClick={() => setIsEditVehicleOpen(true)}
-                  >
-                    Edit Vehicle
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0"
+                      onClick={() => setIsEditVehicleOpen(true)}
+                    >
+                      Edit Vehicle
+                    </Button>
+                  ) : form.vehicle_no ? (
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto px-0"
+                      onClick={() => setIsEditVehicleOpen(true)}
+                    >
+                      Create Vehicle
+                    </Button>
                   ) : null
                 }
                 placeholder="Select vehicle"
                 onChange={handleVehicleSelect}
               />
+              {isSapVehicleOnly(bill, form) && (
+                <p className="text-xs text-muted-foreground">
+                  Vehicle no. came from SAP. Create/select it in vehicle master to attach
+                  type, transporter, and capacity.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -377,11 +400,12 @@ export function DispatchPlanEditSheet({
           </SheetFooter>
         </form>
 
-        {form.vehicle_id && (
+        {(form.vehicle_id || form.vehicle_no) && (
           <CreateVehicleDialog
             open={isEditVehicleOpen}
             onOpenChange={setIsEditVehicleOpen}
-            initialData={{ id: form.vehicle_id }}
+            initialData={form.vehicle_id ? { id: form.vehicle_id } : undefined}
+            initialVehicleNumber={form.vehicle_no}
             onSuccess={(vehicle) => {
               setForm((prev) => ({
                 ...prev,
