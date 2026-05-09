@@ -123,6 +123,16 @@ export const GATE_PERMISSIONS = {
     /** Search entries */
     SEARCH: 'person_gatein.can_search_entry',
   },
+
+  // ============================================
+  // SALES DISPATCH GATE-OUT
+  // ============================================
+  SALES_DISPATCH: {
+    /** View customer dispatch gate-out entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create customer dispatch gate-out entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+  },
 } as const;
 
 /**
@@ -148,4 +158,5 @@ export type GatePermission =
   | (typeof GATE_PERMISSIONS.DAILY_NEEDS)[keyof typeof GATE_PERMISSIONS.DAILY_NEEDS]
   | (typeof GATE_PERMISSIONS.MAINTENANCE)[keyof typeof GATE_PERMISSIONS.MAINTENANCE]
   | (typeof GATE_PERMISSIONS.CONSTRUCTION)[keyof typeof GATE_PERMISSIONS.CONSTRUCTION]
-  | (typeof GATE_PERMISSIONS.PERSON_GATE_IN)[keyof typeof GATE_PERMISSIONS.PERSON_GATE_IN];
+  | (typeof GATE_PERMISSIONS.PERSON_GATE_IN)[keyof typeof GATE_PERMISSIONS.PERSON_GATE_IN]
+  | (typeof GATE_PERMISSIONS.SALES_DISPATCH)[keyof typeof GATE_PERMISSIONS.SALES_DISPATCH];

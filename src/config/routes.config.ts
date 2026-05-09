@@ -136,6 +136,18 @@ export const ROUTES = {
         path: '/gate/visitor-labour',
         title: 'Visitor/Labour',
       },
+      SALES_DISPATCH: {
+        path: '/gate/sales-dispatch',
+        title: 'Sales Dispatch Out',
+      },
+      SALES_DISPATCH_NEW: {
+        path: '/gate/sales-dispatch/new',
+        title: 'New Sales Dispatch Out',
+      },
+      SALES_DISPATCH_ATTACHMENTS: {
+        path: '/gate/sales-dispatch/new/attachments',
+        title: 'Sales Dispatch Attachments',
+      },
     },
   },
 

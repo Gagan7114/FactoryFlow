@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 
-import { Button } from '@/shared/components/ui/button';
+import { Button, buttonVariants } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { cn } from '@/shared/utils';
@@ -83,9 +83,11 @@ export function DateRangePicker({
   return (
     <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
+        <div
+          role="button"
+          tabIndex={0}
           className={cn(
+            buttonVariants({ variant: 'outline' }),
             'justify-start text-left font-normal h-9',
             !date && 'text-muted-foreground',
             className,
@@ -103,7 +105,7 @@ export function DateRangePicker({
               <X className="h-4 w-4" />
             </button>
           )}
-        </Button>
+        </div>
       </PopoverTrigger>
       <PopoverContent
         align="center"

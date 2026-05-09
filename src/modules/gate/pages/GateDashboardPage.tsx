@@ -1,4 +1,4 @@
-import { Building2, HardHat, Package, UtensilsCrossed, Wrench } from 'lucide-react';
+import { Building2, HardHat, Package, Send, UtensilsCrossed, Wrench } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -50,6 +50,16 @@ const gateModules: GateModuleCard[] = [
     route: ROUTES.GATE.children?.CONTRACTOR_LABOR.path || '/gate/visitor-labour',
     color: 'text-red-600',
     permissions: [GATE_PERMISSIONS.PERSON_GATE_IN.VIEW],
+  },
+  {
+    title: 'Sales Dispatch Out',
+    icon: <Send className="h-5 w-5" />,
+    route: ROUTES.GATE.children?.SALES_DISPATCH.path || '/gate/sales-dispatch',
+    color: 'text-blue-700',
+    permissions: [
+      GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
+      GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
+    ],
   },
 ];
 

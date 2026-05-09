@@ -13,6 +13,7 @@ export { DepartmentSelect } from './DepartmentSelect';
 export { DriverSelect } from './DriverSelect';
 export { GateSelect } from './GateSelect';
 export { MaintenanceTypeSelect } from './MaintenanceTypeSelect';
+export { RequiredWeighmentForm } from './RequiredWeighmentForm';
 export { TransporterSelect } from './TransporterSelect';
 export { UnitSelect } from './UnitSelect';
 export { VehicleSelect } from './VehicleSelect';

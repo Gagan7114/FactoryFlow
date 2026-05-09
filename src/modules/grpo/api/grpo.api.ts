@@ -8,7 +8,13 @@ import type {
   PendingGRPOEntryWithSuppliers,
   PostGRPORequest,
   PostGRPOResponse,
+  PostServiceGRPORequest,
+  PostServiceGRPOResponse,
   PreviewPOReceipt,
+  ServiceGRPOHistoryEntry,
+  ServiceGRPOOptions,
+  ServiceGRPOPendingEntry,
+  ServiceGRPOPreview,
   Warehouse,
 } from '../types';
 
@@ -76,6 +82,68 @@ export const grpoApi = {
   // Get single posting detail
   async getDetail(postingId: number): Promise<GRPOHistoryEntry> {
     const response = await apiClient.get<GRPOHistoryEntry>(API_ENDPOINTS.GRPO.DETAIL(postingId));
+    return response.data;
+  },
+
+  async getServicePendingEntries(): Promise<ServiceGRPOPendingEntry[]> {
+    const response = await apiClient.get<ServiceGRPOPendingEntry[]>(
+      API_ENDPOINTS.GRPO.SERVICE_PENDING,
+    );
+    return response.data;
+  },
+
+  async getServiceOptions(): Promise<ServiceGRPOOptions> {
+    const response = await apiClient.get<ServiceGRPOOptions>(
+      API_ENDPOINTS.GRPO.SERVICE_OPTIONS,
+    );
+    return response.data;
+  },
+
+  async getServicePreview(dispatchPlanId: number): Promise<ServiceGRPOPreview> {
+    const response = await apiClient.get<ServiceGRPOPreview>(
+      API_ENDPOINTS.GRPO.SERVICE_PREVIEW(dispatchPlanId),
+    );
+    return response.data;
+  },
+
+  async postService(data: PostServiceGRPORequest): Promise<PostServiceGRPOResponse> {
+    const { attachments, ...jsonData } = data;
+    const files = attachments ?? [];
+
+    if (files.length > 0) {
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(jsonData));
+      files.forEach((file) => {
+        formData.append('attachments', file);
+      });
+      const response = await apiClient.post<PostServiceGRPOResponse>(
+        API_ENDPOINTS.GRPO.SERVICE_POST,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      return response.data;
+    }
+
+    const response = await apiClient.post<PostServiceGRPOResponse>(
+      API_ENDPOINTS.GRPO.SERVICE_POST,
+      jsonData,
+    );
+    return response.data;
+  },
+
+  async getServiceHistory(dispatchPlanId?: number): Promise<ServiceGRPOHistoryEntry[]> {
+    const params = dispatchPlanId ? { dispatch_plan_id: dispatchPlanId } : undefined;
+    const response = await apiClient.get<ServiceGRPOHistoryEntry[]>(
+      API_ENDPOINTS.GRPO.SERVICE_HISTORY,
+      { params },
+    );
+    return response.data;
+  },
+
+  async getServiceDetail(postingId: number): Promise<ServiceGRPOHistoryEntry> {
+    const response = await apiClient.get<ServiceGRPOHistoryEntry>(
+      API_ENDPOINTS.GRPO.SERVICE_DETAIL(postingId),
+    );
     return response.data;
   },
 

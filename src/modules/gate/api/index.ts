@@ -46,6 +46,9 @@ export * from './po/po.api';
 export * from './po/po.queries';
 export * from './po/poReceipt.queries';
 
+// Sales Dispatch
+export * from './salesDispatch';
+
 // Security Check
 export * from './securityCheck/securityCheck.api';
 export * from './securityCheck/securityCheck.queries';

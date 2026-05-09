@@ -72,6 +72,19 @@ export const API_ENDPOINTS = {
   GATE_CORE: {
     FULL_VIEW: (entryId: number) => `/gate-core/raw-material-gate-entry/${entryId}/`,
     COMPLETE: (entryId: number) => `/raw-material-gatein/gate-entries/${entryId}/complete/`,
+    DISPATCH_GATE_LOCK: '/gate-core/dispatch-gate-lock/',
+    SALES_DISPATCH_OUTS: '/gate-core/sales-dispatch-outs/',
+    SALES_DISPATCH_OUT_BY_ID: (id: number) => `/gate-core/sales-dispatch-outs/${id}/`,
+    SALES_DISPATCH_OUT_ATTACHMENTS_BY_ID: (id: number) =>
+      `/gate-core/sales-dispatch-outs/${id}/attachments/`,
+    SALES_DISPATCH_OUT_COMPLETE_BY_ID: (id: number) =>
+      `/gate-core/sales-dispatch-outs/${id}/complete/`,
+    SALES_DISPATCH_OUT_COMMIT_PRINT_BY_ID: (id: number) =>
+      `/gate-core/sales-dispatch-outs/${id}/commit-print/`,
+    SALES_DISPATCH_OUT_CANCEL_BY_ID: (id: number) =>
+      `/gate-core/sales-dispatch-outs/${id}/cancel/`,
+    SALES_DISPATCH_OUT_REJECT_BY_ID: (id: number) =>
+      `/gate-core/sales-dispatch-outs/${id}/reject/`,
   },
   // Daily Needs Gate In
   DAILY_NEEDS_GATEIN: {
@@ -168,6 +181,12 @@ export const API_ENDPOINTS = {
     POST: '/grpo/post/',
     HISTORY: '/grpo/history/',
     DETAIL: (postingId: number) => `/grpo/${postingId}/`,
+    SERVICE_PENDING: '/grpo/service/pending/',
+    SERVICE_OPTIONS: '/grpo/service/options/',
+    SERVICE_PREVIEW: (dispatchPlanId: number) => `/grpo/service/preview/${dispatchPlanId}/`,
+    SERVICE_POST: '/grpo/service/post/',
+    SERVICE_HISTORY: '/grpo/service/history/',
+    SERVICE_DETAIL: (postingId: number) => `/grpo/service/${postingId}/`,
     ATTACHMENTS: (postingId: number) => `/grpo/${postingId}/attachments/`,
     ATTACHMENT_DELETE: (postingId: number, attachmentId: number) =>
       `/grpo/${postingId}/attachments/${attachmentId}/`,
@@ -219,6 +238,11 @@ export const API_ENDPOINTS = {
   NON_MOVING_RM: {
     REPORT: '/non-moving-rm/report/',
     ITEM_GROUPS: '/non-moving-rm/item-groups/',
+  },
+  // Dispatch Plans Dashboard
+  DISPATCH_PLANS: {
+    BILLS: '/dispatch-plans/bills/',
+    PLAN: (docEntry: number) => `/dispatch-plans/bills/${docEntry}/plan/`,
   },
   // Production Execution
   PRODUCTION_EXECUTION: {

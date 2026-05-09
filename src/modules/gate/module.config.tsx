@@ -60,6 +60,21 @@ const ContractorLaboursPage = lazy(
 // Other gate entry type pages
 const DailyNeedsPage = lazy(() => import('./pages/DailyNeedsPage'));
 const DailyNeedsAllPage = lazy(() => import('./pages/dailyNeedsPages/DailyNeedsAllPage'));
+const SalesDispatchDashboardPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
+);
+const SalesDispatchNewPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
+);
+const SalesDispatchWeighmentPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchWeighmentPage'),
+);
+const SalesDispatchAttachmentsPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
+);
+const SalesDispatchDetailPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
+);
 
 /**
  * Gate module configuration
@@ -463,6 +478,41 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.PERSON_GATE_IN.VIEW],
     },
+    {
+      path: '/gate/sales-dispatch',
+      element: <SalesDispatchDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new',
+      element: <SalesDispatchNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'New Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/weighment',
+      element: <SalesDispatchWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Weighment' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/attachments',
+      element: <SalesDispatchAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Attachments' },
+    },
+    {
+      path: '/gate/sales-dispatch/:entryId',
+      element: <SalesDispatchDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch Entry' },
+    },
   ],
   navigation: [
     {
@@ -497,6 +547,14 @@ export const gateModuleConfig: ModuleConfig = {
           path: '/gate/visitor-labour',
           title: 'Visitor/Labour',
           permissions: [GATE_PERMISSIONS.PERSON_GATE_IN.VIEW],
+        },
+        {
+          path: '/gate/sales-dispatch',
+          title: 'Sales Dispatch Out',
+          permissions: [
+            GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
+            GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
+          ],
         },
       ],
     },
