@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 
 import {
   type EmptyVehicleEligibleEntry,
-  useCreateEmptyVehicleGateOut,
   useEmptyVehicleEligibleEntries,
 } from '@/modules/gate/api';
 import { SearchableSelect } from '@/shared/components';
@@ -20,7 +19,8 @@ import {
   Label,
   Textarea,
 } from '@/shared/components/ui';
-import { getErrorMessage } from '@/shared/utils';
+
+import { writeEmptyVehicleOutDraft } from './emptyVehicleOutDraft.storage';
 
 const ENTRY_TYPE_LABELS: Record<string, string> = {
   RAW_MATERIAL: 'Raw Material',
@@ -111,8 +111,6 @@ export default function EmptyVehicleOutNewPage() {
     isError: isEligibleError,
     refetch,
   } = useEmptyVehicleEligibleEntries();
-  const createEmptyGateOut = useCreateEmptyVehicleGateOut();
-
   const selectedEntry = useMemo(
     () =>
       selectedEntrySnapshot ||
@@ -138,20 +136,22 @@ export default function EmptyVehicleOutNewPage() {
 
     setFormError('');
 
-    try {
-      await createEmptyGateOut.mutateAsync({
-        vehicle_entry_id: selectedEntry.id,
-        gate_out_date: gateOutDate,
-        out_time: outTime,
-        security_name: securityName,
-        remarks,
-      });
+    writeEmptyVehicleOutDraft({
+      vehicleEntryId: selectedEntry.id,
+      vehicleEntryNo: selectedEntry.entry_no,
+      vehicleEntryType: selectedEntry.entry_type,
+      vehicleNumber: selectedEntry.vehicle_number,
+      vehicleType: selectedEntry.vehicle_type || '',
+      driverName: selectedEntry.driver_name,
+      driverMobile: selectedEntry.driver_mobile,
+      gateOutDate,
+      outTime,
+      securityName,
+      remarks,
+    });
 
-      toast.success('Vehicle marked out empty');
-      navigate('/gate/empty-vehicle-out');
-    } catch (error) {
-      setFormError(getErrorMessage(error, 'Failed to mark vehicle out empty'));
-    }
+    toast.success('Vehicle details saved');
+    navigate('/gate/empty-vehicle-out/new/weighment');
   };
 
   return (
@@ -315,11 +315,10 @@ export default function EmptyVehicleOutNewPage() {
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={createEmptyGateOut.isPending}
               className="w-full sm:w-auto"
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
-              {createEmptyGateOut.isPending ? 'Saving...' : 'Mark Out'}
+              Continue to Weighment
             </Button>
           </div>
         </CardContent>

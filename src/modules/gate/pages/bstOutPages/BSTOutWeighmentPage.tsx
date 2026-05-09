@@ -107,16 +107,36 @@ export default function BSTOutWeighmentPage() {
       return;
     }
 
-    if (!fillDataMode && (!updateMode || hasNoWeighmentData)) {
+    if (hasNoWeighmentData && !fillDataMode) {
+      setError('Weighment is required before this gate-out entry can be completed.');
+      return;
+    }
+
+    if (!fillDataMode && !updateMode) {
       navigate(`/gate/bst-out/new/attachments?entryId=${entryId}`);
+      return;
+    }
+
+    const grossWeight = parseFloat(formData.grossWeight);
+    const tareWeight = parseFloat(formData.tareWeight);
+    if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+      setError('Gross weight is required.');
+      return;
+    }
+    if (!Number.isFinite(tareWeight) || tareWeight < 0) {
+      setError('Tare weight is required.');
+      return;
+    }
+    if (tareWeight > grossWeight) {
+      setError('Tare weight cannot be greater than gross weight.');
       return;
     }
 
     try {
       const today = new Date().toISOString().slice(0, 10);
       const requestData: CreateWeighmentRequest = {
-        gross_weight: parseFloat(formData.grossWeight) || 0,
-        tare_weight: parseFloat(formData.tareWeight) || 0,
+        gross_weight: grossWeight,
+        tare_weight: tareWeight,
         weighbridge_slip_no: formData.weighbridgeTicketNo || '',
         first_weighment_time: formData.firstWeighmentTime
           ? `${today}T${formData.firstWeighmentTime}:00`

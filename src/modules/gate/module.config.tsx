@@ -68,11 +68,17 @@ const RejectedQCReturnVehiclePage = lazy(
 const RejectedQCReturnItemsPage = lazy(
   () => import('./pages/rejectedMaterialPages/RejectedQCReturnItemsPage'),
 );
+const RejectedQCReturnWeighmentPage = lazy(
+  () => import('./pages/rejectedMaterialPages/RejectedQCReturnWeighmentPage'),
+);
 const EmptyVehicleOutPage = lazy(
   () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutPage'),
 );
 const EmptyVehicleOutNewPage = lazy(
   () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutNewPage'),
+);
+const EmptyVehicleOutWeighmentPage = lazy(
+  () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutWeighmentPage'),
 );
 const EmptyVehicleOutDetailPage = lazy(
   () => import('./pages/emptyVehicleOutPages/EmptyVehicleOutDetailPage'),
@@ -105,6 +111,9 @@ const SalesDispatchDashboardPage = lazy(
 );
 const SalesDispatchNewPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
+);
+const SalesDispatchWeighmentPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchWeighmentPage'),
 );
 const SalesDispatchAttachmentsPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
@@ -581,6 +590,16 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Rejected QC Items' },
     },
     {
+      path: '/gate/rejected-qc-return/new/weighment',
+      element: <RejectedQCReturnWeighmentPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REJECTED_QC_RETURN.VIEW,
+        GATE_PERMISSIONS.REJECTED_QC_RETURN.CREATE,
+      ],
+      breadcrumb: { label: 'Rejected QC Weighment' },
+    },
+    {
       path: '/gate/rejected-materials',
       element: <RejectedQCReturnDashboardPage />,
       layout: 'main',
@@ -606,6 +625,16 @@ export const gateModuleConfig: ModuleConfig = {
         GATE_PERMISSIONS.REJECTED_QC_RETURN.CREATE,
       ],
       breadcrumb: { label: 'Rejected QC Items' },
+    },
+    {
+      path: '/gate/rejected-materials/new/weighment',
+      element: <RejectedQCReturnWeighmentPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.REJECTED_QC_RETURN.VIEW,
+        GATE_PERMISSIONS.REJECTED_QC_RETURN.CREATE,
+      ],
+      breadcrumb: { label: 'Rejected QC Weighment' },
     },
     {
       path: '/gate/empty-vehicle-in',
@@ -634,6 +663,13 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.CREATE],
       breadcrumb: { label: 'New Empty Vehicle Out' },
+    },
+    {
+      path: '/gate/empty-vehicle-out/new/weighment',
+      element: <EmptyVehicleOutWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.CREATE],
+      breadcrumb: { label: 'Empty Vehicle Out Weighment' },
     },
     {
       path: '/gate/empty-vehicle-out/:entryId',
@@ -760,6 +796,13 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
       breadcrumb: { label: 'New Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/weighment',
+      element: <SalesDispatchWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Weighment' },
     },
     {
       path: '/gate/sales-dispatch/new/attachments',

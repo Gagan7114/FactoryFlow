@@ -1,5 +1,6 @@
 // Wizard step components
 export { FillDataAlert } from './FillDataAlert';
+export { RequiredWeighmentForm } from './RequiredWeighmentForm';
 export { GateSuccessScreen } from './GateSuccessScreen';
 export { StepFooter } from './StepFooter';
 export { StepHeader } from './StepHeader';

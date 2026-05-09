@@ -26,6 +26,13 @@ export interface RejectedQCReturnDraft {
   securityName: string;
   outTime: string;
   manualSapRef: string;
+  grossWeight: string;
+  tareWeight: string;
+  netWeight: string;
+  weighbridgeSlipNo: string;
+  firstWeighmentTime: string;
+  secondWeighmentTime: string;
+  gatepassFileNames: string[];
   remarks: string;
   items: RejectedQCReturnItem[];
 }
@@ -81,6 +88,13 @@ export const EMPTY_REJECTED_QC_RETURN_DRAFT: RejectedQCReturnDraft = {
   securityName: '',
   outTime: '',
   manualSapRef: '',
+  grossWeight: '',
+  tareWeight: '',
+  netWeight: '',
+  weighbridgeSlipNo: '',
+  firstWeighmentTime: '',
+  secondWeighmentTime: '',
+  gatepassFileNames: [],
   remarks: '',
   items: [],
 };

@@ -132,7 +132,7 @@ export default function RejectedQCReturnVehiclePage() {
       isSaving={false}
       apiErrors={apiErrors}
       currentStep={1}
-      totalSteps={2}
+      totalSteps={3}
       onVehicleSelect={handleVehicleSelect}
       onDriverSelect={handleDriverSelect}
       onCancel={() => navigate('/gate/rejected-qc-return')}

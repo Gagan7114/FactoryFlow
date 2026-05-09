@@ -20,9 +20,13 @@ function isImageUrl(url: string): boolean {
 
 interface SharedAttachmentsPageProps {
   config: EntryFlowConfig;
+  requireGatepass?: boolean;
 }
 
-export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageProps) {
+export default function SharedAttachmentsPage({
+  config,
+  requireGatepass = false,
+}: SharedAttachmentsPageProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
@@ -33,6 +37,7 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
   const previousStep = `step${config.totalSteps - 1}`;
 
   const [error, setError] = useState<string | null>(null);
+  const [uploadedAttachmentCount, setUploadedAttachmentCount] = useState(0);
 
   // Fetch existing attachments
   const { data: attachments, isLoading } = useGateAttachments(entryIdNumber);
@@ -49,6 +54,7 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
     for (const file of Array.from(files)) {
       try {
         await uploadAttachment.mutateAsync(file);
+        setUploadedAttachmentCount((count) => count + 1);
       } catch (err) {
         const apiError = err as ApiError;
         setError(apiError.message || `Failed to upload ${file.name}`);
@@ -79,6 +85,12 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
   };
 
   const handleNext = () => {
+    const attachmentCount = (attachments?.length || 0) + uploadedAttachmentCount;
+    if (requireGatepass && attachmentCount === 0) {
+      setError('Gatepass document upload is required before review.');
+      return;
+    }
+
     if (isEditMode && entryId) {
       navigate(`${config.routePrefix}/edit/${entryId}/review`);
     } else {
@@ -106,7 +118,7 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Paperclip className="h-5 w-5" />
-                Attachments
+                {requireGatepass ? 'Gatepass Document' : 'Attachments'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -118,9 +130,13 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
                 >
                   <Upload className="h-10 w-10 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Click to upload files</p>
+                    <p className="text-sm font-medium">
+                      {requireGatepass ? 'Click to upload gatepass document' : 'Click to upload files'}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Images, documents, and other files
+                      {requireGatepass
+                        ? 'Gatepass scan, photo, or PDF'
+                        : 'Images, documents, and other files'}
                     </p>
                   </div>
                   {uploadAttachment.isPending && (
@@ -206,7 +222,9 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
                 {/* Empty State */}
                 {(!attachments || attachments.length === 0) && (
                   <p className="text-sm text-muted-foreground text-center py-2">
-                    No attachments yet. Upload files or skip to continue.
+                    {requireGatepass
+                      ? 'Gatepass document is required before continuing.'
+                      : 'No attachments yet. Upload files or skip to continue.'}
                   </p>
                 )}
               </div>

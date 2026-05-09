@@ -2,7 +2,6 @@ import { ArrowLeft, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { useCreateRejectedQCReturn } from '@/modules/gate/api';
 import { useReturnToVendorInspections } from '@/modules/qc/api/inspection/inspection.queries';
 import type { InspectionListItem } from '@/modules/qc/types';
 import {
@@ -18,13 +17,10 @@ import {
 } from '@/shared/components/ui';
 
 import {
-  buildRejectedQCReturnEntryNo,
-  clearRejectedQCReturnDraft,
   readRejectedQCReturnDraft,
   type RejectedQCReturnDraft,
   type RejectedQCReturnItem,
   writeRejectedQCReturnDraft,
-  writeRejectedQCReturnEntry,
 } from './rejectedQcReturn.storage';
 
 type GateOutField =
@@ -58,7 +54,6 @@ export default function RejectedQCReturnItemsPage() {
   const [selectedItemId, setSelectedItemId] = useState('');
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
   const { data: returnToVendorInspections = [], isLoading } = useReturnToVendorInspections();
-  const createRejectedQCReturn = useCreateRejectedQCReturn();
 
   const availableItems = useMemo(() => {
     const selectedIds = new Set(draft.items.map((item) => item.id));
@@ -117,7 +112,7 @@ export default function RejectedQCReturnItemsPage() {
     });
   };
 
-  const handleComplete = async () => {
+  const handleNext = () => {
     const errors: Record<string, string> = {};
 
     if (!draft.vehicleId) errors.general = 'Please complete vehicle details first';
@@ -130,49 +125,8 @@ export default function RejectedQCReturnItemsPage() {
       return;
     }
 
-    const { items, ...vehicle } = draft;
-    const now = new Date().toISOString();
-
-    try {
-      const savedEntry = await createRejectedQCReturn.mutateAsync({
-        vehicle_id: draft.vehicleId,
-        driver_id: draft.driverId,
-        gate_out_date: draft.gateOutDate,
-        out_time: draft.outTime || null,
-        challan_no: draft.challanNo,
-        eway_bill_no: draft.ewayBillNo,
-        manual_sap_reference: draft.manualSapRef,
-        security_name: draft.securityName,
-        remarks: draft.remarks,
-        inspection_ids: items.map((item) => Number(item.id)),
-      });
-
-    writeRejectedQCReturnEntry({
-      id: String(savedEntry.id),
-      entryNo: savedEntry.entry_no || buildRejectedQCReturnEntryNo(),
-      status: 'COMPLETED',
-      vehicle,
-      items,
-      values: {
-        ...vehicle,
-        rejectedQcInspection: items.map((item) => item.id).join(', '),
-        rejectedQcLabels: items.map((item) => item.label).join(', '),
-        returnAction: 'Return to Vendor',
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-    clearRejectedQCReturnDraft();
-    navigate('/gate/rejected-qc-return');
-    } catch (error) {
-      const detail =
-        error && typeof error === 'object' && 'data' in error
-          ? (error as { data?: { detail?: string } }).data?.detail
-          : undefined;
-      setApiErrors({
-        general: detail || 'Could not save rejected QC return entry',
-      });
-    }
+    writeRejectedQCReturnDraft(draft);
+    navigate('/gate/rejected-qc-return/new/weighment');
   };
 
   return (
@@ -192,17 +146,17 @@ export default function RejectedQCReturnItemsPage() {
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Return Items</h2>
             <p className="text-sm text-muted-foreground">
-              Step 2 of 2: choose QC rejected items going back in this vehicle
+              Step 2 of 3: choose QC rejected items going back in this vehicle
             </p>
           </div>
         </div>
 
         <Button
-          onClick={handleComplete}
-          disabled={draft.items.length === 0 || !draft.gateOutDate || createRejectedQCReturn.isPending}
+          onClick={handleNext}
+          disabled={draft.items.length === 0 || !draft.gateOutDate}
         >
           <CheckCircle2 className="mr-2 h-4 w-4" />
-          Complete Entry
+          Save and Next
         </Button>
       </div>
 

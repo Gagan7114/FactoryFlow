@@ -48,6 +48,11 @@ export default function BSTOutReviewPage() {
       return;
     }
 
+    if (!weighment) {
+      setError('Weighment is required before this gate-out entry can be completed.');
+      return;
+    }
+
     try {
       await completeBSTOut.mutateAsync(entryIdNumber);
       setShowSuccess(true);
@@ -177,10 +182,18 @@ export default function BSTOutReviewPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-                <InfoItem label="Gross Weight" value={weighment?.gross_weight} />
-                <InfoItem label="Tare Weight" value={weighment?.tare_weight} />
-                <InfoItem label="Net Weight" value={weighment?.net_weight} />
-                <InfoItem label="Slip No." value={weighment?.weighbridge_slip_no || ''} />
+                {weighment ? (
+                  <>
+                    <InfoItem label="Gross Weight" value={weighment.gross_weight} />
+                    <InfoItem label="Tare Weight" value={weighment.tare_weight} />
+                    <InfoItem label="Net Weight" value={weighment.net_weight} />
+                    <InfoItem label="Slip No." value={weighment.weighbridge_slip_no || ''} />
+                  </>
+                ) : (
+                  <p className="sm:col-span-2 text-sm text-destructive">
+                    Weighment is required before completion.
+                  </p>
+                )}
               </CardContent>
             </Card>
 

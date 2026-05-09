@@ -240,12 +240,12 @@ export default function SalesDispatchNewPage() {
 
     upsertCustomerFlowEntry(SALES_DISPATCH_KEY, entry);
     toast.success('Dispatch details saved');
-    navigate(`/gate/sales-dispatch/new/attachments?entryId=${encodeURIComponent(entry.id)}`);
+    navigate(`/gate/sales-dispatch/new/weighment?entryId=${encodeURIComponent(entry.id)}`);
   };
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader currentStep={1} totalSteps={2} title="Sales Dispatch Out" error={formError || null} />
+      <StepHeader currentStep={1} totalSteps={3} title="Sales Dispatch Out" error={formError || null} />
 
       <div className="space-y-8">
         <FormSection icon={<Truck className="h-5 w-5" />} title="Vehicle & Driver">

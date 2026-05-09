@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { StepFooter, StepHeader } from '@/modules/gate/components';
+import { type RequiredWeighmentValues, validateRequiredWeighment } from '@/modules/gate/utils';
 import {
   Button,
   Card,
@@ -45,7 +46,7 @@ const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
   dispatch: {
     storageKey: SALES_DISPATCH_KEY,
     title: 'Sales Dispatch Out',
-    previousPath: '/gate/sales-dispatch/new',
+    previousPath: '/gate/sales-dispatch/new/weighment',
     dashboardPath: '/gate/sales-dispatch',
     completeStatus: 'COMPLETED',
     completeLabel: 'Complete Dispatch',
@@ -67,6 +68,16 @@ const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
 function getRawString(entry: CustomerFlowEntry, key: string) {
   const value = entry.values[key];
   return typeof value === 'string' ? value : '';
+}
+
+function getDispatchWeighmentValues(entry: CustomerFlowEntry): RequiredWeighmentValues {
+  return {
+    grossWeight: getRawString(entry, 'grossWeight'),
+    tareWeight: getRawString(entry, 'tareWeight'),
+    weighbridgeSlipNo: getRawString(entry, 'weighbridgeSlipNo'),
+    firstWeighmentTime: getRawString(entry, 'firstWeighmentTime'),
+    secondWeighmentTime: getRawString(entry, 'secondWeighmentTime'),
+  };
 }
 
 function parseFileNames(value?: CustomerFlowValue) {
@@ -99,6 +110,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
   ));
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const currentStep = flow === 'dispatch' ? 3 : 2;
+  const totalSteps = flow === 'dispatch' ? 3 : 2;
+  const requiresGatepass = flow === 'dispatch';
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -108,6 +122,7 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
       ...current,
       ...files.map((file) => file.name),
     ])));
+    setError(null);
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -127,6 +142,19 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
     if (entry.status === 'CANCELLED') {
       setError('This entry is cancelled and cannot be completed');
       return;
+    }
+
+    if (flow === 'dispatch') {
+      const validationError = validateRequiredWeighment(getDispatchWeighmentValues(entry));
+      if (validationError) {
+        setError('Weighment is required before completing sales dispatch.');
+        return;
+      }
+
+      if (fileNames.length === 0) {
+        setError('Gatepass document upload is required before completing sales dispatch.');
+        return;
+      }
     }
 
     const now = new Date().toISOString();
@@ -155,7 +183,7 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
   if (!entry) {
     return (
       <div className="space-y-6 pb-6">
-        <StepHeader currentStep={2} totalSteps={2} title={config.title} error={error} />
+        <StepHeader currentStep={currentStep} totalSteps={totalSteps} title={config.title} error={error} />
         <div className="flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5" />
@@ -171,13 +199,13 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader currentStep={2} totalSteps={2} title={config.title} error={error} />
+      <StepHeader currentStep={currentStep} totalSteps={totalSteps} title={config.title} error={error} />
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
-            Attachments
+            {requiresGatepass ? 'Gatepass Document' : 'Attachments'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -187,8 +215,14 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="h-10 w-10 text-muted-foreground" />
-            <span className="text-sm font-medium">Click to add files</span>
-            <span className="text-xs text-muted-foreground">Images, invoices, delivery notes, LR, e-way bill, and other documents</span>
+            <span className="text-sm font-medium">
+              {requiresGatepass ? 'Click to upload gatepass document' : 'Click to add files'}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {requiresGatepass
+                ? 'Gatepass scan, photo, or PDF'
+                : 'Images, invoices, delivery notes, LR, e-way bill, and other documents'}
+            </span>
           </button>
 
           <input
@@ -222,7 +256,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground">
-              No files added yet. You can skip this page if there are no attachments.
+              {requiresGatepass
+                ? 'Gatepass document is required before completing this gate out.'
+                : 'No files added yet. You can skip this page if there are no attachments.'}
             </p>
           )}
         </CardContent>

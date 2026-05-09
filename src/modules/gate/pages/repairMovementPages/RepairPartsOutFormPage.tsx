@@ -1,5 +1,5 @@
-import { FileText, Package, Plus, Trash2, Truck, Wrench } from 'lucide-react';
-import { useState } from 'react';
+import { FileText, Package, Paperclip, Plus, Trash2, Truck, Upload, Wrench, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -49,6 +49,7 @@ interface RepairPartsOutDraft {
   ewayBillNo: string;
   repairPurpose: string;
   expectedWork: string;
+  gatepassFileNames: string[];
   remarks: string;
 }
 
@@ -121,6 +122,7 @@ function buildEmptyDraft(): RepairPartsOutDraft {
     ewayBillNo: '',
     repairPurpose: '',
     expectedWork: '',
+    gatepassFileNames: [],
     remarks: '',
   };
 }
@@ -179,6 +181,7 @@ export default function RepairPartsOutFormPage() {
   const [draft, setDraft] = useState<RepairPartsOutDraft>(() => readDraft());
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const gatepassInputRef = useRef<HTMLInputElement>(null);
 
   const updateDraft = <K extends keyof RepairPartsOutDraft>(
     key: K,
@@ -227,6 +230,27 @@ export default function RepairPartsOutFormPage() {
     setFormError('');
   };
 
+  const handleGatepassSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    updateDraft('gatepassFileNames', Array.from(new Set([
+      ...draft.gatepassFileNames,
+      ...files.map((file) => file.name),
+    ])));
+
+    if (gatepassInputRef.current) {
+      gatepassInputRef.current.value = '';
+    }
+  };
+
+  const removeGatepassFile = (fileName: string) => {
+    updateDraft(
+      'gatepassFileNames',
+      draft.gatepassFileNames.filter((name) => name !== fileName),
+    );
+  };
+
   const handleComplete = () => {
     if (!draft.vehicle?.vehicleId) {
       setFormError('Please select a vehicle');
@@ -260,6 +284,11 @@ export default function RepairPartsOutFormPage() {
 
     if (!draft.department.trim()) {
       setFormError('Please enter the department');
+      return;
+    }
+
+    if (draft.gatepassFileNames.length === 0) {
+      setFormError('Please upload the gatepass document');
       return;
     }
 
@@ -301,6 +330,7 @@ export default function RepairPartsOutFormPage() {
         ewayBillNo: draft.ewayBillNo,
         repairPurpose: draft.repairPurpose,
         expectedWork: draft.expectedWork,
+        gatepassFileNames: JSON.stringify(draft.gatepassFileNames),
         remarks: draft.remarks,
       },
       createdAt: now,
@@ -518,6 +548,57 @@ export default function RepairPartsOutFormPage() {
               value={draft.ewayBillNo}
               onChange={(value) => updateDraft('ewayBillNo', value)}
             />
+          </div>
+        </FormSection>
+
+        <FormSection
+          icon={<Paperclip className="h-5 w-5" />}
+          title="Gatepass Document"
+        >
+          <div className="space-y-4">
+            <button
+              type="button"
+              className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center transition-colors hover:border-primary/50"
+              onClick={() => gatepassInputRef.current?.click()}
+            >
+              <Upload className="h-10 w-10 text-muted-foreground" />
+              <span className="text-sm font-medium">Click to upload gatepass document</span>
+              <span className="text-xs text-muted-foreground">Gatepass scan, photo, or PDF</span>
+            </button>
+
+            <input
+              ref={gatepassInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleGatepassSelect}
+            />
+
+            {draft.gatepassFileNames.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {draft.gatepassFileNames.map((fileName) => (
+                  <div key={fileName} className="flex items-center gap-3 rounded-md border p-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium" title={fileName}>
+                      {fileName}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeGatepassFile(fileName)}
+                      aria-label={`Remove ${fileName}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                Gatepass document is required before completing this gate out.
+              </p>
+            )}
           </div>
         </FormSection>
 

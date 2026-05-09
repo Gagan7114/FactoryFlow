@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, FileText, PackageCheck, RotateCcw, ShieldCheck, Truck, XCircle } from 'lucide-react';
+import { ArrowLeft, CalendarClock, FileText, PackageCheck, RotateCcw, Scale, ShieldCheck, Truck, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -134,6 +134,21 @@ export default function SalesDispatchDetailPage() {
           </div>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            Weighment
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <InfoItem label="Gross Weight" value={getCustomerFlowValue(entry, 'grossWeight')} />
+          <InfoItem label="Tare Weight" value={getCustomerFlowValue(entry, 'tareWeight')} />
+          <InfoItem label="Net Weight" value={getCustomerFlowValue(entry, 'netWeight')} />
+          <InfoItem label="Slip No." value={getCustomerFlowValue(entry, 'weighbridgeSlipNo')} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

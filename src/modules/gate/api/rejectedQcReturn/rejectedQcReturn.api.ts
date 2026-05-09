@@ -10,6 +10,12 @@ export interface RejectedQCReturnCreateRequest {
   eway_bill_no?: string;
   manual_sap_reference?: string;
   security_name?: string;
+  gross_weight: number;
+  tare_weight: number;
+  weighbridge_slip_no?: string;
+  first_weighment_time?: string;
+  second_weighment_time?: string;
+  gatepass_documents: string[];
   remarks?: string;
   inspection_ids: number[];
 }
@@ -22,6 +28,14 @@ export interface RejectedQCReturnEntryResponse {
   driver: number;
   driver_name: string;
   gate_out_date: string;
+  out_time?: string | null;
+  gross_weight?: string | null;
+  tare_weight?: string | null;
+  net_weight?: string | null;
+  weighbridge_slip_no?: string;
+  first_weighment_time?: string | null;
+  second_weighment_time?: string | null;
+  gatepass_documents?: string[];
   remarks?: string;
   status: 'DRAFT' | 'COMPLETED' | 'CANCELLED';
   items?: Array<{
