@@ -74,10 +74,6 @@ export * from './po/poReceipt.queries';
 export * from './rejectedQcReturn/rejectedQcReturn.api';
 export * from './rejectedQcReturn/rejectedQcReturn.queries';
 
-// Sales Dispatch
-export * from './salesDispatch/salesDispatch.api';
-export * from './salesDispatch/salesDispatch.queries';
-
 // Security Check
 export * from './securityCheck/securityCheck.api';
 export * from './securityCheck/securityCheck.queries';

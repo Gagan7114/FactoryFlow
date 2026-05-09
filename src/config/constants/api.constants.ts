@@ -74,19 +74,6 @@ export const API_ENDPOINTS = {
     COMPLETE: (entryId: number) => `/raw-material-gatein/gate-entries/${entryId}/complete/`,
     REJECTED_QC_RETURNS: '/gate-core/rejected-qc-returns/',
     REJECTED_QC_RETURN_BY_ID: (id: number) => `/gate-core/rejected-qc-returns/${id}/`,
-    DISPATCH_GATE_LOCK: '/gate-core/dispatch-gate-lock/',
-    SALES_DISPATCH_OUTS: '/gate-core/sales-dispatch-outs/',
-    SALES_DISPATCH_OUT_BY_ID: (id: number) => `/gate-core/sales-dispatch-outs/${id}/`,
-    SALES_DISPATCH_OUT_ATTACHMENTS_BY_ID: (id: number) =>
-      `/gate-core/sales-dispatch-outs/${id}/attachments/`,
-    SALES_DISPATCH_OUT_COMPLETE_BY_ID: (id: number) =>
-      `/gate-core/sales-dispatch-outs/${id}/complete/`,
-    SALES_DISPATCH_OUT_COMMIT_PRINT_BY_ID: (id: number) =>
-      `/gate-core/sales-dispatch-outs/${id}/commit-print/`,
-    SALES_DISPATCH_OUT_CANCEL_BY_ID: (id: number) =>
-      `/gate-core/sales-dispatch-outs/${id}/cancel/`,
-    SALES_DISPATCH_OUT_REJECT_BY_ID: (id: number) =>
-      `/gate-core/sales-dispatch-outs/${id}/reject/`,
     EMPTY_VEHICLE_IN_REASONS: '/gate-core/empty-vehicle-ins/reasons/',
     EMPTY_VEHICLE_IN_ELIGIBLE: '/gate-core/empty-vehicle-ins/eligible/',
     EMPTY_VEHICLE_INS: '/gate-core/empty-vehicle-ins/',
@@ -231,12 +218,6 @@ export const API_ENDPOINTS = {
     POST: '/grpo/post/',
     HISTORY: '/grpo/history/',
     DETAIL: (postingId: number) => `/grpo/${postingId}/`,
-    SERVICE_PENDING: '/grpo/service/pending/',
-    SERVICE_OPTIONS: '/grpo/service/options/',
-    SERVICE_PREVIEW: (dispatchPlanId: number) => `/grpo/service/preview/${dispatchPlanId}/`,
-    SERVICE_POST: '/grpo/service/post/',
-    SERVICE_HISTORY: '/grpo/service/history/',
-    SERVICE_DETAIL: (postingId: number) => `/grpo/service/${postingId}/`,
     ATTACHMENTS: (postingId: number) => `/grpo/${postingId}/attachments/`,
     ATTACHMENT_DELETE: (postingId: number, attachmentId: number) =>
       `/grpo/${postingId}/attachments/${attachmentId}/`,
@@ -288,11 +269,6 @@ export const API_ENDPOINTS = {
   NON_MOVING_RM: {
     REPORT: '/non-moving-rm/report/',
     ITEM_GROUPS: '/non-moving-rm/item-groups/',
-  },
-  // Dispatch Plans Dashboard
-  DISPATCH_PLANS: {
-    BILLS: '/dispatch-plans/bills/',
-    PLAN: (docEntry: number) => `/dispatch-plans/bills/${docEntry}/plan/`,
   },
   // Production Execution
   PRODUCTION_EXECUTION: {

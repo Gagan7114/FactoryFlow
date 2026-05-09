@@ -106,21 +106,6 @@ const BSTReturnAttachmentsPage = lazy(
   () => import('./pages/bstReturnPages/BSTReturnAttachmentsPage'),
 );
 const BSTReturnReviewPage = lazy(() => import('./pages/bstReturnPages/BSTReturnReviewPage'));
-const SalesDispatchDashboardPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
-);
-const SalesDispatchNewPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
-);
-const SalesDispatchWeighmentPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchWeighmentPage'),
-);
-const SalesDispatchAttachmentsPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
-);
-const SalesDispatchDetailPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
-);
 const CustomerReturnDashboardPage = lazy(
   () => import('./pages/customerSalesFlow/CustomerReturnDashboardPage'),
 );
@@ -784,41 +769,6 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'BST Return Review' },
     },
     {
-      path: '/gate/sales-dispatch',
-      element: <SalesDispatchDashboardPage />,
-      layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
-      breadcrumb: { label: 'Sales Dispatch' },
-    },
-    {
-      path: '/gate/sales-dispatch/new',
-      element: <SalesDispatchNewPage />,
-      layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'New Sales Dispatch' },
-    },
-    {
-      path: '/gate/sales-dispatch/new/weighment',
-      element: <SalesDispatchWeighmentPage />,
-      layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Sales Dispatch Weighment' },
-    },
-    {
-      path: '/gate/sales-dispatch/new/attachments',
-      element: <SalesDispatchAttachmentsPage />,
-      layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Sales Dispatch Attachments' },
-    },
-    {
-      path: '/gate/sales-dispatch/:entryId',
-      element: <SalesDispatchDetailPage />,
-      layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
-      breadcrumb: { label: 'Sales Dispatch Entry' },
-    },
-    {
       path: '/gate/customer-return',
       element: <CustomerReturnDashboardPage />,
       layout: 'main',
@@ -1046,14 +996,6 @@ export const gateModuleConfig: ModuleConfig = {
           permissions: [
             GATE_PERMISSIONS.BST_RETURN.VIEW,
             GATE_PERMISSIONS.BST_RETURN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/sales-dispatch',
-          title: 'Sales Dispatch Out',
-          permissions: [
-            GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
-            GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
           ],
         },
         {

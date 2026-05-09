@@ -9,7 +9,6 @@ import {
   PackageX,
   RotateCcw,
   Search,
-  Send,
   Undo2,
   UtensilsCrossed,
   Wrench,
@@ -140,18 +139,6 @@ const gateModules: GateModuleCard[] = [
     color: 'text-amber-700',
     permissions: [GATE_PERMISSIONS.BST_RETURN.VIEW, GATE_PERMISSIONS.BST_RETURN.CREATE],
     section: 'in',
-  },
-  {
-    title: 'Sales Dispatch Out',
-    description: 'Verify vehicle, delivery, invoice, seal, and documents for customer dispatch.',
-    icon: <Send className="h-5 w-5" />,
-    route: ROUTES.GATE.children?.SALES_DISPATCH.path || '/gate/sales-dispatch',
-    color: 'text-blue-700',
-    permissions: [
-      GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
-      GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
-    ],
-    section: 'out',
   },
   {
     title: 'Customer Return In',

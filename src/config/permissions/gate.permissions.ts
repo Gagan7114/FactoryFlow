@@ -104,13 +104,6 @@ export const GATE_PERMISSIONS = {
     COMPLETE: 'person_gatein.can_view_dashboard',
   },
 
-  SALES_DISPATCH: {
-    /** View customer dispatch gate-out entries */
-    VIEW: 'person_gatein.can_view_dashboard',
-    /** Create customer dispatch gate-out entries */
-    CREATE: 'person_gatein.can_view_dashboard',
-  },
-
   CUSTOMER_RETURN: {
     /** View customer return gate-in entries */
     VIEW: 'person_gatein.can_view_dashboard',
@@ -241,7 +234,6 @@ export type GatePermission =
   | (typeof GATE_PERMISSIONS.BST_OUT)[keyof typeof GATE_PERMISSIONS.BST_OUT]
   | (typeof GATE_PERMISSIONS.BST_IN)[keyof typeof GATE_PERMISSIONS.BST_IN]
   | (typeof GATE_PERMISSIONS.BST_RETURN)[keyof typeof GATE_PERMISSIONS.BST_RETURN]
-  | (typeof GATE_PERMISSIONS.SALES_DISPATCH)[keyof typeof GATE_PERMISSIONS.SALES_DISPATCH]
   | (typeof GATE_PERMISSIONS.CUSTOMER_RETURN)[keyof typeof GATE_PERMISSIONS.CUSTOMER_RETURN]
   | (typeof GATE_PERMISSIONS.DAILY_NEEDS)[keyof typeof GATE_PERMISSIONS.DAILY_NEEDS]
   | (typeof GATE_PERMISSIONS.MAINTENANCE)[keyof typeof GATE_PERMISSIONS.MAINTENANCE]

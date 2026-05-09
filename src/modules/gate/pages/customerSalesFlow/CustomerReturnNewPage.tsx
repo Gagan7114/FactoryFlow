@@ -19,9 +19,8 @@ import {
   type CustomerFlowEntry,
   type CustomerFlowItem,
   findCustomerFlowEntry,
+  getAvailableDispatchSources,
   getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
   upsertCustomerFlowEntry,
 } from './customerSalesFlow.storage';
 
@@ -139,11 +138,7 @@ export default function CustomerReturnNewPage() {
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  const dispatches = useMemo(
-    () => readCustomerFlowEntries(SALES_DISPATCH_KEY)
-      .filter((entry) => entry.status === 'COMPLETED'),
-    [],
-  );
+  const dispatches = useMemo(() => getAvailableDispatchSources(), []);
   const selectedDispatch = dispatches.find((entry) => entry.id === draft.dispatchId) || null;
 
   const updateDraft = <K extends keyof ReturnDraft>(key: K, value: ReturnDraft[K]) => {

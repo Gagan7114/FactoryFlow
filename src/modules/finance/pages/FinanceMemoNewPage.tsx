@@ -10,8 +10,7 @@ import {
   DEBIT_NOTE_KEY,
   getCreditableReturnEntries,
   getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
+  getAvailableDispatchSources,
   saveCustomerFlowEntry,
 } from '@/modules/gate/pages/customerSalesFlow/customerSalesFlow.storage';
 import { Button, Input, Label, NativeSelect, SelectOption, Textarea } from '@/shared/components/ui';
@@ -66,7 +65,7 @@ export default function FinanceMemoNewPage({ memoType }: FinanceMemoNewPageProps
   const sources = useMemo(
     () => memoType === 'credit'
       ? getCreditableReturnEntries()
-      : readCustomerFlowEntries(SALES_DISPATCH_KEY).filter((entry) => entry.status === 'COMPLETED'),
+      : getAvailableDispatchSources(),
     [memoType],
   );
   const selectedSource = sources.find((entry) => entry.id === sourceId) || null;

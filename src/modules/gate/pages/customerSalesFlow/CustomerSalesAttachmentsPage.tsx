@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { StepFooter, StepHeader } from '@/modules/gate/components';
-import { type RequiredWeighmentValues, validateRequiredWeighment } from '@/modules/gate/utils';
 import {
   Button,
   Card,
@@ -18,66 +17,25 @@ import {
 import {
   CUSTOMER_RETURN_KEY,
   type CustomerFlowEntry,
-  type CustomerFlowStatus,
   type CustomerFlowValue,
   findCustomerFlowEntry,
-  SALES_DISPATCH_KEY,
   updateCustomerFlowEntry,
 } from './customerSalesFlow.storage';
 
-type CustomerSalesAttachmentFlow = 'dispatch' | 'return';
-
-interface CustomerSalesAttachmentsPageProps {
-  flow: CustomerSalesAttachmentFlow;
-}
-
-interface AttachmentFlowConfig {
-  storageKey: string;
-  title: string;
-  previousPath: string;
-  dashboardPath: string;
-  completeStatus: CustomerFlowStatus;
-  completeLabel: string;
-  successMessage: string;
-  missingMessage: string;
-}
-
-const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
-  dispatch: {
-    storageKey: SALES_DISPATCH_KEY,
-    title: 'Sales Dispatch Out',
-    previousPath: '/gate/sales-dispatch/new/weighment',
-    dashboardPath: '/gate/sales-dispatch',
-    completeStatus: 'COMPLETED',
-    completeLabel: 'Complete Dispatch',
-    successMessage: 'Sales dispatch gate-out completed',
-    missingMessage: 'Sales dispatch details not found',
-  },
-  return: {
-    storageKey: CUSTOMER_RETURN_KEY,
-    title: 'Customer Return In',
-    previousPath: '/gate/customer-return/new',
-    dashboardPath: '/gate/customer-return',
-    completeStatus: 'PENDING_QC',
-    completeLabel: 'Complete Return In',
-    successMessage: 'Customer return gate-in completed',
-    missingMessage: 'Customer return details not found',
-  },
-};
+const ATTACHMENTS_CONFIG = {
+  storageKey: CUSTOMER_RETURN_KEY,
+  title: 'Customer Return In',
+  previousPath: '/gate/customer-return/new',
+  dashboardPath: '/gate/customer-return',
+  completeStatus: 'PENDING_QC',
+  completeLabel: 'Complete Return In',
+  successMessage: 'Customer return gate-in completed',
+  missingMessage: 'Customer return details not found',
+} as const;
 
 function getRawString(entry: CustomerFlowEntry, key: string) {
   const value = entry.values[key];
   return typeof value === 'string' ? value : '';
-}
-
-function getDispatchWeighmentValues(entry: CustomerFlowEntry): RequiredWeighmentValues {
-  return {
-    grossWeight: getRawString(entry, 'grossWeight'),
-    tareWeight: getRawString(entry, 'tareWeight'),
-    weighbridgeSlipNo: getRawString(entry, 'weighbridgeSlipNo'),
-    firstWeighmentTime: getRawString(entry, 'firstWeighmentTime'),
-    secondWeighmentTime: getRawString(entry, 'secondWeighmentTime'),
-  };
 }
 
 function parseFileNames(value?: CustomerFlowValue) {
@@ -93,8 +51,8 @@ function parseFileNames(value?: CustomerFlowValue) {
   return [];
 }
 
-export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAttachmentsPageProps) {
-  const config = FLOW_CONFIG[flow];
+export default function CustomerSalesAttachmentsPage() {
+  const config = ATTACHMENTS_CONFIG;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const entryId = searchParams.get('entryId') || '';
@@ -110,9 +68,8 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
   ));
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentStep = flow === 'dispatch' ? 3 : 2;
-  const totalSteps = flow === 'dispatch' ? 3 : 2;
-  const requiresGatepass = flow === 'dispatch';
+  const currentStep = 2;
+  const totalSteps = 2;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -142,19 +99,6 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
     if (entry.status === 'CANCELLED') {
       setError('This entry is cancelled and cannot be completed');
       return;
-    }
-
-    if (flow === 'dispatch') {
-      const validationError = validateRequiredWeighment(getDispatchWeighmentValues(entry));
-      if (validationError) {
-        setError('Weighment is required before completing sales dispatch.');
-        return;
-      }
-
-      if (fileNames.length === 0) {
-        setError('Gatepass document upload is required before completing sales dispatch.');
-        return;
-      }
     }
 
     const now = new Date().toISOString();
@@ -205,7 +149,7 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
-            {requiresGatepass ? 'Gatepass Document' : 'Attachments'}
+            Attachments
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -216,12 +160,10 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
           >
             <Upload className="h-10 w-10 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {requiresGatepass ? 'Click to upload gatepass document' : 'Click to add files'}
+              Click to add files
             </span>
             <span className="text-xs text-muted-foreground">
-              {requiresGatepass
-                ? 'Gatepass scan, photo, or PDF'
-                : 'Images, invoices, delivery notes, LR, e-way bill, and other documents'}
+              Images, invoices, delivery notes, LR, e-way bill, and other documents
             </span>
           </button>
 
@@ -256,9 +198,7 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground">
-              {requiresGatepass
-                ? 'Gatepass document is required before completing this gate out.'
-                : 'No files added yet. You can skip this page if there are no attachments.'}
+              No files added yet. You can skip this page if there are no attachments.
             </p>
           )}
         </CardContent>
@@ -271,9 +211,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
         </h3>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor={`${flow}-attachment-notes`}>Attachment Notes</Label>
+            <Label htmlFor="customer-return-attachment-notes">Attachment Notes</Label>
             <Textarea
-              id={`${flow}-attachment-notes`}
+              id="customer-return-attachment-notes"
               value={attachmentNotes}
               onChange={(event) => setAttachmentNotes(event.target.value)}
               placeholder="Document details, file references, or missing document notes"
@@ -281,9 +221,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${flow}-remarks`}>Remarks</Label>
+            <Label htmlFor="customer-return-remarks">Remarks</Label>
             <Textarea
-              id={`${flow}-remarks`}
+              id="customer-return-remarks"
               value={remarks}
               onChange={(event) => setRemarks(event.target.value)}
               placeholder="Optional notes"
