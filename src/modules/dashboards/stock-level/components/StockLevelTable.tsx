@@ -1,4 +1,11 @@
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ChevronsUpDown } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
+  ChevronUp,
+} from 'lucide-react';
 import { Fragment, useState } from 'react';
 
 import { Card, CardContent } from '@/shared/components/ui';
@@ -33,6 +40,37 @@ function rowStatusClasses(status: StockItem['stock_status']): string {
   }
 }
 
+function stockDifferenceClasses(difference: number): string {
+  if (difference < 0) return 'font-medium text-red-700 dark:text-red-400';
+  if (difference > 0) return 'text-green-700 dark:text-green-400';
+  return 'text-muted-foreground';
+}
+
+function formatStockDifference(difference: number): string {
+  const formatted = Math.abs(difference).toLocaleString();
+  if (difference > 0) return `+${formatted}`;
+  if (difference < 0) return `-${formatted}`;
+  return formatted;
+}
+
+function SortIcon({
+  col,
+  sortCol,
+  sortDir,
+}: {
+  col: StockSortCol;
+  sortCol: StockSortCol;
+  sortDir: 'asc' | 'desc';
+}) {
+  if (sortCol !== col)
+    return <ChevronsUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
+  return sortDir === 'asc' ? (
+    <ChevronUp className="ml-1 inline h-3 w-3" />
+  ) : (
+    <ChevronDown className="ml-1 inline h-3 w-3" />
+  );
+}
+
 export function StockLevelTable({
   items,
   isLoading,
@@ -48,7 +86,7 @@ export function StockLevelTable({
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = isGrouped ? 9 : 8;
+  const colCount = isGrouped ? 10 : 9;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -56,16 +94,6 @@ export function StockLevelTable({
     } else {
       onSortChange(col, 'asc');
     }
-  }
-
-  function SortIcon({ col }: { col: StockSortCol }) {
-    if (sortCol !== col)
-      return <ChevronsUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
-    return sortDir === 'asc' ? (
-      <ChevronUp className="ml-1 inline h-3 w-3" />
-    ) : (
-      <ChevronDown className="ml-1 inline h-3 w-3" />
-    );
   }
 
   if (isLoading) {
@@ -106,38 +134,41 @@ export function StockLevelTable({
                   className="cursor-pointer px-4 py-3 text-left font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('item_code')}
                 >
-                  Item Code <SortIcon col="item_code" />
+                  Item Code <SortIcon col="item_code" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th
                   className="cursor-pointer px-4 py-3 text-left font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('item_name')}
                 >
-                  Item Name <SortIcon col="item_name" />
+                  Item Name <SortIcon col="item_name" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th
                   className="cursor-pointer px-4 py-3 text-left font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('warehouse')}
                 >
-                  Warehouse <SortIcon col="warehouse" />
+                  Warehouse <SortIcon col="warehouse" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th
                   className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('on_hand')}
                 >
-                  On Hand <SortIcon col="on_hand" />
+                  On Hand <SortIcon col="on_hand" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th
                   className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('min_stock')}
                 >
-                  Min Stock <SortIcon col="min_stock" />
+                  Min Stock <SortIcon col="min_stock" sortCol={sortCol} sortDir={sortDir} />
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  Difference
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">UOM</th>
                 <th
                   className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort('health_ratio')}
                 >
-                  Health <SortIcon col="health_ratio" />
+                  Health <SortIcon col="health_ratio" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 {isGrouped && <th className="w-10 px-4 py-3" />}
@@ -150,7 +181,12 @@ export function StockLevelTable({
 
                 return (
                   <Fragment key={`${item.item_code}-${item.warehouse}`}>
-                    <tr className={cn('border-b transition-colors', rowStatusClasses(item.stock_status))}>
+                    <tr
+                      className={cn(
+                        'border-b transition-colors',
+                        rowStatusClasses(item.stock_status),
+                      )}
+                    >
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                         {item.item_code}
                       </td>
@@ -161,6 +197,14 @@ export function StockLevelTable({
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {item.min_stock.toLocaleString()}
+                      </td>
+                      <td
+                        className={cn(
+                          'px-4 py-3 text-right tabular-nums',
+                          stockDifferenceClasses(item.on_hand - item.min_stock),
+                        )}
+                      >
+                        {formatStockDifference(item.on_hand - item.min_stock)}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{item.uom}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
