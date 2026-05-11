@@ -1,6 +1,6 @@
 # Stock Benchmark Dashboard
 
-The Stock Benchmark dashboard monitors inventory against SAP minimum stock benchmarks. It is implemented in `src/modules/dashboards/stock-level/` and reads data from the backend stock dashboard API.
+The Stock Benchmark dashboard monitors inventory against SAP benchmark levels. It is implemented in `src/modules/dashboards/stock-level/` and reads data from the backend stock dashboard API.
 
 ## Route
 
@@ -50,7 +50,7 @@ The table supports:
 | Search | `search` | Search text is trimmed and uppercased before sending. Backend matching is case-insensitive. |
 | Material Type | `item_group` | SAP item group name from WMS item groups. |
 | Warehouse | `warehouse` | Comma-separated warehouse codes. Selecting 2 or more warehouses switches the backend to grouped item rows. |
-| Status | `status` | Comma-separated values: `healthy`, `low`, `critical`, `unset`. |
+| Status | `status` | Comma-separated values: `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. |
 | Movement | `movement_status` | Comma-separated values: `planned`, `recent`, `slow`. Omitted when none are selected. |
 | Sort | `sort_by`, `sort_dir` | Defaults to `health_ratio` ascending. |
 | Pagination | `page`, `page_size` | Page defaults are controlled by the backend serializer. |
@@ -63,13 +63,13 @@ Stock status is calculated by the backend so table rows, filters, and counts use
 
 | Status | Rule |
 |--------|------|
-| Healthy | `MinStock > 0` and `OnHand >= MinStock` |
-| Low | `MinStock > 0` and `OnHand < MinStock` and `OnHand >= MinStock * 0.6` |
-| Critical | `MinStock > 0` and `OnHand < MinStock * 0.6` |
-| Critical | `MinStock = 0` and the item has open production planning demand |
-| No Minimum | `MinStock = 0` and the item has no open production planning demand |
+| Healthy | Benchmark is set and `OnHand >= Benchmark` |
+| Low | Benchmark is set and `OnHand < Benchmark` and `OnHand >= Benchmark * 0.6` |
+| Critical | Benchmark is set and `OnHand < Benchmark * 0.6` |
+| Critical | Benchmark is not set and the item has open production planning demand |
+| No Benchmark Set | Benchmark is not set and the item has no open production planning demand |
 
-If an item is planned but has no benchmark, it is treated as Critical because it represents real demand without a configured minimum stock benchmark.
+The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility. If an item is planned but has no benchmark, it is treated as Critical because it represents real demand without a configured benchmark.
 
 ## Movement Rules
 
@@ -85,7 +85,7 @@ Planning takes priority over movement age. If an item is planned, it is shown as
 
 ## Grouped Rows
 
-When multiple warehouses are selected, the backend groups rows by item. The grouped row aggregates `OnHand` and `MinStock` across the selected warehouses and returns `warehouse_count`.
+When multiple warehouses are selected, the backend groups rows by item. The grouped row aggregates `OnHand` and the benchmark (`MinStock`) across the selected warehouses and returns `warehouse_count`.
 
 If any child warehouse is worse than the aggregate status, the row includes `has_warning=true`. The item detail panel fetches `GET /dashboards/stock/:itemCode/warehouses/` to show per-warehouse detail with the same stock and movement rules.
 

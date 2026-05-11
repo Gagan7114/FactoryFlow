@@ -106,7 +106,7 @@ export default function StockLevelDashboardPage() {
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Stock Benchmark"
-        description="Inventory items with minimum stock thresholds — monitor on-hand vs. minimum requirements"
+        description="Inventory items with benchmark levels — monitor on-hand vs. benchmark requirements"
       />
 
       <StockLevelFilters

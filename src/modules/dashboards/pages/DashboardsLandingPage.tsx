@@ -26,7 +26,7 @@ const dashboardsModules: DashboardsModuleCard[] = [
   },
   {
     title: 'Stock Benchmark',
-    description: 'Monitor on-hand inventory against minimum stock thresholds across warehouses',
+    description: 'Monitor on-hand inventory against benchmark levels across warehouses',
     icon: <Package className="h-5 w-5" />,
     route: '/dashboards/stock-levels',
     color: 'text-emerald-600',

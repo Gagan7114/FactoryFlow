@@ -255,9 +255,9 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | `search` | string | Case-insensitive search across item code, item name, and warehouse. |
 | `item_group` | string | SAP item group name, for example `PACKAGING MATERIAL`. |
 | `warehouse` | comma-separated string | Warehouse codes. Two or more selected warehouses return grouped item rows. |
-| `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. |
+| `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. |
 | `movement_status` | comma-separated string | `planned`, `recent`, `slow`. Omit to include all movement states. |
-| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. |
+| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
 | `sort_dir` | string | `asc` or `desc`. |
 | `page` | integer | Page number. |
 | `page_size` | integer | Page size, maximum 200. |
@@ -268,11 +268,13 @@ Backend status rules:
 
 | Status | Rule |
 |--------|------|
-| `healthy` | `MinStock > 0` and `OnHand >= MinStock` |
-| `low` | `MinStock > 0`, `OnHand < MinStock`, and `OnHand >= MinStock * 0.6` |
-| `critical` | `MinStock > 0` and `OnHand < MinStock * 0.6` |
-| `critical` | `MinStock = 0` and the item is present in open production planning demand |
-| `unset` | `MinStock = 0` and the item is not present in open production planning demand |
+| `healthy` | Benchmark is set and `OnHand >= Benchmark` |
+| `low` | Benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
+| `critical` | Benchmark is set and `OnHand < Benchmark * 0.6` |
+| `critical` | Benchmark is not set and the item is present in open production planning demand |
+| `unset` | Benchmark is not set and the item is not present in open production planning demand |
+
+The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility.
 
 Movement rules:
 

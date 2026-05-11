@@ -23,13 +23,15 @@ function StatusBadge({ status }: { status: StockItem['stock_status'] }) {
       classes: 'bg-red-200 text-red-900 font-semibold dark:bg-red-900/60 dark:text-red-300',
     },
     unset: {
-      label: 'No Minimum',
+      label: 'No Benchmark Set',
       classes: 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400',
     },
   } as const;
   const { label, classes } = config[status];
   return (
-    <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs', classes)}>{label}</span>
+    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs', classes)}>
+      {label}
+    </span>
   );
 }
 
@@ -81,7 +83,7 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
           <tr className="border-b text-muted-foreground">
             <th className="pb-2 pr-3 text-left font-medium">Warehouse</th>
             <th className="pb-2 pr-3 text-right font-medium">On Hand</th>
-            <th className="pb-2 pr-3 text-right font-medium">Min Stock</th>
+            <th className="pb-2 pr-3 text-right font-medium">Benchmark</th>
             <th className="pb-2 pr-3 text-right font-medium">Difference</th>
             <th className="pb-2 pr-3 text-right font-medium">Health</th>
             <th className="pb-2 pr-3 text-left font-medium">UOM</th>
