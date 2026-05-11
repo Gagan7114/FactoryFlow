@@ -40,7 +40,7 @@ function BreakdownLogPage() {
     <div className="space-y-6">
       <DashboardHeader
         title="Breakdown Logs"
-        description="Machine breakdown history across all runs"
+        description="Breakdown history across all runs"
       />
       {loadingRuns ? (
         <Card><CardContent className="p-8 animate-pulse bg-muted/50" /></Card>

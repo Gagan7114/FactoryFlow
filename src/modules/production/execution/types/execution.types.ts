@@ -256,8 +256,8 @@ export interface BreakdownCategory {
 export interface MachineBreakdown {
   id: number;
   production_run: number;
-  machine: number;
-  machine_name?: string;
+  machine: number | null;
+  machine_name?: string | null;
   breakdown_category: number | null;
   breakdown_category_name: string;
   start_time: string;
@@ -685,7 +685,7 @@ export interface UpdateRunRequest {
 
 export interface AddBreakdownRequest {
   breakdown_category_id: number;
-  machine_id: number;
+  machine_id?: number | null;
   reason: string;
   produced_cases?: string;
   remarks?: string;

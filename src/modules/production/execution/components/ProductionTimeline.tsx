@@ -240,10 +240,8 @@ function BreakdownCard({
         </span>
       </div>
 
-      {/* Row 2: Machine + Category + reason */}
+      {/* Row 2: Category + reason */}
       <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-        <span className="font-semibold">{breakdown.machine_name}</span>
-        {' — '}
         <span className="font-bold uppercase">
           {breakdown.breakdown_category_name}
         </span>{' '}

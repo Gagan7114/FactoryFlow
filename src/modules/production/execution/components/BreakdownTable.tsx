@@ -25,7 +25,6 @@ export function BreakdownTable({ breakdowns, onAdd, readOnly }: BreakdownTablePr
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">
-              <th className="text-left p-2 font-medium">Machine</th>
               <th className="text-left p-2 font-medium">Type</th>
               <th className="text-left p-2 font-medium">Start</th>
               <th className="text-left p-2 font-medium">End</th>
@@ -36,7 +35,6 @@ export function BreakdownTable({ breakdowns, onAdd, readOnly }: BreakdownTablePr
           <tbody>
             {breakdowns.map((b) => (
               <tr key={b.id} className="border-b hover:bg-muted/30">
-                <td className="p-2">{b.machine_name || `Machine #${b.machine}`}</td>
                 <td className="p-2">
                   <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                     {b.breakdown_category_name || 'Unknown'}
@@ -49,13 +47,13 @@ export function BreakdownTable({ breakdowns, onAdd, readOnly }: BreakdownTablePr
               </tr>
             ))}
             {breakdowns.length === 0 && (
-              <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No breakdowns recorded</td></tr>
+              <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No breakdowns recorded</td></tr>
             )}
           </tbody>
           {breakdowns.length > 0 && (
             <tfoot>
               <tr className="border-t-2 font-semibold bg-muted/30">
-                <td colSpan={4} className="p-2">Total</td>
+                <td colSpan={3} className="p-2">Total</td>
                 <td className="p-2 text-right">{totalMinutes} min</td>
                 <td className="p-2" />
               </tr>

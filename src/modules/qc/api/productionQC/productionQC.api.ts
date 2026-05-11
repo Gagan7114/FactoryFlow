@@ -65,6 +65,14 @@ export const productionQCApi = {
     return response.data;
   },
 
+  // Production requests final FG QC approval; QC selects parameters later
+  async requestFinalApproval(runId: number): Promise<ProductionQCSession> {
+    const response = await apiClient.post<ProductionQCSession>(
+      EP.PRODUCTION_QC_FINAL_REQUEST(runId),
+    );
+    return response.data;
+  },
+
   // Get session detail
   async getSession(sessionId: number): Promise<ProductionQCSession> {
     const response = await apiClient.get<ProductionQCSession>(

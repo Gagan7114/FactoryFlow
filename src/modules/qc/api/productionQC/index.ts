@@ -7,6 +7,7 @@ export {
   useProductionQCRunSessions,
   useProductionQCSession,
   useCreateProductionQCSession,
+  useRequestFinalProductionQC,
   useDeleteProductionQCSession,
   useUpdateProductionQCResults,
   useSubmitProductionQCSession,

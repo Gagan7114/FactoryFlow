@@ -263,9 +263,9 @@ export interface ProductionQCSession {
   id: number;
   production_run: number;
   run_number: number;
-  material_type: number;
-  material_type_name: string;
-  material_type_code: string;
+  material_type: number | null;
+  material_type_name: string | null;
+  material_type_code: string | null;
   session_number: number;
   session_type: ProductionQCSessionType;
   checked_at: string;
@@ -290,8 +290,8 @@ export interface ProductionQCSessionListItem {
   run_date: string;
   product: string;
   line_name: string;
-  material_type: number;
-  material_type_name: string;
+  material_type: number | null;
+  material_type_name: string | null;
   session_number: number;
   session_type: ProductionQCSessionType;
   checked_at: string;

@@ -149,6 +149,8 @@ export const API_ENDPOINTS = {
     PRODUCTION_QC_COUNTS: '/quality-control/production-qc/counts/',
     PRODUCTION_QC_RUN_SESSIONS: (runId: number) =>
       `/quality-control/production-qc/runs/${runId}/sessions/`,
+    PRODUCTION_QC_FINAL_REQUEST: (runId: number) =>
+      `/quality-control/production-qc/runs/${runId}/request-final/`,
     PRODUCTION_QC_SESSION_DETAIL: (sessionId: number) =>
       `/quality-control/production-qc/sessions/${sessionId}/`,
     PRODUCTION_QC_SESSION_RESULTS: (sessionId: number) =>

@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 
 import { useWarehouses } from '@/modules/grpo/api';
 import type { Warehouse as SAPWarehouse } from '@/modules/grpo/types';
-import { useProductionQCRunSessions } from '@/modules/qc/api/productionQC';
+import { useProductionQCRunSessions, useRequestFinalProductionQC } from '@/modules/qc/api/productionQC';
 import { useCreateBOMRequest, useCreateFGReceipt, useFGReceipts } from '@/modules/warehouse/api';
 import type { FGReceipt } from '@/modules/warehouse/types';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
@@ -41,7 +41,6 @@ import {
   useLineClearances,
   useMaterials,
   useResolveBreakdown,
-  useRunCost,
   useRunDetail,
   useStartProduction,
   useStopProduction,
@@ -54,7 +53,6 @@ import {
 import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
 import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
 import { ProductionTimeline } from '../components/ProductionTimeline';
-import { RunSummaryCards } from '../components/RunSummaryCards';
 import {
   type AddBreakdownFormData,
   addBreakdownSchema,
@@ -102,7 +100,7 @@ function getFinalQCGate(session?: FinalQCGateSession) {
     return {
       canSendFG: false,
       actionLabel: 'Send FG to QC',
-      reason: 'Create final QC and get QA approval before sending FG to warehouse.',
+      reason: 'Create an FG QC approval request before sending FG to warehouse.',
     };
   }
 
@@ -136,8 +134,8 @@ function getFinalQCGate(session?: FinalQCGateSession) {
 
   return {
     canSendFG: false,
-    actionLabel: 'Submit Final QC',
-    reason: 'Final QC is still in draft. Submit it for QA approval first.',
+    actionLabel: 'FG QC Requested',
+    reason: 'FG QC request is with QC. QC will select parameters, submit, and approve it.',
   };
 }
 
@@ -174,7 +172,6 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   const { data: run, isLoading } = useRunDetail(numRunId || null);
   const { data: materials = [], refetch: refetchMaterials } = useMaterials(numRunId);
-  const { data: cost } = useRunCost(numRunId);
   const { data: labourEntries = [] } = useLabour(numRunId);
   const { data: breakdownCategories = [] } = useBreakdownCategories();
   const { data: clearances = [] } = useLineClearances(run?.line);
@@ -203,6 +200,7 @@ function RunDetailPage() {
   const removeLabour = useDeleteLabour(numRunId);
   const createBOMRequest = useCreateBOMRequest();
   const createFGReceipt = useCreateFGReceipt();
+  const requestFinalQC = useRequestFinalProductionQC(numRunId);
 
   useEffect(() => {
     if (
@@ -303,7 +301,6 @@ function RunDetailPage() {
   // Labour form
   // ---------------------------------------------------------------------------
   const labourForm = useForm<CreateLabourFormData>({ resolver: zodResolver(createLabourSchema), defaultValues: { worker_count: 1 } });
-  const openLabourDialog = () => { setEditingLabour(null); labourForm.reset({ worker_count: 1 }); setDialog('labour'); };
   const openEditLabour = (entry: ResourceLabour) => {
     setEditingLabour(entry);
     labourForm.reset({ description: entry.description, worker_count: entry.worker_count, hours_worked: entry.hours_worked, rate_per_hour: entry.rate_per_hour });
@@ -520,15 +517,30 @@ function RunDetailPage() {
           {isCompleted && (
             <Button
               variant="outline" size="sm"
-              disabled={fgReceiptsLoading || createFGReceipt.isPending || !canEditFGReceipt}
+              disabled={
+                fgReceiptsLoading ||
+                createFGReceipt.isPending ||
+                requestFinalQC.isPending ||
+                !canEditFGReceipt ||
+                Boolean(latestFinalQC && !finalQCGate.canSendFG)
+              }
               title={
                 !canEditFGReceipt
                   ? 'Warehouse has already received this FG receipt'
                   : finalQCGate.reason
               }
-              onClick={() => {
+              onClick={async () => {
                 if (!finalQCGate.canSendFG) {
-                  navigate(`/qc/production/runs/${run.id}?new=final`);
+                  if (latestFinalQC) {
+                    toast.info(finalQCGate.reason || 'Final QC approval is required');
+                    return;
+                  }
+                  try {
+                    await requestFinalQC.mutateAsync();
+                    toast.success('FG QC approval request sent to QC');
+                  } catch {
+                    toast.error('Failed to send FG QC request');
+                  }
                   return;
                 }
                 setSelectedFGWarehouse(editableFGReceipt?.warehouse || '');
@@ -536,9 +548,11 @@ function RunDetailPage() {
                 setDialog('fg-receipt');
               }}
             >
-              {fgReceiptsLoading || createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
+              {fgReceiptsLoading || createFGReceipt.isPending || requestFinalQC.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
               {fgReceiptsLoading
                 ? 'Loading FG Receipt...'
+                : requestFinalQC.isPending
+                  ? 'Sending FG to QC...'
                 : finalQCGate.canSendFG
                   ? getFGReceiptButtonLabel(existingFGReceipt)
                   : finalQCGate.actionLabel}
@@ -546,59 +560,6 @@ function RunDetailPage() {
           )}
         </div>
       </div>
-
-      {/* Summary Cards */}
-      <RunSummaryCards run={run} />
-
-      {/* Manpower & Cost Summary */}
-      {(() => {
-        const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
-        const labourCount = actualLabourCount || run.labour_count || 0;
-        const c = cost ? { labour: parseFloat(cost.labour_cost), total: parseFloat(cost.total_cost), perUnit: parseFloat(cost.per_unit_cost) } : null;
-        return (
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={openLabourDialog}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-muted-foreground">Labour</span>
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <p className="text-lg font-bold">{labourCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Other Manpower</div>
-                <p className="text-lg font-bold">{run.other_manpower_count}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Supervisor</div>
-                <p className="text-sm font-medium truncate">{run.supervisor || '-'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Labour Cost</div>
-                <p className="text-lg font-bold">{c ? `₹${c.labour.toLocaleString()}` : '₹0'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Total Cost</div>
-                <p className="text-lg font-bold text-green-600">{c ? `₹${c.total.toLocaleString()}` : '₹0'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Per Unit Cost</div>
-                <p className="text-lg font-bold">{c && c.perUnit > 0 ? `₹${c.perUnit.toFixed(2)}` : '-'}</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
 
       {/* Tabs */}
       <Tabs defaultValue="timeline" className="space-y-4">

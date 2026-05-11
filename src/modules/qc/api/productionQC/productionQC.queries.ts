@@ -96,6 +96,25 @@ export function useCreateProductionQCSession(runId: number) {
   });
 }
 
+export function useRequestFinalProductionQC(runId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => productionQCApi.requestFinalApproval(runId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: PRODUCTION_QC_QUERY_KEYS.runSessions(runId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: PRODUCTION_QC_QUERY_KEYS.counts(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: PRODUCTION_QC_QUERY_KEYS.lists(),
+      });
+      queryClient.invalidateQueries({ queryKey: ['production-execution'] });
+    },
+  });
+}
+
 export function useDeleteProductionQCSession(runId: number) {
   const queryClient = useQueryClient();
   return useMutation({

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
@@ -34,11 +34,18 @@ function LineClearanceFormPage() {
 
   const [lineId, setLineId] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [supervisorName, setSupervisorName] = useState('');
+  const [isSavingSupervisor, setIsSavingSupervisor] = useState(false);
 
   const effectiveLineId = linkedRun ? linkedRun.line : lineId;
   const effectiveDate = linkedRun ? linkedRun.date : date;
 
   const isDraft = clearance?.status === 'DRAFT';
+
+  useEffect(() => {
+    if (!clearance || isSavingSupervisor) return;
+    setSupervisorName(clearance.production_supervisor_sign || '');
+  }, [clearance?.id, clearance?.production_supervisor_sign, isSavingSupervisor]);
 
   const handleCreate = async () => {
     try {
@@ -61,8 +68,10 @@ function LineClearanceFormPage() {
 
   const handleSupervisorChange = async (name: string) => {
     try {
+      setIsSavingSupervisor(true);
       await updateClearance.mutateAsync({ production_supervisor_sign: name });
     } catch { toast.error('Failed to save supervisor name'); }
+    finally { setIsSavingSupervisor(false); }
   };
 
   const handleSubmit = async () => {
@@ -176,11 +185,21 @@ function LineClearanceFormPage() {
               </div>
 
               <div className="max-w-sm">
-                <Label>Supervisor</Label>
+                <div className="flex items-center justify-between gap-3">
+                  <Label>Supervisor</Label>
+                  {isSavingSupervisor && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Saving...
+                    </span>
+                  )}
+                </div>
                 {isDraft ? (
                   <Input
-                    defaultValue={clearance.production_supervisor_sign}
+                    value={supervisorName}
                     placeholder="Enter supervisor name"
+                    disabled={isSavingSupervisor}
+                    onChange={(e) => setSupervisorName(e.target.value)}
                     onBlur={(e) => {
                       if (e.target.value !== clearance.production_supervisor_sign) {
                         handleSupervisorChange(e.target.value);
@@ -199,8 +218,8 @@ function LineClearanceFormPage() {
             {isDraft && (
               <Button
                 onClick={handleSubmit}
-                disabled={!clearance.all_checks_passed || !clearance.production_supervisor_sign || submitClearance.isPending}
-                title={!clearance.all_checks_passed ? 'Mark all checks as passed first' : !clearance.production_supervisor_sign ? 'Enter supervisor name first' : undefined}
+                disabled={!clearance.all_checks_passed || !supervisorName || isSavingSupervisor || submitClearance.isPending}
+                title={!clearance.all_checks_passed ? 'Mark all checks as passed first' : !supervisorName ? 'Enter supervisor name first' : isSavingSupervisor ? 'Wait for supervisor name to save' : undefined}
               >
                 <Send className="h-4 w-4 mr-1" />
                 {submitClearance.isPending ? 'Submitting...' : 'Submit for QA Approval'}
