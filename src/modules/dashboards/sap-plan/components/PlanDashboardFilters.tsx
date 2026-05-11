@@ -9,6 +9,11 @@ import type { PlanDashboardFilters } from '../types';
 
 const TEXT_DEBOUNCE_MS = 500;
 
+function normalizeSearch(value?: string): string | undefined {
+  const search = value?.trim();
+  return search ? search.toUpperCase() : undefined;
+}
+
 interface PlanDashboardFiltersProps {
   onFiltersChange: (filters: PlanDashboardFilters) => void;
   defaultValues?: PlanDashboardFilters;
@@ -29,8 +34,10 @@ function buildFilters(values: Partial<FiltersForm>): PlanDashboardFilters {
   if (values.status?.length) filters.status = values.status as PlanDashboardFilters['status'];
   if (values.due_date_from) filters.due_date_from = values.due_date_from;
   if (values.due_date_to) filters.due_date_to = values.due_date_to;
-  if (values.warehouse) filters.warehouse = values.warehouse;
-  if (values.sku) filters.sku = values.sku;
+  const warehouse = normalizeSearch(values.warehouse);
+  const sku = normalizeSearch(values.sku);
+  if (warehouse) filters.warehouse = warehouse;
+  if (sku) filters.sku = sku;
   if (values.show_shortfall_only) filters.show_shortfall_only = true;
   return filters;
 }

@@ -86,7 +86,7 @@ export function StockLevelTable({
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = isGrouped ? 10 : 9;
+  const colCount = isGrouped ? 11 : 10;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -171,6 +171,9 @@ export function StockLevelTable({
                   Health <SortIcon col="health_ratio" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  Movement
+                </th>
                 {isGrouped && <th className="w-10 px-4 py-3" />}
               </tr>
             </thead>
@@ -217,6 +220,9 @@ export function StockLevelTable({
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                           )}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StockMovementBadge item={item} />
                       </td>
                       {isGrouped && (
                         <td className="px-4 py-3">
@@ -280,6 +286,41 @@ export function StockLevelTable({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function StockMovementBadge({ item }: { item: StockItem }) {
+  const config = {
+    planned: {
+      label: 'Planned',
+      classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    },
+    recent: {
+      label: 'Recently Used',
+      classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+    },
+    slow: {
+      label: 'Slow Moving',
+      classes: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+    },
+  } as const;
+
+  const status = item.movement_status ?? 'slow';
+  const { label, classes } = config[status];
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs', classes)}>
+        {label}
+      </span>
+      {item.days_since_last_consumption !== null &&
+        item.days_since_last_consumption !== undefined &&
+        status !== 'planned' && (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {item.days_since_last_consumption}d since use
+          </span>
+        )}
+    </div>
   );
 }
 

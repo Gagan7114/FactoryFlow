@@ -72,7 +72,7 @@ Date range filter applied to the production order's due date (`due_date` field f
 
 Free-text filter matched against the production order's output warehouse code (the `warehouse` field).
 
-- Case-sensitive — use the exact code as it appears in SAP (e.g. `WH-01`, `RM-WH`).
+- Case-insensitive — lowercase or mixed-case input is normalized before search (e.g. `wh-01` matches `WH-01`).
 - **Debounced 500 ms** — the API call fires 500 ms after you stop typing, not on every keystroke.
 - To see all warehouses, leave this field empty.
 - Only accepts a single warehouse code. There is no multi-select.
@@ -83,7 +83,7 @@ Free-text filter matched against the production order's output warehouse code (t
 
 Free-text filter matched against the SAP item code of the finished good (`sku_code` / `sku` field).
 
-- Use the exact SAP item code (e.g. `FG-001`).
+- Lowercase or mixed-case input is normalized before search (e.g. `fg-001` matches `FG-001`).
 - **Debounced 500 ms** — same behaviour as Warehouse.
 - Useful when you want to check a specific product's order status and component availability.
 
