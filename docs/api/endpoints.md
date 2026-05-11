@@ -241,6 +241,51 @@ Complete reference of all API endpoints used in the Factory Management System. A
 
 ---
 
+## Stock Benchmark Dashboard
+
+| Method | Endpoint | Description | Constants Key |
+|--------|----------|-------------|---------------|
+| GET | `/dashboards/stock/` | Stock benchmark rows and meta counts | `STOCK_DASHBOARD.LIST` |
+| GET | `/dashboards/stock/:itemCode/warehouses/` | Per-warehouse detail for an expanded item row | `STOCK_DASHBOARD.ITEM_DETAIL(itemCode)` |
+
+### Stock Query Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `search` | string | Case-insensitive search across item code, item name, and warehouse. |
+| `item_group` | string | SAP item group name, for example `PACKAGING MATERIAL`. |
+| `warehouse` | comma-separated string | Warehouse codes. Two or more selected warehouses return grouped item rows. |
+| `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. |
+| `movement_status` | comma-separated string | `planned`, `recent`, `slow`. Omit to include all movement states. |
+| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. |
+| `sort_dir` | string | `asc` or `desc`. |
+| `page` | integer | Page number. |
+| `page_size` | integer | Page size, maximum 200. |
+
+The Stock Benchmark page defaults to Packing Material, warehouses `BH-BS` and `BH-PM`, statuses `healthy,low,critical`, and no movement filter. Its top stats are intentionally pinned to those defaults and are not changed by table filtering.
+
+Backend status rules:
+
+| Status | Rule |
+|--------|------|
+| `healthy` | `MinStock > 0` and `OnHand >= MinStock` |
+| `low` | `MinStock > 0`, `OnHand < MinStock`, and `OnHand >= MinStock * 0.6` |
+| `critical` | `MinStock > 0` and `OnHand < MinStock * 0.6` |
+| `critical` | `MinStock = 0` and the item is present in open production planning demand |
+| `unset` | `MinStock = 0` and the item is not present in open production planning demand |
+
+Movement rules:
+
+| Movement | Rule |
+|----------|------|
+| `planned` | Open production plan exists with remaining planned quantity. |
+| `recent` | No open plan, and outbound consumption exists within 30 days. |
+| `slow` | No open plan, and no outbound consumption exists or last consumption is older than 30 days. |
+
+**Types:** `StockDashboardFilters`, `StockItem`, `StockDashboardMeta` - see `src/modules/dashboards/stock-level/types/stock-level.types.ts`
+
+---
+
 ## Production Execution
 
 ### Production Lines & Machines

@@ -199,7 +199,26 @@ Main application dashboard providing an overview of factory operations.
 
 See: [Dashboard Module Documentation](./dashboard.md)
 
-### 4. GRPO Module (`/modules/grpo/`)
+### 4. Dashboards Module (`/modules/dashboards/`)
+
+SAP-backed operational dashboards for planning, inventory, and stock movement analysis.
+
+**Key Features:**
+- SAP Material Plan dashboard
+- Stock Benchmark dashboard with material type, warehouse, status, and movement filters
+- Inventory Age dashboard
+- Non-Moving dashboard
+
+**Routes:**
+- `/dashboards` - Dashboards landing page
+- `/dashboards/sap-material-plan` - SAP material plan
+- `/dashboards/stock-levels` - Stock Benchmark
+- `/dashboards/inventory-age` - Inventory Age
+- `/dashboards/non-moving` - Non-Moving
+
+See: [Stock Benchmark Dashboard Documentation](./stock-benchmark.md)
+
+### 5. GRPO Module (`/modules/grpo/`)
 
 Handles posting received materials into the ERP system after gate entry completion.
 
@@ -217,7 +236,7 @@ Handles posting received materials into the ERP system after gate entry completi
 
 See: [GRPO Module Documentation](./grpo.md)
 
-### 5. QC Module (`/modules/qc/`)
+### 6. QC Module (`/modules/qc/`)
 
 Quality control inspections with multi-role approval workflow.
 
@@ -237,7 +256,7 @@ Quality control inspections with multi-role approval workflow.
 
 See: [QC Module Documentation](./qc.md)
 
-### 6. Notifications Module (`/modules/notifications/`)
+### 7. Notifications Module (`/modules/notifications/`)
 
 Push notification management via Firebase Cloud Messaging.
 
@@ -448,6 +467,7 @@ feature.types.ts
 
 - [Authentication Module](./auth.md)
 - [Dashboard Module](./dashboard.md)
+- [Stock Benchmark Dashboard](./stock-benchmark.md)
 - [Gate Module](./gate.md)
 - [GRPO Module](./grpo.md)
 - [QC Module](./qc.md)
