@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Play, Wrench, Clock } from 'lucide-react';
+import { Play, Wrench, Clock, MessageSquareOff, MessageSquareText } from 'lucide-react';
 import { Button } from '@/shared/components/ui';
 import type { ProductionSegment, MachineBreakdown } from '../types';
 
@@ -48,6 +48,10 @@ function formatTime(iso: string): string {
 
 function minutesSince(startTime: string, now: number): number {
   return Math.max(0, Math.floor((now - new Date(startTime).getTime()) / 60_000));
+}
+
+function trimmedRemarks(remarks: string | null | undefined): string {
+  return remarks?.trim() ?? '';
 }
 
 function useLiveTick(enabled: boolean) {
@@ -156,6 +160,7 @@ function SegmentCard({ segment, now, ratedSpeed, onClick }: { segment: Productio
     : segment.duration_minutes;
   const expectedUnits = ratedSpeed != null ? Math.round((duration / 60) * ratedSpeed) : null;
   const produced = parseFloat(segment.produced_cases || '0');
+  const remarks = trimmedRemarks(segment.remarks);
 
   return (
     <div className="rounded-lg border bg-green-50 border-green-200 p-4 dark:bg-green-950/30 dark:border-green-800 cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
@@ -172,6 +177,7 @@ function SegmentCard({ segment, now, ratedSpeed, onClick }: { segment: Productio
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
             </span>
           )}
+          <RemarksBadge remarks={remarks} tone="green" />
         </div>
         <span className="text-sm text-muted-foreground">
           {formatDuration(duration)}
@@ -202,6 +208,8 @@ function SegmentCard({ segment, now, ratedSpeed, onClick }: { segment: Productio
           {segment.end_time ? formatTime(segment.end_time) : '--:--'}
         </span>
       </div>
+
+      <RemarksPreview remarks={remarks} tone="green" />
     </div>
   );
 }
@@ -224,6 +232,7 @@ function BreakdownCard({
   const duration = breakdown.is_active
     ? minutesSince(breakdown.start_time, now)
     : breakdown.breakdown_minutes;
+  const remarks = trimmedRemarks(breakdown.remarks);
 
   return (
     <div className="rounded-lg border bg-red-50 border-red-200 p-4 dark:bg-red-950/30 dark:border-red-800 cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
@@ -234,6 +243,7 @@ function BreakdownCard({
           <span className="text-lg font-bold text-red-800 dark:text-red-200">
             Breakdown
           </span>
+          <RemarksBadge remarks={remarks} tone="red" />
         </div>
         <span className="text-sm text-muted-foreground">
           {formatDuration(duration)}
@@ -256,6 +266,8 @@ function BreakdownCard({
           {breakdown.end_time ? formatTime(breakdown.end_time) : '--:--'}
         </span>
       </div>
+
+      <RemarksPreview remarks={remarks} tone="red" />
 
       {/* Actions for active breakdowns */}
       {breakdown.is_active && (
@@ -283,6 +295,46 @@ function BreakdownCard({
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function RemarksBadge({ remarks, tone }: { remarks: string; tone: 'green' | 'red' }) {
+  const hasRemarks = remarks.length > 0;
+  const toneClass =
+    tone === 'green'
+      ? hasRemarks
+        ? 'border-green-300 bg-white/80 text-green-800 dark:border-green-700 dark:bg-green-950/60 dark:text-green-200'
+        : 'border-green-200 bg-white/60 text-green-600 dark:border-green-800 dark:bg-green-950/40 dark:text-green-400'
+      : hasRemarks
+        ? 'border-red-300 bg-white/80 text-red-800 dark:border-red-700 dark:bg-red-950/60 dark:text-red-200'
+        : 'border-red-200 bg-white/60 text-red-600 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400';
+  const Icon = hasRemarks ? MessageSquareText : MessageSquareOff;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${toneClass}`}
+      title={hasRemarks ? remarks : 'No remarks'}
+    >
+      <Icon className="h-3 w-3" />
+      {hasRemarks ? 'Remarks' : 'No remarks'}
+    </span>
+  );
+}
+
+function RemarksPreview({ remarks, tone }: { remarks: string; tone: 'green' | 'red' }) {
+  if (!remarks) return null;
+
+  const toneClass =
+    tone === 'green'
+      ? 'border-green-200 bg-white/70 text-green-800 dark:border-green-800 dark:bg-green-950/50 dark:text-green-200'
+      : 'border-red-200 bg-white/70 text-red-800 dark:border-red-800 dark:bg-red-950/50 dark:text-red-200';
+
+  return (
+    <div className={`mt-3 flex items-start gap-2 rounded-md border px-2.5 py-2 text-sm ${toneClass}`}>
+      <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0" />
+      <span className="shrink-0 font-medium">Remarks:</span>
+      <span className="break-words">{remarks}</span>
     </div>
   );
 }

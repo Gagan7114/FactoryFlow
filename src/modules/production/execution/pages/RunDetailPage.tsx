@@ -280,7 +280,10 @@ function RunDetailPage() {
   });
   const onSubmitStop = async (data: StopProductionFormData) => {
     try {
-      await stopProduction.mutateAsync({ produced_cases: data.produced_cases });
+      await stopProduction.mutateAsync({
+        produced_cases: data.produced_cases,
+        remarks: data.remarks,
+      });
       toast.success('Production stopped');
       setDialog(null);
       stopForm.reset();
