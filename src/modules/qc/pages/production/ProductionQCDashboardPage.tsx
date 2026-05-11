@@ -40,7 +40,15 @@ const WORKFLOW_BADGE: Record<string, { label: string; className: string }> = {
   },
   SUBMITTED: {
     label: 'Submitted',
+    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  },
+  APPROVED: {
+    label: 'Approved',
     className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
   },
 };
 
@@ -132,8 +140,10 @@ export default function ProductionQCDashboardPage() {
       {/* Status Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { key: 'draft', label: 'Draft', count: counts?.draft ?? 0, icon: FileText, color: 'text-gray-600 dark:text-gray-400' },
-          { key: 'submitted', label: 'Submitted', count: counts?.submitted ?? 0, icon: CheckCircle2, color: 'text-green-600 dark:text-green-400' },
+          { key: 'DRAFT', label: 'Draft', count: counts?.draft ?? 0, icon: FileText, color: 'text-gray-600 dark:text-gray-400' },
+          { key: 'SUBMITTED', label: 'Submitted', count: counts?.submitted ?? 0, icon: Clock, color: 'text-blue-600 dark:text-blue-400' },
+          { key: 'APPROVED', label: 'Approved', count: counts?.approved ?? 0, icon: CheckCircle2, color: 'text-green-600 dark:text-green-400' },
+          { key: 'REJECTED', label: 'Rejected', count: counts?.rejected ?? 0, icon: XCircle, color: 'text-red-600 dark:text-red-400' },
         ].map(({ key, label, count, icon: Icon, color }) => (
           <Card
             key={key}
@@ -278,6 +288,8 @@ export default function ProductionQCDashboardPage() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="DRAFT">Draft</SelectItem>
                 <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>

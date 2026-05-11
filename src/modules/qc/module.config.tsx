@@ -24,6 +24,7 @@ const LineClearanceQAPage = lazy(() => import('./pages/LineClearanceQAPage'));
 const ProductionQCDashboardPage = lazy(() => import('./pages/production/ProductionQCDashboardPage'));
 const ProductionQCRunPage = lazy(() => import('./pages/production/ProductionQCRunPage'));
 const ProductionQCSessionPage = lazy(() => import('./pages/production/ProductionQCSessionPage'));
+const ProductionQCApprovalPage = lazy(() => import('./pages/production/ProductionQCApprovalPage'));
 
 /**
  * Quality Control module configuration
@@ -95,6 +96,12 @@ export const qcModuleConfig: ModuleConfig = {
       element: <ProductionQCSessionPage />,
       layout: 'main',
       permissions: [QC_PERMISSIONS.PRODUCTION_QC.VIEW],
+    },
+    {
+      path: '/qc/production/approvals',
+      element: <ProductionQCApprovalPage />,
+      layout: 'main',
+      permissions: [QC_PERMISSIONS.PRODUCTION_QC.APPROVE],
     },
     // ==================== Line Clearance QA Submodule ====================
     {
@@ -189,6 +196,11 @@ export const qcModuleConfig: ModuleConfig = {
           path: '/qc/production',
           title: 'Production QC',
           permissions: [QC_PERMISSIONS.PRODUCTION_QC.VIEW],
+        },
+        {
+          path: '/qc/production/approvals',
+          title: 'Production QC Approvals',
+          permissions: [QC_PERMISSIONS.PRODUCTION_QC.APPROVE],
         },
         {
           path: '/qc/line-clearance',

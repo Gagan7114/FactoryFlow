@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -51,6 +51,7 @@ const WORKFLOW_BADGE: Record<
 export default function ProductionQCRunPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const numRunId = Number(runId);
 
   const { data: run } = useRunDetail(numRunId || null);
@@ -66,6 +67,16 @@ export default function ProductionQCRunPage() {
   const inProcessSessions = sessions.filter((s) => s.session_type === 'IN_PROCESS');
   const finalSessions = sessions.filter((s) => s.session_type === 'FINAL');
   const hasFinal = finalSessions.length > 0;
+
+  useEffect(() => {
+    if (searchParams.get('new') !== 'final' || isLoading) return;
+
+    setSessionType('FINAL');
+    if (!hasFinal) {
+      setShowCreateDialog(true);
+    }
+    setSearchParams({}, { replace: true });
+  }, [hasFinal, isLoading, searchParams, setSearchParams]);
 
   const handleCreate = async () => {
     if (!materialTypeId) {

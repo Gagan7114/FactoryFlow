@@ -35,7 +35,6 @@ import {
   useSubmitProductionQCSession,
 } from '../../api/productionQC';
 import type {
-  ProductionQCResult,
   UpdateProductionQCResultRequest,
 } from '../../types';
 
@@ -49,6 +48,25 @@ interface ParameterState {
   is_within_spec: boolean;
   remarks: string;
 }
+
+const WORKFLOW_BADGE: Record<string, { label: string; className: string }> = {
+  DRAFT: {
+    label: 'Draft',
+    className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  },
+  SUBMITTED: {
+    label: 'Submitted',
+    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  },
+  APPROVED: {
+    label: 'Approved',
+    className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  },
+};
 
 const getResultPlaceholder = (paramType: string) => {
   switch (paramType) {
@@ -73,7 +91,7 @@ export default function ProductionQCSessionPage() {
     numSessionId,
     session?.production_run ?? 0,
   );
-  const submitSession = useSubmitProductionQCSession(session?.production_run ?? 0);
+  const submitSession = useSubmitProductionQCSession();
 
   const [parameterResults, setParameterResults] = useState<Record<number, ParameterState>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -193,6 +211,8 @@ export default function ProductionQCSessionPage() {
     );
   }
 
+  const workflowBadge = WORKFLOW_BADGE[session.workflow_status] ?? WORKFLOW_BADGE.DRAFT;
+
   return (
     <div className="space-y-6">
       <Button
@@ -210,12 +230,8 @@ export default function ProductionQCSessionPage() {
             <h2 className="text-2xl font-bold tracking-tight">
               {session.session_type === 'FINAL' ? 'Final QC' : `QC Round #${session.session_number}`}
             </h2>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-              session.workflow_status === 'SUBMITTED'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-            }`}>
-              {session.workflow_status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${workflowBadge.className}`}>
+              {workflowBadge.label}
             </span>
             {session.workflow_status === 'SUBMITTED' && session.overall_result && (
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${

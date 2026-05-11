@@ -4,6 +4,8 @@ import type {
   CreateProductionQCSessionRequest,
   UpdateProductionQCResultRequest,
   ProductionQCSubmitRequest,
+  ProductionQCApprovalRequest,
+  ProductionQCRejectRequest,
   ProductionQCListParams,
 } from '../../types';
 import { productionQCApi } from './productionQC.api';
@@ -17,6 +19,7 @@ export const PRODUCTION_QC_QUERY_KEYS = {
   lists: () => [...PRODUCTION_QC_QUERY_KEYS.all, 'list'] as const,
   list: (params?: ProductionQCListParams) =>
     [...PRODUCTION_QC_QUERY_KEYS.lists(), params] as const,
+  pending: () => [...PRODUCTION_QC_QUERY_KEYS.all, 'pending'] as const,
   counts: () => [...PRODUCTION_QC_QUERY_KEYS.all, 'counts'] as const,
   runSessions: (runId: number) =>
     [...PRODUCTION_QC_QUERY_KEYS.all, 'run', runId] as const,
@@ -40,6 +43,14 @@ export function useProductionQCCounts() {
   return useQuery({
     queryKey: PRODUCTION_QC_QUERY_KEYS.counts(),
     queryFn: () => productionQCApi.counts(),
+    staleTime: 30_000,
+  });
+}
+
+export function useProductionQCPending() {
+  return useQuery({
+    queryKey: PRODUCTION_QC_QUERY_KEYS.pending(),
+    queryFn: () => productionQCApi.pending(),
     staleTime: 30_000,
   });
 }
@@ -117,7 +128,7 @@ export function useUpdateProductionQCResults(sessionId: number, runId: number) {
   });
 }
 
-export function useSubmitProductionQCSession(runId: number) {
+export function useSubmitProductionQCSession() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ sessionId, data }: { sessionId: number; data: ProductionQCSubmitRequest }) =>
@@ -126,6 +137,40 @@ export function useSubmitProductionQCSession(runId: number) {
       queryClient.invalidateQueries({
         queryKey: PRODUCTION_QC_QUERY_KEYS.all,
       });
+    },
+  });
+}
+
+export function useApproveProductionQCSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      data,
+    }: {
+      sessionId: number;
+      data: ProductionQCApprovalRequest;
+    }) => productionQCApi.approveSession(sessionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_QC_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['production-execution'] });
+    },
+  });
+}
+
+export function useRejectProductionQCSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      data,
+    }: {
+      sessionId: number;
+      data: ProductionQCRejectRequest;
+    }) => productionQCApi.rejectSession(sessionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_QC_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['production-execution'] });
     },
   });
 }

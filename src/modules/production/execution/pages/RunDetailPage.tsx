@@ -92,6 +92,78 @@ function getFGReceiptButtonLabel(receipt?: FGReceipt) {
   return 'FG Receipt Locked';
 }
 
+type FinalQCGateSession = {
+  workflow_status: string;
+  overall_result?: string;
+};
+
+function getFinalQCGate(session?: FinalQCGateSession) {
+  if (!session) {
+    return {
+      canSendFG: false,
+      actionLabel: 'Send FG to QC',
+      reason: 'Create final QC and get QA approval before sending FG to warehouse.',
+    };
+  }
+
+  if (session.workflow_status === 'APPROVED' && session.overall_result === 'PASS') {
+    return { canSendFG: true, actionLabel: 'Create FG Receipt', reason: undefined };
+  }
+
+  if (session.workflow_status === 'APPROVED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Final QC Failed',
+      reason: 'Final QC is approved, but the result is not PASS.',
+    };
+  }
+
+  if (session.workflow_status === 'REJECTED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Final QC Rejected',
+      reason: 'Final QC was rejected. Resolve QC before sending FG to warehouse.',
+    };
+  }
+
+  if (session.workflow_status === 'SUBMITTED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Awaiting QC Approval',
+      reason: 'Final QC is submitted and waiting for QA approval.',
+    };
+  }
+
+  return {
+    canSendFG: false,
+    actionLabel: 'Submit Final QC',
+    reason: 'Final QC is still in draft. Submit it for QA approval first.',
+  };
+}
+
+function getProductionQCWorkflowBadge(status: string) {
+  const config: Record<string, { label: string; className: string }> = {
+    DRAFT: {
+      label: 'Draft',
+      className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+    },
+    SUBMITTED: {
+      label: 'Submitted',
+      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    },
+    APPROVED: {
+      label: 'Approved',
+      className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    },
+    REJECTED: {
+      label: 'Rejected',
+      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    },
+  };
+
+  return config[status] ?? config.DRAFT;
+}
+
 function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
@@ -160,6 +232,13 @@ function RunDetailPage() {
   );
   const existingFGReceipt = lockedFGReceipt || editableFGReceipt;
   const canEditFGReceipt = !lockedFGReceipt;
+  const latestFinalQC = [...qcSessions]
+    .filter((session) => session.session_type === 'FINAL')
+    .sort((a, b) => {
+      const checkedAtDiff = new Date(b.checked_at).getTime() - new Date(a.checked_at).getTime();
+      return checkedAtDiff || b.id - a.id;
+    })[0];
+  const finalQCGate = getFinalQCGate(latestFinalQC);
   const hasActiveSegment = run?.segments?.some((s) => s.is_active) ?? false;
   const hasActiveBreakdown = run?.breakdowns?.some((b) => b.is_active) ?? false;
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && run?.status === 'IN_PROGRESS';
@@ -292,6 +371,11 @@ function RunDetailPage() {
   };
 
   const handleCreateFGReceipt = async () => {
+    if (!run) return;
+    if (!finalQCGate.canSendFG) {
+      toast.error(finalQCGate.reason || 'Final QC approval is required');
+      return;
+    }
     if (!selectedFGWarehouse) {
       setFGWarehouseError('Select a warehouse');
       return;
@@ -437,15 +521,27 @@ function RunDetailPage() {
             <Button
               variant="outline" size="sm"
               disabled={fgReceiptsLoading || createFGReceipt.isPending || !canEditFGReceipt}
-              title={!canEditFGReceipt ? 'Warehouse has already received this FG receipt' : undefined}
+              title={
+                !canEditFGReceipt
+                  ? 'Warehouse has already received this FG receipt'
+                  : finalQCGate.reason
+              }
               onClick={() => {
+                if (!finalQCGate.canSendFG) {
+                  navigate(`/qc/production/runs/${run.id}?new=final`);
+                  return;
+                }
                 setSelectedFGWarehouse(editableFGReceipt?.warehouse || '');
                 setFGWarehouseError('');
                 setDialog('fg-receipt');
               }}
             >
               {fgReceiptsLoading || createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
-              {fgReceiptsLoading ? 'Loading FG Receipt...' : getFGReceiptButtonLabel(existingFGReceipt)}
+              {fgReceiptsLoading
+                ? 'Loading FG Receipt...'
+                : finalQCGate.canSendFG
+                  ? getFGReceiptButtonLabel(existingFGReceipt)
+                  : finalQCGate.actionLabel}
             </Button>
           )}
         </div>
@@ -571,49 +667,49 @@ function RunDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {qcSessions.map((s) => (
-                      <tr
-                        key={s.id}
-                        className="border-b cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/qc/production/sessions/${s.id}`)}
-                      >
-                        <td className="p-2 font-medium">#{s.session_number}</td>
-                        <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.session_type === 'FINAL'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                              : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
-                          }`}>
-                            {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
-                          </span>
-                        </td>
-                        <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
-                        <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
-                        <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
-                        <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.workflow_status === 'SUBMITTED'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                          }`}>
-                            {s.workflow_status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
-                          </span>
-                        </td>
-                        <td className="p-2">
-                          {s.overall_result ? (
+                    {qcSessions.map((s) => {
+                      const workflowBadge = getProductionQCWorkflowBadge(s.workflow_status);
+
+                      return (
+                        <tr
+                          key={s.id}
+                          className="border-b cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/qc/production/sessions/${s.id}`)}
+                        >
+                          <td className="p-2 font-medium">#{s.session_number}</td>
+                          <td className="p-2">
                             <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                              s.overall_result === 'PASS'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              s.session_type === 'FINAL'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                                : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
                             }`}>
-                              {s.overall_result}
+                              {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
                             </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
+                          <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
+                          <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
+                          <td className="p-2">
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${workflowBadge.className}`}>
+                              {workflowBadge.label}
+                            </span>
+                          </td>
+                          <td className="p-2">
+                            {s.overall_result ? (
+                              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                s.overall_result === 'PASS'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              }`}>
+                                {s.overall_result}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}

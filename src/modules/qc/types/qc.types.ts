@@ -236,7 +236,7 @@ export interface ApprovalRequest {
 
 export type ProductionQCSessionType = 'IN_PROCESS' | 'FINAL';
 
-export type ProductionQCWorkflowStatus = 'DRAFT' | 'SUBMITTED';
+export type ProductionQCWorkflowStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 
 export type ProductionQCOverallResult = 'PASS' | 'FAIL' | '';
 
@@ -308,6 +308,8 @@ export interface ProductionQCSessionListItem {
 export interface ProductionQCCounts {
   draft: number;
   submitted: number;
+  approved?: number;
+  rejected?: number;
 }
 
 // Create session request
@@ -332,6 +334,15 @@ export interface ProductionQCSubmitRequest {
   overall_result: 'PASS' | 'FAIL';
 }
 
+export interface ProductionQCApprovalRequest {
+  remarks?: string;
+  overall_result?: 'PASS' | 'FAIL';
+}
+
+export interface ProductionQCRejectRequest {
+  remarks?: string;
+}
+
 // Production QC list filter params
 export interface ProductionQCListParams {
   workflow_status?: ProductionQCWorkflowStatus;
@@ -341,4 +352,3 @@ export interface ProductionQCListParams {
   date_from?: string;
   date_to?: string;
 }
-

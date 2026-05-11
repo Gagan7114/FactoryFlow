@@ -8,6 +8,8 @@ import type {
   CreateProductionQCSessionRequest,
   UpdateProductionQCResultRequest,
   ProductionQCSubmitRequest,
+  ProductionQCApprovalRequest,
+  ProductionQCRejectRequest,
   ProductionQCListParams,
 } from '../../types';
 
@@ -27,6 +29,14 @@ export const productionQCApi = {
   async counts(): Promise<ProductionQCCounts> {
     const response = await apiClient.get<ProductionQCCounts>(
       EP.PRODUCTION_QC_COUNTS,
+    );
+    return response.data;
+  },
+
+  // Sessions submitted by production/QC and awaiting QA approval
+  async pending(): Promise<ProductionQCSessionListItem[]> {
+    const response = await apiClient.get<ProductionQCSessionListItem[]>(
+      EP.PRODUCTION_QC_PENDING,
     );
     return response.data;
   },
@@ -87,6 +97,28 @@ export const productionQCApi = {
   ): Promise<ProductionQCSession> {
     const response = await apiClient.post<ProductionQCSession>(
       EP.PRODUCTION_QC_SESSION_SUBMIT(sessionId),
+      data,
+    );
+    return response.data;
+  },
+
+  async approveSession(
+    sessionId: number,
+    data: ProductionQCApprovalRequest,
+  ): Promise<ProductionQCSession> {
+    const response = await apiClient.post<ProductionQCSession>(
+      EP.PRODUCTION_QC_SESSION_APPROVE(sessionId),
+      data,
+    );
+    return response.data;
+  },
+
+  async rejectSession(
+    sessionId: number,
+    data: ProductionQCRejectRequest,
+  ): Promise<ProductionQCSession> {
+    const response = await apiClient.post<ProductionQCSession>(
+      EP.PRODUCTION_QC_SESSION_REJECT(sessionId),
       data,
     );
     return response.data;
