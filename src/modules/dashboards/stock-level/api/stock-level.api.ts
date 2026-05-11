@@ -40,6 +40,7 @@ function buildParams(filters?: StockDashboardFilters): Record<string, string | n
   if (filters.sort_by) p.sort_by = filters.sort_by;
   if (filters.sort_dir) p.sort_dir = filters.sort_dir;
   if (filters.page) p.page = filters.page;
+  if (filters.page_size) p.page_size = filters.page_size;
   if (filters.status?.length) p.status = filters.status.join(',');
   if (filters.movement_status?.length) p.movement_status = filters.movement_status.join(',');
   return p;

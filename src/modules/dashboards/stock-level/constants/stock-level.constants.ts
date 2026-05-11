@@ -12,7 +12,13 @@ export const STOCK_STATUS_FILTER_OPTIONS = [
   { value: 'unset', label: 'No Minimum' },
 ] as const;
 
-export const DEFAULT_STOCK_STATUS_FILTER: StockHealthStatus[] = ['low', 'critical'];
+export const DEFAULT_STOCK_WAREHOUSE_FILTER = ['BH-BS', 'BH-PM'];
+export const DEFAULT_STOCK_STATUS_FILTER: StockHealthStatus[] = ['healthy', 'low', 'critical'];
+export const STOCK_BENCHMARK_STATS_STATUS_FILTER: StockHealthStatus[] = [
+  'healthy',
+  'low',
+  'critical',
+];
 
 export const STOCK_MOVEMENT_FILTER_OPTIONS = [
   { value: 'planned', label: 'Planned' },
@@ -20,7 +26,7 @@ export const STOCK_MOVEMENT_FILTER_OPTIONS = [
   { value: 'slow', label: 'Slow Moving' },
 ] as const;
 
-export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = ['planned', 'recent'];
+export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = [];
 
 // ============================================================================
 // Query Config

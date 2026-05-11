@@ -12,7 +12,12 @@ import {
 } from '../../utils/itemGroupDefaults';
 import { useStockLevels } from '../api';
 import { StockLevelFilters, StockLevelMetaCards, StockLevelTable } from '../components';
-import { DEFAULT_STOCK_MOVEMENT_FILTER, DEFAULT_STOCK_STATUS_FILTER } from '../constants';
+import {
+  DEFAULT_STOCK_MOVEMENT_FILTER,
+  DEFAULT_STOCK_STATUS_FILTER,
+  DEFAULT_STOCK_WAREHOUSE_FILTER,
+  STOCK_BENCHMARK_STATS_STATUS_FILTER,
+} from '../constants';
 import type { StockDashboardFilters, StockSortCol } from '../types';
 
 function isSAPError(err: unknown): err is ApiError {
@@ -34,6 +39,7 @@ export default function StockLevelDashboardPage() {
     return {
       ...(search ? { search } : {}),
       ...(itemGroup ? { item_group: itemGroup } : {}),
+      warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: [...DEFAULT_STOCK_STATUS_FILTER],
       movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
     };
@@ -81,7 +87,20 @@ export default function StockLevelDashboardPage() {
     { ...effectiveFilters, sort_by: sort.col, sort_dir: sort.dir, page },
     materialTypesResolved,
   );
+  const statsQuery = useStockLevels(
+    {
+      item_group: defaultItemGroup,
+      warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
+      status: [...STOCK_BENCHMARK_STATS_STATUS_FILTER],
+      page: 1,
+      page_size: 1,
+    },
+    materialTypesResolved,
+  );
   const meta = query.data?.meta;
+  const statsMeta = statsQuery.data?.meta;
+  const sapError = query.error ?? statsQuery.error;
+  const hasSAPError = sapError && isSAPError(sapError);
 
   return (
     <div className="space-y-6 p-6">
@@ -92,20 +111,26 @@ export default function StockLevelDashboardPage() {
 
       <StockLevelFilters
         onFiltersChange={handleFiltersChange}
-        isFetching={itemGroupsQuery.isFetching || query.isFetching}
+        isFetching={itemGroupsQuery.isFetching || query.isFetching || statsQuery.isFetching}
         defaultValues={effectiveFilters}
         warehouses={meta?.warehouses ?? []}
         itemGroups={itemGroups}
         defaultItemGroup={defaultItemGroup}
       />
 
-      {query.isError && isSAPError(query.error) && (
-        <SAPUnavailableBanner error={query.error as ApiError} onRetry={query.refetch} />
+      {hasSAPError && (
+        <SAPUnavailableBanner
+          error={sapError as ApiError}
+          onRetry={() => {
+            void query.refetch();
+            void statsQuery.refetch();
+          }}
+        />
       )}
 
-      {!(query.isError && isSAPError(query.error)) && (
+      {!hasSAPError && (
         <>
-          <StockLevelMetaCards meta={meta} />
+          <StockLevelMetaCards meta={statsMeta} />
           <StockLevelTable
             items={query.data?.data ?? []}
             isLoading={query.isLoading || query.isFetching}

@@ -15,6 +15,7 @@ import { ALL_MATERIAL_TYPES_VALUE } from '../../utils/itemGroupDefaults';
 import {
   DEFAULT_STOCK_MOVEMENT_FILTER,
   DEFAULT_STOCK_STATUS_FILTER,
+  DEFAULT_STOCK_WAREHOUSE_FILTER,
   STOCK_MOVEMENT_FILTER_OPTIONS,
   STOCK_STATUS_FILTER_OPTIONS,
 } from '../constants';
@@ -68,7 +69,7 @@ export function StockLevelFilters({
     defaultValues: {
       search: defaultValues?.search ?? '',
       item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
-      warehouse: defaultValues?.warehouse ?? [],
+      warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
       movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
     },
@@ -107,7 +108,7 @@ export function StockLevelFilters({
     const resetValues = {
       search: '',
       item_group: defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
-      warehouse: [],
+      warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: [...DEFAULT_STOCK_STATUS_FILTER],
       movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
     };

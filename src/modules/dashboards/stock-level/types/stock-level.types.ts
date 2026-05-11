@@ -26,6 +26,7 @@ export interface StockDashboardFilters {
   sort_by?: StockSortCol;
   sort_dir?: 'asc' | 'desc';
   page?: number;
+  page_size?: number;
 }
 
 // ============================================================================
