@@ -61,6 +61,9 @@ export default function NonMovingDashboardPage() {
 
   const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
+    result = result.filter(
+      (item) => item.days_since_last_movement >= effectiveFilters.age,
+    );
     if (effectiveFilters.warehouse?.length) {
       result = result.filter((item) => effectiveFilters.warehouse!.includes(item.warehouse));
     }
@@ -80,6 +83,7 @@ export default function NonMovingDashboardPage() {
     return result;
   }, [
     reportQuery.data,
+    effectiveFilters.age,
     effectiveFilters.warehouse,
     effectiveFilters.sub_group,
     effectiveFilters.search,
