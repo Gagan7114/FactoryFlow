@@ -168,6 +168,12 @@ export const API_ENDPOINTS = {
     POST: '/grpo/post/',
     HISTORY: '/grpo/history/',
     DETAIL: (postingId: number) => `/grpo/${postingId}/`,
+    SERVICE_PENDING: '/grpo/service/pending/',
+    SERVICE_OPTIONS: '/grpo/service/options/',
+    SERVICE_PREVIEW: (dispatchPlanId: number) => `/grpo/service/preview/${dispatchPlanId}/`,
+    SERVICE_POST: '/grpo/service/post/',
+    SERVICE_HISTORY: '/grpo/service/history/',
+    SERVICE_DETAIL: (postingId: number) => `/grpo/service/${postingId}/`,
     ATTACHMENTS: (postingId: number) => `/grpo/${postingId}/attachments/`,
     ATTACHMENT_DELETE: (postingId: number, attachmentId: number) =>
       `/grpo/${postingId}/attachments/${attachmentId}/`,

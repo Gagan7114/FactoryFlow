@@ -11,6 +11,13 @@ const AllEntriesPage = lazy(() => import('./pages/AllEntriesPage'));
 const GRPOPreviewPage = lazy(() => import('./pages/GRPOPreviewPage'));
 const GRPOHistoryPage = lazy(() => import('./pages/GRPOHistoryPage'));
 const GRPOHistoryDetailPage = lazy(() => import('./pages/GRPOHistoryDetailPage'));
+const ServiceGRPODashboardPage = lazy(() => import('./pages/ServiceGRPODashboardPage'));
+const ServicePendingEntriesPage = lazy(() => import('./pages/ServicePendingEntriesPage'));
+const ServiceGRPOPreviewPage = lazy(() => import('./pages/ServiceGRPOPreviewPage'));
+const ServiceGRPOHistoryPage = lazy(() => import('./pages/ServiceGRPOHistoryPage'));
+const ServiceGRPOHistoryDetailPage = lazy(
+  () => import('./pages/ServiceGRPOHistoryDetailPage'),
+);
 
 /**
  * GRPO module configuration
@@ -64,6 +71,37 @@ export const grpoModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.VIEW_POSTING],
     },
+    {
+      path: '/grpo/service',
+      element: <ServiceGRPODashboardPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+      breadcrumb: { label: 'Service GRPO' },
+    },
+    {
+      path: '/grpo/service/pending',
+      element: <ServicePendingEntriesPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+    },
+    {
+      path: '/grpo/service/preview/:dispatchPlanId',
+      element: <ServiceGRPOPreviewPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.PREVIEW],
+    },
+    {
+      path: '/grpo/service/history',
+      element: <ServiceGRPOHistoryPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
+    },
+    {
+      path: '/grpo/service/history/:postingId',
+      element: <ServiceGRPOHistoryDetailPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_POSTING],
+    },
   ],
   navigation: [
     {
@@ -92,6 +130,21 @@ export const grpoModuleConfig: ModuleConfig = {
         {
           path: '/grpo/history',
           title: 'Posting History',
+          permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
+        },
+        {
+          path: '/grpo/service',
+          title: 'Service GRPO',
+          permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+        },
+        {
+          path: '/grpo/service/pending',
+          title: 'Service Pending',
+          permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+        },
+        {
+          path: '/grpo/service/history',
+          title: 'Service History',
           permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
         },
       ],

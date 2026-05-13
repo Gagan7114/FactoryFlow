@@ -12,6 +12,7 @@ import { notificationsModuleConfig } from '@/modules/notifications/module.config
 import { productionModuleConfig } from '@/modules/production/module.config';
 import { qcModuleConfig } from '@/modules/qc/module.config';
 import { settingsModuleConfig } from '@/modules/settings/module.config';
+import { vehicleManagementModuleConfig } from '@/modules/vehicle-management/module.config';
 import { warehouseModuleConfig } from '@/modules/warehouse/module.config';
 
 /**
@@ -23,6 +24,7 @@ export const moduleRegistry: ModuleConfig[] = [
   dashboardModuleConfig,
   dashboardsModuleConfig,
   gateModuleConfig,
+  vehicleManagementModuleConfig,
   qcModuleConfig,
   grpoModuleConfig,
   productionModuleConfig,
