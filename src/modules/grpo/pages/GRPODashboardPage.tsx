@@ -27,21 +27,21 @@ const STATUS_CONFIG = {
     color: 'text-yellow-600 dark:text-yellow-400',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
     icon: Clock,
-    link: '/grpo/history?status=pending',
+    link: '/grpo/material/history?status=pending',
   },
   posted: {
     label: 'Posted',
     color: 'text-green-600 dark:text-green-400',
     bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
     icon: CheckCircle2,
-    link: '/grpo/history?status=posted',
+    link: '/grpo/material/history?status=posted',
   },
   failed: {
     label: 'Failed',
     color: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
     icon: XCircle,
-    link: '/grpo/history?status=failed',
+    link: '/grpo/material/history?status=failed',
   },
 };
 
@@ -108,7 +108,7 @@ export default function GRPODashboardPage() {
             Post goods receipts to SAP after gate entry completion
           </p>
         </div>
-        <Button onClick={() => navigate('/grpo/pending')} className="w-full sm:w-auto">
+        <Button onClick={() => navigate('/grpo/material/pending')} className="w-full sm:w-auto">
           <List className="h-4 w-4 mr-2" />
           View Pending
         </Button>
@@ -155,7 +155,7 @@ export default function GRPODashboardPage() {
           {/* Summary Card */}
           <Card
             className="bg-primary/5 border-primary/20 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate('/grpo/pending')}
+            onClick={() => navigate('/grpo/material/pending')}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -188,7 +188,7 @@ export default function GRPODashboardPage() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-muted-foreground">Recent Pending Entries</h3>
               <button
-                onClick={() => navigate('/grpo/pending')}
+                onClick={() => navigate('/grpo/material/pending')}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               >
                 Show more
@@ -208,7 +208,7 @@ export default function GRPODashboardPage() {
                     <div
                       key={entry.vehicle_entry_id}
                       className="flex items-center justify-between px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/grpo/preview/${entry.vehicle_entry_id}`)}
+                      onClick={() => navigate(`/grpo/material/preview/${entry.vehicle_entry_id}`)}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span className="font-medium text-sm">{entry.entry_no}</span>
@@ -265,7 +265,7 @@ export default function GRPODashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto py-3 flex flex-col items-center gap-1"
-                onClick={() => navigate('/grpo/pending')}
+                onClick={() => navigate('/grpo/material/pending')}
               >
                 <List className="h-5 w-5" />
                 <span className="text-xs">Pending Entries</span>
@@ -273,7 +273,7 @@ export default function GRPODashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto py-3 flex flex-col items-center gap-1"
-                onClick={() => navigate('/grpo/all-entries')}
+                onClick={() => navigate('/grpo/material/all-entries')}
               >
                 <Layers className="h-5 w-5" />
                 <span className="text-xs">All Entries</span>
@@ -281,7 +281,7 @@ export default function GRPODashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto py-3 flex flex-col items-center gap-1"
-                onClick={() => navigate('/grpo/history')}
+                onClick={() => navigate('/grpo/material/history')}
               >
                 <History className="h-5 w-5" />
                 <span className="text-xs">Posting History</span>

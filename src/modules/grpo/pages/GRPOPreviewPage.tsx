@@ -437,7 +437,7 @@ export default function GRPOPreviewPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/pending')}
+              onClick={() => navigate('/grpo/material/pending')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -1229,7 +1229,7 @@ export default function GRPOPreviewPage() {
               className="w-full"
               onClick={() => {
                 setSuccessResult(null);
-                navigate('/grpo/history');
+                navigate('/grpo/material/history');
               }}
             >
               View History

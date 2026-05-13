@@ -72,6 +72,53 @@ export const API_ENDPOINTS = {
   GATE_CORE: {
     FULL_VIEW: (entryId: number) => `/gate-core/raw-material-gate-entry/${entryId}/`,
     COMPLETE: (entryId: number) => `/raw-material-gatein/gate-entries/${entryId}/complete/`,
+    REJECTED_QC_RETURNS: '/gate-core/rejected-qc-returns/',
+    REJECTED_QC_RETURN_BY_ID: (id: number) => `/gate-core/rejected-qc-returns/${id}/`,
+    EMPTY_VEHICLE_IN_REASONS: '/gate-core/empty-vehicle-ins/reasons/',
+    EMPTY_VEHICLE_IN_ELIGIBLE: '/gate-core/empty-vehicle-ins/eligible/',
+    EMPTY_VEHICLE_INS: '/gate-core/empty-vehicle-ins/',
+    EMPTY_VEHICLE_IN_BY_ID: (id: number) => `/gate-core/empty-vehicle-ins/${id}/`,
+    EMPTY_VEHICLE_ELIGIBLE_ENTRIES: '/gate-core/empty-vehicle-outs/eligible-entries/',
+    EMPTY_VEHICLE_OUTS: '/gate-core/empty-vehicle-outs/',
+    EMPTY_VEHICLE_OUT_BY_ID: (id: number) => `/gate-core/empty-vehicle-outs/${id}/`,
+    EMPTY_VEHICLE_OUT_CANCEL_BY_ID: (id: number) =>
+      `/gate-core/empty-vehicle-outs/${id}/cancel/`,
+    BST_OUT_SAP_TRANSFERS: '/gate-core/bst-outs/sap-transfers/',
+    BST_OUT_SAP_TRANSFER_BY_DOC_ENTRY: (docEntry: number) =>
+      `/gate-core/bst-outs/sap-transfers/${docEntry}/`,
+    BST_OUTS: '/gate-core/bst-outs/',
+    BST_OUT_BY_ID: (id: number) => `/gate-core/bst-outs/${id}/`,
+    BST_OUT_CANCEL_BY_ID: (id: number) => `/gate-core/bst-outs/${id}/cancel/`,
+    BST_OUT_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/`,
+    BST_OUT_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/complete/`,
+    BST_IN_ELIGIBLE_OUTS: '/gate-core/bst-ins/eligible-outs/',
+    BST_INS: '/gate-core/bst-ins/',
+    BST_IN_BY_ID: (id: number) => `/gate-core/bst-ins/${id}/`,
+    BST_IN_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-ins/by-vehicle-entry/${vehicleEntryId}/`,
+    BST_IN_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-ins/by-vehicle-entry/${vehicleEntryId}/complete/`,
+    BST_RETURN_ELIGIBLE_OUTS: '/gate-core/bst-returns/eligible-outs/',
+    BST_RETURNS: '/gate-core/bst-returns/',
+    BST_RETURN_BY_ID: (id: number) => `/gate-core/bst-returns/${id}/`,
+    BST_RETURN_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-returns/by-vehicle-entry/${vehicleEntryId}/`,
+    BST_RETURN_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/bst-returns/by-vehicle-entry/${vehicleEntryId}/complete/`,
+    JOB_WORK_SAP_GRPOS: '/gate-core/job-work/sap-grpos/',
+    JOB_WORK_SAP_GRPO_BY_DOC_ENTRY: (docEntry: number) =>
+      `/gate-core/job-work/sap-grpos/${docEntry}/`,
+    JOB_WORK_SAP_PRODUCTION_ORDERS: '/gate-core/job-work/sap-production-orders/',
+    JOB_WORK_SAP_PRODUCTION_ORDER_BY_DOC_ENTRY: (docEntry: number) =>
+      `/gate-core/job-work/sap-production-orders/${docEntry}/`,
+    JOB_WORKS: '/gate-core/job-work/',
+    JOB_WORK_BY_ID: (id: number) => `/gate-core/job-work/${id}/`,
+    JOB_WORK_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/job-work/by-vehicle-entry/${vehicleEntryId}/`,
+    JOB_WORK_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/job-work/by-vehicle-entry/${vehicleEntryId}/complete/`,
   },
   // Daily Needs Gate In
   DAILY_NEEDS_GATEIN: {
@@ -131,6 +178,7 @@ export const API_ENDPOINTS = {
     AWAITING_QAM: '/quality-control/inspections/awaiting-qam/',
     COMPLETED_INSPECTIONS: '/quality-control/inspections/completed/',
     REJECTED_INSPECTIONS: '/quality-control/inspections/rejected/',
+    RETURN_TO_VENDOR_INSPECTIONS: '/quality-control/inspections/return-to-vendor/',
     INSPECTION_COUNTS: '/quality-control/inspections/counts/',
     INSPECTION_BY_ID: (id: number) => `/quality-control/inspections/${id}/`,
     INSPECTION_FOR_SLIP: (slipId: number) => `/quality-control/arrival-slips/${slipId}/inspection/`,
@@ -142,6 +190,8 @@ export const API_ENDPOINTS = {
     APPROVE_CHEMIST: (id: number) => `/quality-control/inspections/${id}/approve/chemist/`,
     APPROVE_QAM: (id: number) => `/quality-control/inspections/${id}/approve/qam/`,
     REJECT_INSPECTION: (id: number) => `/quality-control/inspections/${id}/reject/`,
+    FACTORY_HEAD_DECISION: (id: number) =>
+      `/quality-control/inspections/${id}/factory-head-decision/`,
 
     // Production QC
     PRODUCTION_QC_LIST: '/quality-control/production-qc/',

@@ -64,6 +64,7 @@ export interface VehicleSelection {
   transporterName: string;
   transporterContactPerson: string;
   transporterMobile: string;
+  transporterGstin?: string;
 }
 
 export interface DriverSelection {

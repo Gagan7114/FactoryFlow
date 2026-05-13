@@ -49,7 +49,7 @@ export default function GRPOHistoryDetailPage() {
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0"
-          onClick={() => navigate('/grpo/history')}
+          onClick={() => navigate('/grpo/material/history')}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -195,7 +195,7 @@ export default function GRPOHistoryDetailPage() {
           )}
 
           {/* Back Button */}
-          <Button variant="outline" onClick={() => navigate('/grpo/history')}>
+          <Button variant="outline" onClick={() => navigate('/grpo/material/history')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to History
           </Button>

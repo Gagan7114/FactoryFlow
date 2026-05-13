@@ -66,6 +66,7 @@ export function CreateTransporterDialog({
       name: '',
       contact_person: '',
       mobile_no: '',
+      gstin: '',
     },
   });
 
@@ -93,6 +94,7 @@ export function CreateTransporterDialog({
       name: transporterData.name,
       contact_person: transporterData.contact_person,
       mobile_no: transporterData.mobile_no,
+      gstin: transporterData.gstin,
     });
   }, [open, isEditMode, transporterData, reset]);
 
@@ -138,7 +140,7 @@ export function CreateTransporterDialog({
           <DialogDescription>
             {isEditMode
               ? 'Update the transporter details below.'
-              : 'Fill in the details to create a new transporter. All fields are required.'}
+              : 'Fill in the details to create a new transporter.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -203,6 +205,25 @@ export function CreateTransporterDialog({
             )}
             {apiErrors.mobile_no && !errors.mobile_no && (
               <p className="text-sm text-destructive">{apiErrors.mobile_no}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="gstin">GSTIN</Label>
+            <Input
+              id="gstin"
+              placeholder="Enter transporter GSTIN"
+              {...register('gstin', {
+                onChange: (e) => {
+                  e.target.value = e.target.value.toUpperCase().replace(/\s/g, '');
+                },
+              })}
+              disabled={mutation.isPending}
+              className={errors.gstin || apiErrors.gstin ? 'border-destructive' : ''}
+            />
+            {errors.gstin && <p className="text-sm text-destructive">{errors.gstin.message}</p>}
+            {apiErrors.gstin && !errors.gstin && (
+              <p className="text-sm text-destructive">{apiErrors.gstin}</p>
             )}
           </div>
 

@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   Briefcase,
   Car,
-  CheckCircle2,
   Clock,
   FileText,
   LogOut,
@@ -14,6 +13,7 @@ import {
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { GateStatusBadge } from '@/modules/gate/components';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
 
 import {
@@ -74,35 +74,6 @@ export default function EntryDetailPage() {
       return `${diffMins}m`;
     } catch {
       return '-';
-    }
-  };
-
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'IN':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <CheckCircle2 className="h-4 w-4" />
-            Inside
-          </span>
-        );
-      case 'OUT':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            <LogOut className="h-4 w-4" />
-            Exited
-          </span>
-        );
-      case 'CANCELLED':
-        return (
-          <span className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
-            <XCircle className="h-4 w-4" />
-            Cancelled
-          </span>
-        );
-      default:
-        return null;
     }
   };
 
@@ -169,7 +140,16 @@ export default function EntryDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-3xl font-bold tracking-tight">{entry.name_snapshot}</h2>
-              {getStatusBadge(entry.status)}
+              <GateStatusBadge
+                status={entry.status}
+                label={
+                  entry.status === 'IN'
+                    ? 'Inside'
+                    : entry.status === 'OUT'
+                      ? 'Exited'
+                      : entry.status
+                }
+              />
             </div>
             <p className="text-muted-foreground">{isVisitor ? 'Visitor' : 'Labour'} Entry</p>
           </div>

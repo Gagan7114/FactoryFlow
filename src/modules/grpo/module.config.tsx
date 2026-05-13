@@ -1,5 +1,6 @@
 import { PackageCheck } from 'lucide-react';
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { GRPO_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -31,40 +32,77 @@ export const grpoModuleConfig: ModuleConfig = {
     // Dashboard - requires pending view permission
     {
       path: '/grpo',
-      element: <GRPODashboardPage />,
+      element: <Navigate to="/grpo/material" replace />,
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
       breadcrumb: { label: 'GRPO' },
     },
+    {
+      path: '/grpo/material',
+      element: <GRPODashboardPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+      breadcrumb: { label: 'Material GRPO' },
+    },
     // Pending entries list
     {
-      path: '/grpo/pending',
+      path: '/grpo/material/pending',
       element: <PendingEntriesPage />,
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
     },
     // All entries list (gate / QC / done)
     {
-      path: '/grpo/all-entries',
+      path: '/grpo/material/all-entries',
       element: <AllEntriesPage />,
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
     },
     // Preview and post GRPO
     {
-      path: '/grpo/preview/:vehicleEntryId',
+      path: '/grpo/material/preview/:vehicleEntryId',
       element: <GRPOPreviewPage />,
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.PREVIEW],
     },
     // Posting history
     {
-      path: '/grpo/history',
+      path: '/grpo/material/history',
       element: <GRPOHistoryPage />,
       layout: 'main',
       permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
     },
     // Posting detail
+    {
+      path: '/grpo/material/history/:postingId',
+      element: <GRPOHistoryDetailPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_POSTING],
+    },
+    {
+      path: '/grpo/pending',
+      element: <Navigate to="/grpo/material/pending" replace />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+    },
+    {
+      path: '/grpo/all-entries',
+      element: <Navigate to="/grpo/material/all-entries" replace />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+    },
+    {
+      path: '/grpo/preview/:vehicleEntryId',
+      element: <GRPOPreviewPage />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.PREVIEW],
+    },
+    {
+      path: '/grpo/history',
+      element: <Navigate to="/grpo/material/history" replace />,
+      layout: 'main',
+      permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
+    },
     {
       path: '/grpo/history/:postingId',
       element: <GRPOHistoryDetailPage />,
@@ -113,23 +151,23 @@ export const grpoModuleConfig: ModuleConfig = {
       hasSubmenu: true,
       children: [
         {
-          path: '/grpo',
-          title: 'Dashboard',
+          path: '/grpo/material',
+          title: 'Material GRPO',
           permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
         },
         {
-          path: '/grpo/pending',
-          title: 'Pending Entries',
+          path: '/grpo/material/pending',
+          title: 'Material Pending',
           permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
         },
         {
-          path: '/grpo/all-entries',
-          title: 'All Entries',
+          path: '/grpo/material/all-entries',
+          title: 'Material All Entries',
           permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
         },
         {
-          path: '/grpo/history',
-          title: 'Posting History',
+          path: '/grpo/material/history',
+          title: 'Material History',
           permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
         },
         {

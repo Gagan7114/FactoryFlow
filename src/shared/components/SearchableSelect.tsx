@@ -26,6 +26,7 @@ export interface SearchableSelectProps<TItem> {
   disabled?: boolean;
   error?: string;
   label?: string;
+  labelAction?: ReactNode;
   required?: boolean;
   inputId: string;
   inputClassName?: string;
@@ -71,6 +72,7 @@ export function SearchableSelect<TItem>({
   disabled = false,
   error,
   label,
+  labelAction,
   required = false,
   inputId,
   inputClassName,
@@ -105,7 +107,10 @@ export function SearchableSelect<TItem>({
 
   // Notify parent of debounced search changes (for server-side search)
   const onSearchChangeRef = useRef(onSearchChange);
-  onSearchChangeRef.current = onSearchChange;
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  }, [onSearchChange]);
+
   useEffect(() => {
     onSearchChangeRef.current?.(debouncedSearch);
   }, [debouncedSearch]);
@@ -141,7 +146,7 @@ export function SearchableSelect<TItem>({
     if (defaultDisplayText !== prevDefaultDisplayTextRef.current) {
       prevDefaultDisplayTextRef.current = defaultDisplayText;
       if (defaultDisplayText) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state with props
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state with props.
         setSearchTerm(defaultDisplayText);
       }
     }
@@ -150,7 +155,9 @@ export function SearchableSelect<TItem>({
   // Sync search term with value prop — uses refs for items to avoid
   // re-running when items change (which would steal focus during server-side search)
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   const syncWithValue = useCallback(() => {
     const currentItems = itemsRef.current;
@@ -184,7 +191,6 @@ export function SearchableSelect<TItem>({
   useEffect(() => {
     const shouldSync = value !== prevValueRef.current || (!hadItemsRef.current && items.length > 0);
     if (shouldSync) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state with props
       syncWithValue();
       prevValueRef.current = value;
     }
@@ -248,32 +254,32 @@ export function SearchableSelect<TItem>({
 
   return (
     <div className="space-y-2">
-      {label &&
-        (renderPopoverContent ? (
+      {label && (
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <Label htmlFor={inputId}>
               {label} {required && <span className="text-destructive">*</span>}
             </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <HelpCircle className="h-4 w-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80" align="start">
-                {renderPopoverContent(selectedKey)}
-              </PopoverContent>
-            </Popover>
+            {renderPopoverContent && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  {renderPopoverContent(selectedKey)}
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
-        ) : (
-          <Label htmlFor={inputId}>
-            {label} {required && <span className="text-destructive">*</span>}
-          </Label>
-        ))}
+          {labelAction}
+        </div>
+      )}
       <div ref={containerRef} className="relative">
         <div className="relative">
           <Input

@@ -13,6 +13,7 @@ export interface Transporter {
   name: string;
   contact_person: string;
   mobile_no: string;
+  gstin: string;
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ export interface CreateTransporterRequest {
   name: string;
   contact_person: string;
   mobile_no: string;
+  gstin: string;
 }
 
 export interface UpdateTransporterRequest extends CreateTransporterRequest {
@@ -58,6 +60,7 @@ export const transporterApi = {
     formData.append('name', data.name);
     formData.append('contact_person', data.contact_person);
     formData.append('mobile_no', data.mobile_no);
+    formData.append('gstin', data.gstin);
 
     const response = await apiClient.put<Transporter>(
       API_ENDPOINTS.VEHICLE.TRANSPORTER_BY_ID(data.id),
@@ -77,6 +80,7 @@ export const transporterApi = {
     formData.append('name', data.name);
     formData.append('contact_person', data.contact_person);
     formData.append('mobile_no', data.mobile_no);
+    formData.append('gstin', data.gstin);
 
     const response = await apiClient.post<Transporter>(
       API_ENDPOINTS.VEHICLE.TRANSPORTERS,

@@ -1,17 +1,12 @@
 import {
   AlertCircle,
-  CheckCircle2,
   ChevronRight,
   ClipboardCheck,
-  Clock,
   Factory,
-  FileText,
   FlaskConical,
   Package,
   RefreshCw,
   ShieldX,
-  UserCheck,
-  XCircle,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -21,22 +16,8 @@ import { useGlobalDateRange } from '@/core/store/hooks';
 import { DateRangePicker } from '@/modules/gate/components';
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
-import {
-  useInspectionCounts,
-} from '../api/inspection/inspection.queries';
+import { useInspectionCounts } from '../api/inspection/inspection.queries';
 import { useProductionQCCounts } from '../api/productionQC';
-import { WORKFLOW_STATUS_CONFIG } from '../constants';
-import type { InspectionListWorkflowStatus } from '../types';
-
-// Status badge styling for arrival slips
-const STATUS_BADGE_CLASSES: Record<InspectionListWorkflowStatus, string> = {
-  NOT_STARTED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  DRAFT: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-  SUBMITTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  QA_CHEMIST_APPROVED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  QAM_APPROVED: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-};
 
 export default function QCDashboardPage() {
   const navigate = useNavigate();
@@ -67,11 +48,9 @@ export default function QCDashboardPage() {
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
 
-  // Arrival slip counts
   const arrivalPending = (countsData?.not_started ?? 0) + (countsData?.draft ?? 0);
   const arrivalAwaiting = (countsData?.awaiting_chemist ?? 0) + (countsData?.awaiting_qam ?? 0);
 
-  // Production QC counts
   const prodDraft = prodQCCounts?.draft ?? 0;
   const prodSubmitted = prodQCCounts?.submitted ?? 0;
   const prodApproved = prodQCCounts?.approved ?? 0;
@@ -79,7 +58,6 @@ export default function QCDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Quality Control</h2>
@@ -100,18 +78,17 @@ export default function QCDashboardPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex h-48 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : (
         <>
-          {/* Error states */}
           {isPermissionError && (
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/5">
-              <ShieldX className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4">
+              <ShieldX className="mt-0.5 h-5 w-5 flex-shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-destructive">Permission Denied</p>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {apiError?.message || 'You do not have permission to view this data.'}
                 </p>
               </div>
@@ -122,11 +99,11 @@ export default function QCDashboardPage() {
           )}
 
           {error && !isPermissionError && (
-            <div className="flex items-start gap-3 p-4 rounded-lg border border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
-              <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-3 rounded-lg border border-yellow-500/50 bg-yellow-50 p-4 dark:bg-yellow-900/10">
+              <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-yellow-800 dark:text-yellow-400">Failed to Load</p>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {apiError?.message || 'An error occurred while loading the dashboard.'}
                 </p>
               </div>
@@ -136,17 +113,15 @@ export default function QCDashboardPage() {
             </div>
           )}
 
-          {/* Submodule Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Arrival Slips Card */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Card
-              className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-blue-500"
+              className="cursor-pointer border-l-4 border-l-blue-500 transition-shadow hover:shadow-md"
               onClick={() => navigate('/qc/arrival-slips')}
             >
               <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-4">
+                <div className="mb-4 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                    <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-900/20">
                       <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
@@ -158,19 +133,19 @@ export default function QCDashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-2 rounded-md bg-yellow-50 dark:bg-yellow-900/10">
+                  <div className="rounded-md bg-yellow-50 p-2 text-center dark:bg-yellow-900/10">
                     <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
                       {arrivalPending}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Pending</p>
                   </div>
-                  <div className="text-center p-2 rounded-md bg-blue-50 dark:bg-blue-900/10">
+                  <div className="rounded-md bg-blue-50 p-2 text-center dark:bg-blue-900/10">
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                       {arrivalAwaiting}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Awaiting</p>
                   </div>
-                  <div className="text-center p-2 rounded-md bg-green-50 dark:bg-green-900/10">
+                  <div className="rounded-md bg-green-50 p-2 text-center dark:bg-green-900/10">
                     <p className="text-lg font-bold text-green-600 dark:text-green-400">
                       {countsData?.completed ?? 0}
                     </p>
@@ -180,15 +155,14 @@ export default function QCDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Production QC Card */}
             <Card
-              className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-emerald-500"
+              className="cursor-pointer border-l-4 border-l-emerald-500 transition-shadow hover:shadow-md"
               onClick={() => navigate('/qc/production')}
             >
               <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-4">
+                <div className="mb-4 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                    <div className="rounded-lg bg-emerald-50 p-2 dark:bg-emerald-900/20">
                       <Factory className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
@@ -200,25 +174,25 @@ export default function QCDashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center p-2 rounded-md bg-gray-50 dark:bg-gray-900/10">
+                  <div className="rounded-md bg-gray-50 p-2 text-center dark:bg-gray-900/10">
                     <p className="text-lg font-bold text-gray-600 dark:text-gray-400">
                       {prodDraft}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Draft</p>
                   </div>
-                  <div className="text-center p-2 rounded-md bg-blue-50 dark:bg-blue-900/10">
+                  <div className="rounded-md bg-blue-50 p-2 text-center dark:bg-blue-900/10">
                     <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
                       {prodSubmitted}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Submitted</p>
                   </div>
-                  <div className="text-center p-2 rounded-md bg-green-50 dark:bg-green-900/10">
+                  <div className="rounded-md bg-green-50 p-2 text-center dark:bg-green-900/10">
                     <p className="text-lg font-bold text-green-600 dark:text-green-400">
                       {prodApproved}
                     </p>
                     <p className="text-[10px] text-muted-foreground">Approved</p>
                   </div>
-                  <div className="text-center p-2 rounded-md bg-red-50 dark:bg-red-900/10">
+                  <div className="rounded-md bg-red-50 p-2 text-center dark:bg-red-900/10">
                     <p className="text-lg font-bold text-red-600 dark:text-red-400">
                       {prodRejected}
                     </p>
@@ -229,13 +203,12 @@ export default function QCDashboardPage() {
             </Card>
           </div>
 
-          {/* Master Data Quick Links */}
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">Master Data</h3>
+            <h3 className="mb-3 text-sm font-medium text-muted-foreground">Master Data</h3>
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
-                className="h-auto py-3 flex flex-col items-center gap-1"
+                className="flex h-auto flex-col items-center gap-1 py-3"
                 onClick={() => navigate('/qc/master/material-types')}
               >
                 <ClipboardCheck className="h-5 w-5" />
@@ -243,7 +216,7 @@ export default function QCDashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-auto py-3 flex flex-col items-center gap-1"
+                className="flex h-auto flex-col items-center gap-1 py-3"
                 onClick={() => navigate('/qc/master/parameters')}
               >
                 <FlaskConical className="h-5 w-5" />
