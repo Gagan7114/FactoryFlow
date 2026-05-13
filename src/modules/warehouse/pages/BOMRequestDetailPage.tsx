@@ -1,6 +1,6 @@
+import { ArrowLeft, Check, Loader2, Package, Send, X } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Check, Loader2, Package, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
@@ -47,6 +47,9 @@ function LineRow({
 }) {
   const stock = line.available_stock ?? 0;
   const required = parseFloat(line.required_qty);
+  const maxApprovalQty = Math.max(stock, 0);
+  const defaultApprovalQty = Math.min(required, maxApprovalQty);
+  const canApproveLine = maxApprovalQty > 0;
   const stockColor =
     stock >= required ? 'text-green-600' : stock > 0 ? 'text-amber-600' : 'text-red-600';
 
@@ -67,10 +70,17 @@ function LineRow({
           <td className="py-2 px-2">
             <Input
               type="number"
+              min={0}
+              max={maxApprovalQty}
+              step="any"
               className="w-24 h-8 text-sm"
               value={approval.approved_qty}
+              disabled={!canApproveLine || approval.status === 'REJECTED'}
               onChange={(e) =>
-                onApprovalChange({ ...approval, approved_qty: parseFloat(e.target.value) || 0 })
+                onApprovalChange({
+                  ...approval,
+                  approved_qty: Math.min(parseFloat(e.target.value) || 0, maxApprovalQty),
+                })
               }
             />
           </td>
@@ -80,7 +90,15 @@ function LineRow({
                 size="sm"
                 variant={approval.status === 'APPROVED' ? 'default' : 'outline'}
                 className="h-7 px-2"
-                onClick={() => onApprovalChange({ ...approval, status: 'APPROVED' })}
+                disabled={!canApproveLine}
+                title={!canApproveLine ? 'No stock available for this material' : undefined}
+                onClick={() => onApprovalChange({
+                  ...approval,
+                  approved_qty: approval.approved_qty > 0
+                    ? Math.min(approval.approved_qty, maxApprovalQty)
+                    : defaultApprovalQty,
+                  status: 'APPROVED',
+                })}
               >
                 <Check className="h-3 w-3" />
               </Button>
@@ -147,10 +165,13 @@ export default function BOMRequestDetailPage() {
   // Initialize approvals from lines
   const getApproval = (line: BOMRequestLine): BOMLineApproval => {
     if (approvals[line.id]) return approvals[line.id];
+    const stock = Math.max(line.available_stock ?? 0, 0);
+    const required = parseFloat(line.required_qty);
+    const approvedQty = Math.min(required, stock);
     return {
       line_id: line.id,
-      approved_qty: parseFloat(line.required_qty),
-      status: 'APPROVED',
+      approved_qty: approvedQty,
+      status: approvedQty > 0 ? 'APPROVED' : 'REJECTED',
     };
   };
 
@@ -158,12 +179,27 @@ export default function BOMRequestDetailPage() {
     setApprovals((prev) => ({ ...prev, [lineId]: a }));
   };
 
+  const pendingApprovalLines = detail?.lines.map((line) => getApproval(line)) ?? [];
+  const hasApprovedLine = pendingApprovalLines.some((line) =>
+    line.status === 'APPROVED' && line.approved_qty > 0
+  );
+
   const handleApprove = async () => {
     if (!detail) return;
-    const lines = detail.lines.map((l) => getApproval(l));
+    if (!hasApprovedLine) {
+      toast.error('No materials have stock available to approve');
+      return;
+    }
     try {
-      await approveMut.mutateAsync({ requestId: detail.id, data: { lines } });
-      toast.success('BOM request approved');
+      const result = await approveMut.mutateAsync({
+        requestId: detail.id,
+        data: { lines: pendingApprovalLines },
+      });
+      toast.success(
+        result.status === 'PARTIALLY_APPROVED'
+          ? 'BOM request partially approved'
+          : 'BOM request approved',
+      );
     } catch {
       // Error handled by interceptor
     }
@@ -217,7 +253,7 @@ export default function BOMRequestDetailPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground">Required Qty</p>
+            <p className="text-xs text-muted-foreground">Required FG Qty</p>
             <p className="text-xl font-bold">{detail.required_qty}</p>
           </CardContent>
         </Card>
@@ -302,7 +338,7 @@ export default function BOMRequestDetailPage() {
       <div className="flex flex-wrap gap-3">
         {isPending && (
           <>
-            <Button onClick={handleApprove} disabled={approveMut.isPending}>
+            <Button onClick={handleApprove} disabled={approveMut.isPending || !hasApprovedLine}>
               {approveMut.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               <Check className="h-4 w-4 mr-1" /> Approve
             </Button>

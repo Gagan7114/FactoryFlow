@@ -1,20 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Loader2, Settings2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useFieldArray, useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { useScrollToError } from '@/shared/hooks';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import {
+  Badge,
   Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  Badge,
   Input,
   Label,
   Select,
@@ -23,10 +22,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui';
+import { useScrollToError } from '@/shared/hooks';
 
-import { useCreateRun, useLines, useSAPOrders, useBOMPreview, useLineConfigs } from '../api';
-import { createRunSchema, type CreateRunFormData } from '../schemas';
-import type { SAPProductionOrder, LineSkuConfig } from '../types';
+import {
+  useBOMPreview,
+  useCreateRun,
+  useLineConfigs,
+  useLines,
+  useSAPOrderDetail,
+  useSAPOrders,
+} from '../api';
+import { type CreateRunFormData, createRunSchema } from '../schemas';
+import type { LineSkuConfig, SAPProductionOrder } from '../types';
+
+const parseCost = (value: string | number | null | undefined) => {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCost = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === '') return '-';
+  return parseCost(value).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+};
+
+const getPresetLabourCost = (config: LineSkuConfig) =>
+  config.labour_count * parseCost(config.labour_cost_per_hour);
 
 // ============================================================================
 // SAP Order Detail Popover Content
@@ -126,7 +146,9 @@ function StartRunPage() {
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
 
   // Store raw per-unit BOM for scaling
-  const [rawBOM, setRawBOM] = useState<{ code: string; name: string; perUnit: number; uom: string }[]>([]);
+  const [rawBOM, setRawBOM] = useState<
+    { code: string; name: string; perUnit: number; uom: string }[]
+  >([]);
 
   const form = useForm<CreateRunFormData>({
     resolver: zodResolver(createRunSchema),
@@ -135,6 +157,8 @@ function StartRunPage() {
       product: '',
       required_qty: '',
       rated_speed: '',
+      electricity_cost_per_unit: '',
+      labour_cost_per_hour: '',
       machine_ids: [],
       labour_count: 0 as number,
       other_manpower_count: 0 as number,
@@ -214,11 +238,13 @@ function StartRunPage() {
     const cfg = lineConfigs.find((c) => String(c.id) === configId);
     if (!cfg) return;
 
-    if (cfg.rated_speed) form.setValue('rated_speed', cfg.rated_speed);
+    form.setValue('rated_speed', cfg.rated_speed || '');
     form.setValue('labour_count', cfg.labour_count);
     form.setValue('other_manpower_count', cfg.other_manpower_count);
-    if (cfg.supervisor) form.setValue('supervisor', cfg.supervisor);
-    if (cfg.operators) form.setValue('operators', cfg.operators);
+    form.setValue('electricity_cost_per_unit', cfg.electricity_cost_per_unit || '');
+    form.setValue('labour_cost_per_hour', cfg.labour_cost_per_hour || '');
+    form.setValue('supervisor', cfg.supervisor || '');
+    form.setValue('operators', cfg.operators || '');
     toast.success(`Applied config: ${cfg.config_name}`);
   };
 
@@ -246,6 +272,9 @@ function StartRunPage() {
       </Button>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <input type="hidden" {...form.register('electricity_cost_per_unit')} />
+        <input type="hidden" {...form.register('labour_cost_per_hour')} />
+
         {/* SAP Order Card */}
         <Card>
           <CardHeader>
@@ -292,9 +321,7 @@ function StartRunPage() {
                 replace([]);
               }}
               onSelectedKeyChange={(key) => setSelectedDocEntry(key as number | null)}
-              renderPopoverContent={() => (
-                <SAPOrderPopoverContent docEntry={selectedDocEntry} />
-              )}
+              renderPopoverContent={() => <SAPOrderPopoverContent docEntry={selectedDocEntry} />}
             />
             {form.formState.errors.sap_doc_entry && (
               <p className="text-sm text-red-500 mt-1">
@@ -313,11 +340,20 @@ function StartRunPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Production Line</Label>
-                <Select onValueChange={(v) => {
-                  const id = Number(v);
-                  form.setValue('line_id', id);
-                  setSelectedLineId(id);
-                }}>
+                <Select
+                  onValueChange={(v) => {
+                    const id = Number(v);
+                    form.setValue('line_id', id);
+                    setSelectedLineId(id);
+                    form.setValue('rated_speed', '');
+                    form.setValue('labour_count', 0);
+                    form.setValue('other_manpower_count', 0);
+                    form.setValue('electricity_cost_per_unit', '');
+                    form.setValue('labour_cost_per_hour', '');
+                    form.setValue('supervisor', '');
+                    form.setValue('operators', '');
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select line" />
                   </SelectTrigger>
@@ -339,9 +375,7 @@ function StartRunPage() {
                 <Label>Date</Label>
                 <Input type="date" {...form.register('date')} />
                 {form.formState.errors.date && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {form.formState.errors.date.message}
-                  </p>
+                  <p className="text-sm text-red-500 mt-1">{form.formState.errors.date.message}</p>
                 )}
               </div>
             </div>
@@ -356,7 +390,7 @@ function StartRunPage() {
                 )}
               </div>
               <div>
-                <Label>Required Quantity (units)</Label>
+                <Label>Required FG Quantity (cases/boxes)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -364,7 +398,7 @@ function StartRunPage() {
                   placeholder="e.g., 500"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  BOM materials will scale based on this quantity
+                  BOM materials scale from this finished-good case/box quantity
                 </p>
               </div>
             </div>
@@ -391,7 +425,7 @@ function StartRunPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <Label>Select a preset to auto-fill speed, labour & manpower</Label>
+                <Label>Select a preset to auto-fill speed, labour, manpower & resource costs</Label>
                 <Select value={selectedConfigId} onValueChange={applyConfig}>
                   <SelectTrigger className="mt-1.5 bg-background">
                     <SelectValue placeholder="Choose a line configuration..." />
@@ -401,7 +435,8 @@ function StartRunPage() {
                       <SelectItem key={cfg.id} value={String(cfg.id)}>
                         <span className="font-medium">{cfg.config_name}</span>
                         <span className="text-muted-foreground ml-2">
-                          — {cfg.rated_speed || '?'} cases/hr, {cfg.labour_count} labour
+                          — {cfg.rated_speed || '?'} cases/hr, {cfg.labour_count} labour, labour/hr{' '}
+                          {formatCost(cfg.labour_cost_per_hour)}
                         </span>
                       </SelectItem>
                     ))}
@@ -411,10 +446,24 @@ function StartRunPage() {
 
               {/* Show selected config summary */}
               {selectedConfig && (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 pt-1">
                   {[
                     { label: 'Speed', value: `${selectedConfig.rated_speed || '-'} cases/hr` },
                     { label: 'Labour', value: selectedConfig.labour_count },
+                    {
+                      label: 'Labour/hr',
+                      value: formatCost(selectedConfig.labour_cost_per_hour),
+                    },
+                    {
+                      label: 'Electric/unit',
+                      value: formatCost(selectedConfig.electricity_cost_per_unit),
+                    },
+                    {
+                      label: 'Labour total/hr',
+                      value: getPresetLabourCost(selectedConfig).toLocaleString('en-IN', {
+                        maximumFractionDigits: 2,
+                      }),
+                    },
                     { label: 'Other', value: selectedConfig.other_manpower_count },
                     { label: 'Supervisor', value: selectedConfig.supervisor || '-' },
                     { label: 'Operators', value: selectedConfig.operators || '-' },
@@ -493,9 +542,7 @@ function StartRunPage() {
                       const perUnit = rawBOM[index]?.perUnit;
                       return (
                         <tr key={field.id} className="border-b last:border-0">
-                          <td className="py-2 px-3 font-mono text-xs">
-                            {field.material_code}
-                          </td>
+                          <td className="py-2 px-3 font-mono text-xs">{field.material_code}</td>
                           <td className="py-2 px-3">{field.material_name}</td>
                           <td className="py-2 px-3 text-right text-muted-foreground text-xs">
                             {perUnit !== undefined ? perUnit : '—'}
@@ -534,7 +581,7 @@ function StartRunPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Expected Labour</Label>
+                <Label>Labour</Label>
                 <Input
                   type="number"
                   min={0}
@@ -547,7 +594,7 @@ function StartRunPage() {
                 )}
               </div>
               <div>
-                <Label>Expected Other Manpower</Label>
+                <Label>Other Manpower</Label>
                 <Input
                   type="number"
                   min={0}

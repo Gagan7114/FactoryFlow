@@ -1,40 +1,69 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ClipboardCheck, FileText, Link, Loader2, Play, Send, Shield, Trash2, Warehouse } from 'lucide-react';
-import { toast } from 'sonner';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-
-import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
-  Button, Card, CardContent, CardHeader, CardTitle,
+  ArrowLeft,
+  CheckCircle2,
+  FileText,
+  Link,
+  Loader2,
+  Pencil,
+  Play,
+  Plus,
+  Send,
+  Shield,
+  Trash2,
+  Warehouse,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import { useWarehouses } from '@/modules/grpo/api';
+import type { Warehouse as SAPWarehouse } from '@/modules/grpo/types';
+import { useProductionQCRunSessions, useRequestFinalProductionQC } from '@/modules/qc/api/productionQC';
+import { useCreateBOMRequest, useCreateFGReceipt, useFGReceipts } from '@/modules/warehouse/api';
+import type { FGReceipt } from '@/modules/warehouse/types';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
+import {
+  Button, Card, CardContent,
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@/shared/components/ui';
 
 import {
-  useRunDetail, useRunCost, useLabour,
-  useMaterials, useCreateMaterial, useUpdateMaterial,
-  useMachines,
-  useStartProduction, useStopProduction, useAddBreakdown, useResolveBreakdown,
-  useUpdateSegment, useUpdateBreakdownRemarks,
+  useAddBreakdown,
   useBreakdownCategories,
-  useLineClearances, useWasteLogs, useMachineChecklists,
+  useCreateLabour,
+  useCreateMaterial,
+  useDeleteLabour,
+  useLabour,
+  useLineClearances,
+  useMaterials,
+  useResolveBreakdown,
+  useRunDetail,
+  useStartProduction,
+  useStopProduction,
+  useUpdateBreakdownRemarks,
+  useUpdateLabour,
+  useUpdateMaterial,
+  useUpdateSegment,
+  useWasteLogs,
 } from '../api';
-import { useProductionQCRunSessions } from '@/modules/qc/api/productionQC';
-import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
-import { RunSummaryCards } from '../components/RunSummaryCards';
-import { ProductionTimeline } from '../components/ProductionTimeline';
 import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
-import { MachineTimeTable } from '../components/MachineTimeTable';
+import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
+import { ProductionTimeline } from '../components/ProductionTimeline';
 import {
-  addBreakdownSchema, type AddBreakdownFormData,
-  stopProductionSchema, type StopProductionFormData,
-  createMaterialSchema, type CreateMaterialFormData,
+  type AddBreakdownFormData,
+  addBreakdownSchema,
+  type CreateLabourFormData,
+  createLabourSchema,
+  type CreateMaterialFormData,
+  createMaterialSchema,
+  type StopProductionFormData,
+  stopProductionSchema,
 } from '../schemas';
-import type { MachineBreakdown, ProductionSegment } from '../types';
-import { useCreateBOMRequest, useCreateFGReceipt } from '@/modules/warehouse/api';
+import type { MachineBreakdown, ProductionSegment, ResourceLabour } from '../types';
 
 function WarehouseApprovalBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; cls: string }> = {
@@ -53,6 +82,86 @@ function WarehouseApprovalBadge({ status }: { status: string }) {
   );
 }
 
+function getFGReceiptButtonLabel(receipt?: FGReceipt) {
+  if (!receipt) return 'Create FG Receipt';
+  if (receipt.status === 'PENDING') return 'Edit FG Receipt';
+  if (receipt.status === 'RECEIVED') return 'FG Receipt Received';
+  if (receipt.status === 'SAP_POSTED') return 'FG Posted to SAP';
+  return 'FG Receipt Locked';
+}
+
+type FinalQCGateSession = {
+  workflow_status: string;
+  overall_result?: string;
+};
+
+function getFinalQCGate(session?: FinalQCGateSession) {
+  if (!session) {
+    return {
+      canSendFG: false,
+      actionLabel: 'Send FG to QC',
+      reason: 'Create an FG QC approval request before sending FG to warehouse.',
+    };
+  }
+
+  if (session.workflow_status === 'APPROVED' && session.overall_result === 'PASS') {
+    return { canSendFG: true, actionLabel: 'Create FG Receipt', reason: undefined };
+  }
+
+  if (session.workflow_status === 'APPROVED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Final QC Failed',
+      reason: 'Final QC is approved, but the result is not PASS.',
+    };
+  }
+
+  if (session.workflow_status === 'REJECTED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Final QC Rejected',
+      reason: 'Final QC was rejected. Resolve QC before sending FG to warehouse.',
+    };
+  }
+
+  if (session.workflow_status === 'SUBMITTED') {
+    return {
+      canSendFG: false,
+      actionLabel: 'Awaiting QC Approval',
+      reason: 'Final QC is submitted and waiting for QA approval.',
+    };
+  }
+
+  return {
+    canSendFG: false,
+    actionLabel: 'FG QC Requested',
+    reason: 'FG QC request is with QC. QC will select parameters, submit, and approve it.',
+  };
+}
+
+function getProductionQCWorkflowBadge(status: string) {
+  const config: Record<string, { label: string; className: string }> = {
+    DRAFT: {
+      label: 'Draft',
+      className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+    },
+    SUBMITTED: {
+      label: 'Submitted',
+      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    },
+    APPROVED: {
+      label: 'Approved',
+      className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    },
+    REJECTED: {
+      label: 'Rejected',
+      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    },
+  };
+
+  return config[status] ?? config.DRAFT;
+}
+
 function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
@@ -62,16 +171,18 @@ function RunDetailPage() {
   // Data hooks
   // ---------------------------------------------------------------------------
   const { data: run, isLoading } = useRunDetail(numRunId || null);
-  const { data: materials = [] } = useMaterials(numRunId);
-  const { data: cost } = useRunCost(numRunId);
+  const { data: materials = [], refetch: refetchMaterials } = useMaterials(numRunId);
   const { data: labourEntries = [] } = useLabour(numRunId);
-  const { data: allMachines = [] } = useMachines();
-  const runMachines = allMachines.filter((m) => run?.machine_ids?.includes(m.id));
   const { data: breakdownCategories = [] } = useBreakdownCategories();
   const { data: clearances = [] } = useLineClearances(run?.line);
   const { data: wasteLogs = [] } = useWasteLogs(numRunId);
-  const { data: machineChecklists = [] } = useMachineChecklists(undefined, run?.date);
+
   const { data: qcSessions = [] } = useProductionQCRunSessions(numRunId || null);
+  const { data: fgReceipts = [], isLoading: fgReceiptsLoading } = useFGReceipts(
+    undefined,
+    numRunId || undefined,
+    !!numRunId && run?.status === 'COMPLETED',
+  );
 
   // ---------------------------------------------------------------------------
   // Mutations
@@ -84,20 +195,63 @@ function RunDetailPage() {
   const updateBreakdownRemarks = useUpdateBreakdownRemarks(numRunId);
   const createMaterial = useCreateMaterial(numRunId);
   const updateMaterial = useUpdateMaterial(numRunId);
+  const addLabour = useCreateLabour(numRunId);
+  const updateLabourMut = useUpdateLabour(numRunId);
+  const removeLabour = useDeleteLabour(numRunId);
   const createBOMRequest = useCreateBOMRequest();
   const createFGReceipt = useCreateFGReceipt();
+  const requestFinalQC = useRequestFinalProductionQC(numRunId);
+
+  useEffect(() => {
+    if (
+      run?.warehouse_approval_status &&
+      run.warehouse_approval_status !== 'NOT_REQUESTED'
+    ) {
+      void refetchMaterials();
+    }
+  }, [refetchMaterials, run?.warehouse_approval_status]);
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const [dialog, setDialog] = useState<'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | null>(null);
+  const [dialog, setDialog] = useState<'breakdown' | 'stop' | 'material' | 'segment-detail' | 'breakdown-detail' | 'labour' | 'fg-receipt' | null>(null);
+  const [editingLabour, setEditingLabour] = useState<ResourceLabour | null>(null);
   const [selectedSegment, setSelectedSegment] = useState<ProductionSegment | null>(null);
   const [selectedBreakdown, setSelectedBreakdown] = useState<MachineBreakdown | null>(null);
   const [editRemarks, setEditRemarks] = useState('');
-  const [editProducedCases, setEditProducedCases] = useState('');
+  const [selectedFGWarehouse, setSelectedFGWarehouse] = useState('');
+  const [fgWarehouseError, setFGWarehouseError] = useState('');
+  const { data: fgWarehouses = [], isLoading: fgWarehousesLoading, isError: fgWarehousesError } = useWarehouses(dialog === 'fg-receipt');
   const isCompleted = run?.status === 'COMPLETED';
+  const lockedFGReceipt = fgReceipts.find((receipt) =>
+    receipt.status !== 'PENDING' || Boolean(receipt.received_at)
+  );
+  const editableFGReceipt = fgReceipts.find((receipt) =>
+    receipt.status === 'PENDING' && !receipt.received_at
+  );
+  const existingFGReceipt = lockedFGReceipt || editableFGReceipt;
+  const canEditFGReceipt = !lockedFGReceipt;
+  const latestFinalQC = [...qcSessions]
+    .filter((session) => session.session_type === 'FINAL')
+    .sort((a, b) => {
+      const checkedAtDiff = new Date(b.checked_at).getTime() - new Date(a.checked_at).getTime();
+      return checkedAtDiff || b.id - a.id;
+    })[0];
+  const finalQCGate = getFinalQCGate(latestFinalQC);
   const hasActiveSegment = run?.segments?.some((s) => s.is_active) ?? false;
   const hasActiveBreakdown = run?.breakdowns?.some((b) => b.is_active) ?? false;
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && run?.status === 'IN_PROGRESS';
+  const runClearance = clearances.find((c) => c.production_run === run?.id);
+  const hasClearedClearance = runClearance?.status === 'CLEARED';
+  const startProductionBlockReason =
+    run?.warehouse_approval_status === 'NOT_REQUESTED'
+      ? 'Submit the BOM request to warehouse before starting production.'
+      : run?.warehouse_approval_status === 'PENDING'
+        ? 'Cannot start production while warehouse approval is pending.'
+        : run?.warehouse_approval_status === 'REJECTED'
+          ? 'Cannot start production because warehouse approval was rejected.'
+          : !hasClearedClearance
+            ? 'Cannot start production — line clearance has not been approved by QA.'
+            : undefined;
 
   // ---------------------------------------------------------------------------
   // Breakdown form
@@ -126,7 +280,10 @@ function RunDetailPage() {
   });
   const onSubmitStop = async (data: StopProductionFormData) => {
     try {
-      await stopProduction.mutateAsync({ produced_cases: data.produced_cases });
+      await stopProduction.mutateAsync({
+        produced_cases: data.produced_cases,
+        remarks: data.remarks,
+      });
       toast.success('Production stopped');
       setDialog(null);
       stopForm.reset();
@@ -144,10 +301,27 @@ function RunDetailPage() {
   };
 
   // ---------------------------------------------------------------------------
+  // Labour form
+  // ---------------------------------------------------------------------------
+  const labourForm = useForm<CreateLabourFormData>({ resolver: zodResolver(createLabourSchema), defaultValues: { worker_count: 1 } });
+  const openEditLabour = (entry: ResourceLabour) => {
+    setEditingLabour(entry);
+    labourForm.reset({ description: entry.description, worker_count: entry.worker_count, hours_worked: entry.hours_worked, rate_per_hour: entry.rate_per_hour });
+    setDialog('labour');
+  };
+  const handleDeleteLabour = async (id: number) => {
+    if (!confirm('Delete this labour entry?')) return;
+    try { await removeLabour.mutateAsync(id); toast.success('Deleted'); } catch { toast.error('Delete failed'); }
+  };
+
   // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
   const handleStartProduction = async () => {
+    if (startProductionBlockReason) {
+      toast.error(startProductionBlockReason);
+      return;
+    }
     try {
       await startProduction.mutateAsync();
       toast.success('Production started');
@@ -168,7 +342,6 @@ function RunDetailPage() {
   const handleSegmentClick = (segment: ProductionSegment) => {
     setSelectedSegment(segment);
     setEditRemarks(segment.remarks || '');
-    setEditProducedCases(segment.produced_cases || '0');
     setDialog('segment-detail');
   };
 
@@ -197,6 +370,30 @@ function RunDetailPage() {
     } catch { toast.error('Failed to update closing qty'); }
   };
 
+  const handleCreateFGReceipt = async () => {
+    if (!run) return;
+    if (!finalQCGate.canSendFG) {
+      toast.error(finalQCGate.reason || 'Final QC approval is required');
+      return;
+    }
+    if (!selectedFGWarehouse) {
+      setFGWarehouseError('Select a warehouse');
+      return;
+    }
+    try {
+      const wasEditing = Boolean(editableFGReceipt);
+      await createFGReceipt.mutateAsync({
+        production_run_id: run.id,
+        posting_date: run.date,
+        warehouse: selectedFGWarehouse,
+      });
+      toast.success(wasEditing ? 'FG receipt updated' : 'FG receipt created - warehouse notified');
+      setDialog(null);
+      setSelectedFGWarehouse('');
+      setFGWarehouseError('');
+    } catch { /* interceptor handles */ }
+  };
+
   const handleSaveBreakdownRemarks = async () => {
     if (!selectedBreakdown) return;
     try {
@@ -215,6 +412,15 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading run details...</div>;
   if (!run) return <div className="p-8 text-center text-muted-foreground">Run not found</div>;
+
+  const clearanceStatusText = runClearance
+    ? {
+        DRAFT: 'Draft',
+        SUBMITTED: 'Submitted',
+        CLEARED: 'Cleared',
+        NOT_CLEARED: 'Not Cleared',
+      }[runClearance.status] ?? runClearance.status
+    : 'Not Done';
 
   return (
     <div className="space-y-6">
@@ -242,9 +448,22 @@ function RunDetailPage() {
           {run.sap_doc_entry && <> &middot; SAP DocEntry: {run.sap_doc_entry}</>}
         </p>
         <div className="flex flex-wrap gap-2">
+          {!isCompleted && !hasActiveSegment && !hasActiveBreakdown && (
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleStartProduction}
+              disabled={startProduction.isPending || Boolean(startProductionBlockReason)}
+              title={startProductionBlockReason}
+            >
+              <Play className="h-4 w-4 mr-1" /> Start Production
+            </Button>
+          )}
           {!isCompleted && run.warehouse_approval_status === 'NOT_REQUESTED' && (
             <Button
               variant="outline" size="sm"
+              className="border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
               disabled={createBOMRequest.isPending}
               onClick={async () => {
                 const qty = parseFloat(run.required_qty || '0');
@@ -262,22 +481,36 @@ function RunDetailPage() {
               }}
             >
               {createBOMRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
-              Submit BOM to Warehouse
+              Submit BOM to WH
             </Button>
           )}
-          {!isCompleted && !hasActiveSegment && !hasActiveBreakdown && (
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={handleStartProduction} disabled={startProduction.isPending || run.warehouse_approval_status === 'PENDING' || run.warehouse_approval_status === 'REJECTED'}>
-              <Play className="h-4 w-4 mr-1" /> Start Production
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className={
+              hasClearedClearance
+                ? 'border-green-300 bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800'
+                : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800'
+            }
+            title={`Line Clearance: ${clearanceStatusText}`}
+            onClick={() =>
+              navigate(
+                runClearance
+                  ? `/production/execution/line-clearance/${runClearance.id}`
+                  : `/production/execution/line-clearance/create?run_id=${run.id}`,
+              )
+            }
+          >
+            <Shield className="h-4 w-4 mr-1" /> Line Clearance
+          </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/yield`)}>
             <FileText className="h-4 w-4 mr-1" /> Yield
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/runs/${run.id}/resources`)}>
             <Link className="h-4 w-4 mr-1" /> Resources
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(`/qc/production/runs/${run.id}`)}>
-            <CheckCircle2 className="h-4 w-4 mr-1" /> QC
+          <Button variant="outline" size="sm" onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Waste Logs: {wasteLogs.length}
           </Button>
           {!isCompleted && (
             <Button onClick={() => navigate(`/production/execution/runs/${run.id}/yield?complete=true`)} disabled={!canComplete} title={!canComplete ? 'Stop all running segments and resolve all breakdowns first' : undefined}>
@@ -287,148 +520,48 @@ function RunDetailPage() {
           {isCompleted && (
             <Button
               variant="outline" size="sm"
-              disabled={createFGReceipt.isPending}
+              disabled={
+                fgReceiptsLoading ||
+                createFGReceipt.isPending ||
+                requestFinalQC.isPending ||
+                !canEditFGReceipt ||
+                Boolean(latestFinalQC && !finalQCGate.canSendFG)
+              }
+              title={
+                !canEditFGReceipt
+                  ? 'Warehouse has already received this FG receipt'
+                  : finalQCGate.reason
+              }
               onClick={async () => {
-                try {
-                  await createFGReceipt.mutateAsync({
-                    production_run_id: run.id,
-                    posting_date: run.date,
-                  });
-                  toast.success('FG receipt created — warehouse notified');
-                } catch { /* interceptor handles */ }
+                if (!finalQCGate.canSendFG) {
+                  if (latestFinalQC) {
+                    toast.info(finalQCGate.reason || 'Final QC approval is required');
+                    return;
+                  }
+                  try {
+                    await requestFinalQC.mutateAsync();
+                    toast.success('FG QC approval request sent to QC');
+                  } catch {
+                    toast.error('Failed to send FG QC request');
+                  }
+                  return;
+                }
+                setSelectedFGWarehouse(editableFGReceipt?.warehouse || '');
+                setFGWarehouseError('');
+                setDialog('fg-receipt');
               }}
             >
-              {createFGReceipt.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
-              Create FG Receipt
+              {fgReceiptsLoading || createFGReceipt.isPending || requestFinalQC.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Warehouse className="h-4 w-4 mr-1" />}
+              {fgReceiptsLoading
+                ? 'Loading FG Receipt...'
+                : requestFinalQC.isPending
+                  ? 'Sending FG to QC...'
+                : finalQCGate.canSendFG
+                  ? getFGReceiptButtonLabel(existingFGReceipt)
+                  : finalQCGate.actionLabel}
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Summary Cards */}
-      <RunSummaryCards run={run} />
-
-      {/* Manpower & Cost Summary */}
-      {(() => {
-        const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
-        const plannedLabour = run.labour_count;
-        const c = cost ? { labour: parseFloat(cost.labour_cost), total: parseFloat(cost.total_cost), perUnit: parseFloat(cost.per_unit_cost) } : null;
-        return (
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Labour</div>
-                {actualLabourCount > 0 ? (
-                  <>
-                    <p className="text-lg font-bold">{actualLabourCount}</p>
-                    <p className="text-xs text-muted-foreground">planned: {plannedLabour}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg font-bold text-muted-foreground">{plannedLabour}</p>
-                    <p className="text-xs text-amber-600">planned (no actual added)</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Other Manpower</div>
-                <p className="text-lg font-bold">{run.other_manpower_count}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Supervisor</div>
-                <p className="text-sm font-medium truncate">{run.supervisor || '-'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Labour Cost</div>
-                <p className="text-lg font-bold">{c ? `₹${c.labour.toLocaleString()}` : '₹0'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Total Cost</div>
-                <p className="text-lg font-bold text-green-600">{c ? `₹${c.total.toLocaleString()}` : '₹0'}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">Per Unit Cost</div>
-                <p className="text-lg font-bold">{c && c.perUnit > 0 ? `₹${c.perUnit.toFixed(2)}` : '-'}</p>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
-
-      {/* Status Indicators */}
-      <div className="flex flex-wrap gap-3">
-        {/* Line Clearance Status */}
-        {(() => {
-          const runClearance = clearances.find(
-            (c) => c.production_run === run.id
-          );
-          if (!runClearance) {
-            return (
-              <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-2 text-sm">
-                <Shield className="h-4 w-4 text-amber-600" />
-                <span className="text-amber-800 dark:text-amber-200">Line Clearance: <span className="font-medium">Not Done</span></span>
-                <Button variant="link" size="sm" className="h-auto p-0 text-amber-700" onClick={() => navigate(`/production/execution/line-clearance/create?run_id=${run.id}`)}>Create</Button>
-              </div>
-            );
-          }
-          const statusColors = {
-            DRAFT: 'border-gray-300 bg-gray-50 dark:bg-gray-950/20 dark:border-gray-800',
-            SUBMITTED: 'border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800',
-            CLEARED: 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800',
-            NOT_CLEARED: 'border-red-300 bg-red-50 dark:bg-red-950/20 dark:border-red-800',
-          };
-          const statusText = { DRAFT: 'Draft', SUBMITTED: 'Submitted', CLEARED: 'Cleared', NOT_CLEARED: 'Not Cleared' };
-          return (
-            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${statusColors[runClearance.status]}`}>
-              <Shield className="h-4 w-4" />
-              <span>Line Clearance: <span className="font-medium">{statusText[runClearance.status]}</span></span>
-              <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/line-clearance/${runClearance.id}`)}>View</Button>
-            </div>
-          );
-        })()}
-
-        {/* Waste Logs */}
-        <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
-          <span>Waste Logs: <span className="font-medium">{wasteLogs.length}</span></span>
-          <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(`/production/execution/waste?run_id=${run.id}`)}>
-            {wasteLogs.length > 0 ? 'View' : 'Log Waste'}
-          </Button>
-        </div>
-
-        {/* Machine Checklists */}
-        {(() => {
-          const runMachineIds = run.machine_ids || [];
-          const checkedMachineIds = new Set(machineChecklists.filter((c) => runMachineIds.includes(c.machine)).map((c) => c.machine));
-          const checkedCount = checkedMachineIds.size;
-          const totalMachines = runMachineIds.length;
-          const allDone = totalMachines > 0 && checkedCount >= totalMachines;
-          const firstUnfilledId = runMachineIds.find((id) => !checkedMachineIds.has(id));
-          const fillLink = firstUnfilledId
-            ? `/production/execution/machine-checklists?machine_id=${firstUnfilledId}&date=${run.date}`
-            : `/production/execution/machine-checklists?machine_id=${runMachineIds[0]}&date=${run.date}`;
-          return (
-            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${allDone ? 'border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-800' : 'border-gray-200'}`}>
-              <ClipboardCheck className={`h-4 w-4 ${allDone ? 'text-green-600' : 'text-muted-foreground'}`} />
-              <span>Machine Checklists: <span className="font-medium">{checkedCount}/{totalMachines}</span></span>
-              {totalMachines > 0 && (
-                <Button variant="link" size="sm" className="h-auto p-0" onClick={() => navigate(fillLink)}>
-                  {allDone ? 'View' : 'Fill'}
-                </Button>
-              )}
-            </div>
-          );
-        })()}
       </div>
 
       {/* Tabs */}
@@ -436,7 +569,6 @@ function RunDetailPage() {
         <TabsList>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="materials">Materials ({materials.length})</TabsTrigger>
-          <TabsTrigger value="runtime">Machine Runtime ({runMachines.length})</TabsTrigger>
           <TabsTrigger value="qc">QC ({qcSessions.length})</TabsTrigger>
         </TabsList>
 
@@ -461,15 +593,13 @@ function RunDetailPage() {
         <TabsContent value="materials">
           <Card>
             <CardContent className="p-4">
-              <MaterialConsumptionTable materials={materials} onAdd={() => setDialog('material')} onUpdateClosingQty={handleUpdateClosingQty} readOnly={isCompleted} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="runtime">
-          <Card>
-            <CardContent className="p-4">
-              <MachineTimeTable machines={runMachines} segments={run.segments} breakdowns={run.breakdowns} />
+              <MaterialConsumptionTable
+                materials={materials}
+                onUpdateClosingQty={handleUpdateClosingQty}
+                readOnly={isCompleted}
+                actualProduction={isCompleted ? parseFloat(run.total_production || '0') : run.segments.reduce((sum, s) => sum + parseFloat(s.produced_cases || '0'), 0)}
+                requiredQty={run.required_qty ? parseFloat(run.required_qty) : undefined}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -501,49 +631,49 @@ function RunDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {qcSessions.map((s) => (
-                      <tr
-                        key={s.id}
-                        className="border-b cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/qc/production/sessions/${s.id}`)}
-                      >
-                        <td className="p-2 font-medium">#{s.session_number}</td>
-                        <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.session_type === 'FINAL'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                              : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
-                          }`}>
-                            {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
-                          </span>
-                        </td>
-                        <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
-                        <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
-                        <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
-                        <td className="p-2">
-                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            s.workflow_status === 'SUBMITTED'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                          }`}>
-                            {s.workflow_status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
-                          </span>
-                        </td>
-                        <td className="p-2">
-                          {s.overall_result ? (
+                    {qcSessions.map((s) => {
+                      const workflowBadge = getProductionQCWorkflowBadge(s.workflow_status);
+
+                      return (
+                        <tr
+                          key={s.id}
+                          className="border-b cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/qc/production/sessions/${s.id}`)}
+                        >
+                          <td className="p-2 font-medium">#{s.session_number}</td>
+                          <td className="p-2">
                             <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                              s.overall_result === 'PASS'
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              s.session_type === 'FINAL'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                                : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
                             }`}>
-                              {s.overall_result}
+                              {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
                             </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
+                          <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
+                          <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
+                          <td className="p-2">
+                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${workflowBadge.className}`}>
+                              {workflowBadge.label}
+                            </span>
+                          </td>
+                          <td className="p-2">
+                            {s.overall_result ? (
+                              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                s.overall_result === 'PASS'
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              }`}>
+                                {s.overall_result}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -567,19 +697,6 @@ function RunDetailPage() {
                     <div className="px-2 py-4 text-sm text-muted-foreground text-center">No breakdown categories found.</div>
                   ) : (
                     breakdownCategories.map((c) => (<SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Machine</Label>
-              <Select onValueChange={(v) => breakdownForm.setValue('machine_id', Number(v))}>
-                <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
-                <SelectContent>
-                  {runMachines.length === 0 ? (
-                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">No machines assigned to this run.</div>
-                  ) : (
-                    runMachines.map((m) => (<SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>))
                   )}
                 </SelectContent>
               </Select>
@@ -672,10 +789,6 @@ function RunDetailPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-muted-foreground">Machine</span>
-                  <p className="font-medium">{selectedBreakdown.machine_name || `#${selectedBreakdown.machine}`}</p>
-                </div>
-                <div>
                   <span className="text-muted-foreground">Type</span>
                   <p className="font-medium">{selectedBreakdown.breakdown_category_name}</p>
                 </div>
@@ -733,6 +846,162 @@ function RunDetailPage() {
               <Button type="submit" disabled={createMaterial.isPending}>{createMaterial.isPending ? 'Saving...' : 'Add Material'}</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* FG Receipt Dialog */}
+      <Dialog open={dialog === 'fg-receipt'} onOpenChange={(open) => { if (!open) setDialog(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editableFGReceipt ? 'Edit FG Receipt' : 'Create FG Receipt'}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Run</span>
+                <p className="font-medium">#{run.run_number}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Posting Date</span>
+                <p className="font-medium">{run.date}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Product</span>
+                <p className="font-medium">{run.product}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Good Qty</span>
+                <p className="font-medium">
+                  {(parseFloat(run.total_production || '0') - parseFloat(run.rejected_qty || '0')).toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <SearchableSelect<SAPWarehouse>
+              value={selectedFGWarehouse}
+              items={fgWarehouses}
+              isLoading={fgWarehousesLoading}
+              isError={fgWarehousesError}
+              label="Warehouse"
+              required
+              inputId="fg-receipt-warehouse"
+              placeholder="Select warehouse..."
+              getItemKey={(wh) => wh.warehouse_code}
+              getItemLabel={(wh) => `${wh.warehouse_code} - ${wh.warehouse_name}`}
+              filterFn={(wh, search) => {
+                const term = search.toLowerCase();
+                return (
+                  wh.warehouse_code.toLowerCase().includes(term) ||
+                  wh.warehouse_name.toLowerCase().includes(term)
+                );
+              }}
+              renderItem={(wh) => (
+                <div>
+                  <span className="text-sm font-medium">{wh.warehouse_code}</span>
+                  <span className="text-xs text-muted-foreground ml-2">{wh.warehouse_name}</span>
+                </div>
+              )}
+              onItemSelect={(wh) => {
+                setSelectedFGWarehouse(wh.warehouse_code);
+                setFGWarehouseError('');
+              }}
+              onClear={() => {
+                setSelectedFGWarehouse('');
+                setFGWarehouseError('');
+              }}
+              loadingText="Loading warehouses..."
+              emptyText="No warehouses found"
+              notFoundText="No matching warehouses"
+              errorText="Failed to load warehouses"
+              error={fgWarehouseError}
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setDialog(null)}>Cancel</Button>
+              <Button type="button" onClick={handleCreateFGReceipt} disabled={createFGReceipt.isPending || fgWarehousesLoading}>
+                {createFGReceipt.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                {editableFGReceipt ? 'Save Receipt' : 'Create Receipt'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Labour Dialog */}
+      <Dialog open={dialog === 'labour'} onOpenChange={(open) => { if (!open) { setDialog(null); setEditingLabour(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>{editingLabour ? 'Edit Labour' : 'Labour'}</DialogTitle></DialogHeader>
+          {!editingLabour && (
+            <>
+              {labourEntries.length > 0 && (
+                <div className="overflow-x-auto max-h-60 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Description</th>
+                        <th className="text-right p-2 font-medium">Workers</th>
+                        <th className="text-right p-2 font-medium">Hours</th>
+                        <th className="text-right p-2 font-medium">Rate/hr</th>
+                        <th className="text-right p-2 font-medium">Total</th>
+                        {!isCompleted && <th className="p-2 w-20" />}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {labourEntries.map((e) => (
+                        <tr key={e.id} className="border-b">
+                          <td className="p-2">{e.description || 'Workers'}</td>
+                          <td className="p-2 text-right">{e.worker_count}</td>
+                          <td className="p-2 text-right">{e.hours_worked}</td>
+                          <td className="p-2 text-right">₹{e.rate_per_hour}</td>
+                          <td className="p-2 text-right font-medium">₹{parseFloat(e.total_cost).toLocaleString()}</td>
+                          {!isCompleted && (
+                            <td className="p-2">
+                              <div className="flex items-center gap-1 justify-end">
+                                <Button variant="ghost" size="sm" onClick={() => openEditLabour(e)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDeleteLabour(e.id)}><Trash2 className="h-3.5 w-3.5 text-red-500" /></Button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {!isCompleted && (
+                <Button size="sm" onClick={() => { setEditingLabour(null); labourForm.reset({ worker_count: 1, description: '', hours_worked: '', rate_per_hour: '' }); setEditingLabour({ id: -1 } as ResourceLabour); }}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Labour Entry
+                </Button>
+              )}
+              {labourEntries.length === 0 && isCompleted && (
+                <p className="text-sm text-muted-foreground text-center py-4">No labour entries</p>
+              )}
+            </>
+          )}
+          {editingLabour && (
+            <form onSubmit={labourForm.handleSubmit(async (d) => {
+              try {
+                if (editingLabour.id !== -1) {
+                  await updateLabourMut.mutateAsync({ entryId: editingLabour.id, data: d });
+                  toast.success('Updated');
+                } else {
+                  await addLabour.mutateAsync(d);
+                  toast.success('Added');
+                }
+                setEditingLabour(null);
+                labourForm.reset({ worker_count: 1 });
+              } catch { toast.error('Failed'); }
+            })} className="space-y-4">
+              <div><Label>Description</Label><Input {...labourForm.register('description')} placeholder="e.g., Skilled labourers, Helpers" /></div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><Label>Workers</Label><Input type="number" {...labourForm.register('worker_count', { valueAsNumber: true })} /></div>
+                <div><Label>Hours Worked</Label><Input {...labourForm.register('hours_worked')} /></div>
+                <div><Label>Rate/hr (₹)</Label><Input {...labourForm.register('rate_per_hour')} /></div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditingLabour(null)}>Cancel</Button>
+                <Button type="submit">{editingLabour.id !== -1 ? 'Save' : 'Add'}</Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

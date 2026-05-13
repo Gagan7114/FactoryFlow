@@ -3,10 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
-  Check,
   CheckCircle2,
   ChevronRight,
-  X,
   XCircle,
 } from 'lucide-react';
 
@@ -103,7 +101,7 @@ export default function ProductionQCApprovalPage() {
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-medium">
-                        Run #{session.run_number} — Round {session.session_number}
+                        Run #{session.run_number} - Round {session.session_number}
                       </span>
                       <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                         session.session_type === 'FINAL'
@@ -125,7 +123,7 @@ export default function ProductionQCApprovalPage() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {session.product} &middot; {session.line_name} &middot;{' '}
                       {session.run_date} &middot; {session.pass_count}/{session.total_params} pass
-                      {session.checked_by_name && ` · by ${session.checked_by_name}`}
+                      {session.checked_by_name && ` - by ${session.checked_by_name}`}
                     </p>
                   </div>
 

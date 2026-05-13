@@ -1,14 +1,27 @@
+import { AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@/shared/components/ui';
 
-import { useMaterials, useUpdateMaterial, useRunDetail, useRunCost, useCompleteRun } from '../api';
+import {
+  useCompleteRun,
+  useElectricity,
+  useLabour,
+  useMaterials,
+  useRunCost,
+  useRunDetail,
+  useUpdateMaterial,
+} from '../api';
 import { MaterialConsumptionTable } from '../components/MaterialConsumptionTable';
 import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
+
+const parseMaterialQuantity = (value?: string) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 function YieldReportPage() {
   const { runId } = useParams<{ runId: string }>();
@@ -20,16 +33,21 @@ function YieldReportPage() {
   const { data: run } = useRunDetail(numRunId || null);
   const { data: materials = [] } = useMaterials(numRunId);
   const { data: cost } = useRunCost(numRunId);
+  const { data: labourEntries = [] } = useLabour(numRunId);
+  const { data: electricityEntries = [] } = useElectricity(numRunId);
   const completeRun = useCompleteRun(numRunId);
   const updateMaterial = useUpdateMaterial(numRunId);
 
   const [totalProduction, setTotalProduction] = useState('');
+  const [metricsNow] = useState(() => Date.now());
 
   const handleUpdateClosingQty = async (materialId: number, closingQty: string) => {
     try {
       await updateMaterial.mutateAsync({ materialId, data: { closing_qty: closingQty } });
       toast.success('Closing qty updated');
-    } catch { toast.error('Failed to update'); }
+    } catch {
+      toast.error('Failed to update');
+    }
   };
 
   if (!run) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -37,32 +55,34 @@ function YieldReportPage() {
   const isCompleted = run.status === 'COMPLETED';
   const ratedSpeed = parseFloat(run.rated_speed || '0');
 
-  // Production metrics
   const segmentProduction = run.segments.reduce(
-    (sum, s) => sum + parseFloat(s.produced_cases || '0'), 0
+    (sum, s) => sum + parseFloat(s.produced_cases || '0'),
+    0,
   );
   const actualProduction = isCompleted ? parseFloat(run.total_production || '0') : segmentProduction;
 
-  // Time metrics
   let runningMinutes = 0;
   for (const seg of run.segments) {
     if (seg.end_time) {
       runningMinutes += Math.floor(
-        (new Date(seg.end_time).getTime() - new Date(seg.start_time).getTime()) / 60_000
+        (new Date(seg.end_time).getTime() - new Date(seg.start_time).getTime()) / 60_000,
       );
     } else if (seg.is_active) {
-      runningMinutes += Math.floor((Date.now() - new Date(seg.start_time).getTime()) / 60_000);
+      runningMinutes += Math.floor((metricsNow - new Date(seg.start_time).getTime()) / 60_000);
     }
   }
+
   let breakdownMinutes = 0;
   for (const bd of run.breakdowns) {
-    if (bd.end_time) breakdownMinutes += bd.breakdown_minutes;
-    else if (bd.is_active) breakdownMinutes += Math.floor((Date.now() - new Date(bd.start_time).getTime()) / 60_000);
+    if (bd.end_time) {
+      breakdownMinutes += bd.breakdown_minutes;
+    } else if (bd.is_active) {
+      breakdownMinutes += Math.floor((metricsNow - new Date(bd.start_time).getTime()) / 60_000);
+    }
   }
+
   const totalTimeMinutes = runningMinutes + breakdownMinutes;
   const expectedProduction = ratedSpeed > 0 ? (runningMinutes / 60) * ratedSpeed : 0;
-
-  // Efficiency metrics
   const productionEfficiency = expectedProduction > 0
     ? ((actualProduction / expectedProduction) * 100).toFixed(1)
     : '-';
@@ -73,19 +93,34 @@ function YieldReportPage() {
     ? ((actualProduction / runningMinutes) * 60).toFixed(1)
     : '-';
 
-  // Material metrics
-  const totalMaterialInput = materials.reduce(
-    (sum, m) => sum + parseFloat(m.opening_qty || '0') + parseFloat(m.issued_qty || '0'), 0
-  );
-  const totalMaterialClosing = materials.reduce(
-    (sum, m) => sum + parseFloat(m.closing_qty || '0'), 0
-  );
-  const totalMaterialConsumed = totalMaterialInput - totalMaterialClosing;
-  const totalWastage = materials.reduce(
-    (sum, m) => sum + parseFloat(m.wastage_qty || '0'), 0
+  const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
+  const labourCount = actualLabourCount > 0 ? actualLabourCount : run.labour_count;
+  const electricityUnitsConsumed = electricityEntries.reduce(
+    (sum, entry) => sum + parseFloat(entry.units_consumed || '0'),
+    0,
   );
 
-  // Breakdown summary
+  const totalBomQuantity = materials.reduce(
+    (sum, m) => sum + parseMaterialQuantity(m.bom_quantity ?? m.opening_qty),
+    0,
+  );
+  const totalMaterialClosing = materials.reduce(
+    (sum, m) => sum + parseMaterialQuantity(m.closing_qty),
+    0,
+  );
+  const totalWastage = materials.reduce(
+    (sum, m) => sum + parseMaterialQuantity(m.wastage_quantity),
+    0,
+  );
+  const totalMaterialConsumed = materials.reduce((sum, m) => {
+    const finalConsumption = m.final_consumption_quantity
+      ?? (
+        parseMaterialQuantity(m.bom_quantity ?? m.opening_qty) +
+        parseMaterialQuantity(m.wastage_quantity)
+      ).toString();
+    return sum + parseMaterialQuantity(finalConsumption);
+  }, 0);
+
   const breakdownsByCategory: Record<string, { count: number; minutes: number }> = {};
   for (const bd of run.breakdowns) {
     const cat = bd.breakdown_category_name || 'Unknown';
@@ -94,18 +129,18 @@ function YieldReportPage() {
     breakdownsByCategory[cat].minutes += bd.breakdown_minutes;
   }
 
-  // Cost metrics
   const totalCost = cost ? parseFloat(cost.total_cost || '0') : 0;
   const perUnitCost = actualProduction > 0 ? (totalCost / actualProduction).toFixed(2) : '-';
 
-  // Completion validation warnings
   const hasActiveSegment = run.segments.some((s) => s.is_active);
   const hasActiveBreakdown = run.breakdowns.some((b) => b.is_active);
   const hasMissingClosingQty = materials.some((m) => !m.closing_qty || parseFloat(m.closing_qty) === 0);
   const warnings: string[] = [];
   if (hasActiveSegment) warnings.push('Production is still running. Stop it first.');
   if (hasActiveBreakdown) warnings.push('There is an active breakdown. Resolve it first.');
-  if (hasMissingClosingQty) warnings.push('Some materials are missing closing quantities. Click the pencil icon on each material below to enter them.');
+  if (hasMissingClosingQty) {
+    warnings.push('Some materials are missing closing quantities. Click the pencil icon on each material below to enter them.');
+  }
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && !hasMissingClosingQty && run.status === 'IN_PROGRESS';
 
   const handleComplete = async () => {
@@ -126,11 +161,10 @@ function YieldReportPage() {
       </Button>
 
       <DashboardHeader
-        title={isCompleteMode && !isCompleted ? 'Review & Complete Run' : `Yield Report — Run #${run.run_number}`}
-        description={`${run.date} · ${run.line_name} · ${run.product}`}
+        title={isCompleteMode && !isCompleted ? 'Review & Complete Run' : `Yield Report - Run #${run.run_number}`}
+        description={`${run.date} - ${run.line_name} - ${run.product}`}
       />
 
-      {/* Completion warnings */}
       {isCompleteMode && !isCompleted && warnings.length > 0 && (
         <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
           <CardContent className="p-4">
@@ -139,7 +173,7 @@ function YieldReportPage() {
               <div>
                 <p className="font-medium text-amber-800 dark:text-amber-200">Cannot complete yet</p>
                 <ul className="mt-1 text-sm text-amber-700 dark:text-amber-300 list-disc list-inside">
-                  {warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  {warnings.map((w) => <li key={w}>{w}</li>)}
                 </ul>
               </div>
             </div>
@@ -147,7 +181,6 @@ function YieldReportPage() {
         </Card>
       )}
 
-      {/* Production Summary */}
       <Card>
         <CardHeader><CardTitle>Production Summary</CardTitle></CardHeader>
         <CardContent>
@@ -178,7 +211,6 @@ function YieldReportPage() {
         </CardContent>
       </Card>
 
-      {/* Time Utilization */}
       <Card>
         <CardHeader><CardTitle>Time Utilization</CardTitle></CardHeader>
         <CardContent>
@@ -231,54 +263,33 @@ function YieldReportPage() {
         </CardContent>
       </Card>
 
-      {/* Material Consumption */}
-      <Card className={isCompleteMode && hasMissingClosingQty ? 'border-amber-300 dark:border-amber-800' : ''}>
-        <CardHeader><CardTitle>Material Consumption {isCompleteMode && hasMissingClosingQty && <span className="text-sm font-normal text-amber-600 ml-2">— closing qty required</span>}</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Total Input (Opening + Issued)</p>
-              <p className="text-xl font-bold">{totalMaterialInput.toFixed(3)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Closing</p>
-              <p className="text-xl font-bold">{totalMaterialClosing.toFixed(3)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Consumed</p>
-              <p className="text-xl font-bold">{totalMaterialConsumed.toFixed(3)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Total Wastage</p>
-              <p className="text-xl font-bold text-red-600">{totalWastage.toFixed(3)}</p>
-            </div>
-          </div>
-          <MaterialConsumptionTable
-            materials={materials}
-            onUpdateClosingQty={isCompleteMode && !isCompleted ? handleUpdateClosingQty : undefined}
-            readOnly={!isCompleteMode || isCompleted}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Cost Summary */}
       {cost && (
         <Card>
           <CardHeader><CardTitle>Cost Summary</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div><p className="text-muted-foreground">Labour</p><p className="font-bold">₹{cost.labour_cost}</p></div>
-              <div><p className="text-muted-foreground">Machine</p><p className="font-bold">₹{cost.machine_cost}</p></div>
-              <div><p className="text-muted-foreground">Electricity</p><p className="font-bold">₹{cost.electricity_cost}</p></div>
-              <div><p className="text-muted-foreground">Water</p><p className="font-bold">₹{cost.water_cost}</p></div>
-              <div><p className="text-muted-foreground">Gas</p><p className="font-bold">₹{cost.gas_cost}</p></div>
-              <div><p className="text-muted-foreground">Compressed Air</p><p className="font-bold">₹{cost.compressed_air_cost}</p></div>
-              <div><p className="text-muted-foreground">Overhead</p><p className="font-bold">₹{cost.overhead_cost}</p></div>
+              <div>
+                <p className="text-muted-foreground">Labour</p>
+                <p className="font-bold">Rs.{cost.labour_cost}</p>
+                <p className="text-xs text-muted-foreground">{labourCount} labour</p>
+              </div>
+              <div><p className="text-muted-foreground">Machine</p><p className="font-bold">Rs.{cost.machine_cost}</p></div>
+              <div>
+                <p className="text-muted-foreground">Electricity</p>
+                <p className="font-bold">Rs.{cost.electricity_cost}</p>
+                <p className="text-xs text-muted-foreground">
+                  {electricityUnitsConsumed.toLocaleString(undefined, { maximumFractionDigits: 3 })} units
+                </p>
+              </div>
+              <div><p className="text-muted-foreground">Water</p><p className="font-bold">Rs.{cost.water_cost}</p></div>
+              <div><p className="text-muted-foreground">Gas</p><p className="font-bold">Rs.{cost.gas_cost}</p></div>
+              <div><p className="text-muted-foreground">Compressed Air</p><p className="font-bold">Rs.{cost.compressed_air_cost}</p></div>
+              <div><p className="text-muted-foreground">Overhead</p><p className="font-bold">Rs.{cost.overhead_cost}</p></div>
               <div className="border-l pl-4">
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="text-xl font-bold text-green-600">₹{cost.total_cost}</p>
+                <p className="text-xl font-bold text-green-600">Rs.{cost.total_cost}</p>
                 <p className="text-xs text-muted-foreground">
-                  Per unit: {perUnitCost !== '-' ? `₹${perUnitCost}` : '-'}
+                  Per unit: {perUnitCost !== '-' ? `Rs.${perUnitCost}` : '-'}
                   {!isCompleted && perUnitCost !== '-' && ' (estimated)'}
                 </p>
               </div>
@@ -287,20 +298,62 @@ function YieldReportPage() {
         </Card>
       )}
 
-      {/* Manpower */}
       <Card>
         <CardHeader><CardTitle>Manpower</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div><p className="text-muted-foreground">Total Manpower</p><p className="font-bold text-lg">{run.labour_count + run.other_manpower_count}</p></div>
-            <div><p className="text-muted-foreground">Labour</p><p className="font-bold text-lg">{run.labour_count}</p></div>
+            <div>
+              <p className="text-muted-foreground">Total Manpower</p>
+              <p className="font-bold text-lg">{labourCount + run.other_manpower_count}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Labour</p>
+              <p className="font-bold text-lg">{labourCount}</p>
+            </div>
             <div><p className="text-muted-foreground">Supervisor</p><p className="font-medium">{run.supervisor || '-'}</p></div>
             <div><p className="text-muted-foreground">Operators</p><p className="font-medium">{run.operators || '-'}</p></div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Complete Run Section */}
+      <Card className={isCompleteMode && hasMissingClosingQty ? 'border-amber-300 dark:border-amber-800' : ''}>
+        <CardHeader>
+          <CardTitle>
+            Material Consumption
+            {isCompleteMode && hasMissingClosingQty && (
+              <span className="text-sm font-normal text-amber-600 ml-2">- closing qty required</span>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Total BOM Qty</p>
+              <p className="text-xl font-bold">{totalBomQuantity.toFixed(3)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Wastage</p>
+              <p className="text-xl font-bold text-red-600">{totalWastage.toFixed(3)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Final Consumption</p>
+              <p className="text-xl font-bold">{totalMaterialConsumed.toFixed(3)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Closing</p>
+              <p className="text-xl font-bold">{totalMaterialClosing.toFixed(3)}</p>
+            </div>
+          </div>
+          <MaterialConsumptionTable
+            materials={materials}
+            onUpdateClosingQty={isCompleteMode && !isCompleted ? handleUpdateClosingQty : undefined}
+            readOnly={!isCompleteMode || isCompleted}
+            actualProduction={actualProduction}
+            requiredQty={run.required_qty ? parseFloat(run.required_qty) : undefined}
+          />
+        </CardContent>
+      </Card>
+
       {isCompleteMode && !isCompleted && (
         <Card className="border-2 border-primary">
           <CardHeader><CardTitle>Complete Production Run</CardTitle></CardHeader>
@@ -310,7 +363,8 @@ function YieldReportPage() {
             </p>
             {expectedProduction > 0 && (
               <p className="text-sm">
-                Expected production (based on running time and rated speed): <span className="font-bold">{Math.round(expectedProduction).toLocaleString()}</span> cases
+                Expected production (based on running time and rated speed):{' '}
+                <span className="font-bold">{Math.round(expectedProduction).toLocaleString()}</span> cases
               </p>
             )}
             {segmentProduction > 0 && (

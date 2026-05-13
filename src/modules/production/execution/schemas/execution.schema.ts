@@ -11,18 +11,25 @@ export const createRunSchema = z.object({
   product: z.string().optional().default(''),
   required_qty: z.string().optional(),
   rated_speed: z.string().optional(),
+  electricity_cost_per_unit: z.string().optional(),
+  labour_cost_per_hour: z.string().optional(),
   machine_ids: z.array(z.number()).optional().default([]),
   labour_count: z.number().int().min(0).optional().default(0),
   other_manpower_count: z.number().int().min(0).optional().default(0),
   supervisor: z.string().optional().default(''),
   operators: z.string().optional().default(''),
-  materials: z.array(z.object({
-    material_code: z.string(),
-    material_name: z.string(),
-    opening_qty: z.string().default('0'),
-    issued_qty: z.string().default('0'),
-    uom: z.string().default(''),
-  })).optional().default([]),
+  materials: z
+    .array(
+      z.object({
+        material_code: z.string(),
+        material_name: z.string(),
+        opening_qty: z.string().default('0'),
+        issued_qty: z.string().default('0'),
+        uom: z.string().default(''),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 export type CreateRunFormData = z.infer<typeof createRunSchema>;
@@ -33,7 +40,6 @@ export type CreateRunFormData = z.infer<typeof createRunSchema>;
 
 export const addBreakdownSchema = z.object({
   breakdown_category_id: z.number({ required_error: 'Breakdown type is required' }),
-  machine_id: z.number({ required_error: 'Machine is required' }),
   reason: z.string().min(1, 'Reason is required'),
   produced_cases: z.string().optional().default('0'),
   remarks: z.string().optional(),
@@ -84,17 +90,20 @@ export type CreateMaterialFormData = z.infer<typeof createMaterialSchema>;
 export const createRuntimeSchema = z.object({
   machine_id: z.number({ required_error: 'Machine is required' }),
   machine_type: z.enum(
-    ['FILLER', 'CAPPER', 'CONVEYOR', 'LABELER', 'CODING', 'SHRINK_PACK', 'STICKER_LABELER', 'TAPPING_MACHINE'],
+    [
+      'FILLER',
+      'CAPPER',
+      'CONVEYOR',
+      'LABELER',
+      'CODING',
+      'SHRINK_PACK',
+      'STICKER_LABELER',
+      'TAPPING_MACHINE',
+    ],
     { required_error: 'Machine type is required' },
   ),
-  runtime_minutes: z
-    .number({ required_error: 'Runtime is required' })
-    .int()
-    .min(0),
-  downtime_minutes: z
-    .number({ required_error: 'Downtime is required' })
-    .int()
-    .min(0),
+  runtime_minutes: z.number({ required_error: 'Runtime is required' }).int().min(0),
+  downtime_minutes: z.number({ required_error: 'Downtime is required' }).int().min(0),
   remarks: z.string().optional(),
 });
 
@@ -247,7 +256,16 @@ export type CreateFinalQCFormData = z.infer<typeof createFinalQCSchema>;
 export const createChecklistSchema = z.object({
   machine_id: z.number({ required_error: 'Machine is required' }),
   machine_type: z.enum(
-    ['FILLER', 'CAPPER', 'CONVEYOR', 'LABELER', 'CODING', 'SHRINK_PACK', 'STICKER_LABELER', 'TAPPING_MACHINE'],
+    [
+      'FILLER',
+      'CAPPER',
+      'CONVEYOR',
+      'LABELER',
+      'CODING',
+      'SHRINK_PACK',
+      'STICKER_LABELER',
+      'TAPPING_MACHINE',
+    ],
     { required_error: 'Machine type is required' },
   ),
   date: z.string().min(1, 'Date is required'),

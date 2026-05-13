@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
   timeout: 30000,
   retryAttempts: 3,
   retryDelay: 1000,
@@ -199,6 +199,8 @@ export const API_ENDPOINTS = {
     PRODUCTION_QC_COUNTS: '/quality-control/production-qc/counts/',
     PRODUCTION_QC_RUN_SESSIONS: (runId: number) =>
       `/quality-control/production-qc/runs/${runId}/sessions/`,
+    PRODUCTION_QC_FINAL_REQUEST: (runId: number) =>
+      `/quality-control/production-qc/runs/${runId}/request-final/`,
     PRODUCTION_QC_SESSION_DETAIL: (sessionId: number) =>
       `/quality-control/production-qc/sessions/${sessionId}/`,
     PRODUCTION_QC_SESSION_RESULTS: (sessionId: number) =>
@@ -334,6 +336,8 @@ export const API_ENDPOINTS = {
     // Waste Management
     WASTE: '/production-execution/waste/',
     WASTE_DETAIL: (wasteId: number) => `/production-execution/waste/${wasteId}/`,
+    WASTE_APPROVE: (wasteId: number) =>
+      `/production-execution/waste/${wasteId}/approve/`,
     WASTE_APPROVE_ENGINEER: (wasteId: number) =>
       `/production-execution/waste/${wasteId}/approve/engineer/`,
     WASTE_APPROVE_AM: (wasteId: number) =>
