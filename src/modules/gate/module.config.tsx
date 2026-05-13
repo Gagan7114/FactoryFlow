@@ -5,8 +5,11 @@ import { Navigate } from 'react-router-dom';
 import { GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
+import { GATE_ENTRY_CREATE_PERMISSIONS } from './constants/gateEntryTypes';
+
 // Lazy load all gate pages
 const GateDashboardPage = lazy(() => import('./pages/GateDashboardPage'));
+const GateNewEntryPage = lazy(() => import('./pages/GateNewEntryPage'));
 const RawMaterialsDashboard = lazy(() => import('./pages/rawMaterialPages/RawMaterialsDashboard'));
 const RawMaterialsPage = lazy(() => import('./pages/RawMaterialsPage'));
 
@@ -156,6 +159,13 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.GATE_ENTRY.VIEW],
       breadcrumb: { label: 'Gate' },
+    },
+    {
+      path: '/gate/new',
+      element: <GateNewEntryPage />,
+      layout: 'main',
+      permissions: GATE_ENTRY_CREATE_PERMISSIONS,
+      breadcrumb: { label: 'New Gate Entry' },
     },
 
     // ── Raw Materials ────────────────────────────────────────────
@@ -926,110 +936,14 @@ export const gateModuleConfig: ModuleConfig = {
       hasSubmenu: true,
       children: [
         {
-          path: '/gate/raw-materials',
-          title: 'Raw Materials (RM/PM/Assets)',
-          permissions: [GATE_PERMISSIONS.RAW_MATERIAL.VIEW, GATE_PERMISSIONS.RAW_MATERIAL.VIEW_FULL],
+          path: '/gate',
+          title: 'Dashboard',
+          permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.GATE_ENTRY.VIEW],
         },
         {
-          path: '/gate/daily-needs',
-          title: 'Daily Needs (Food/Consumables)',
-          permissions: [GATE_PERMISSIONS.DAILY_NEEDS.VIEW, GATE_PERMISSIONS.DAILY_NEEDS.VIEW_FULL],
-        },
-        {
-          path: '/gate/maintenance',
-          title: 'Maintenance (Spare parts/Tools)',
-          permissions: [GATE_PERMISSIONS.MAINTENANCE.VIEW, GATE_PERMISSIONS.MAINTENANCE.VIEW_FULL],
-        },
-        {
-          path: '/gate/construction',
-          title: 'Construction (Civil/Building Work)',
-          permissions: [GATE_PERMISSIONS.CONSTRUCTION.VIEW, GATE_PERMISSIONS.CONSTRUCTION.VIEW_FULL],
-        },
-        {
-          path: '/gate/visitor-labour',
-          title: 'Visitor/Labour',
-          permissions: [GATE_PERMISSIONS.PERSON_GATE_IN.VIEW],
-        },
-        {
-          path: '/gate/rejected-qc-return',
-          title: 'Rejected QC Return',
-          permissions: [
-            GATE_PERMISSIONS.REJECTED_QC_RETURN.VIEW,
-            GATE_PERMISSIONS.REJECTED_QC_RETURN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/empty-vehicle-in',
-          title: 'Empty Vehicle In',
-          permissions: [
-            GATE_PERMISSIONS.EMPTY_VEHICLE_IN.VIEW,
-            GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/empty-vehicle-out',
-          title: 'Empty Vehicle Out',
-          permissions: [
-            GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.VIEW,
-            GATE_PERMISSIONS.EMPTY_VEHICLE_OUT.CREATE,
-          ],
-        },
-        {
-          path: '/gate/bst-out',
-          title: 'BST Out',
-          permissions: [
-            GATE_PERMISSIONS.BST_OUT.VIEW,
-            GATE_PERMISSIONS.BST_OUT.CREATE,
-          ],
-        },
-        {
-          path: '/gate/bst-in',
-          title: 'BST In',
-          permissions: [
-            GATE_PERMISSIONS.BST_IN.VIEW,
-            GATE_PERMISSIONS.BST_IN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/bst-return',
-          title: 'BST Return',
-          permissions: [
-            GATE_PERMISSIONS.BST_RETURN.VIEW,
-            GATE_PERMISSIONS.BST_RETURN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/customer-return',
-          title: 'Customer Return In',
-          permissions: [
-            GATE_PERMISSIONS.CUSTOMER_RETURN.VIEW,
-            GATE_PERMISSIONS.CUSTOMER_RETURN.CREATE,
-          ],
-        },
-        {
-          path: '/gate/repair-parts-out',
-          title: 'Repair Parts Out',
-          permissions: [
-            GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
-            GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
-          ],
-        },
-        {
-          path: '/gate/repair-parts-in',
-          title: 'Repair Parts In',
-          permissions: [
-            GATE_PERMISSIONS.REPAIR_MOVEMENT.VIEW,
-            GATE_PERMISSIONS.REPAIR_MOVEMENT.CREATE,
-          ],
-        },
-        {
-          path: '/gate/job-work',
-          title: 'Job Work / Oil Refining',
-          permissions: [
-            GATE_PERMISSIONS.DASHBOARD.VIEW,
-            GATE_PERMISSIONS.JOB_WORK.VIEW,
-            GATE_PERMISSIONS.JOB_WORK.CREATE,
-          ],
+          path: '/gate/new',
+          title: 'New Entry',
+          permissions: GATE_ENTRY_CREATE_PERMISSIONS,
         },
       ],
     },

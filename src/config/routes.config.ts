@@ -64,6 +64,10 @@ export const ROUTES = {
     showInSidebar: true,
     hasSubmenu: true,
     children: {
+      GATE_NEW: {
+        path: '/gate/new',
+        title: 'New Gate Entry',
+      },
       RAW_MATERIALS: {
         path: '/gate/raw-materials',
         title: 'Raw Materials (RM/PM/Assets)',
