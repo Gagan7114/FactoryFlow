@@ -1,13 +1,13 @@
 import { Loader2, Save } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
-import {
-  DriverSelect,
-  type DriverSelection,
-  VehicleSelect,
-  type VehicleSelection,
-} from '@/modules/gate/components';
+import type { DriverName } from '@/modules/gate/api/driver/driver.api';
+import { useDriverById, useDriverNames } from '@/modules/gate/api/driver/driver.queries';
+import type { Vehicle, VehicleName } from '@/modules/gate/api/vehicle/vehicle.api';
+import { useVehicleById, useVehicleNames } from '@/modules/gate/api/vehicle/vehicle.queries';
+import { CreateDriverDialog, CreateVehicleDialog } from '@/modules/gate/components';
+import { SearchableSelect } from '@/shared/components';
 import {
   Button,
   Input,
@@ -52,6 +52,28 @@ interface FormState {
   total_freight: string;
   kanta_weight: string;
   remarks: string;
+}
+
+interface VehicleSelection {
+  vehicleId: number;
+  vehicleNumber: string;
+  vehicleType: string;
+  vehicleCapacity: string;
+  transporterId: number;
+  transporterName: string;
+  transporterGstin: string;
+  transporterContactPerson: string;
+  transporterMobile: string;
+}
+
+interface DriverSelection {
+  driverId: number;
+  driverName: string;
+  mobileNumber: string;
+  drivingLicenseNumber: string;
+  idProofType: string;
+  idProofNumber: string;
+  driverPhoto: string | null;
 }
 
 const EMPTY_FORM: FormState = {
@@ -248,21 +270,17 @@ export function DispatchLinkingSheet({
 
         <form className="mt-4 flex flex-1 flex-col gap-6" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <VehicleSelect
+            <DispatchVehicleSelect
+              selectedId={form.vehicle_id}
               value={form.vehicle_no}
-              defaultDisplayText={form.vehicle_no}
-              label="Vehicle No."
-              required
-              placeholder="Select vehicle"
+              sheetOpen={open}
               onChange={handleVehicleSelect}
             />
 
-            <DriverSelect
+            <DispatchDriverSelect
+              selectedId={form.driver_id}
               value={form.driver_name}
-              defaultDisplayText={form.driver_name}
-              label="Driver"
-              required
-              placeholder="Select driver"
+              sheetOpen={open}
               onChange={handleDriverSelect}
             />
 
@@ -361,6 +379,299 @@ export function DispatchLinkingSheet({
         </form>
       </SheetContent>
     </Sheet>
+  );
+}
+
+interface DispatchVehicleSelectProps {
+  selectedId: number | null;
+  value: string;
+  sheetOpen: boolean;
+  onChange: (vehicle: VehicleSelection) => void;
+}
+
+function DispatchVehicleSelect({
+  selectedId,
+  value,
+  sheetOpen,
+  onChange,
+}: DispatchVehicleSelectProps) {
+  const [localSelectedId, setLocalSelectedId] = useState<number | null>(selectedId);
+  const [selectedVehicleDetails, setSelectedVehicleDetails] = useState<Vehicle | null>(null);
+
+  const { data: vehicleNames = [], isLoading } = useVehicleNames(sheetOpen);
+  const { data: vehicleDetails } = useVehicleById(
+    localSelectedId,
+    sheetOpen && localSelectedId !== null,
+  );
+
+  const prevVehicleDetailsRef = useRef(vehicleDetails);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (selectedId === localSelectedId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sheet edit mode must sync selected id from the opened bill.
+    setLocalSelectedId(selectedId);
+    if (!selectedId) {
+      setSelectedVehicleDetails(null);
+      prevVehicleDetailsRef.current = undefined;
+    }
+  }, [selectedId, localSelectedId]);
+
+  const syncVehicleDetails = useCallback(() => {
+    if (!vehicleDetails || vehicleDetails === prevVehicleDetailsRef.current) return;
+
+    prevVehicleDetailsRef.current = vehicleDetails;
+    setSelectedVehicleDetails(vehicleDetails);
+    onChangeRef.current({
+      vehicleId: vehicleDetails.id,
+      vehicleNumber: vehicleDetails.vehicle_number,
+      vehicleType: vehicleDetails.vehicle_type.name,
+      vehicleCapacity: `${vehicleDetails.capacity_ton} Tons`,
+      transporterId: vehicleDetails.transporter?.id || 0,
+      transporterName: vehicleDetails.transporter?.name || '',
+      transporterGstin: '',
+      transporterContactPerson: vehicleDetails.transporter?.contact_person || '',
+      transporterMobile: vehicleDetails.transporter?.mobile_no || '',
+    });
+  }, [vehicleDetails]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync fetched vehicle details into sheet form.
+    syncVehicleDetails();
+  }, [syncVehicleDetails]);
+
+  return (
+    <SearchableSelect<VehicleName>
+      value={localSelectedId !== null ? String(localSelectedId) : value}
+      defaultDisplayText={selectedVehicleDetails?.vehicle_number || value}
+      items={vehicleNames}
+      isLoading={isLoading}
+      label="Vehicle No."
+      required
+      placeholder="Select vehicle"
+      inputId="dispatch-link-vehicle-select"
+      getItemKey={(vehicle) => vehicle.id}
+      getItemLabel={(vehicle) => vehicle.vehicle_number}
+      loadingText="Loading vehicles..."
+      emptyText="No vehicles available"
+      notFoundText="No vehicles found"
+      addNewLabel="Add New Vehicle"
+      onSelectedKeyChange={(key) => {
+        setLocalSelectedId(key as number | null);
+        if (!key) setSelectedVehicleDetails(null);
+      }}
+      onItemSelect={(vehicle) => {
+        setLocalSelectedId(vehicle.id);
+      }}
+      onClear={() => {
+        setLocalSelectedId(null);
+        setSelectedVehicleDetails(null);
+        prevVehicleDetailsRef.current = undefined;
+        onChange({
+          vehicleId: 0,
+          vehicleNumber: '',
+          vehicleType: '',
+          vehicleCapacity: '',
+          transporterId: 0,
+          transporterName: '',
+          transporterGstin: '',
+          transporterContactPerson: '',
+          transporterMobile: '',
+        });
+      }}
+      renderPopoverContent={(activeKey) =>
+        selectedVehicleDetails ? (
+          <div className="space-y-1.5 text-sm">
+            <div>
+              <span className="font-medium">Vehicle Number:</span>{' '}
+              <span className="text-muted-foreground">
+                {selectedVehicleDetails.vehicle_number}
+              </span>
+            </div>
+            <div>
+              <span className="font-medium">Vehicle Type:</span>{' '}
+              <span className="text-muted-foreground">
+                {selectedVehicleDetails.vehicle_type.name}
+              </span>
+            </div>
+            <div>
+              <span className="font-medium">Capacity:</span>{' '}
+              <span className="text-muted-foreground">
+                {selectedVehicleDetails.capacity_ton} Tons
+              </span>
+            </div>
+            {selectedVehicleDetails.transporter && (
+              <div>
+                <span className="font-medium">Transporter:</span>{' '}
+                <span className="text-muted-foreground">
+                  {selectedVehicleDetails.transporter.name}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : activeKey ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading vehicle details...
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Please select a vehicle to view details.
+          </div>
+        )
+      }
+      renderCreateDialog={(open, onOpenChange, updateSelection) => (
+        <CreateVehicleDialog
+          open={open}
+          onOpenChange={onOpenChange}
+          onSuccess={(vehicle) => {
+            updateSelection(vehicle.id, vehicle.vehicle_number);
+            setLocalSelectedId(vehicle.id);
+          }}
+        />
+      )}
+    />
+  );
+}
+
+interface DispatchDriverSelectProps {
+  selectedId: number | null;
+  value: string;
+  sheetOpen: boolean;
+  onChange: (driver: DriverSelection) => void;
+}
+
+function DispatchDriverSelect({
+  selectedId,
+  value,
+  sheetOpen,
+  onChange,
+}: DispatchDriverSelectProps) {
+  const [localSelectedId, setLocalSelectedId] = useState<number | null>(selectedId);
+
+  const { data: driverNames = [], isLoading } = useDriverNames(sheetOpen);
+  const { data: driverDetails } = useDriverById(
+    localSelectedId,
+    sheetOpen && localSelectedId !== null,
+  );
+
+  const prevDriverDetailsRef = useRef(driverDetails);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (selectedId === localSelectedId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sheet edit mode must sync selected id from the opened bill.
+    setLocalSelectedId(selectedId);
+    if (!selectedId) {
+      prevDriverDetailsRef.current = undefined;
+    }
+  }, [selectedId, localSelectedId]);
+
+  useEffect(() => {
+    if (!driverDetails || driverDetails === prevDriverDetailsRef.current) return;
+
+    prevDriverDetailsRef.current = driverDetails;
+    onChangeRef.current({
+      driverId: driverDetails.id,
+      driverName: driverDetails.name,
+      mobileNumber: driverDetails.mobile_no,
+      drivingLicenseNumber: driverDetails.license_no,
+      idProofType: driverDetails.id_proof_type,
+      idProofNumber: driverDetails.id_proof_number,
+      driverPhoto: driverDetails.photo,
+    });
+  }, [driverDetails]);
+
+  return (
+    <SearchableSelect<DriverName>
+      value={localSelectedId !== null ? String(localSelectedId) : value}
+      defaultDisplayText={driverDetails?.name || value}
+      items={driverNames}
+      isLoading={isLoading}
+      label="Driver"
+      required
+      placeholder="Select driver"
+      inputId="dispatch-link-driver-select"
+      getItemKey={(driver) => driver.id}
+      getItemLabel={(driver) => driver.name}
+      loadingText="Loading drivers..."
+      emptyText="No drivers available"
+      notFoundText="No drivers found"
+      addNewLabel="Add New Driver"
+      onSelectedKeyChange={(key) => {
+        setLocalSelectedId(key as number | null);
+        if (!key) prevDriverDetailsRef.current = undefined;
+      }}
+      onItemSelect={(driver) => {
+        setLocalSelectedId(driver.id);
+      }}
+      onClear={() => {
+        setLocalSelectedId(null);
+        prevDriverDetailsRef.current = undefined;
+        onChange({
+          driverId: 0,
+          driverName: '',
+          mobileNumber: '',
+          drivingLicenseNumber: '',
+          idProofType: '',
+          idProofNumber: '',
+          driverPhoto: null,
+        });
+      }}
+      renderPopoverContent={(activeKey) =>
+        driverDetails ? (
+          <div className="space-y-1.5 text-sm">
+            <div>
+              <span className="font-medium">Name:</span>{' '}
+              <span className="text-muted-foreground">{driverDetails.name}</span>
+            </div>
+            <div>
+              <span className="font-medium">Mobile Number:</span>{' '}
+              <span className="text-muted-foreground">{driverDetails.mobile_no}</span>
+            </div>
+            <div>
+              <span className="font-medium">License Number:</span>{' '}
+              <span className="text-muted-foreground">{driverDetails.license_no}</span>
+            </div>
+            <div>
+              <span className="font-medium">ID Proof Type:</span>{' '}
+              <span className="text-muted-foreground">{driverDetails.id_proof_type}</span>
+            </div>
+            <div>
+              <span className="font-medium">ID Proof Number:</span>{' '}
+              <span className="text-muted-foreground">{driverDetails.id_proof_number}</span>
+            </div>
+          </div>
+        ) : activeKey ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading driver details...
+          </div>
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Please select a driver to view details.
+          </div>
+        )
+      }
+      renderCreateDialog={(open, onOpenChange, updateSelection) => (
+        <CreateDriverDialog
+          open={open}
+          onOpenChange={onOpenChange}
+          onSuccess={(driver) => {
+            updateSelection(driver.id, driver.name);
+            setLocalSelectedId(driver.id);
+          }}
+        />
+      )}
+    />
   );
 }
 
