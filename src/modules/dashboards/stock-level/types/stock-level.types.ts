@@ -2,7 +2,7 @@
 // Stock Status
 // ============================================================================
 
-export type StockHealthStatus = 'healthy' | 'low' | 'critical' | 'unset';
+export type StockHealthStatus = 'healthy' | 'low' | 'critical' | 'unset' | 'none';
 export type StockMovementStatus = 'planned' | 'recent' | 'slow';
 
 // ============================================================================

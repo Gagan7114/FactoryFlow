@@ -25,9 +25,9 @@ These defaults are applied on initial load and when filters are reset:
 | Material Type | Packing Material |
 | Warehouse | `BH-BS`, `BH-PM` |
 | Status | `Healthy`, `Low`, `Critical` |
-| Movement | None selected |
+| Movement | `Planned`, `Recently Used` |
 
-When Movement has no selection, no `movement_status` query parameter is sent, so the table includes planned, recently used, and slow-moving items.
+By default, the dashboard sends `movement_status=planned,recent`, so slow-moving items are excluded until the Movement filter is changed. If Movement is changed to All, benchmarked slow-moving items can be visible with no stock status badge and are not counted under Healthy, Low, or Critical.
 
 ## Top Stats
 
@@ -36,8 +36,10 @@ The top stats are pinned to the stock benchmark baseline and do not follow every
 - Material Type: default Packing Material item group
 - Warehouse: `BH-BS`, `BH-PM`
 - Status: `Healthy`, `Low`, `Critical`
-- Movement: no filter
+- Movement: `Planned`, `Recently Used`
 - `page_size=1`, because only the `meta` counts are needed
+
+The Total Items card is displayed as `Healthy + Low + Critical`. It does not include no-status slow-moving rows, even when those rows are visible in the table.
 
 This keeps the summary cards stable while users search, sort, paginate, or inspect other table slices.
 
@@ -63,13 +65,14 @@ Stock status is calculated by the backend so table rows, filters, and counts use
 
 | Status | Rule |
 |--------|------|
-| Healthy | Benchmark is set and `OnHand >= Benchmark` |
-| Low | Benchmark is set and `OnHand < Benchmark` and `OnHand >= Benchmark * 0.6` |
-| Critical | Benchmark is set and `OnHand < Benchmark * 0.6` |
+| Healthy | Not slow-moving, benchmark is set, and `OnHand >= Benchmark` |
+| Low | Not slow-moving, benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
+| Critical | Not slow-moving, benchmark is set, and `OnHand < Benchmark * 0.6` |
 | Critical | Benchmark is not set and the item has open production planning demand |
-| No Benchmark Set | Benchmark is not set and the item has no open production planning demand |
+| No Benchmark Set | Not slow-moving, benchmark is not set, and the item has no open production planning demand |
 
 The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility. If an item is planned but has no benchmark, it is treated as Critical because it represents real demand without a configured benchmark.
+Slow-moving rows have no stock status. If Movement is changed to All while the Healthy/Low/Critical status filter remains selected, only benchmarked slow-moving rows remain visible; slow rows with no benchmark are excluded unless filters are changed.
 
 ## Movement Rules
 
@@ -82,6 +85,7 @@ Movement status is also calculated by the backend:
 | Slow Moving | No open plan, and either no outbound consumption exists or last consumption is older than 30 days. |
 
 Planning takes priority over movement age. If an item is planned, it is shown as Planned even if it has no recent consumption.
+Stock and benchmark quantities still come from the selected warehouses, but movement age is item-level across SAP inventory movement. A recent consumption in another warehouse can therefore prevent the selected stock row from being marked Slow Moving.
 
 ## Grouped Rows
 

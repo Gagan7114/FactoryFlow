@@ -92,6 +92,7 @@ export default function StockLevelDashboardPage() {
       item_group: defaultItemGroup,
       warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: [...STOCK_BENCHMARK_STATS_STATUS_FILTER],
+      movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
       page: 1,
       page_size: 1,
     },

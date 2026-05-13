@@ -325,6 +325,8 @@ function StockMovementBadge({ item }: { item: StockItem }) {
 }
 
 function StockHealthBadge({ status }: { status: StockItem['stock_status'] }) {
+  if (status === 'none') return null;
+
   const config = {
     healthy: {
       label: 'Healthy',

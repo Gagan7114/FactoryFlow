@@ -26,7 +26,7 @@ export const STOCK_MOVEMENT_FILTER_OPTIONS = [
   { value: 'slow', label: 'Slow Moving' },
 ] as const;
 
-export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = [];
+export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = ['planned', 'recent'];
 
 // ============================================================================
 // Query Config

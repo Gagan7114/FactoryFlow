@@ -255,26 +255,28 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | `search` | string | Case-insensitive search across item code, item name, and warehouse. |
 | `item_group` | string | SAP item group name, for example `PACKAGING MATERIAL`. |
 | `warehouse` | comma-separated string | Warehouse codes. Two or more selected warehouses return grouped item rows. |
-| `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. |
+| `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. With the default `healthy,low,critical` set, benchmarked slow rows can remain visible with no stock status unless the Movement filter excludes slow rows. |
 | `movement_status` | comma-separated string | `planned`, `recent`, `slow`. Omit to include all movement states. |
 | `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
 | `sort_dir` | string | `asc` or `desc`. |
 | `page` | integer | Page number. |
 | `page_size` | integer | Page size, maximum 200. |
 
-The Stock Benchmark page defaults to Packing Material, warehouses `BH-BS` and `BH-PM`, statuses `healthy,low,critical`, and no movement filter. Its top stats are intentionally pinned to those defaults and are not changed by table filtering.
+The Stock Benchmark page defaults to Packing Material, warehouses `BH-BS` and `BH-PM`, statuses `healthy,low,critical`, and movements `planned,recent`. Its top stats are intentionally pinned to those defaults and are not changed by table filtering.
+The frontend Total Items stat is rendered as `healthy_count + low_stock_count + critical_stock_count`; backend `total_items` still represents the filtered table row total for pagination.
 
 Backend status rules:
 
 | Status | Rule |
 |--------|------|
-| `healthy` | Benchmark is set and `OnHand >= Benchmark` |
-| `low` | Benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
-| `critical` | Benchmark is set and `OnHand < Benchmark * 0.6` |
+| `healthy` | Not slow-moving, benchmark is set, and `OnHand >= Benchmark` |
+| `low` | Not slow-moving, benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
+| `critical` | Not slow-moving, benchmark is set, and `OnHand < Benchmark * 0.6` |
 | `critical` | Benchmark is not set and the item is present in open production planning demand |
-| `unset` | Benchmark is not set and the item is not present in open production planning demand |
+| `unset` | Not slow-moving, benchmark is not set, and the item is not present in open production planning demand |
 
 The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility.
+Slow-moving rows have no stock status and do not contribute to Healthy, Low, Critical, or No Benchmark Set counts. In the default operational status filter, only benchmarked slow rows remain visible; slow rows with no benchmark are excluded.
 
 Movement rules:
 
@@ -283,6 +285,8 @@ Movement rules:
 | `planned` | Open production plan exists with remaining planned quantity. |
 | `recent` | No open plan, and outbound consumption exists within 30 days. |
 | `slow` | No open plan, and no outbound consumption exists or last consumption is older than 30 days. |
+
+Stock and benchmark quantities are scoped to selected warehouses, but movement age is item-level across SAP inventory movement.
 
 **Types:** `StockDashboardFilters`, `StockItem`, `StockDashboardMeta` - see `src/modules/dashboards/stock-level/types/stock-level.types.ts`
 

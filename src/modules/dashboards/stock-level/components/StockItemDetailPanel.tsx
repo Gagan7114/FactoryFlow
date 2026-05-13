@@ -12,6 +12,8 @@ interface StockItemDetailPanelProps {
 }
 
 function StatusBadge({ status }: { status: StockItem['stock_status'] }) {
+  if (status === 'none') return null;
+
   const config = {
     healthy: {
       label: 'Healthy',
