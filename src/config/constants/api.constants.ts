@@ -220,6 +220,11 @@ export const API_ENDPOINTS = {
     REPORT: '/non-moving-rm/report/',
     ITEM_GROUPS: '/non-moving-rm/item-groups/',
   },
+  // Dispatch Plans Dashboard
+  DISPATCH_PLANS: {
+    BILLS: '/dispatch-plans/bills/',
+    PLAN: (docEntry: number) => `/dispatch-plans/bills/${docEntry}/plan/`,
+  },
   // Production Execution
   PRODUCTION_EXECUTION: {
     // Production Lines
