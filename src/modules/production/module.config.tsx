@@ -284,11 +284,6 @@ export const productionModuleConfig: ModuleConfig = {
           title: 'Line Management',
           permissions: [EXECUTION_PERMISSIONS.MANAGE_LINES],
         },
-        {
-          path: '/production/execution/master-data',
-          title: 'Master Data',
-          permissions: [EXECUTION_PERMISSIONS.MANAGE_LINES],
-        },
       ],
     },
   ],
