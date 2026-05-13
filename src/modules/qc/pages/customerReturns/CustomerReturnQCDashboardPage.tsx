@@ -21,7 +21,7 @@ export default function CustomerReturnQCDashboardPage() {
 
   const entries = useMemo(
     () => readCustomerFlowEntries(CUSTOMER_RETURN_KEY)
-      .filter((entry) => ['PENDING_QC', 'QC_ACCEPTED', 'QC_PARTIAL', 'QC_REJECTED'].includes(entry.status)),
+      .filter((entry) => ['PENDING_QC', 'PENDING_SAP_GR', 'QC_ACCEPTED', 'QC_PARTIAL', 'QC_REJECTED'].includes(entry.status)),
     [],
   );
   const filteredEntries = useMemo(() => {
@@ -31,7 +31,7 @@ export default function CustomerReturnQCDashboardPage() {
   }, [entries, searchTerm]);
 
   const pendingCount = entries.filter((entry) => entry.status === 'PENDING_QC').length;
-  const acceptedCount = entries.filter((entry) => ['QC_ACCEPTED', 'QC_PARTIAL'].includes(entry.status)).length;
+  const acceptedCount = entries.filter((entry) => ['PENDING_SAP_GR', 'QC_ACCEPTED', 'QC_PARTIAL'].includes(entry.status)).length;
   const awaitingFactoryHeadCount = entries.filter(isCustomerReturnAwaitingFactoryHead).length;
   const finalRejectedCount = entries.filter((entry) => (
     entry.status === 'QC_REJECTED' && !isCustomerReturnAwaitingFactoryHead(entry)
@@ -120,6 +120,7 @@ export default function CustomerReturnQCDashboardPage() {
 
 function StatusBadge({ entry }: { entry: CustomerFlowEntry }) {
   if (entry.status === 'PENDING_QC') return <Badge variant="warning">PENDING QC</Badge>;
+  if (entry.status === 'PENDING_SAP_GR') return <Badge variant="warning">PENDING SAP GR</Badge>;
   if (entry.status === 'QC_REJECTED') {
     return <Badge variant="destructive">{getCustomerReturnStatusLabel(entry)}</Badge>;
   }

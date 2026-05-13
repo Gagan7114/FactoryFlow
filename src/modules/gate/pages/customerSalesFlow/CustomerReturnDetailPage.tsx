@@ -1,8 +1,19 @@
-import { ArrowLeft, FileText, PackageX, Truck } from 'lucide-react';
+import { ArrowLeft, FileCheck, FileText, PackageX, Save, Truck } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
+import { GateStatusBadge } from '@/modules/gate/components';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Textarea,
+} from '@/shared/components/ui';
 
 import {
   CUSTOMER_RETURN_KEY,
@@ -10,16 +21,31 @@ import {
   findCustomerFlowEntry,
   formatCustomerFlowDateTime,
   formatCustomerFlowTimestamp,
+  getCustomerFlowRawValue,
   getCustomerFlowValue,
   getCustomerReturnStatusLabel,
+  updateCustomerFlowEntry,
 } from './customerSalesFlow.storage';
 
 export default function CustomerReturnDetailPage() {
   const navigate = useNavigate();
   const { entryId } = useParams();
-  const [entry] = useState<CustomerFlowEntry | null>(() => (
+  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() => (
     entryId ? findCustomerFlowEntry(CUSTOMER_RETURN_KEY, entryId) : null
   ));
+  const [sapGrDocNo, setSapGrDocNo] = useState(() => (
+    entry ? getCustomerFlowRawValue(entry, 'sapCustomerReturnDocNo') : ''
+  ));
+  const [sapGrDocDate, setSapGrDocDate] = useState(() => (
+    entry ? getCustomerFlowRawValue(entry, 'sapCustomerReturnDocDate') : ''
+  ));
+  const [sapGrReference, setSapGrReference] = useState(() => (
+    entry ? getCustomerFlowRawValue(entry, 'sapCustomerReturnReference') : ''
+  ));
+  const [sapGrNotes, setSapGrNotes] = useState(() => (
+    entry ? getCustomerFlowRawValue(entry, 'sapCustomerReturnNotes') : ''
+  ));
+  const [formError, setFormError] = useState('');
 
   if (!entry) {
     return (
@@ -32,6 +58,39 @@ export default function CustomerReturnDetailPage() {
       </div>
     );
   }
+
+  const isSapGrPending = entry.status === 'PENDING_SAP_GR';
+
+  const handleMarkSapGrDone = () => {
+    if (!sapGrDocNo.trim()) {
+      setFormError('SAP customer return / GR document number is required');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const updatedEntry = updateCustomerFlowEntry(CUSTOMER_RETURN_KEY, entry.id, (current) => ({
+      ...current,
+      status: 'COMPLETED',
+      values: {
+        ...current.values,
+        sapCustomerReturnDocNo: sapGrDocNo.trim(),
+        sapCustomerReturnDocDate: sapGrDocDate,
+        sapCustomerReturnReference: sapGrReference.trim(),
+        sapCustomerReturnNotes: sapGrNotes.trim(),
+        sapCustomerReturnPostedAt: now,
+      },
+      updatedAt: now,
+    }));
+
+    if (!updatedEntry) {
+      setFormError('Failed to save SAP GR details');
+      return;
+    }
+
+    setEntry(updatedEntry);
+    setFormError('');
+    toast.success('Customer return marked complete after SAP GR');
+  };
 
   return (
     <div className="space-y-6 pb-6">
@@ -64,6 +123,84 @@ export default function CustomerReturnDetailPage() {
           <InfoItem label="Customer" value={getCustomerFlowValue(entry, 'customerName')} />
           <InfoItem label="Claim No." value={getCustomerFlowValue(entry, 'customerClaimNo')} />
           <InfoItem label="Created" value={formatCustomerFlowTimestamp(entry.createdAt)} />
+        </CardContent>
+      </Card>
+
+      {formError && (
+        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          {formError}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileCheck className="h-5 w-5" />
+            SAP Customer Return / GR
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isSapGrPending ? (
+            <>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-return-sap-gr-doc">
+                    SAP Document No. <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="customer-return-sap-gr-doc"
+                    value={sapGrDocNo}
+                    onChange={(event) => {
+                      setSapGrDocNo(event.target.value);
+                      setFormError('');
+                    }}
+                    placeholder="SAP customer return / GR no."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer-return-sap-gr-date">SAP Doc Date</Label>
+                  <Input
+                    id="customer-return-sap-gr-date"
+                    type="date"
+                    value={sapGrDocDate}
+                    onChange={(event) => setSapGrDocDate(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer-return-sap-gr-reference">Reference</Label>
+                  <Input
+                    id="customer-return-sap-gr-reference"
+                    value={sapGrReference}
+                    onChange={(event) => setSapGrReference(event.target.value)}
+                    placeholder="Optional SAP reference"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer-return-sap-gr-notes">Notes</Label>
+                <Textarea
+                  id="customer-return-sap-gr-notes"
+                  value={sapGrNotes}
+                  onChange={(event) => setSapGrNotes(event.target.value)}
+                  placeholder="Posting notes, GR remarks, or SAP comments"
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={handleMarkSapGrDone}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Mark SAP GR Done
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+              <InfoItem label="SAP Document No." value={getCustomerFlowValue(entry, 'sapCustomerReturnDocNo')} />
+              <InfoItem label="SAP Doc Date" value={getCustomerFlowValue(entry, 'sapCustomerReturnDocDate')} />
+              <InfoItem label="Reference" value={getCustomerFlowValue(entry, 'sapCustomerReturnReference')} />
+              <InfoItem label="Notes" value={getCustomerFlowValue(entry, 'sapCustomerReturnNotes')} />
+              <InfoItem label="Posted At" value={formatCustomerFlowTimestamp(getCustomerFlowRawValue(entry, 'sapCustomerReturnPostedAt'))} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -123,11 +260,11 @@ function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
                 <td className="whitespace-nowrap p-3 text-sm">{item.returnQty} {item.uom}</td>
                 <td className="whitespace-nowrap p-3 text-sm">
                   {Number(item.acceptedQty || 0) > 0 ? (
-                    <Badge variant="success">Accepted</Badge>
+                    <GateStatusBadge status="ACCEPTED" label="Accepted" />
                   ) : Number(item.rejectedQty || 0) > 0 ? (
-                    <Badge variant="destructive">Rejected</Badge>
+                    <GateStatusBadge status="REJECTED" label="Rejected" />
                   ) : (
-                    <Badge variant="outline">Pending</Badge>
+                    <GateStatusBadge status="PENDING" label="Pending" />
                   )}
                 </td>
                 <td className="p-3 text-sm">{item.reason || '-'}</td>
@@ -142,13 +279,13 @@ function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
 }
 
 function StatusBadge({ entry }: { entry: CustomerFlowEntry }) {
-  if (entry.status === 'PENDING_QC' || entry.status === 'IN_PROGRESS') {
-    return <Badge variant="warning" className="mt-1">{getCustomerReturnStatusLabel(entry)}</Badge>;
-  }
-  if (entry.status === 'QC_REJECTED' || entry.status === 'CANCELLED') {
-    return <Badge variant="destructive" className="mt-1">{getCustomerReturnStatusLabel(entry)}</Badge>;
-  }
-  return <Badge variant="success" className="mt-1">{getCustomerReturnStatusLabel(entry)}</Badge>;
+  return (
+    <GateStatusBadge
+      status={entry.status}
+      label={getCustomerReturnStatusLabel(entry)}
+      className="mt-1"
+    />
+  );
 }
 
 function InfoItem({ label, value }: { label: string; value?: string | number | null }) {

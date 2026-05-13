@@ -84,6 +84,9 @@ export default function BSTInNewPage() {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [gateInDate, setGateInDate] = useState(() => toDateInputValue());
   const [inTime, setInTime] = useState(() => toTimeInputValue());
+  const [sapReceiptDocNum, setSapReceiptDocNum] = useState('');
+  const [sapReceiptDocDate, setSapReceiptDocDate] = useState('');
+  const [sapReceiptReference, setSapReceiptReference] = useState('');
   const [securityName, setSecurityName] = useState('');
   const [remarks, setRemarks] = useState('');
   const [formError, setFormError] = useState('');
@@ -110,6 +113,9 @@ export default function BSTInNewPage() {
     setSelectedOutId(String(existingEntry.bst_gate_out));
     setGateInDate(existingEntry.gate_in_date || toDateInputValue());
     setInTime(existingEntry.in_time?.slice(0, 5) || toTimeInputValue());
+    setSapReceiptDocNum(existingEntry.sap_receipt_doc_num || '');
+    setSapReceiptDocDate(existingEntry.sap_receipt_doc_date || '');
+    setSapReceiptReference(existingEntry.sap_receipt_reference || '');
     setSecurityName(existingEntry.security_name || '');
     setRemarks(existingEntry.remarks || '');
     setReceivingQuantities(
@@ -130,6 +136,9 @@ export default function BSTInNewPage() {
     setSubmittedSearch('');
     setGateInDate(toDateInputValue());
     setInTime(toTimeInputValue());
+    setSapReceiptDocNum('');
+    setSapReceiptDocDate('');
+    setSapReceiptReference('');
     setSecurityName('');
     setRemarks('');
     setFormError('');
@@ -236,6 +245,9 @@ export default function BSTInNewPage() {
         bst_gate_out_id: Number(selectedOutId),
         gate_in_date: gateInDate,
         in_time: inTime,
+        sap_receipt_doc_num: sapReceiptDocNum.trim(),
+        sap_receipt_doc_date: sapReceiptDocDate || null,
+        sap_receipt_reference: sapReceiptReference.trim(),
         items: detailItems.map((item) => ({
           line_num: item.line_num,
           receiving_quantity: Number(
@@ -278,6 +290,7 @@ export default function BSTInNewPage() {
             <InfoItem label="Vehicle" value={existingEntry.vehicle_number} />
             <InfoItem label="Driver" value={existingEntry.driver_name} />
             <InfoItem label="SAP BST" value={existingEntry.sap_doc_num} />
+            <InfoItem label="SAP Receiving Doc" value={existingEntry.sap_receipt_doc_num || ''} />
             <InfoItem label="From" value={existingEntry.sap_from_warehouse} />
             <InfoItem label="To" value={existingEntry.sap_to_warehouse} />
             <InfoItem label="Gate In" value={formatDateTime(existingEntry.gate_in_date, existingEntry.in_time)} />
@@ -402,6 +415,44 @@ export default function BSTInNewPage() {
                     placeholder="Optional notes"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-5 w-5" />
+                SAP Receiving Document
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="sap-receipt-doc-num">SAP Receiving Doc No.</Label>
+                <Input
+                  id="sap-receipt-doc-num"
+                  value={sapReceiptDocNum}
+                  onChange={(event) => setSapReceiptDocNum(event.target.value)}
+                  placeholder="Receiving / GR document number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sap-receipt-doc-date">SAP Doc Date</Label>
+                <Input
+                  id="sap-receipt-doc-date"
+                  type="date"
+                  value={sapReceiptDocDate}
+                  onChange={(event) => setSapReceiptDocDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sap-receipt-reference">Reference</Label>
+                <Input
+                  id="sap-receipt-reference"
+                  value={sapReceiptReference}
+                  onChange={(event) => setSapReceiptReference(event.target.value)}
+                  placeholder="Optional SAP reference"
+                />
               </div>
             </CardContent>
           </Card>

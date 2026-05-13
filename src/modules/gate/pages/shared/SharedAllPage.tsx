@@ -2,8 +2,9 @@ import { ChevronRight, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { ENTRY_STATUS, getEntryStatusClasses } from '@/config/constants';
+import { ENTRY_STATUS } from '@/config/constants';
 import { useGlobalDateRange } from '@/core/store/hooks';
+import { GateStatusBadge } from '@/modules/gate/components';
 import { Button, Input } from '@/shared/components/ui';
 
 import { useVehicleEntries } from '../../api/vehicle/vehicleEntry.queries';
@@ -156,13 +157,7 @@ export default function SharedAllPage({ config }: SharedAllPageProps) {
                       {formatDateTime(entry.entry_time)}
                     </td>
                     <td className="p-3 text-sm">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${getEntryStatusClasses(
-                          entry.status || '',
-                        )}`}
-                      >
-                        {entry.status || '-'}
-                      </span>
+                      <GateStatusBadge status={entry.status} />
                     </td>
                     <td className="p-3 text-sm text-muted-foreground">{entry.remarks || '-'}</td>
                     <td className="p-3 text-right">

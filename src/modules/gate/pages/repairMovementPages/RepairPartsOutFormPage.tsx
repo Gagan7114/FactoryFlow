@@ -271,9 +271,28 @@ export default function RepairPartsOutFormPage() {
       conditionOut: item.conditionOut.trim(),
     }));
     const hasBlankItem = trimmedItems.some((item) => !item.itemDescription);
+    const hasInvalidQty = trimmedItems.some((item) => (
+      !item.qty || Number(item.qty) <= 0 || Number.isNaN(Number(item.qty))
+    ));
+    const hasMissingUom = trimmedItems.some((item) => !item.uom);
 
     if (hasBlankItem) {
       setFormError('Please enter the item description for every part going out');
+      return;
+    }
+
+    if (hasInvalidQty) {
+      setFormError('Please enter a valid quantity for every part going out');
+      return;
+    }
+
+    if (hasMissingUom) {
+      setFormError('Please enter the UOM for every part going out');
+      return;
+    }
+
+    if (!draft.challanNo.trim()) {
+      setFormError('Please enter the repair / delivery challan number');
       return;
     }
 
@@ -284,6 +303,11 @@ export default function RepairPartsOutFormPage() {
 
     if (!draft.department.trim()) {
       setFormError('Please enter the department');
+      return;
+    }
+
+    if (!draft.requestedBy.trim()) {
+      setFormError('Please enter who requested the repair movement');
       return;
     }
 
@@ -393,7 +417,8 @@ export default function RepairPartsOutFormPage() {
 
             <TextField
               id="repair-out-challan-no"
-              label="Challan No."
+              label="Repair / Delivery Challan No."
+              required
               value={draft.challanNo}
               onChange={(value) => updateDraft('challanNo', value)}
             />
@@ -429,6 +454,7 @@ export default function RepairPartsOutFormPage() {
                 <TextField
                   id={`repair-out-qty-${item.id}`}
                   label="Qty"
+                  required
                   type="number"
                   value={item.qty}
                   onChange={(value) => updateItem(item.id, 'qty', value)}
@@ -439,6 +465,7 @@ export default function RepairPartsOutFormPage() {
                 <TextField
                   id={`repair-out-uom-${item.id}`}
                   label="UOM"
+                  required
                   value={item.uom}
                   onChange={(value) => updateItem(item.id, 'uom', value)}
                 />
@@ -524,6 +551,7 @@ export default function RepairPartsOutFormPage() {
             <TextField
               id="repair-out-requested-by"
               label="Requested By"
+              required
               value={draft.requestedBy}
               onChange={(value) => updateDraft('requestedBy', value)}
             />

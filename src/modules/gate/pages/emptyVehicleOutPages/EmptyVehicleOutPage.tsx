@@ -17,7 +17,7 @@ import {
   useEmptyVehicleEligibleEntries,
   useEmptyVehicleGateOutEntries,
 } from '@/modules/gate/api';
-import { DateRangePicker } from '@/modules/gate/components';
+import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import { Badge, Button, Card, CardContent, Input } from '@/shared/components/ui';
 
 const ENTRY_TYPE_LABELS: Record<string, string> = {
@@ -266,7 +266,7 @@ function EntryRow({ entry }: { entry: EmptyVehicleGateOutEntry }) {
         {formatDateTime(entry.gate_out_date, entry.out_time)}
       </td>
       <td className="whitespace-nowrap p-3 text-sm">
-        <Badge variant={isCancelled ? 'destructive' : 'secondary'}>{entry.status}</Badge>
+        <GateStatusBadge status={entry.status} />
       </td>
       <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">
         {entry.security_name || '-'}

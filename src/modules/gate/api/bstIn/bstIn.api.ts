@@ -49,6 +49,9 @@ export interface BSTGateInEntry {
   sap_comments: string;
   gate_in_date: string;
   in_time: string;
+  sap_receipt_doc_num?: string;
+  sap_receipt_doc_date?: string | null;
+  sap_receipt_reference?: string;
   security_name?: string;
   remarks?: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | string;
@@ -67,6 +70,9 @@ export interface BSTGateInCreateRequest {
   bst_gate_out_id: number;
   gate_in_date: string;
   in_time: string;
+  sap_receipt_doc_num?: string;
+  sap_receipt_doc_date?: string | null;
+  sap_receipt_reference?: string;
   items?: BSTGateInItemRequest[];
   security_name?: string;
   remarks?: string;

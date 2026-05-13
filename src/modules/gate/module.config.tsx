@@ -121,6 +121,21 @@ const CustomerReturnAttachmentsPage = lazy(
 const CustomerReturnDetailPage = lazy(
   () => import('./pages/customerSalesFlow/CustomerReturnDetailPage'),
 );
+const SalesDispatchDashboardPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
+);
+const SalesDispatchNewPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
+);
+const SalesDispatchWeighmentPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchWeighmentPage'),
+);
+const SalesDispatchAttachmentsPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
+);
+const SalesDispatchDetailPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
+);
 const RepairPartsOutDashboardPage = lazy(
   () => import('./pages/repairMovementPages/RepairPartsOutDashboardPage'),
 );
@@ -805,6 +820,41 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.VIEW],
       breadcrumb: { label: 'Customer Return Entry' },
+    },
+    {
+      path: '/gate/sales-dispatch',
+      element: <SalesDispatchDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new',
+      element: <SalesDispatchNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'New Sales Dispatch' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/weighment',
+      element: <SalesDispatchWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Weighment' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/attachments',
+      element: <SalesDispatchAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Sales Dispatch Attachments' },
+    },
+    {
+      path: '/gate/sales-dispatch/:entryId',
+      element: <SalesDispatchDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch Entry' },
     },
     {
       path: '/gate/repair-movement',

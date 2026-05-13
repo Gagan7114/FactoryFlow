@@ -9,6 +9,7 @@ import {
   Package,
   PackageX,
   RotateCcw,
+  Send,
   Undo2,
   UtensilsCrossed,
   Wrench,
@@ -226,6 +227,22 @@ export const GATE_ENTRY_TYPES: GateEntryTypeConfig[] = [
     requiresGatepass: true,
   },
   {
+    id: 'sales-dispatch',
+    title: 'Sales Dispatch Out',
+    description: 'Finished goods dispatch gate-out against customer delivery documents.',
+    direction: 'out',
+    vehicleMode: 'vehicle',
+    dashboardRoute: '/gate/sales-dispatch',
+    newEntryRoute: '/gate/sales-dispatch/new',
+    viewPermissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+    createPermissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+    icon: Send,
+    colorClassName: 'text-blue-600',
+    keywords: ['sales', 'dispatch', 'customer', 'delivery', 'invoice', 'gatepass'],
+    requiresWeighment: true,
+    requiresGatepass: true,
+  },
+  {
     id: 'repair-parts-out',
     title: 'Repair Parts Out',
     description: 'Send repairable spare parts, tools, or maintenance items to vendors.',
@@ -254,7 +271,6 @@ export const GATE_ENTRY_TYPES: GateEntryTypeConfig[] = [
     colorClassName: 'text-cyan-600',
     keywords: ['job work', 'oil refining', 'production order', 'crude'],
     requiresWeighment: true,
-    requiresGatepass: true,
   },
 ];
 

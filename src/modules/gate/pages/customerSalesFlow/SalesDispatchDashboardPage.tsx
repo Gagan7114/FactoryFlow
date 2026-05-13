@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, PackageX, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Plus, RefreshCw, Search, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -9,16 +9,14 @@ import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 import {
   buildCustomerFlowItemSummary,
   buildCustomerFlowSearchText,
-  CUSTOMER_RETURN_KEY,
   type CustomerFlowEntry,
   formatCustomerFlowDateTime,
   getCustomerFlowValue,
-  getCustomerReturnStatusLabel,
-  isCustomerReturnAwaitingFactoryHead,
   readCustomerFlowEntries,
+  SALES_DISPATCH_KEY,
 } from './customerSalesFlow.storage';
 
-export default function CustomerReturnDashboardPage() {
+export default function SalesDispatchDashboardPage() {
   const navigate = useNavigate();
   const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,13 +24,13 @@ export default function CustomerReturnDashboardPage() {
 
   const storedEntries = useMemo(() => {
     void refreshKey;
-    return readCustomerFlowEntries(CUSTOMER_RETURN_KEY);
+    return readCustomerFlowEntries(SALES_DISPATCH_KEY);
   }, [refreshKey]);
 
   const entries = useMemo(() => {
     return storedEntries.filter((entry) => {
-      const gateInDate = getCustomerFlowValue(entry, 'gateInDate');
-      const comparableDate = gateInDate !== '-' ? gateInDate : entry.createdAt.slice(0, 10);
+      const gateOutDate = getCustomerFlowValue(entry, 'gateOutDate');
+      const comparableDate = gateOutDate !== '-' ? gateOutDate : entry.createdAt.slice(0, 10);
 
       if (dateRange.from && comparableDate < dateRange.from) return false;
       if (dateRange.to && comparableDate > dateRange.to) return false;
@@ -46,22 +44,20 @@ export default function CustomerReturnDashboardPage() {
     return entries.filter((entry) => buildCustomerFlowSearchText(entry).toLowerCase().includes(query));
   }, [entries, searchTerm]);
 
-  const pendingQcCount = entries.filter((entry) => entry.status === 'PENDING_QC').length;
-  const inProgressCount = entries.filter((entry) => entry.status === 'IN_PROGRESS').length;
-  const pendingSapCount = entries.filter((entry) => entry.status === 'PENDING_SAP_GR').length;
   const completedCount = entries.filter((entry) => entry.status === 'COMPLETED').length;
-  const rejectedCount = entries.filter((entry) => (
-    entry.status === 'QC_REJECTED' && !isCustomerReturnAwaitingFactoryHead(entry)
-  )).length;
-  const awaitingFactoryHeadCount = entries.filter(isCustomerReturnAwaitingFactoryHead).length;
+  const inProgressCount = entries.filter((entry) => entry.status === 'IN_PROGRESS').length;
+  const cancelledCount = entries.filter((entry) => entry.status === 'CANCELLED').length;
+  const pgiPostedCount = entries.filter(
+    (entry) => getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes',
+  ).length;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Customer Return In</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Sales Dispatch Out</h2>
           <p className="text-muted-foreground">
-            Receive customer returns against completed sales dispatches
+            Verify outbound deliveries, truck documents, and customer dispatch gate-out
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
@@ -79,7 +75,7 @@ export default function CustomerReturnDashboardPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={() => navigate('/gate/customer-return/new')}>
+          <Button onClick={() => navigate('/gate/sales-dispatch/new')}>
             <Plus className="mr-2 h-4 w-4" />
             New Entry
           </Button>
@@ -87,44 +83,42 @@ export default function CustomerReturnDashboardPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={<PackageX className="h-5 w-5 text-blue-600" />} label="In Progress" value={inProgressCount} />
-        <StatCard icon={<Clock className="h-5 w-5 text-amber-600" />} label="Pending QC" value={pendingQcCount} />
-        <StatCard icon={<CheckCircle2 className="h-5 w-5 text-amber-600" />} label="Pending SAP GR" value={pendingSapCount} />
+        <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="In Progress" value={inProgressCount} />
         <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Completed" value={completedCount} />
-        <StatCard icon={<ShieldCheck className="h-5 w-5 text-amber-700" />} label="Awaiting Factory Head" value={awaitingFactoryHeadCount} />
-        <StatCard icon={<ShieldCheck className="h-5 w-5 text-red-600" />} label="Final Rejected" value={rejectedCount} />
+        <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="PGI Posted" value={pgiPostedCount} />
+        <StatCard icon={<Clock className="h-5 w-5 text-red-600" />} label="Cancelled" value={cancelledCount} />
       </div>
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <PackageX className="h-4 w-4" />
-            Customer Return Entries
+            <Truck className="h-4 w-4" />
+            Customer Dispatch Entries
           </h3>
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search return, dispatch, customer, vehicle"
+              placeholder="Search entry, delivery, customer, vehicle"
               className="pl-9"
             />
           </div>
         </div>
 
         {entries.length === 0 ? (
-          <EmptyState text="No customer return entries yet" />
+          <EmptyState text="No sales dispatch entries yet" />
         ) : filteredEntries.length === 0 ? (
-          <EmptyState text="No customer returns match this search" />
+          <EmptyState text="No dispatch entries match this search" />
         ) : (
-          <ReturnTable entries={filteredEntries} />
+          <DispatchTable entries={filteredEntries} />
         )}
       </section>
     </div>
   );
 }
 
-function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
+function DispatchTable({ entries }: { entries: CustomerFlowEntry[] }) {
   const navigate = useNavigate();
 
   return (
@@ -134,11 +128,12 @@ function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Entry No.</th>
-              <th className="p-3 text-left text-sm font-medium">Dispatch</th>
+              <th className="p-3 text-left text-sm font-medium">Delivery</th>
               <th className="p-3 text-left text-sm font-medium">Customer</th>
               <th className="p-3 text-left text-sm font-medium">Items</th>
               <th className="p-3 text-left text-sm font-medium">Vehicle</th>
-              <th className="p-3 text-left text-sm font-medium">Gate In</th>
+              <th className="p-3 text-left text-sm font-medium">Gate Out</th>
+              <th className="p-3 text-left text-sm font-medium">PGI</th>
               <th className="p-3 text-left text-sm font-medium">Status</th>
             </tr>
           </thead>
@@ -147,25 +142,37 @@ function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
               <tr
                 key={entry.id}
                 className="cursor-pointer border-t transition-colors hover:bg-muted/50"
-                      onClick={() => {
-                        if (entry.status === 'IN_PROGRESS') {
-                          navigate(`/gate/customer-return/new/attachments?entryId=${encodeURIComponent(entry.id)}`);
-                          return;
-                        }
+                onClick={() => {
+                  if (entry.status === 'IN_PROGRESS') {
+                    navigate(`/gate/sales-dispatch/new/attachments?entryId=${encodeURIComponent(entry.id)}`);
+                    return;
+                  }
 
-                        navigate(`/gate/customer-return/${entry.id}`);
-                      }}
+                  navigate(`/gate/sales-dispatch/${entry.id}`);
+                }}
               >
                 <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entryNo}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'dispatchEntry')}</td>
-                <td className="p-3 text-sm">{getCustomerFlowValue(entry, 'customerName')}</td>
+                <td className="whitespace-nowrap p-3 text-sm">
+                  {getCustomerFlowValue(entry, 'outboundDeliveryNo')}
+                </td>
+                <td className="p-3 text-sm">
+                  <div className="font-medium">{getCustomerFlowValue(entry, 'customerName')}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {getCustomerFlowValue(entry, 'customerCode')}
+                  </div>
+                </td>
                 <td className="p-3 text-sm">{buildCustomerFlowItemSummary(entry.items)}</td>
                 <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'vehicleNo')}</td>
                 <td className="whitespace-nowrap p-3 text-sm">
-                  {formatCustomerFlowDateTime(entry.values.gateInDate, entry.values.inTime)}
+                  {formatCustomerFlowDateTime(entry.values.gateOutDate, entry.values.outTime)}
                 </td>
                 <td className="whitespace-nowrap p-3 text-sm">
-                  <StatusBadge entry={entry} />
+                  <GateStatusBadge
+                    status={getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes' ? 'POSTED' : 'PENDING'}
+                  />
+                </td>
+                <td className="whitespace-nowrap p-3 text-sm">
+                  <GateStatusBadge status={entry.status} />
                 </td>
               </tr>
             ))}
@@ -174,10 +181,6 @@ function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
       </div>
     </div>
   );
-}
-
-function StatusBadge({ entry }: { entry: CustomerFlowEntry }) {
-  return <GateStatusBadge status={entry.status} label={getCustomerReturnStatusLabel(entry)} />;
 }
 
 function StatCard({

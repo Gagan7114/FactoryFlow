@@ -7,9 +7,9 @@ import {
   type EmptyVehicleEligibleEntry,
   useEmptyVehicleEligibleEntries,
 } from '@/modules/gate/api';
+import { GateStatusBadge } from '@/modules/gate/components';
 import { SearchableSelect } from '@/shared/components';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -299,9 +299,7 @@ export default function EmptyVehicleOutNewPage() {
                 <InfoItem label="In Time" value={formatEntryTime(selectedEntry.entry_time)} />
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant="secondary" className="mt-1">
-                    {selectedEntry.status}
-                  </Badge>
+                  <GateStatusBadge status={selectedEntry.status} className="mt-1" />
                 </div>
               </CardContent>
             </Card>

@@ -50,6 +50,11 @@ export default function BSTInReviewPage() {
       return;
     }
 
+    if (!bstIn?.sap_receipt_doc_num?.trim()) {
+      setError('SAP receiving document is required before completing. Use View Full Entry to add it.');
+      return;
+    }
+
     try {
       await completeBSTIn.mutateAsync(entryIdNumber);
       setShowSuccess(true);
@@ -146,6 +151,9 @@ export default function BSTInReviewPage() {
                 <InfoItem label="To Warehouse" value={bstIn.sap_to_warehouse} />
                 <InfoItem label="Reference" value={bstIn.sap_reference} />
                 <InfoItem label="Comments" value={bstIn.sap_comments} />
+                <InfoItem label="SAP Receiving Doc" value={bstIn.sap_receipt_doc_num || ''} />
+                <InfoItem label="Receiving Doc Date" value={bstIn.sap_receipt_doc_date || ''} />
+                <InfoItem label="Receiving Reference" value={bstIn.sap_receipt_reference || ''} />
               </div>
 
               <div className="overflow-hidden rounded-md border">

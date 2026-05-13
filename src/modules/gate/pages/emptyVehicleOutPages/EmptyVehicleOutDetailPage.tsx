@@ -16,8 +16,8 @@ import {
   useCancelEmptyVehicleGateOut,
   useEmptyVehicleGateOut,
 } from '@/modules/gate/api';
+import { GateStatusBadge } from '@/modules/gate/components';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -168,12 +168,7 @@ export default function EmptyVehicleOutDetailPage() {
           <InfoItem label="Security" value={entry.security_name || ''} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge
-              variant={entry.status === 'CANCELLED' ? 'destructive' : 'secondary'}
-              className="mt-1"
-            >
-              {entry.status}
-            </Badge>
+            <GateStatusBadge status={entry.status} className="mt-1" />
           </div>
           <InfoItem label="Remarks" value={entry.remarks || ''} />
           {entry.status === 'CANCELLED' && (

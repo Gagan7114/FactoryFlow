@@ -23,6 +23,7 @@ import {
   StepLoadingSpinner,
 } from '@/modules/gate/components';
 import { useEntryId, useEntryStepTracker } from '@/modules/gate/hooks';
+import { getJobWorkDisplayStatus } from '@/modules/gate/utils';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
 import { getErrorMessage } from '@/shared/utils';
 
@@ -51,7 +52,8 @@ export default function JobWorkReviewPage() {
   const { data: weighment } = useWeighment(entryIdNumber);
   const { data: attachments = [] } = useGateAttachments(entryIdNumber);
   const completeJobWork = useCompleteJobWorkGateIn();
-  const isCompleted = jobWork?.status === 'COMPLETED';
+  const displayStatus = jobWork ? getJobWorkDisplayStatus(jobWork) : null;
+  const isGateCompleted = jobWork?.status === 'COMPLETED';
 
   const handleComplete = async () => {
     if (!entryIdNumber) {
@@ -125,7 +127,7 @@ export default function JobWorkReviewPage() {
               <InfoItem label="Gate In Date" value={jobWork.gate_in_date} />
               <InfoItem label="In Time" value={jobWork.in_time} />
               <InfoItem label="Security" value={jobWork.security_name || ''} />
-              <InfoItem label="Status" value={jobWork.status} />
+              <InfoItem label="Status" value={displayStatus} />
             </CardContent>
           </Card>
 
@@ -257,9 +259,11 @@ export default function JobWorkReviewPage() {
         onCancel={() => navigate('/gate/job-work')}
         onNext={handleComplete}
         isSaving={completeJobWork.isPending}
-        isNextDisabled={isCompleted}
+        isNextDisabled={isGateCompleted}
         nextLabel={
-          isCompleted
+          isGateCompleted && displayStatus === 'PENDING'
+            ? 'Pending Production Link'
+            : isGateCompleted
             ? 'Completed'
             : completeJobWork.isPending
               ? 'Completing...'

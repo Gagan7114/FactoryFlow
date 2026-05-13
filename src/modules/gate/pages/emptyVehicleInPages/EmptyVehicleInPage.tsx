@@ -16,7 +16,7 @@ import {
   type EmptyVehicleGateInEntry,
   useEmptyVehicleGateInEntries,
 } from '@/modules/gate/api';
-import { DateRangePicker } from '@/modules/gate/components';
+import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import {
   Badge,
   Button,
@@ -150,7 +150,7 @@ export default function EmptyVehicleInPage() {
           <EmptyState text="No empty vehicle entries match this search" />
         ) : (
           <div className="overflow-hidden rounded-md border">
-            <div className="max-h-[480px] overflow-auto">
+            <div className="max-h-[520px] overflow-auto">
               <table className="w-full min-w-[1040px]">
                 <thead className="bg-muted/50">
                   <tr>
@@ -197,7 +197,7 @@ export default function EmptyVehicleInPage() {
                         {entry.in_time}
                       </td>
                       <td className="whitespace-nowrap p-3 text-sm">
-                        <Badge variant="secondary">{entry.vehicle_entry_status}</Badge>
+                        <GateStatusBadge status={entry.vehicle_entry_status} />
                       </td>
                       <td className="whitespace-nowrap p-3 text-sm text-muted-foreground">
                         {entry.security_name || '-'}
@@ -232,9 +232,7 @@ function DocumentCell({ entry }: { entry: EmptyVehicleGateInEntry }) {
         <FileText className="h-3.5 w-3.5 text-muted-foreground" />
         <span>BST {label}</span>
         {entry.is_bst_document_locked && (
-          <Badge variant="secondary" className="ml-1">
-            Locked
-          </Badge>
+          <GateStatusBadge status="LOCKED" label="Locked" className="ml-1" />
         )}
       </span>
     );

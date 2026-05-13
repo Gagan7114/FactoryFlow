@@ -4,9 +4,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
 import { type BSTGateOutEntry, useBSTGateOutEntries } from '@/modules/gate/api';
-import { DateRangePicker } from '@/modules/gate/components';
+import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import { getLastStep } from '@/modules/gate/hooks';
-import { Badge, Button, Card, CardContent, Input } from '@/shared/components/ui';
+import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 
 function formatDateTime(date?: string, time?: string) {
   if (!date && !time) return '-';
@@ -222,17 +222,7 @@ export default function BSTOutDashboardPage() {
                           {formatDateTime(entry.gate_out_date, entry.out_time)}
                         </td>
                         <td className="whitespace-nowrap p-3 text-sm">
-                          <Badge
-                            variant={
-                              entry.status === 'COMPLETED'
-                                ? 'secondary'
-                                : isCancelled
-                                  ? 'destructive'
-                                  : 'outline'
-                            }
-                          >
-                            {entry.status}
-                          </Badge>
+                          <GateStatusBadge status={entry.status} />
                         </td>
                         <td className="whitespace-nowrap p-3 text-sm">{entry.items.length}</td>
                       </tr>

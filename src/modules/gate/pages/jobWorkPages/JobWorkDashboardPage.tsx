@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
 import { type JobWorkGateInEntry, useJobWorkGateInEntries } from '@/modules/gate/api';
-import { DateRangePicker } from '@/modules/gate/components';
+import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import { getLastStep } from '@/modules/gate/hooks';
-import { Badge, Button, Card, CardContent, Input } from '@/shared/components/ui';
+import { getJobWorkDisplayStatus, hasLinkedJobWorkProductionOrder } from '@/modules/gate/utils';
+import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 
 function formatDateTime(date?: string, time?: string) {
   if (!date && !time) return '-';
@@ -63,9 +64,9 @@ export default function JobWorkDashboardPage() {
     refetch,
   } = useJobWorkGateInEntries(queryParams);
 
-  const inProgressCount = entries.filter((entry) => entry.status === 'IN_PROGRESS').length;
-  const completedCount = entries.filter((entry) => entry.status === 'COMPLETED').length;
-  const productionLinkedCount = entries.filter((entry) => entry.production_order_doc_entry).length;
+  const pendingCount = entries.filter((entry) => getJobWorkDisplayStatus(entry) === 'PENDING').length;
+  const completedCount = entries.filter((entry) => getJobWorkDisplayStatus(entry) === 'COMPLETED').length;
+  const productionLinkedCount = entries.filter(hasLinkedJobWorkProductionOrder).length;
   const cancelledCount = entries.filter((entry) => entry.status === 'CANCELLED').length;
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -85,6 +86,8 @@ export default function JobWorkDashboardPage() {
         entry.gate_in_date,
         entry.in_time,
         entry.status,
+        getJobWorkDisplayStatus(entry),
+        hasLinkedJobWorkProductionOrder(entry) ? 'Production linked' : 'Pending link',
       ].some((value) => String(value || '').toLowerCase().includes(query))
     ));
   }, [entries, searchTerm]);
@@ -125,9 +128,9 @@ export default function JobWorkDashboardPage() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <Clock className="h-5 w-5 text-blue-600" />
-              <span className="text-2xl font-bold">{inProgressCount}</span>
+              <span className="text-2xl font-bold">{pendingCount}</span>
             </div>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">In Progress</p>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Pending</p>
           </CardContent>
         </Card>
         <Card>
@@ -200,6 +203,7 @@ export default function JobWorkDashboardPage() {
                 <tbody>
                   {filteredEntries.map((entry) => {
                     const isCancelled = entry.status === 'CANCELLED';
+                    const displayStatus = getJobWorkDisplayStatus(entry);
                     return (
                       <tr
                         key={entry.id}
@@ -244,17 +248,7 @@ export default function JobWorkDashboardPage() {
                           {formatDateTime(entry.gate_in_date, entry.in_time)}
                         </td>
                         <td className="whitespace-nowrap p-3 text-sm">
-                          <Badge
-                            variant={
-                              entry.status === 'COMPLETED'
-                                ? 'secondary'
-                                : isCancelled
-                                  ? 'destructive'
-                                  : 'outline'
-                            }
-                          >
-                            {entry.status}
-                          </Badge>
+                          <GateStatusBadge status={displayStatus} />
                         </td>
                         <td className="whitespace-nowrap p-3 text-sm">{entry.items.length}</td>
                       </tr>

@@ -1,10 +1,10 @@
-import { ArrowDownToLine, PackageCheck, Truck, Wrench } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowDownToLine, FileText, PackageCheck, Paperclip, Truck, Upload, Wrench, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { StepFooter, StepHeader } from '@/modules/gate/components';
-import { Input, Label, NativeSelect, SelectOption, Textarea } from '@/shared/components/ui';
+import { Button, Input, Label, NativeSelect, SelectOption, Textarea } from '@/shared/components/ui';
 
 import {
   buildRepairMovementItemsSummary,
@@ -32,6 +32,7 @@ interface RepairPartsInDraft {
   repairCost: string;
   conditionIn: string;
   repairStatus: string;
+  serviceReportFileNames: string[];
   remarks: string;
   vehicleNo: string;
   driverName: string;
@@ -80,6 +81,7 @@ function buildEmptyDraft(): RepairPartsInDraft {
     repairCost: '',
     conditionIn: '',
     repairStatus: 'Received',
+    serviceReportFileNames: [],
     remarks: '',
     vehicleNo: '',
     driverName: '',
@@ -215,6 +217,7 @@ export default function RepairPartsInFormPage() {
   const [draft, setDraft] = useState<RepairPartsInDraft>(() => readDraft());
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const serviceReportInputRef = useRef<HTMLInputElement>(null);
 
   const updateDraft = <K extends keyof RepairPartsInDraft>(
     key: K,
@@ -238,6 +241,27 @@ export default function RepairPartsInFormPage() {
     window.localStorage.removeItem(REPAIR_PARTS_IN_DRAFT_KEY);
     setDraft(buildEmptyDraft());
     setFormError('');
+  };
+
+  const handleServiceReportSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    updateDraft('serviceReportFileNames', Array.from(new Set([
+      ...draft.serviceReportFileNames,
+      ...files.map((file) => file.name),
+    ])));
+
+    if (serviceReportInputRef.current) {
+      serviceReportInputRef.current.value = '';
+    }
+  };
+
+  const removeServiceReportFile = (fileName: string) => {
+    updateDraft(
+      'serviceReportFileNames',
+      draft.serviceReportFileNames.filter((name) => name !== fileName),
+    );
   };
 
   const handleComplete = () => {
@@ -264,6 +288,11 @@ export default function RepairPartsInFormPage() {
       return;
     }
 
+    if (!draft.vendorChallanNo.trim()) {
+      setFormError('Please enter the vendor return challan number');
+      return;
+    }
+
     if (!draft.conditionIn) {
       setFormError('Please select the condition in');
       return;
@@ -271,6 +300,11 @@ export default function RepairPartsInFormPage() {
 
     if (!draft.repairStatus) {
       setFormError('Please select the repair status');
+      return;
+    }
+
+    if (draft.serviceReportFileNames.length === 0) {
+      setFormError('Please upload the vendor service report or return challan');
       return;
     }
 
@@ -297,6 +331,7 @@ export default function RepairPartsInFormPage() {
         repairCost: draft.repairCost,
         conditionIn: draft.conditionIn,
         repairStatus: draft.repairStatus,
+        serviceReportFileNames: JSON.stringify(draft.serviceReportFileNames),
         remarks: draft.remarks,
         vehicleNo: draft.vehicleNo,
         driverName: draft.driverName,
@@ -350,10 +385,63 @@ export default function RepairPartsInFormPage() {
 
             <TextField
               id="repair-in-vendor-challan"
-              label="Vendor Challan No."
+              label="Vendor Return Challan No."
+              required
               value={draft.vendorChallanNo}
               onChange={(value) => updateDraft('vendorChallanNo', value)}
             />
+          </div>
+        </FormSection>
+
+        <FormSection icon={<Paperclip className="h-5 w-5" />} title="Return Documents">
+          <div className="space-y-4">
+            <button
+              type="button"
+              className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center transition-colors hover:border-primary/50"
+              onClick={() => serviceReportInputRef.current?.click()}
+            >
+              <Upload className="h-10 w-10 text-muted-foreground" />
+              <span className="text-sm font-medium">
+                Upload service report / return challan <span className="text-destructive">*</span>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Vendor service report, return challan, condition photos, or PDF
+              </span>
+            </button>
+
+            <input
+              ref={serviceReportInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleServiceReportSelect}
+            />
+
+            {draft.serviceReportFileNames.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {draft.serviceReportFileNames.map((fileName) => (
+                  <div key={fileName} className="flex items-center gap-3 rounded-md border p-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium" title={fileName}>
+                      {fileName}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeServiceReportFile(fileName)}
+                      aria-label={`Remove ${fileName}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">
+                Service report or return challan is required before completing this gate in.
+              </p>
+            )}
           </div>
         </FormSection>
 

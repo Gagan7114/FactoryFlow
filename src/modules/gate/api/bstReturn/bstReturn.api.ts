@@ -31,6 +31,9 @@ export interface BSTGateReturnEntry {
   sap_comments: string;
   gate_in_date: string;
   in_time: string;
+  sap_return_doc_num?: string;
+  sap_return_doc_date?: string | null;
+  sap_return_reference?: string;
   security_name?: string;
   remarks?: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | string;
@@ -49,6 +52,9 @@ export interface BSTGateReturnCreateRequest {
   bst_gate_out_id: number;
   gate_in_date: string;
   in_time: string;
+  sap_return_doc_num?: string;
+  sap_return_doc_date?: string | null;
+  sap_return_reference?: string;
   security_name?: string;
   remarks?: string;
 }

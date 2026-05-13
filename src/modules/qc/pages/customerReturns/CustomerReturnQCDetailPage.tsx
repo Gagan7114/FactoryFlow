@@ -108,7 +108,7 @@ export default function CustomerReturnQCDetailPage() {
     const nextItems = applyWholeReturnDecision(items, decision);
     const acceptedTotal = decision === 'ACCEPT' ? returnedTotal : 0;
     const rejectedTotal = decision === 'REJECT' ? returnedTotal : 0;
-    const nextStatus: CustomerFlowStatus = decision === 'ACCEPT' ? 'QC_ACCEPTED' : 'QC_REJECTED';
+    const nextStatus: CustomerFlowStatus = decision === 'ACCEPT' ? 'PENDING_SAP_GR' : 'QC_REJECTED';
 
     const updatedEntry = updateCustomerFlowEntry(CUSTOMER_RETURN_KEY, entry.id, (current) => ({
       ...current,
@@ -137,7 +137,7 @@ export default function CustomerReturnQCDetailPage() {
     setEntry(updatedEntry);
     setFormError('');
     toast.success(decision === 'ACCEPT'
-      ? 'Customer return accepted'
+      ? 'Customer return accepted. SAP GR is pending.'
       : 'Customer return rejected and sent to Factory Head');
   };
 
@@ -147,7 +147,7 @@ export default function CustomerReturnQCDetailPage() {
     const nextItems = applyWholeReturnDecision(items, isAcceptedOverride ? 'ACCEPT' : 'REJECT');
     const updatedEntry = updateCustomerFlowEntry(CUSTOMER_RETURN_KEY, entry.id, (current) => ({
       ...current,
-      status: isAcceptedOverride ? 'QC_ACCEPTED' : 'QC_REJECTED',
+      status: isAcceptedOverride ? 'PENDING_SAP_GR' : 'QC_REJECTED',
       items: nextItems,
       values: {
         ...current.values,
@@ -373,6 +373,7 @@ function ItemsTable({
 
 function StatusBadge({ entry }: { entry: CustomerFlowEntry }) {
   if (entry.status === 'PENDING_QC') return <Badge variant="warning">PENDING QC</Badge>;
+  if (entry.status === 'PENDING_SAP_GR') return <Badge variant="warning">PENDING SAP GR</Badge>;
   if (entry.status === 'QC_REJECTED') return <Badge variant="destructive">{getCustomerReturnStatusLabel(entry)}</Badge>;
   return <Badge variant="success">{getCustomerReturnStatusLabel(entry)}</Badge>;
 }

@@ -1,38 +1,13 @@
-import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, ClipboardList, Truck, UserRound } from 'lucide-react';
+import { ArrowRight, ClipboardList } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { usePermission } from '@/core/auth';
 import { SearchableSelect } from '@/shared/components';
-import { Badge, Button, Card, CardContent, Label } from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
 
-import {
-  GATE_ENTRY_TYPES,
-  type GateEntryTypeConfig,
-  type GateVehicleMode,
-} from '../constants/gateEntryTypes';
-
-const vehicleModeOptions: Array<{
-  value: GateVehicleMode;
-  label: string;
-  description: string;
-  icon: LucideIcon;
-}> = [
-  {
-    value: 'vehicle',
-    label: 'Vehicle Entry',
-    description: 'Truck, tanker, tempo, or any vehicle movement.',
-    icon: Truck,
-  },
-  {
-    value: 'non_vehicle',
-    label: 'Person Entry',
-    description: 'Visitor, labour, contractor, or staff movement.',
-    icon: UserRound,
-  },
-];
+import { GATE_ENTRY_TYPES, type GateEntryTypeConfig } from '../constants/gateEntryTypes';
 
 const directionLabels: Record<GateEntryTypeConfig['direction'], string> = {
   in: 'Gate In',
@@ -43,7 +18,6 @@ const directionLabels: Record<GateEntryTypeConfig['direction'], string> = {
 export default function GateNewEntryPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermission();
-  const [vehicleMode, setVehicleMode] = useState<GateVehicleMode>('vehicle');
   const [selectedEntryTypeId, setSelectedEntryTypeId] = useState<string>();
 
   const creatableEntryTypes = useMemo(
@@ -51,19 +25,9 @@ export default function GateNewEntryPage() {
     [hasAnyPermission],
   );
 
-  const entryTypeOptions = useMemo(
-    () => creatableEntryTypes.filter((entryType) => entryType.vehicleMode === vehicleMode),
-    [creatableEntryTypes, vehicleMode],
-  );
-
-  const selectedEntryType = entryTypeOptions.find(
+  const selectedEntryType = creatableEntryTypes.find(
     (entryType) => entryType.id === selectedEntryTypeId,
   );
-
-  const handleVehicleModeChange = (nextVehicleMode: GateVehicleMode) => {
-    setVehicleMode(nextVehicleMode);
-    setSelectedEntryTypeId(undefined);
-  };
 
   const handleContinue = () => {
     if (!selectedEntryType) return;
@@ -85,51 +49,12 @@ export default function GateNewEntryPage() {
       <Card>
         <CardContent className="space-y-6 p-6">
           <div className="space-y-3">
-            <Label>Is this entry for a vehicle?</Label>
-            <div className="grid gap-3 md:grid-cols-2">
-              {vehicleModeOptions.map((option) => {
-                const Icon = option.icon;
-                const isSelected = vehicleMode === option.value;
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={cn(
-                      'flex min-h-24 items-start gap-4 rounded-md border p-4 text-left transition-colors',
-                      isSelected
-                        ? 'border-primary bg-primary/5'
-                        : 'bg-background hover:bg-muted/50',
-                    )}
-                    onClick={() => handleVehicleModeChange(option.value)}
-                  >
-                    <span
-                      className={cn(
-                        'mt-0.5 rounded-md border p-2',
-                        isSelected ? 'border-primary text-primary' : 'text-muted-foreground',
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span className="space-y-1">
-                      <span className="block font-semibold">{option.label}</span>
-                      <span className="block text-sm leading-5 text-muted-foreground">
-                        {option.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="space-y-3">
             <SearchableSelect<GateEntryTypeConfig>
               inputId="gate-entry-type"
               label="Entry Type"
               required
               value={selectedEntryType?.title}
-              items={entryTypeOptions}
+              items={creatableEntryTypes}
               isLoading={false}
               placeholder="Search and select entry type"
               loadingText="Loading entry types..."
@@ -167,9 +92,7 @@ export default function GateNewEntryPage() {
               onClear={() => setSelectedEntryTypeId(undefined)}
             />
 
-            {selectedEntryType && (
-              <SelectedEntryTypeSummary entryType={selectedEntryType} />
-            )}
+            {selectedEntryType && <SelectedEntryTypeSummary entryType={selectedEntryType} />}
           </div>
         </CardContent>
       </Card>

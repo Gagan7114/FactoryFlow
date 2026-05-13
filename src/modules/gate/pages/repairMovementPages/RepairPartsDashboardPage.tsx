@@ -13,8 +13,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
-import { DateRangePicker } from '@/modules/gate/components';
-import { Badge, Button, Card, CardContent, Input } from '@/shared/components/ui';
+import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
+import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 
 import {
   buildRepairMovementDateTimeLabel,
@@ -351,9 +351,9 @@ function RepairPartsOutTable({
                     {formatRepairMovementDate(entry.values.expectedReturnDate)}
                   </td>
                   <td className="whitespace-nowrap p-3 text-sm">
-                    <Badge variant={entry.status === 'CANCELLED' ? 'destructive' : isReceived ? 'success' : 'warning'}>
-                      {entry.status === 'CANCELLED' ? 'CANCELLED' : isReceived ? 'RECEIVED' : 'AWAITING'}
-                    </Badge>
+                    <GateStatusBadge
+                      status={entry.status === 'CANCELLED' ? 'CANCELLED' : isReceived ? 'RECEIVED' : 'AWAITING'}
+                    />
                   </td>
                 </tr>
               );
@@ -411,9 +411,9 @@ function RepairPartsInTable({ entries }: { entries: RepairMovementEntry[] }) {
                   {getRepairMovementValue(entry, 'conditionIn')}
                 </td>
                 <td className="whitespace-nowrap p-3 text-sm">
-                  <Badge variant={entry.status === 'CANCELLED' ? 'destructive' : 'success'}>
-                    {entry.status === 'CANCELLED' ? 'CANCELLED' : getRepairMovementValue(entry, 'repairStatus')}
-                  </Badge>
+                  <GateStatusBadge
+                    status={entry.status === 'CANCELLED' ? 'CANCELLED' : getRepairMovementValue(entry, 'repairStatus')}
+                  />
                 </td>
               </tr>
             ))}

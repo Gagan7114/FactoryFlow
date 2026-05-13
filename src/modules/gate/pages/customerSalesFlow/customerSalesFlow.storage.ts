@@ -3,6 +3,7 @@ export type CustomerFlowStatus =
   | 'COMPLETED'
   | 'CANCELLED'
   | 'PENDING_QC'
+  | 'PENDING_SAP_GR'
   | 'QC_ACCEPTED'
   | 'QC_PARTIAL'
   | 'QC_REJECTED'
@@ -194,6 +195,7 @@ export function getCustomerFlowRawValue(entry: CustomerFlowEntry, key: string): 
 
 export function getCustomerReturnStatusLabel(entry: CustomerFlowEntry) {
   if (entry.status === 'PENDING_QC') return 'PENDING QC';
+  if (entry.status === 'PENDING_SAP_GR') return 'PENDING SAP GR';
   if (entry.status === 'IN_PROGRESS') return 'IN PROGRESS';
   if (entry.status === 'CANCELLED') return 'CANCELLED';
   if (entry.status === 'QC_ACCEPTED') return 'QC ACCEPTED';
@@ -293,6 +295,6 @@ export function getCreditableReturnEntries() {
   );
 
   return readCustomerFlowEntries(CUSTOMER_RETURN_KEY)
-    .filter((entry) => ['QC_ACCEPTED', 'QC_PARTIAL'].includes(entry.status))
+    .filter((entry) => entry.status === 'COMPLETED')
     .filter((entry) => !creditedReturnNos.has(entry.entryNo));
 }

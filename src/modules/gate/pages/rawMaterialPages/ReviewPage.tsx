@@ -17,12 +17,12 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ENTRY_STATUS, FINAL_STATUS } from '@/config/constants';
+import { ENTRY_STATUS } from '@/config/constants';
 import type { ApiError } from '@/core/api/types';
-import { EntryTimeSummary, RecordTimestamps } from '@/shared/components';
+import { GateStatusBadge } from '@/modules/gate/components';
+import { EntryTimeSummary } from '@/shared/components';
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
-import { cn } from '@/shared/utils';
 import {
   getErrorMessage,
   getServerErrorMessage,
@@ -38,35 +38,7 @@ import { useEntryId, useEntryStepTracker } from '../../hooks';
 
 // Status badge component
 function StatusBadge({ status }: { status: string }) {
-  const getStatusColor = () => {
-    const upper = status.toUpperCase();
-    switch (upper) {
-      case ENTRY_STATUS.COMPLETED:
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case ENTRY_STATUS.DRAFT:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'PASSED':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'FAILED':
-      case FINAL_STATUS.REJECTED:
-      case 'QC REJECTED':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      case FINAL_STATUS.PENDING:
-      case FINAL_STATUS.HOLD:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-      case FINAL_STATUS.ACCEPTED:
-      case 'QC ACCEPTED':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      default:
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-    }
-  };
-
-  return (
-    <span className={cn('px-2 py-1 rounded-full text-xs font-medium', getStatusColor())}>
-      {status}
-    </span>
-  );
+  return <GateStatusBadge status={status} />;
 }
 
 // Check/Cross icon

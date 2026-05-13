@@ -13,6 +13,14 @@ export interface DailyNeedDepartment {
   name: string;
 }
 
+export interface DailyNeedItem {
+  id?: number | null;
+  line_no?: number;
+  material_name: string;
+  quantity: number | string;
+  unit: UnitChoice | number;
+}
+
 export interface DailyNeed {
   id?: number;
   item_category: DailyNeedCategory;
@@ -20,6 +28,7 @@ export interface DailyNeed {
   material_name: string;
   quantity: number | string;
   unit: UnitChoice | number;
+  items?: DailyNeedItem[];
   receiving_department: DailyNeedDepartment;
   bill_number?: string;
   delivery_challan_number?: string;
@@ -38,12 +47,15 @@ export interface CreateDailyNeedRequest {
   material_name: string;
   quantity: number;
   unit: number;
+  items: Array<{
+    material_name: string;
+    quantity: number;
+    unit: number;
+  }>;
   receiving_department: string;
   bill_number: string;
   delivery_challan_number: string;
   canteen_supervisor?: string;
-  vehicle_or_person_name: string;
-  contact_number: string;
   remarks?: string;
 }
 
@@ -68,11 +80,10 @@ export const dailyNeedApi = {
     formData.append('material_name', data.material_name);
     formData.append('quantity', data.quantity.toString());
     formData.append('unit', data.unit.toString());
+    formData.append('items', JSON.stringify(data.items));
     formData.append('receiving_department', data.receiving_department);
     formData.append('bill_number', data.bill_number);
     formData.append('delivery_challan_number', data.delivery_challan_number);
-    formData.append('vehicle_or_person_name', data.vehicle_or_person_name);
-    formData.append('contact_number', data.contact_number);
 
     if (data.canteen_supervisor) {
       formData.append('canteen_supervisor', data.canteen_supervisor);

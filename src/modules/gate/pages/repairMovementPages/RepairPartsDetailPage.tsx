@@ -14,8 +14,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { GateStatusBadge } from '@/modules/gate/components';
 import {
-  Badge,
   Button,
   Card,
   CardContent,
@@ -88,16 +88,6 @@ function getEntryStatusLabel(
   return getRepairMovementValue(entry, 'repairStatus');
 }
 
-function getEntryStatusVariant(
-  direction: RepairPartsDirection,
-  entry: RepairMovementEntry,
-  linkedInEntry: RepairMovementEntry | null,
-) {
-  if (entry.status === 'CANCELLED') return 'destructive';
-  if (direction === 'out') return linkedInEntry ? 'success' : 'warning';
-  return 'success';
-}
-
 export default function RepairPartsDetailPage({ direction }: RepairPartsDetailPageProps) {
   const navigate = useNavigate();
   const { entryId } = useParams();
@@ -146,7 +136,6 @@ export default function RepairPartsDetailPage({ direction }: RepairPartsDetailPa
     ? `Cannot cancel because it has been received back in ${linkedInEntry.entryNo}`
     : '';
   const statusLabel = getEntryStatusLabel(direction, entry, linkedInEntry);
-  const statusVariant = getEntryStatusVariant(direction, entry, linkedInEntry);
 
   const handleCancelEntry = () => {
     const trimmedReason = cancelReason.trim();
@@ -229,9 +218,7 @@ export default function RepairPartsDetailPage({ direction }: RepairPartsDetailPa
           <InfoItem label="Security" value={getRepairMovementValue(entry, 'securityName')} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge variant={statusVariant} className="mt-1">
-              {statusLabel}
-            </Badge>
+            <GateStatusBadge status={statusLabel} className="mt-1" />
           </div>
           <InfoItem label="Created" value={formatRepairMovementDateTime(entry.createdAt)} />
           <InfoItem label="Updated" value={formatRepairMovementDateTime(entry.updatedAt)} />

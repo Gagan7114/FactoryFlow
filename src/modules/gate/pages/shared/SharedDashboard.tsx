@@ -1,111 +1,22 @@
-import {
-  AlertCircle,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  FileText,
-  Plus,
-  XCircle,
-} from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ENTRY_STATUS, getEntryStatusClasses } from '@/config/constants';
+import { ENTRY_STATUS } from '@/config/constants';
 import { useGlobalDateRange } from '@/core/store/hooks';
+import { GateStatusBadge } from '@/modules/gate/components';
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useVehicleEntries, useVehicleEntriesCount } from '../../api/vehicle/vehicleEntry.queries';
 import { DateRangePicker } from '../../components/DateRangePicker';
 import type { EntryFlowConfig } from '../../constants/entryFlowConfig';
 import { getLastStep } from '../../hooks';
-
-interface StatusConfigItem {
-  label: string;
-  color: string;
-  bgColor: string;
-  icon: React.ElementType;
-}
-
-export interface DashboardStatusConfig {
-  statusOrder: string[];
-  statusConfig: Record<string, StatusConfigItem>;
-  gridCols: string;
-}
+import { type DashboardStatusConfig,DEFAULT_STATUS_CONFIG } from './dashboardStatusConfig';
 
 interface SharedDashboardProps {
   config: EntryFlowConfig;
   statusConfig?: DashboardStatusConfig;
 }
-
-// Default 3-status config used by construction, daily-needs, maintenance
-const DEFAULT_STATUS_CONFIG: DashboardStatusConfig = {
-  statusOrder: ['draft', 'in_progress', 'completed'],
-  statusConfig: {
-    DRAFT: {
-      label: 'Draft',
-      color: 'text-yellow-600 dark:text-yellow-400',
-      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
-      icon: FileText,
-    },
-    IN_PROGRESS: {
-      label: 'In Progress',
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-      icon: Clock,
-    },
-    COMPLETED: {
-      label: 'Completed',
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-      icon: CheckCircle2,
-    },
-  },
-  gridCols: 'grid-cols-3',
-};
-
-// 6-status config used by raw materials
-export const RAW_MATERIAL_STATUS_CONFIG: DashboardStatusConfig = {
-  statusOrder: ['draft', 'in_progress', 'qc_completed', 'completed', 'cancelled', 'rejected'],
-  statusConfig: {
-    DRAFT: {
-      label: 'Draft',
-      color: 'text-yellow-600 dark:text-yellow-400',
-      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
-      icon: FileText,
-    },
-    IN_PROGRESS: {
-      label: 'In Progress',
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-      icon: Clock,
-    },
-    QC_COMPLETED: {
-      label: 'QC Completed',
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
-      icon: CheckCircle2,
-    },
-    COMPLETED: {
-      label: 'Completed',
-      color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-      icon: CheckCircle2,
-    },
-    CANCELLED: {
-      label: 'Cancelled',
-      color: 'text-red-600 dark:text-red-400',
-      bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
-      icon: XCircle,
-    },
-    REJECTED: {
-      label: 'Rejected',
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
-      icon: AlertCircle,
-    },
-  },
-  gridCols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
-};
 
 export default function SharedDashboard({
   config,
@@ -244,13 +155,7 @@ export default function SharedDashboard({
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="font-medium text-sm">{entry.entry_no}</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getEntryStatusClasses(
-                      entry.status || '',
-                    )}`}
-                  >
-                    {entry.status}
-                  </span>
+                  <GateStatusBadge status={entry.status} size="xs" />
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     {entry.vehicle?.vehicle_number} • {entry.driver?.name}
                   </span>

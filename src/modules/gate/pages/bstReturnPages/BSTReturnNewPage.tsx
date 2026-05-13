@@ -76,6 +76,9 @@ export default function BSTReturnNewPage() {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [gateInDate, setGateInDate] = useState(() => toDateInputValue());
   const [inTime, setInTime] = useState(() => toTimeInputValue());
+  const [sapReturnDocNum, setSapReturnDocNum] = useState('');
+  const [sapReturnDocDate, setSapReturnDocDate] = useState('');
+  const [sapReturnReference, setSapReturnReference] = useState('');
   const [securityName, setSecurityName] = useState('');
   const [remarks, setRemarks] = useState('');
   const [formError, setFormError] = useState('');
@@ -101,6 +104,9 @@ export default function BSTReturnNewPage() {
     setSelectedOutId(String(existingEntry.bst_gate_out));
     setGateInDate(existingEntry.gate_in_date || toDateInputValue());
     setInTime(existingEntry.in_time?.slice(0, 5) || toTimeInputValue());
+    setSapReturnDocNum(existingEntry.sap_return_doc_num || '');
+    setSapReturnDocDate(existingEntry.sap_return_doc_date || '');
+    setSapReturnReference(existingEntry.sap_return_reference || '');
     setSecurityName(existingEntry.security_name || '');
     setRemarks(existingEntry.remarks || '');
   }, [existingEntry]);
@@ -113,6 +119,9 @@ export default function BSTReturnNewPage() {
     setSubmittedSearch('');
     setGateInDate(toDateInputValue());
     setInTime(toTimeInputValue());
+    setSapReturnDocNum('');
+    setSapReturnDocDate('');
+    setSapReturnReference('');
     setSecurityName('');
     setRemarks('');
     setFormError('');
@@ -193,6 +202,9 @@ export default function BSTReturnNewPage() {
         bst_gate_out_id: Number(selectedOutId),
         gate_in_date: gateInDate,
         in_time: inTime,
+        sap_return_doc_num: sapReturnDocNum.trim(),
+        sap_return_doc_date: sapReturnDocDate || null,
+        sap_return_reference: sapReturnReference.trim(),
         security_name: securityName,
         remarks,
       };
@@ -234,6 +246,7 @@ export default function BSTReturnNewPage() {
             <InfoItem label="Vehicle" value={existingEntry.vehicle_number} />
             <InfoItem label="Driver" value={existingEntry.driver_name} />
             <InfoItem label="SAP BST" value={existingEntry.sap_doc_num} />
+            <InfoItem label="SAP Return Doc" value={existingEntry.sap_return_doc_num || ''} />
             <InfoItem label="From" value={existingEntry.sap_from_warehouse} />
             <InfoItem label="To" value={existingEntry.sap_to_warehouse} />
             <InfoItem
@@ -352,6 +365,44 @@ export default function BSTReturnNewPage() {
                     placeholder="Optional notes"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-5 w-5" />
+                SAP Return / Reversal Document
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="sap-return-doc-num">SAP Return / Reversal Doc No.</Label>
+                <Input
+                  id="sap-return-doc-num"
+                  value={sapReturnDocNum}
+                  onChange={(event) => setSapReturnDocNum(event.target.value)}
+                  placeholder="Return / reversal document number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sap-return-doc-date">SAP Doc Date</Label>
+                <Input
+                  id="sap-return-doc-date"
+                  type="date"
+                  value={sapReturnDocDate}
+                  onChange={(event) => setSapReturnDocDate(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sap-return-reference">Reference</Label>
+                <Input
+                  id="sap-return-reference"
+                  value={sapReturnReference}
+                  onChange={(event) => setSapReturnReference(event.target.value)}
+                  placeholder="Optional SAP reference"
+                />
               </div>
             </CardContent>
           </Card>

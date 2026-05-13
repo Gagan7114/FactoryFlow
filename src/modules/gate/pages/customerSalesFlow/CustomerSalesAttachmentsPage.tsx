@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { StepFooter, StepHeader } from '@/modules/gate/components';
+import { type RequiredWeighmentValues, validateRequiredWeighment } from '@/modules/gate/utils';
 import {
   Button,
   Card,
@@ -17,25 +18,66 @@ import {
 import {
   CUSTOMER_RETURN_KEY,
   type CustomerFlowEntry,
+  type CustomerFlowStatus,
   type CustomerFlowValue,
   findCustomerFlowEntry,
+  SALES_DISPATCH_KEY,
   updateCustomerFlowEntry,
 } from './customerSalesFlow.storage';
 
-const ATTACHMENTS_CONFIG = {
-  storageKey: CUSTOMER_RETURN_KEY,
-  title: 'Customer Return In',
-  previousPath: '/gate/customer-return/new',
-  dashboardPath: '/gate/customer-return',
-  completeStatus: 'PENDING_QC',
-  completeLabel: 'Complete Return In',
-  successMessage: 'Customer return gate-in completed',
-  missingMessage: 'Customer return details not found',
-} as const;
+type CustomerSalesAttachmentFlow = 'dispatch' | 'return';
+
+interface CustomerSalesAttachmentsPageProps {
+  flow: CustomerSalesAttachmentFlow;
+}
+
+interface AttachmentFlowConfig {
+  storageKey: string;
+  title: string;
+  previousPath: string;
+  dashboardPath: string;
+  completeStatus: CustomerFlowStatus;
+  completeLabel: string;
+  successMessage: string;
+  missingMessage: string;
+}
+
+const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
+  dispatch: {
+    storageKey: SALES_DISPATCH_KEY,
+    title: 'Sales Dispatch Out',
+    previousPath: '/gate/sales-dispatch/new/weighment',
+    dashboardPath: '/gate/sales-dispatch',
+    completeStatus: 'COMPLETED',
+    completeLabel: 'Complete Dispatch',
+    successMessage: 'Sales dispatch gate-out completed',
+    missingMessage: 'Sales dispatch details not found',
+  },
+  return: {
+    storageKey: CUSTOMER_RETURN_KEY,
+    title: 'Customer Return In',
+    previousPath: '/gate/customer-return/new',
+    dashboardPath: '/gate/customer-return',
+    completeStatus: 'PENDING_QC',
+    completeLabel: 'Complete Return In',
+    successMessage: 'Customer return gate-in completed',
+    missingMessage: 'Customer return details not found',
+  },
+};
 
 function getRawString(entry: CustomerFlowEntry, key: string) {
   const value = entry.values[key];
   return typeof value === 'string' ? value : '';
+}
+
+function getDispatchWeighmentValues(entry: CustomerFlowEntry): RequiredWeighmentValues {
+  return {
+    grossWeight: getRawString(entry, 'grossWeight'),
+    tareWeight: getRawString(entry, 'tareWeight'),
+    weighbridgeSlipNo: getRawString(entry, 'weighbridgeSlipNo'),
+    firstWeighmentTime: getRawString(entry, 'firstWeighmentTime'),
+    secondWeighmentTime: getRawString(entry, 'secondWeighmentTime'),
+  };
 }
 
 function parseFileNames(value?: CustomerFlowValue) {
@@ -51,8 +93,8 @@ function parseFileNames(value?: CustomerFlowValue) {
   return [];
 }
 
-export default function CustomerSalesAttachmentsPage() {
-  const config = ATTACHMENTS_CONFIG;
+export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAttachmentsPageProps) {
+  const config = FLOW_CONFIG[flow];
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const entryId = searchParams.get('entryId') || '';
@@ -63,31 +105,47 @@ export default function CustomerSalesAttachmentsPage() {
     entry ? getRawString(entry, 'attachmentNotes') : ''
   ));
   const [remarks, setRemarks] = useState(() => (entry ? getRawString(entry, 'remarks') : ''));
-  const [fileNames, setFileNames] = useState<string[]>(() => (
+  const [gatepassFileNames, setGatepassFileNames] = useState<string[]>(() => (
     entry ? parseFileNames(entry.values.attachmentFileNames) : []
   ));
+  const [invoiceFileNames, setInvoiceFileNames] = useState<string[]>(() => (
+    entry ? parseFileNames(entry.values.invoiceFileNames) : []
+  ));
+  const [deliveryNoteFileNames, setDeliveryNoteFileNames] = useState<string[]>(() => (
+    entry ? parseFileNames(entry.values.deliveryNoteFileNames) : []
+  ));
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentStep = 2;
-  const totalSteps = 2;
+  const gatepassInputRef = useRef<HTMLInputElement>(null);
+  const invoiceInputRef = useRef<HTMLInputElement>(null);
+  const deliveryNoteInputRef = useRef<HTMLInputElement>(null);
+  const currentStep = flow === 'dispatch' ? 3 : 2;
+  const totalSteps = flow === 'dispatch' ? 3 : 2;
+  const requiresGatepass = flow === 'dispatch';
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setFiles: React.Dispatch<React.SetStateAction<string[]>>,
+    inputRef: React.RefObject<HTMLInputElement | null>,
+  ) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    setFileNames((current) => Array.from(new Set([
+    setFiles((current) => Array.from(new Set([
       ...current,
       ...files.map((file) => file.name),
     ])));
     setError(null);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
   };
 
-  const handleRemoveFile = (fileName: string) => {
-    setFileNames((current) => current.filter((name) => name !== fileName));
+  const handleRemoveFile = (
+    fileName: string,
+    setFiles: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    setFiles((current) => current.filter((name) => name !== fileName));
   };
 
   const handleComplete = () => {
@@ -101,13 +159,38 @@ export default function CustomerSalesAttachmentsPage() {
       return;
     }
 
+    if (flow === 'dispatch') {
+      const validationError = validateRequiredWeighment(getDispatchWeighmentValues(entry));
+      if (validationError) {
+        setError('Weighment is required before completing sales dispatch.');
+        return;
+      }
+
+      if (gatepassFileNames.length === 0) {
+        setError('Gatepass document upload is required before completing sales dispatch.');
+        return;
+      }
+
+      if (invoiceFileNames.length === 0) {
+        setError('Invoice bill upload is required before completing sales dispatch.');
+        return;
+      }
+
+      if (deliveryNoteFileNames.length === 0) {
+        setError('Delivery note upload is required before completing sales dispatch.');
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
     const updatedEntry = updateCustomerFlowEntry(config.storageKey, entry.id, (current) => ({
       ...current,
       status: config.completeStatus,
       values: {
         ...current.values,
-        attachmentFileNames: JSON.stringify(fileNames),
+        attachmentFileNames: JSON.stringify(gatepassFileNames),
+        invoiceFileNames: JSON.stringify(invoiceFileNames),
+        deliveryNoteFileNames: JSON.stringify(deliveryNoteFileNames),
         attachmentNotes,
         remarks,
       },
@@ -149,57 +232,49 @@ export default function CustomerSalesAttachmentsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
-            Attachments
+            {requiresGatepass ? 'Required Dispatch Documents' : 'Attachments'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <button
-            type="button"
-            className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center transition-colors hover:border-primary/50"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-10 w-10 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              Click to add files
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Images, invoices, delivery notes, LR, e-way bill, and other documents
-            </span>
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-
-          {fileNames.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {fileNames.map((fileName) => (
-                <div key={fileName} className="flex items-center gap-3 rounded-md border p-3">
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium" title={fileName}>
-                    {fileName}
-                  </span>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveFile(fileName)}
-                    aria-label={`Remove ${fileName}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+          {requiresGatepass ? (
+            <div className="grid gap-5 lg:grid-cols-3">
+              <DocumentUploadPanel
+                label="Gatepass Document"
+                description="Gatepass scan, photo, or PDF"
+                required
+                inputRef={gatepassInputRef}
+                fileNames={gatepassFileNames}
+                onFileSelect={(event) => handleFileSelect(event, setGatepassFileNames, gatepassInputRef)}
+                onRemoveFile={(fileName) => handleRemoveFile(fileName, setGatepassFileNames)}
+              />
+              <DocumentUploadPanel
+                label="Invoice Bill"
+                description="Tax invoice or invoice copy"
+                required
+                inputRef={invoiceInputRef}
+                fileNames={invoiceFileNames}
+                onFileSelect={(event) => handleFileSelect(event, setInvoiceFileNames, invoiceInputRef)}
+                onRemoveFile={(fileName) => handleRemoveFile(fileName, setInvoiceFileNames)}
+              />
+              <DocumentUploadPanel
+                label="Delivery Note"
+                description="Delivery note or dispatch note"
+                required
+                inputRef={deliveryNoteInputRef}
+                fileNames={deliveryNoteFileNames}
+                onFileSelect={(event) => handleFileSelect(event, setDeliveryNoteFileNames, deliveryNoteInputRef)}
+                onRemoveFile={(fileName) => handleRemoveFile(fileName, setDeliveryNoteFileNames)}
+              />
             </div>
           ) : (
-            <p className="text-center text-sm text-muted-foreground">
-              No files added yet. You can skip this page if there are no attachments.
-            </p>
+            <DocumentUploadPanel
+              label="Attachments"
+              description="Images, invoices, delivery notes, LR, e-way bill, and other documents"
+              inputRef={gatepassInputRef}
+              fileNames={gatepassFileNames}
+              onFileSelect={(event) => handleFileSelect(event, setGatepassFileNames, gatepassInputRef)}
+              onRemoveFile={(fileName) => handleRemoveFile(fileName, setGatepassFileNames)}
+            />
           )}
         </CardContent>
       </Card>
@@ -211,9 +286,9 @@ export default function CustomerSalesAttachmentsPage() {
         </h3>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="customer-return-attachment-notes">Attachment Notes</Label>
+            <Label htmlFor={`${flow}-attachment-notes`}>Attachment Notes</Label>
             <Textarea
-              id="customer-return-attachment-notes"
+              id={`${flow}-attachment-notes`}
               value={attachmentNotes}
               onChange={(event) => setAttachmentNotes(event.target.value)}
               placeholder="Document details, file references, or missing document notes"
@@ -221,9 +296,9 @@ export default function CustomerSalesAttachmentsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="customer-return-remarks">Remarks</Label>
+            <Label htmlFor={`${flow}-remarks`}>Remarks</Label>
             <Textarea
-              id="customer-return-remarks"
+              id={`${flow}-remarks`}
               value={remarks}
               onChange={(event) => setRemarks(event.target.value)}
               placeholder="Optional notes"
@@ -239,6 +314,75 @@ export default function CustomerSalesAttachmentsPage() {
         onNext={handleComplete}
         nextLabel={config.completeLabel}
       />
+    </div>
+  );
+}
+
+function DocumentUploadPanel({
+  label,
+  description,
+  required = false,
+  inputRef,
+  fileNames,
+  onFileSelect,
+  onRemoveFile,
+}: {
+  label: string;
+  description: string;
+  required?: boolean;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  fileNames: string[];
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile: (fileName: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center transition-colors hover:border-primary/50"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="h-8 w-8 text-muted-foreground" />
+        <span className="text-sm font-medium">
+          {label} {required && <span className="text-destructive">*</span>}
+        </span>
+        <span className="text-xs text-muted-foreground">{description}</span>
+      </button>
+
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={onFileSelect}
+      />
+
+      {fileNames.length > 0 ? (
+        <div className="space-y-2">
+          {fileNames.map((fileName) => (
+            <div key={fileName} className="flex items-center gap-3 rounded-md border p-3">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium" title={fileName}>
+                {fileName}
+              </span>
+              <ExternalLink className="h-4 w-4 text-muted-foreground" />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onRemoveFile(fileName)}
+                aria-label={`Remove ${fileName}`}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-sm text-muted-foreground">
+          {required ? `${label} is required before completion.` : 'No files added yet.'}
+        </p>
+      )}
     </div>
   );
 }

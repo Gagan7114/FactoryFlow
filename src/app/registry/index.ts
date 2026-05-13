@@ -78,13 +78,7 @@ export function getBreadcrumbMeta(): {
 
     if (route.breadcrumb?.label) {
       labels.set(route.path, route.breadcrumb.label);
-      // Extract the last static segment to map label
       // e.g. '/gate/raw-materials' → 'raw-materials' → 'RM'
-      const segments = route.path.split('/').filter(Boolean);
-      const lastStatic = [...segments].reverse().find((s) => !s.startsWith(':'));
-      if (lastStatic && !labels.has(lastStatic)) {
-        labels.set(lastStatic, route.breadcrumb.label);
-      }
     }
   }
 

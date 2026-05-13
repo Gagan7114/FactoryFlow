@@ -50,6 +50,11 @@ export default function BSTReturnReviewPage() {
       return;
     }
 
+    if (!bstReturn?.sap_return_doc_num?.trim()) {
+      setError('SAP return/reversal document is required before completing. Use View Full Entry to add it.');
+      return;
+    }
+
     try {
       await completeBSTReturn.mutateAsync(entryIdNumber);
       setShowSuccess(true);
@@ -158,6 +163,9 @@ export default function BSTReturnReviewPage() {
                 <InfoItem label="To Warehouse" value={bstReturn.sap_to_warehouse} />
                 <InfoItem label="Reference" value={bstReturn.sap_reference} />
                 <InfoItem label="Comments" value={bstReturn.sap_comments} />
+                <InfoItem label="SAP Return Doc" value={bstReturn.sap_return_doc_num || ''} />
+                <InfoItem label="Return Doc Date" value={bstReturn.sap_return_doc_date || ''} />
+                <InfoItem label="Return Reference" value={bstReturn.sap_return_reference || ''} />
               </div>
 
               <div className="overflow-hidden rounded-md border">
