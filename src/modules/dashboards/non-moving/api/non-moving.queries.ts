@@ -14,7 +14,12 @@ export const NON_MOVING_QUERY_KEYS = {
   all: ['non-moving-rm'] as const,
 
   report: (filters: NonMovingFilters, companyId?: number | string) =>
-    [...NON_MOVING_QUERY_KEYS.all, 'report', companyId, { age: filters.age, item_group: filters.item_group }] as const,
+    [
+      ...NON_MOVING_QUERY_KEYS.all,
+      'report',
+      companyId,
+      { age: filters.age, item_group: filters.item_group },
+    ] as const,
 
   itemGroups: (companyId?: number | string) =>
     [...NON_MOVING_QUERY_KEYS.all, 'item-groups', companyId] as const,
@@ -34,7 +39,7 @@ function sapRetry(failureCount: number, error: unknown): boolean {
 // Hooks
 // ============================================================================
 
-export function useNonMovingReport(filters: NonMovingFilters) {
+export function useNonMovingReport(filters: NonMovingFilters, enabled = true) {
   const { currentCompany } = useAuth();
 
   return useQuery({
@@ -42,7 +47,7 @@ export function useNonMovingReport(filters: NonMovingFilters) {
     queryFn: () => nonMovingApi.getReport(filters),
     staleTime: NON_MOVING_STALE_TIME,
     retry: sapRetry,
-    enabled: filters.item_group !== 0,
+    enabled,
   });
 }
 

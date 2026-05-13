@@ -3,6 +3,11 @@ import { useCallback, useMemo, useState } from 'react';
 import type { ApiError } from '@/core/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 
+import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
+import {
+  DEFAULT_MATERIAL_TYPE_NAME,
+  findDefaultMaterialGroup,
+} from '../../utils/itemGroupDefaults';
 import { useInventoryAgeFilterOptions, useInventoryAgeReport } from '../api';
 import {
   InventoryAgeFilters,
@@ -10,8 +15,11 @@ import {
   InventoryAgeTable,
   InventoryAgeWarehouseSummary,
 } from '../components';
-import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
-import type { InventoryAgeFilters as InventoryAgeFiltersType, InventoryAgeItem, InventoryAgeMeta, WarehouseSummary } from '../types';
+import type {
+  InventoryAgeFilters as InventoryAgeFiltersType,
+  InventoryAgeMeta,
+  WarehouseSummary,
+} from '../types';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -21,29 +29,49 @@ function isSAPError(err: unknown): err is ApiError {
 export default function InventoryAgeDashboardPage() {
   const [filters, setFilters] = useState<InventoryAgeFiltersType>({});
 
-  const handleFiltersChange = useCallback(
-    (f: InventoryAgeFiltersType) => setFilters(f),
-    [],
-  );
+  const handleFiltersChange = useCallback((f: InventoryAgeFiltersType) => setFilters(f), []);
 
   const optionsQuery = useInventoryAgeFilterOptions();
-  const reportQuery = useInventoryAgeReport(filters);
+  const defaultItemGroup = useMemo(() => {
+    const itemGroups = optionsQuery.data?.item_groups ?? [];
+    return (
+      findDefaultMaterialGroup(itemGroups, (group) => group.item_group_name)?.item_group_name ??
+      DEFAULT_MATERIAL_TYPE_NAME
+    );
+  }, [optionsQuery.data]);
+
+  const materialTypesResolved = Boolean(optionsQuery.data) || optionsQuery.isError;
+
+  const effectiveFilters = useMemo<InventoryAgeFiltersType>(
+    () => ({
+      ...filters,
+      item_group: filters.item_group ?? defaultItemGroup,
+    }),
+    [defaultItemGroup, filters],
+  );
+
+  const reportQuery = useInventoryAgeReport(effectiveFilters, materialTypesResolved);
 
   const sapError = reportQuery.error ?? optionsQuery.error;
 
   const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
-    if (filters.warehouse?.length) {
-      result = result.filter((item) => filters.warehouse!.includes(item.warehouse));
+    if (effectiveFilters.warehouse?.length) {
+      result = result.filter((item) => effectiveFilters.warehouse!.includes(item.warehouse));
     }
-    if (filters.sub_group?.length) {
-      result = result.filter((item) => filters.sub_group!.includes(item.sub_group));
+    if (effectiveFilters.sub_group?.length) {
+      result = result.filter((item) => effectiveFilters.sub_group!.includes(item.sub_group));
     }
-    if (filters.variety?.length) {
-      result = result.filter((item) => filters.variety!.includes(item.variety));
+    if (effectiveFilters.variety?.length) {
+      result = result.filter((item) => effectiveFilters.variety!.includes(item.variety));
     }
     return result;
-  }, [reportQuery.data, filters.warehouse, filters.sub_group, filters.variety]);
+  }, [
+    reportQuery.data,
+    effectiveFilters.warehouse,
+    effectiveFilters.sub_group,
+    effectiveFilters.variety,
+  ]);
 
   const filteredMeta = useMemo((): InventoryAgeMeta | undefined => {
     if (!reportQuery.data) return undefined;
@@ -91,25 +119,21 @@ export default function InventoryAgeDashboardPage() {
         onFiltersChange={handleFiltersChange}
         isFetching={optionsQuery.isFetching || reportQuery.isFetching}
         filterOptions={optionsQuery.data}
+        defaultValues={effectiveFilters}
+        defaultItemGroup={defaultItemGroup}
       />
 
       {sapError && isSAPError(sapError) && (
-        <SAPUnavailableBanner
-          error={sapError as ApiError}
-          onRetry={reportQuery.refetch}
-        />
+        <SAPUnavailableBanner error={sapError as ApiError} onRetry={reportQuery.refetch} />
       )}
 
-      {!filters.item_group && !reportQuery.data && (
+      {!materialTypesResolved && !reportQuery.data && (
         <div className="rounded-lg border bg-card p-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Select an <span className="font-medium text-foreground">Item Group</span> to
-            load inventory data.
-          </p>
+          <p className="text-sm text-muted-foreground">Loading material types.</p>
         </div>
       )}
 
-      {filters.item_group && !(sapError && isSAPError(sapError)) && (
+      {materialTypesResolved && !(sapError && isSAPError(sapError)) && (
         <>
           <InventoryAgeMetaCards meta={filteredMeta} />
           <InventoryAgeWarehouseSummary data={filteredWarehouseSummary} />

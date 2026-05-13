@@ -11,6 +11,11 @@ import type {
 
 const EP = API_ENDPOINTS.SAP_PLAN_DASHBOARD;
 
+function normalizeSearchParam(value?: string): string | undefined {
+  const search = value?.trim();
+  return search ? search.toUpperCase() : undefined;
+}
+
 export const sapPlanApi = {
   async getSummary(filters?: PlanDashboardFilters): Promise<SummaryResponse> {
     const response = await apiClient.get<SummaryResponse>(EP.SUMMARY, {
@@ -45,8 +50,10 @@ function buildParams(filters?: PlanDashboardFilters): Record<string, string | bo
   // status filtering is done client-side (multi-select)
   if (filters.due_date_from) p.due_date_from = filters.due_date_from;
   if (filters.due_date_to) p.due_date_to = filters.due_date_to;
-  if (filters.warehouse) p.warehouse = filters.warehouse;
-  if (filters.sku) p.sku = filters.sku;
+  const warehouse = normalizeSearchParam(filters.warehouse);
+  const sku = normalizeSearchParam(filters.sku);
+  if (warehouse) p.warehouse = warehouse;
+  if (sku) p.sku = sku;
   if (filters.show_shortfall_only) p.show_shortfall_only = true;
   return p;
 }

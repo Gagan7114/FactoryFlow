@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, FileText, Package, Scale } from 'lucide-react';
+import { AlertCircle, FileText, Package, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ENTRY_STATUS, VALIDATION_PATTERNS } from '@/config/constants';
+import { ENTRY_STATUS } from '@/config/constants';
 import type { ApiError } from '@/core/api';
 import {
   Button,
@@ -28,21 +28,32 @@ import { useVehicleEntry } from '../../api/vehicle/vehicleEntry.queries';
 import { CategorySelect, DepartmentSelect, FillDataAlert, UnitSelect } from '../../components';
 import { useEntryId } from '../../hooks';
 
-interface DailyNeedsFormData {
-  itemCategory: number | '';
-  supplierName: string;
+interface DailyNeedsMaterialItem {
+  id: string;
   materialName: string;
   quantity: string;
   unit: string;
   unitName: string;
+}
+
+interface DailyNeedsFormData {
+  itemCategory: number | '';
+  supplierName: string;
+  materials: DailyNeedsMaterialItem[];
   receivingDepartment: number | '';
   billNumber: string;
   deliveryChallanNumber: string;
   canteenSupervisor: string;
-  vehicleOrPersonName: string;
-  contactNumber: string;
   remarks: string;
 }
+
+const createEmptyMaterialItem = (): DailyNeedsMaterialItem => ({
+  id: `${Date.now()}-${Math.random()}`,
+  materialName: '',
+  quantity: '',
+  unit: '',
+  unitName: '',
+});
 
 export default function Step3Page() {
   const navigate = useNavigate();
@@ -83,16 +94,11 @@ export default function Step3Page() {
   const [formData, setFormData] = useState<DailyNeedsFormData>({
     itemCategory: '',
     supplierName: '',
-    materialName: '',
-    quantity: '0',
-    unit: '',
-    unitName: '',
+    materials: [createEmptyMaterialItem()],
     receivingDepartment: '',
     billNumber: '',
     deliveryChallanNumber: '',
     canteenSupervisor: '',
-    vehicleOrPersonName: '',
-    contactNumber: '',
     remarks: '',
   });
 
@@ -114,24 +120,41 @@ export default function Step3Page() {
       // Extract IDs from nested objects
       const categoryId = dailyNeedData.item_category?.id || '';
       const departmentId = dailyNeedData.receiving_department?.id || '';
+      const materials =
+        dailyNeedData.items && dailyNeedData.items.length > 0
+          ? dailyNeedData.items.map((item, index) => ({
+              id: item.id?.toString() || `${index}-${item.material_name}`,
+              materialName: item.material_name || '',
+              quantity: item.quantity?.toString() || '',
+              unit:
+                typeof item.unit === 'object'
+                  ? item.unit?.id?.toString() || ''
+                  : item.unit?.toString() || '',
+              unitName: typeof item.unit === 'object' ? item.unit?.name || '' : '',
+            }))
+          : [
+              {
+                id: 'legacy-1',
+                materialName: dailyNeedData.material_name || '',
+                quantity: dailyNeedData.quantity?.toString() || '',
+                unit:
+                  typeof dailyNeedData.unit === 'object'
+                    ? dailyNeedData.unit?.id?.toString() || ''
+                    : dailyNeedData.unit?.toString() || '',
+                unitName:
+                  typeof dailyNeedData.unit === 'object' ? dailyNeedData.unit?.name || '' : '',
+              },
+            ];
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing form state with fetched data is a valid pattern
       setFormData({
         itemCategory: categoryId,
         supplierName: dailyNeedData.supplier_name || '',
-        materialName: dailyNeedData.material_name || '',
-        quantity: dailyNeedData.quantity?.toString() || '0',
-        unit:
-          typeof dailyNeedData.unit === 'object'
-            ? dailyNeedData.unit?.id?.toString() || ''
-            : dailyNeedData.unit?.toString() || '',
-        unitName: typeof dailyNeedData.unit === 'object' ? dailyNeedData.unit?.name || '' : '',
+        materials,
         receivingDepartment: departmentId,
         billNumber: dailyNeedData.bill_number || '',
         deliveryChallanNumber: dailyNeedData.delivery_challan_number || '',
         canteenSupervisor: dailyNeedData.canteen_supervisor || '',
-        vehicleOrPersonName: dailyNeedData.vehicle_or_person_name || '',
-        contactNumber: dailyNeedData.contact_number || '',
         remarks: dailyNeedData.remarks || '',
       });
     }
@@ -147,6 +170,45 @@ export default function Step3Page() {
         return newErrors;
       });
     }
+  };
+
+  const handleMaterialChange = (
+    index: number,
+    field: keyof Omit<DailyNeedsMaterialItem, 'id'>,
+    value: string,
+  ) => {
+    if (isReadOnly) return;
+    setFormData((prev) => ({
+      ...prev,
+      materials: prev.materials.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    }));
+
+    const errorKey = `materials.${index}.${field}`;
+    if (apiErrors[errorKey]) {
+      setApiErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[errorKey];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleAddMaterial = () => {
+    if (isReadOnly) return;
+    setFormData((prev) => ({
+      ...prev,
+      materials: [...prev.materials, createEmptyMaterialItem()],
+    }));
+  };
+
+  const handleRemoveMaterial = (index: number) => {
+    if (isReadOnly || formData.materials.length <= 1) return;
+    setFormData((prev) => ({
+      ...prev,
+      materials: prev.materials.filter((_, itemIndex) => itemIndex !== index),
+    }));
   };
 
   const handlePrevious = () => {
@@ -193,15 +255,17 @@ export default function Step3Page() {
     if (!formData.supplierName) {
       errors.supplierName = 'Please enter supplier/vendor name';
     }
-    if (!formData.materialName) {
-      errors.materialName = 'Please enter material name';
-    }
-    if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
-      errors.quantity = 'Please enter a valid quantity';
-    }
-    if (!formData.unit) {
-      errors.unit = 'Please select unit';
-    }
+    formData.materials.forEach((item, index) => {
+      if (!item.materialName.trim()) {
+        errors[`materials.${index}.materialName`] = 'Please enter material name';
+      }
+      if (!item.quantity || parseFloat(item.quantity) <= 0) {
+        errors[`materials.${index}.quantity`] = 'Please enter a valid quantity';
+      }
+      if (!item.unit) {
+        errors[`materials.${index}.unit`] = 'Please select unit';
+      }
+    });
     if (!formData.receivingDepartment) {
       errors.receivingDepartment = 'Please select receiving department';
     }
@@ -211,14 +275,6 @@ export default function Step3Page() {
     if (!formData.deliveryChallanNumber) {
       errors.deliveryChallanNumber = 'Please enter delivery challan number';
     }
-    if (!formData.vehicleOrPersonName) {
-      errors.vehicleOrPersonName = 'Please enter vehicle / person name';
-    }
-    if (!formData.contactNumber) {
-      errors.contactNumber = 'Please enter contact number';
-    } else if (!VALIDATION_PATTERNS.phone.test(formData.contactNumber)) {
-      errors.contactNumber = 'Please enter a valid 10-digit phone number';
-    }
 
     if (Object.keys(errors).length > 0) {
       setApiErrors(errors);
@@ -226,18 +282,24 @@ export default function Step3Page() {
     }
 
     try {
+      const items = formData.materials.map((item) => ({
+        material_name: item.materialName.trim(),
+        quantity: parseFloat(item.quantity),
+        unit: parseInt(item.unit),
+      }));
+      const firstItem = items[0];
+
       await createDailyNeed.mutateAsync({
         item_category: formData.itemCategory as number,
         supplier_name: formData.supplierName,
-        material_name: formData.materialName,
-        quantity: parseFloat(formData.quantity),
-        unit: parseInt(formData.unit),
+        material_name: firstItem.material_name,
+        quantity: firstItem.quantity,
+        unit: firstItem.unit,
+        items,
         receiving_department: (formData.receivingDepartment as number).toString(),
         bill_number: formData.billNumber,
         delivery_challan_number: formData.deliveryChallanNumber,
         canteen_supervisor: formData.canteenSupervisor || undefined,
-        vehicle_or_person_name: formData.vehicleOrPersonName,
-        contact_number: formData.contactNumber,
         remarks: formData.remarks || undefined,
       });
 
@@ -253,8 +315,36 @@ export default function Step3Page() {
       if (apiError.errors) {
         const fieldErrors: Record<string, string> = {};
         Object.entries(apiError.errors).forEach(([field, messages]) => {
+          if (field === 'items' && Array.isArray(messages)) {
+            messages.forEach((itemError, index) => {
+              if (typeof itemError === 'object' && itemError !== null) {
+                Object.entries(itemError as Record<string, string[]>).forEach(
+                  ([nestedField, nestedMessages]) => {
+                    const uiField =
+                      nestedField === 'material_name' ? 'materialName' : nestedField;
+                    if (Array.isArray(nestedMessages) && nestedMessages.length > 0) {
+                      fieldErrors[`materials.${index}.${uiField}`] = nestedMessages[0];
+                    }
+                  },
+                );
+              }
+            });
+            return;
+          }
           if (Array.isArray(messages) && messages.length > 0) {
-            fieldErrors[field] = messages[0];
+            const firstMessage = messages[0];
+            if (typeof firstMessage === 'string') {
+              fieldErrors[field] = firstMessage;
+            } else if (typeof firstMessage === 'object' && firstMessage !== null) {
+              Object.entries(firstMessage as Record<string, string[]>).forEach(
+                ([nestedField, nestedMessages]) => {
+                  const uiField = nestedField === 'material_name' ? 'materialName' : nestedField;
+                  if (Array.isArray(nestedMessages) && nestedMessages.length > 0) {
+                    fieldErrors[`materials.0.${uiField}`] = nestedMessages[0];
+                  }
+                },
+              );
+            }
           }
         });
         setApiErrors(fieldErrors);
@@ -366,75 +456,6 @@ export default function Step3Page() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="materialName">
-                  Material Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="materialName"
-                  placeholder="Item description"
-                  value={formData.materialName}
-                  onChange={(e) => handleInputChange('materialName', e.target.value)}
-                  disabled={isReadOnly || createDailyNeed.isPending}
-                  className={cn(
-                    'border-2 font-medium',
-                    (apiErrors.materialName || apiErrors.material_name) && 'border-destructive',
-                  )}
-                />
-                {apiErrors.materialName && (
-                  <p className="text-sm text-destructive">{apiErrors.materialName}</p>
-                )}
-                {apiErrors.material_name && (
-                  <p className="text-sm text-destructive">{apiErrors.material_name}</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quantity & Unit Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Scale className="h-5 w-5" />
-              Quantity & Unit
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="quantity">
-                  Quantity <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={formData.quantity}
-                  onChange={(e) => handleInputChange('quantity', e.target.value)}
-                  disabled={isReadOnly || createDailyNeed.isPending}
-                  className={cn('border-2 font-medium', apiErrors.quantity && 'border-destructive')}
-                />
-                {apiErrors.quantity && (
-                  <p className="text-sm text-destructive">{apiErrors.quantity}</p>
-                )}
-              </div>
-
-              <UnitSelect
-                value={formData.unit || undefined}
-                onChange={(unitId, unitName) => {
-                  handleInputChange('unit', unitId);
-                  setFormData((prev: DailyNeedsFormData) => ({ ...prev, unitName }));
-                }}
-                placeholder="Select unit"
-                disabled={isReadOnly || createDailyNeed.isPending}
-                error={apiErrors.unit}
-                label="Unit"
-                required
-                initialDisplayText={formData.unitName || undefined}
-              />
-
               <DepartmentSelect
                 value={formData.receivingDepartment}
                 onChange={(departmentId) => {
@@ -451,12 +472,116 @@ export default function Step3Page() {
           </CardContent>
         </Card>
 
-        {/* Documentation & Contact Section */}
+        {/* Material Items Section */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Material Items
+            </CardTitle>
+            {!isReadOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddMaterial}
+                disabled={createDailyNeed.isPending}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Material
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {formData.materials.map((item, index) => (
+              <div key={item.id} className="rounded-md border p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-medium">Material {index + 1}</h4>
+                  {!isReadOnly && formData.materials.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveMaterial(index)}
+                      disabled={createDailyNeed.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`materialName-${item.id}`}>
+                      Material Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id={`materialName-${item.id}`}
+                      placeholder="Item description"
+                      value={item.materialName}
+                      onChange={(e) => handleMaterialChange(index, 'materialName', e.target.value)}
+                      disabled={isReadOnly || createDailyNeed.isPending}
+                      className={cn(
+                        'border-2 font-medium',
+                        apiErrors[`materials.${index}.materialName`] && 'border-destructive',
+                      )}
+                    />
+                    {apiErrors[`materials.${index}.materialName`] && (
+                      <p className="text-sm text-destructive">
+                        {apiErrors[`materials.${index}.materialName`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`quantity-${item.id}`}>
+                      Quantity <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id={`quantity-${item.id}`}
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={item.quantity}
+                      onChange={(e) => handleMaterialChange(index, 'quantity', e.target.value)}
+                      disabled={isReadOnly || createDailyNeed.isPending}
+                      className={cn(
+                        'border-2 font-medium',
+                        apiErrors[`materials.${index}.quantity`] && 'border-destructive',
+                      )}
+                    />
+                    {apiErrors[`materials.${index}.quantity`] && (
+                      <p className="text-sm text-destructive">
+                        {apiErrors[`materials.${index}.quantity`]}
+                      </p>
+                    )}
+                  </div>
+
+                  <UnitSelect
+                    value={item.unit || undefined}
+                    onChange={(unitId, unitName) => {
+                      handleMaterialChange(index, 'unit', unitId.toString());
+                      handleMaterialChange(index, 'unitName', unitName);
+                    }}
+                    placeholder="Select unit"
+                    disabled={isReadOnly || createDailyNeed.isPending}
+                    error={apiErrors[`materials.${index}.unit`]}
+                    label="Unit"
+                    required
+                    initialDisplayText={item.unitName || undefined}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Documentation Section */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Documentation & Contact
+              Documentation
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -520,57 +645,6 @@ export default function Step3Page() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="vehicleOrPersonName">
-                  Vehicle / Person Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="vehicleOrPersonName"
-                  placeholder="eg: Tempo DL01AB2236"
-                  value={formData.vehicleOrPersonName}
-                  onChange={(e) => handleInputChange('vehicleOrPersonName', e.target.value)}
-                  disabled={isReadOnly || createDailyNeed.isPending}
-                  className={cn(
-                    'border-2 font-medium',
-                    (apiErrors.vehicleOrPersonName || apiErrors.vehicle_or_person_name) &&
-                      'border-destructive',
-                  )}
-                />
-                {apiErrors.vehicleOrPersonName && (
-                  <p className="text-sm text-destructive">{apiErrors.vehicleOrPersonName}</p>
-                )}
-                {apiErrors.vehicle_or_person_name && (
-                  <p className="text-sm text-destructive">{apiErrors.vehicle_or_person_name}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="contactNumber">
-                  Contact Number <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="contactNumber"
-                  placeholder="9876543210"
-                  value={formData.contactNumber}
-                  onChange={(e) => {
-                    // Only allow digits
-                    const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10);
-                    handleInputChange('contactNumber', value);
-                  }}
-                  maxLength={10}
-                  disabled={isReadOnly || createDailyNeed.isPending}
-                  className={cn(
-                    'border-2 font-medium',
-                    (apiErrors.contactNumber || apiErrors.contact_number) && 'border-destructive',
-                  )}
-                />
-                {apiErrors.contactNumber && (
-                  <p className="text-sm text-destructive">{apiErrors.contactNumber}</p>
-                )}
-                {apiErrors.contact_number && (
-                  <p className="text-sm text-destructive">{apiErrors.contact_number}</p>
-                )}
-              </div>
             </div>
 
             <div className="mt-4 space-y-2">

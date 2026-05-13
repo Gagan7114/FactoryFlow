@@ -7,11 +7,13 @@ const EP = API_ENDPOINTS.NON_MOVING_RM;
 
 export const nonMovingApi = {
   async getReport(filters: NonMovingFilters): Promise<NonMovingReportResponse> {
+    const params: Record<string, number> = {
+      age: filters.age,
+    };
+    if (filters.item_group !== 0) params.item_group = filters.item_group;
+
     const response = await apiClient.get<NonMovingReportResponse>(EP.REPORT, {
-      params: {
-        age: filters.age,
-        item_group: filters.item_group,
-      },
+      params,
     });
     return response.data;
   },

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { ApiError } from '@/core/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 
+import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
+import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
 import { useItemGroups, useNonMovingReport } from '../api';
 import {
   NonMovingBranchSummary,
@@ -10,8 +12,11 @@ import {
   NonMovingMetaCards,
   NonMovingTable,
 } from '../components';
-import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
-import type { BranchSummary, NonMovingFilters as NonMovingFiltersType, ReportSummary } from '../types';
+import type {
+  BranchSummary,
+  NonMovingFilters as NonMovingFiltersType,
+  ReportSummary,
+} from '../types';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -25,23 +30,24 @@ export default function NonMovingDashboardPage() {
     age: 45,
     item_group: 0,
   });
+  const [hasSelectedMaterialType, setHasSelectedMaterialType] = useState(false);
 
-  // Default to "Raw Material" group once loaded, fallback to first group
-  useEffect(() => {
-    if (itemGroupsQuery.data?.data?.length && filters.item_group === 0) {
-      const groups = itemGroupsQuery.data.data;
-      const rawMaterial = groups.find(
-        (g) => g.item_group_name.toLowerCase() === 'raw material',
-      );
-      setFilters((prev) => ({
-        ...prev,
-        item_group: rawMaterial?.item_group_code ?? groups[0].item_group_code,
-      }));
-    }
-  }, [itemGroupsQuery.data, filters.item_group]);
+  const materialTypesResolved = Boolean(itemGroupsQuery.data) || itemGroupsQuery.isError;
 
-  const hasValidFilters = filters.item_group !== 0;
-  const reportQuery = useNonMovingReport(filters);
+  const defaultItemGroupCode = useMemo(() => {
+    const groups = itemGroupsQuery.data?.data ?? [];
+    return findDefaultMaterialGroup(groups, (group) => group.item_group_name)?.item_group_code ?? 0;
+  }, [itemGroupsQuery.data]);
+
+  const effectiveFilters = useMemo<NonMovingFiltersType>(
+    () => ({
+      ...filters,
+      item_group: hasSelectedMaterialType ? filters.item_group : defaultItemGroupCode,
+    }),
+    [defaultItemGroupCode, filters, hasSelectedMaterialType],
+  );
+
+  const reportQuery = useNonMovingReport(effectiveFilters, materialTypesResolved);
 
   const warehouses = useMemo(() => {
     const items = reportQuery.data?.data ?? [];
@@ -55,14 +61,17 @@ export default function NonMovingDashboardPage() {
 
   const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
-    if (filters.warehouse?.length) {
-      result = result.filter((item) => filters.warehouse!.includes(item.warehouse));
+    result = result.filter(
+      (item) => item.days_since_last_movement >= effectiveFilters.age,
+    );
+    if (effectiveFilters.warehouse?.length) {
+      result = result.filter((item) => effectiveFilters.warehouse!.includes(item.warehouse));
     }
-    if (filters.sub_group?.length) {
-      result = result.filter((item) => filters.sub_group!.includes(item.sub_group));
+    if (effectiveFilters.sub_group?.length) {
+      result = result.filter((item) => effectiveFilters.sub_group!.includes(item.sub_group));
     }
-    if (filters.search) {
-      const term = filters.search.toLowerCase();
+    if (effectiveFilters.search) {
+      const term = effectiveFilters.search.toLowerCase();
       result = result.filter(
         (item) =>
           item.item_code.toLowerCase().includes(term) ||
@@ -72,7 +81,13 @@ export default function NonMovingDashboardPage() {
       );
     }
     return result;
-  }, [reportQuery.data, filters.warehouse, filters.sub_group, filters.search]);
+  }, [
+    reportQuery.data,
+    effectiveFilters.age,
+    effectiveFilters.warehouse,
+    effectiveFilters.sub_group,
+    effectiveFilters.search,
+  ]);
 
   const filteredSummary = useMemo((): ReportSummary | undefined => {
     if (!reportQuery.data) return undefined;
@@ -100,7 +115,10 @@ export default function NonMovingDashboardPage() {
     };
   }, [reportQuery.data, filteredItems]);
 
-  const handleFiltersChange = useCallback((f: NonMovingFiltersType) => setFilters(f), []);
+  const handleFiltersChange = useCallback((f: NonMovingFiltersType) => {
+    setHasSelectedMaterialType(true);
+    setFilters(f);
+  }, []);
 
   return (
     <div className="space-y-6 p-6">
@@ -112,7 +130,7 @@ export default function NonMovingDashboardPage() {
       <NonMovingFilters
         onFiltersChange={handleFiltersChange}
         isFetching={reportQuery.isFetching}
-        defaultValues={filters}
+        defaultValues={effectiveFilters}
         itemGroups={itemGroupsQuery.data?.data ?? []}
         isLoadingGroups={itemGroupsQuery.isLoading}
         warehouses={warehouses}
@@ -123,7 +141,7 @@ export default function NonMovingDashboardPage() {
         <SAPUnavailableBanner error={reportQuery.error as ApiError} onRetry={reportQuery.refetch} />
       )}
 
-      {!(reportQuery.error && isSAPError(reportQuery.error)) && hasValidFilters && (
+      {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
           <NonMovingBranchSummary branches={filteredSummary?.by_branch ?? []} />

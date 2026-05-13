@@ -2,17 +2,32 @@ import { Loader2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { Button, Input, Label, MultiSelect, NativeSelect as Select, SelectOption } from '@/shared/components/ui';
+import {
+  Button,
+  Input,
+  Label,
+  MultiSelect,
+  NativeSelect as Select,
+  SelectOption,
+} from '@/shared/components/ui';
 
+import { ALL_MATERIAL_TYPES_VALUE } from '../../utils/itemGroupDefaults';
 import { AGE_FILTER_OPTIONS } from '../constants';
 import type { InventoryAgeFilterOptions, InventoryAgeFilters as FiltersType } from '../types';
 
 const TEXT_DEBOUNCE_MS = 500;
 
+function normalizeSearch(value?: string): string | undefined {
+  const search = value?.trim();
+  return search ? search.toUpperCase() : undefined;
+}
+
 interface InventoryAgeFiltersProps {
   onFiltersChange: (filters: FiltersType) => void;
   isFetching?: boolean;
   filterOptions?: InventoryAgeFilterOptions;
+  defaultValues?: FiltersType;
+  defaultItemGroup?: string;
 }
 
 interface FiltersForm {
@@ -26,8 +41,9 @@ interface FiltersForm {
 
 function buildFilters(values: Partial<FiltersForm>): FiltersType {
   const filters: FiltersType = {};
-  if (values.item_group) filters.item_group = values.item_group;
-  if (values.search) filters.search = values.search;
+  filters.item_group = values.item_group ?? ALL_MATERIAL_TYPES_VALUE;
+  const search = normalizeSearch(values.search);
+  if (search) filters.search = search;
   if (values.warehouse?.length) filters.warehouse = values.warehouse;
   if (values.sub_group?.length) filters.sub_group = values.sub_group;
   if (values.variety?.length) filters.variety = values.variety;
@@ -39,12 +55,14 @@ export function InventoryAgeFilters({
   onFiltersChange,
   isFetching,
   filterOptions,
+  defaultValues,
+  defaultItemGroup,
 }: InventoryAgeFiltersProps) {
-  const { register, watch, reset, control } = useForm<FiltersForm>({
+  const { register, watch, reset, control, setValue } = useForm<FiltersForm>({
     defaultValues: {
       search: '',
       warehouse: [],
-      item_group: '',
+      item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
       sub_group: [],
       variety: [],
       min_age: '0',
@@ -52,6 +70,15 @@ export function InventoryAgeFilters({
   });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasDefaultValues = defaultValues !== undefined;
+  const defaultValuesItemGroup = defaultValues?.item_group;
+
+  useEffect(() => {
+    const selectedItemGroup = hasDefaultValues
+      ? (defaultValuesItemGroup ?? ALL_MATERIAL_TYPES_VALUE)
+      : (defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE);
+    setValue('item_group', selectedItemGroup);
+  }, [defaultItemGroup, defaultValuesItemGroup, hasDefaultValues, setValue]);
 
   useEffect(() => {
     const subscription = watch((values, { name }) => {
@@ -74,19 +101,27 @@ export function InventoryAgeFilters({
   }, [watch, onFiltersChange]);
 
   function handleReset() {
-    reset({ search: '', warehouse: [], item_group: '', sub_group: [], variety: [], min_age: '0' });
-    onFiltersChange({});
+    const resetValues = {
+      search: '',
+      warehouse: [],
+      item_group: defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+      sub_group: [],
+      variety: [],
+      min_age: '0',
+    };
+    reset(resetValues);
+    onFiltersChange(buildFilters(resetValues));
   }
 
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Item Group — primary filter */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-2 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-item-group" className="text-xs font-semibold">
-          Item Group *
+          Material Type
         </Label>
-        <Select id="inv-age-item-group" className="w-52" {...register('item_group')}>
-          <SelectOption value="">-- Select Group --</SelectOption>
+        <Select id="inv-age-item-group" className="w-44" {...register('item_group')}>
+          <SelectOption value={ALL_MATERIAL_TYPES_VALUE}>All</SelectOption>
           {filterOptions?.item_groups.map((g) => (
             <SelectOption key={g.item_group_code} value={g.item_group_name}>
               {g.item_group_name}
@@ -96,20 +131,24 @@ export function InventoryAgeFilters({
       </div>
 
       {/* Search */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="inv-age-search" className="text-xs">Search</Label>
+      <div className="order-1 flex flex-col gap-1.5">
+        <Label htmlFor="inv-age-search" className="text-xs">
+          Search
+        </Label>
         <Input
           id="inv-age-search"
           type="text"
           placeholder="Item code or name"
-          className="w-56"
+          className="w-64"
           {...register('search')}
         />
       </div>
 
       {/* Warehouse */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="inv-age-warehouse" className="text-xs">Warehouse</Label>
+      <div className="order-3 flex flex-col gap-1.5">
+        <Label htmlFor="inv-age-warehouse" className="text-xs">
+          Warehouse
+        </Label>
         <Controller
           name="warehouse"
           control={control}
@@ -120,15 +159,17 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-36"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Sub Group */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="inv-age-sub-group" className="text-xs">Sub Group</Label>
+      <div className="order-4 flex flex-col gap-1.5">
+        <Label htmlFor="inv-age-sub-group" className="text-xs">
+          Sub Group
+        </Label>
         <Controller
           name="sub_group"
           control={control}
@@ -139,15 +180,17 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-40"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Variety */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="inv-age-variety" className="text-xs">Variety</Label>
+      <div className="order-5 flex flex-col gap-1.5">
+        <Label htmlFor="inv-age-variety" className="text-xs">
+          Variety
+        </Label>
         <Controller
           name="variety"
           control={control}
@@ -158,16 +201,18 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-36"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Age */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="inv-age-min-age" className="text-xs">Min Age</Label>
-        <Select id="inv-age-min-age" className="w-32" {...register('min_age')}>
+      <div className="order-6 flex flex-col gap-1.5">
+        <Label htmlFor="inv-age-min-age" className="text-xs">
+          Min Age
+        </Label>
+        <Select id="inv-age-min-age" className="w-40" {...register('min_age')}>
           {AGE_FILTER_OPTIONS.map((opt) => (
             <SelectOption key={opt.value} value={opt.value}>
               {opt.label}
@@ -177,13 +222,13 @@ export function InventoryAgeFilters({
       </div>
 
       {/* Reset */}
-      <Button variant="outline" size="sm" onClick={handleReset} className="mb-0.5">
+      <Button variant="outline" size="sm" onClick={handleReset} className="order-7 mb-0.5">
         Reset
       </Button>
 
       {/* Fetch indicator */}
       {isFetching && (
-        <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="order-8 mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading…
         </div>

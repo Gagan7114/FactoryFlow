@@ -9,6 +9,11 @@ import type { PlanDashboardFilters } from '../types';
 
 const TEXT_DEBOUNCE_MS = 500;
 
+function normalizeSearch(value?: string): string | undefined {
+  const search = value?.trim();
+  return search ? search.toUpperCase() : undefined;
+}
+
 interface PlanDashboardFiltersProps {
   onFiltersChange: (filters: PlanDashboardFilters) => void;
   defaultValues?: PlanDashboardFilters;
@@ -29,8 +34,10 @@ function buildFilters(values: Partial<FiltersForm>): PlanDashboardFilters {
   if (values.status?.length) filters.status = values.status as PlanDashboardFilters['status'];
   if (values.due_date_from) filters.due_date_from = values.due_date_from;
   if (values.due_date_to) filters.due_date_to = values.due_date_to;
-  if (values.warehouse) filters.warehouse = values.warehouse;
-  if (values.sku) filters.sku = values.sku;
+  const warehouse = normalizeSearch(values.warehouse);
+  const sku = normalizeSearch(values.sku);
+  if (warehouse) filters.warehouse = warehouse;
+  if (sku) filters.sku = sku;
   if (values.show_shortfall_only) filters.show_shortfall_only = true;
   return filters;
 }
@@ -87,7 +94,7 @@ export function PlanDashboardFilters({ onFiltersChange, defaultValues, isFetchin
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Status */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-3 flex flex-col gap-1.5">
         <Label htmlFor="filter-status" className="text-xs">Status</Label>
         <Controller
           name="status"
@@ -109,53 +116,53 @@ export function PlanDashboardFilters({ onFiltersChange, defaultValues, isFetchin
       </div>
 
       {/* Due Date From */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-4 flex flex-col gap-1.5">
         <Label htmlFor="filter-from" className="text-xs">Due Date From</Label>
         <Input
           id="filter-from"
           type="date"
-          className="w-36"
+          className="w-40"
           {...register('due_date_from')}
         />
       </div>
 
       {/* Due Date To */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-5 flex flex-col gap-1.5">
         <Label htmlFor="filter-to" className="text-xs">Due Date To</Label>
         <Input
           id="filter-to"
           type="date"
-          className="w-36"
+          className="w-40"
           {...register('due_date_to')}
         />
       </div>
 
       {/* Warehouse */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-2 flex flex-col gap-1.5">
         <Label htmlFor="filter-warehouse" className="text-xs">Warehouse</Label>
         <Input
           id="filter-warehouse"
           type="text"
           placeholder="e.g. WH-01"
-          className="w-28"
+          className="w-44"
           {...register('warehouse')}
         />
       </div>
 
       {/* SKU */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-1 flex flex-col gap-1.5">
         <Label htmlFor="filter-sku" className="text-xs">SKU</Label>
         <Input
           id="filter-sku"
           type="text"
           placeholder="e.g. FG-001"
-          className="w-28"
+          className="w-64"
           {...register('sku')}
         />
       </div>
 
       {/* Shortfall Only */}
-      <div className="flex items-center gap-2 pb-0.5">
+      <div className="order-6 flex items-center gap-2 pb-0.5">
         <Checkbox
           id="filter-shortfall"
           checked={showShortfallOnly}
@@ -170,13 +177,13 @@ export function PlanDashboardFilters({ onFiltersChange, defaultValues, isFetchin
       </div>
 
       {/* Reset */}
-      <Button variant="outline" size="sm" onClick={handleReset} className="mb-0.5">
+      <Button variant="outline" size="sm" onClick={handleReset} className="order-7 mb-0.5">
         Reset
       </Button>
 
       {/* Fetch indicator */}
       {isFetching && (
-        <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="order-8 mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading…
         </div>

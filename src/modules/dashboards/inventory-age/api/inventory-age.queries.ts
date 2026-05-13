@@ -17,7 +17,12 @@ export const INVENTORY_AGE_QUERY_KEYS = {
     [...INVENTORY_AGE_QUERY_KEYS.all, 'filter-options', companyId] as const,
 
   report: (filters: InventoryAgeFilters, companyId?: number | string) =>
-    [...INVENTORY_AGE_QUERY_KEYS.all, 'report', companyId, { item_group: filters.item_group, search: filters.search, min_age: filters.min_age }] as const,
+    [
+      ...INVENTORY_AGE_QUERY_KEYS.all,
+      'report',
+      companyId,
+      { item_group: filters.item_group, search: filters.search, min_age: filters.min_age },
+    ] as const,
 };
 
 // ============================================================================
@@ -47,7 +52,7 @@ export function useInventoryAgeFilterOptions() {
 }
 
 /** Full report — only fires when item_group is selected. */
-export function useInventoryAgeReport(filters: InventoryAgeFilters) {
+export function useInventoryAgeReport(filters: InventoryAgeFilters, enabled = true) {
   const { currentCompany } = useAuth();
 
   return useQuery({
@@ -55,6 +60,6 @@ export function useInventoryAgeReport(filters: InventoryAgeFilters) {
     queryFn: () => inventoryAgeApi.getReport(filters),
     staleTime: INVENTORY_AGE_STALE_TIME,
     retry: sapRetry,
-    enabled: !!filters.item_group,
+    enabled,
   });
 }

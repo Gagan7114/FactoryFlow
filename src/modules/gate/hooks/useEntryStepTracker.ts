@@ -14,6 +14,11 @@ const STORAGE_KEY = 'gate_entry_last_step';
 function getStepFromPath(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
   const lastSegment = segments[segments.length - 1];
+
+  if (lastSegment === 'new') {
+    return 'step1';
+  }
+
   if (
     lastSegment?.startsWith('step') ||
     lastSegment === 'review' ||

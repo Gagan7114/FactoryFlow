@@ -51,6 +51,7 @@ The Factory Management System is a modern, enterprise-grade React application de
 - [Modules Overview](./modules/overview.md) - Feature module architecture
 - [Authentication Module](./modules/auth.md) - User authentication and authorization
 - [Dashboard Module](./modules/dashboard.md) - Main dashboard
+- [Stock Benchmark Dashboard](./modules/stock-benchmark.md) - Inventory benchmark filters, status rules, and movement rules
 - [Gate Module](./modules/gate.md) - Gate entry management
 - [GRPO Module](./modules/grpo.md) - Goods receipt posting
 - [QC Module](./modules/qc.md) - Quality control inspections

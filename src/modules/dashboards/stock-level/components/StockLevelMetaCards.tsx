@@ -9,10 +9,15 @@ interface StockLevelMetaCardsProps {
 }
 
 export function StockLevelMetaCards({ meta }: StockLevelMetaCardsProps) {
+  const statusTotal =
+    meta === undefined
+      ? undefined
+      : meta.healthy_count + meta.low_stock_count + meta.critical_stock_count;
+
   const cards = [
     {
       label: 'Total Items',
-      value: meta?.total_items ?? '—',
+      value: statusTotal ?? '—',
       icon: Package,
     },
     {

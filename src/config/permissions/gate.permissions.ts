@@ -51,6 +51,74 @@ export const GATE_PERMISSIONS = {
   },
 
   // ============================================
+  // REJECTED QC RETURN
+  // ============================================
+  REJECTED_QC_RETURN: {
+    /** View rejected QC return cases */
+    VIEW: 'raw_material_gatein.view_poreceipt',
+    /** Create rejected QC return cases */
+    CREATE: 'raw_material_gatein.add_poreceipt',
+  },
+
+  // ============================================
+  // EMPTY VEHICLE GATE OUT
+  // ============================================
+  EMPTY_VEHICLE_IN: {
+    /** View empty vehicle gate-in entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create empty vehicle gate-in entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+  },
+
+  EMPTY_VEHICLE_OUT: {
+    /** View empty vehicle gate-out entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Mark an inward vehicle out empty */
+    CREATE: 'person_gatein.can_view_dashboard',
+  },
+
+  BST_OUT: {
+    /** View BST gate-out entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create BST gate-out entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+    /** Complete BST gate-out entries */
+    COMPLETE: 'person_gatein.can_view_dashboard',
+  },
+
+  BST_IN: {
+    /** View BST gate-in entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create BST gate-in entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+    /** Complete BST gate-in entries */
+    COMPLETE: 'person_gatein.can_view_dashboard',
+  },
+
+  BST_RETURN: {
+    /** View BST return entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create BST return entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+    /** Complete BST return entries */
+    COMPLETE: 'person_gatein.can_view_dashboard',
+  },
+
+  SALES_DISPATCH: {
+    /** View customer dispatch gate-out entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create customer dispatch gate-out entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+  },
+
+  CUSTOMER_RETURN: {
+    /** View customer return gate-in entries */
+    VIEW: 'person_gatein.can_view_dashboard',
+    /** Create customer return gate-in entries */
+    CREATE: 'person_gatein.can_view_dashboard',
+  },
+
+  // ============================================
   // DAILY NEEDS GATE-IN PERMISSIONS
   // ============================================
   DAILY_NEEDS: {
@@ -84,6 +152,16 @@ export const GATE_PERMISSIONS = {
     DELETE: 'maintenance_gatein.delete_maintenancegateentry',
     /** Complete maintenance entry */
     COMPLETE: 'maintenance_gatein.can_complete_maintenance_entry',
+  },
+
+  // ============================================
+  // REPAIR / RETURNABLE PART MOVEMENT
+  // ============================================
+  REPAIR_MOVEMENT: {
+    /** View repair movements */
+    VIEW: 'maintenance_gatein.view_maintenancegateentry',
+    /** Create repair movements */
+    CREATE: 'maintenance_gatein.add_maintenancegateentry',
   },
 
   // ============================================
@@ -123,6 +201,18 @@ export const GATE_PERMISSIONS = {
     /** Search entries */
     SEARCH: 'person_gatein.can_search_entry',
   },
+
+  // ============================================
+  // JOB WORK FORM PAGES
+  // ============================================
+  JOB_WORK: {
+    /** View job-work gate entries */
+    VIEW: 'production_execution.view_productionrun',
+    /** Create job-work gate entries */
+    CREATE: 'production_execution.add_productionrun',
+    /** Complete job-work gate entries */
+    COMPLETE: 'production_execution.add_productionrun',
+  },
 } as const;
 
 /**
@@ -145,7 +235,17 @@ export type GatePermission =
   | (typeof GATE_PERMISSIONS.DASHBOARD)[keyof typeof GATE_PERMISSIONS.DASHBOARD]
   | (typeof GATE_PERMISSIONS.GATE_ENTRY)[keyof typeof GATE_PERMISSIONS.GATE_ENTRY]
   | (typeof GATE_PERMISSIONS.RAW_MATERIAL)[keyof typeof GATE_PERMISSIONS.RAW_MATERIAL]
+  | (typeof GATE_PERMISSIONS.REJECTED_QC_RETURN)[keyof typeof GATE_PERMISSIONS.REJECTED_QC_RETURN]
+  | (typeof GATE_PERMISSIONS.EMPTY_VEHICLE_IN)[keyof typeof GATE_PERMISSIONS.EMPTY_VEHICLE_IN]
+  | (typeof GATE_PERMISSIONS.EMPTY_VEHICLE_OUT)[keyof typeof GATE_PERMISSIONS.EMPTY_VEHICLE_OUT]
+  | (typeof GATE_PERMISSIONS.BST_OUT)[keyof typeof GATE_PERMISSIONS.BST_OUT]
+  | (typeof GATE_PERMISSIONS.BST_IN)[keyof typeof GATE_PERMISSIONS.BST_IN]
+  | (typeof GATE_PERMISSIONS.BST_RETURN)[keyof typeof GATE_PERMISSIONS.BST_RETURN]
+  | (typeof GATE_PERMISSIONS.SALES_DISPATCH)[keyof typeof GATE_PERMISSIONS.SALES_DISPATCH]
+  | (typeof GATE_PERMISSIONS.CUSTOMER_RETURN)[keyof typeof GATE_PERMISSIONS.CUSTOMER_RETURN]
   | (typeof GATE_PERMISSIONS.DAILY_NEEDS)[keyof typeof GATE_PERMISSIONS.DAILY_NEEDS]
   | (typeof GATE_PERMISSIONS.MAINTENANCE)[keyof typeof GATE_PERMISSIONS.MAINTENANCE]
+  | (typeof GATE_PERMISSIONS.REPAIR_MOVEMENT)[keyof typeof GATE_PERMISSIONS.REPAIR_MOVEMENT]
   | (typeof GATE_PERMISSIONS.CONSTRUCTION)[keyof typeof GATE_PERMISSIONS.CONSTRUCTION]
-  | (typeof GATE_PERMISSIONS.PERSON_GATE_IN)[keyof typeof GATE_PERMISSIONS.PERSON_GATE_IN];
+  | (typeof GATE_PERMISSIONS.PERSON_GATE_IN)[keyof typeof GATE_PERMISSIONS.PERSON_GATE_IN]
+  | (typeof GATE_PERMISSIONS.JOB_WORK)[keyof typeof GATE_PERMISSIONS.JOB_WORK];

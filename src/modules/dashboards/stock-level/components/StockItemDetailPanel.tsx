@@ -12,14 +12,42 @@ interface StockItemDetailPanelProps {
 }
 
 function StatusBadge({ status }: { status: StockItem['stock_status'] }) {
+  if (status === 'none') return null;
+
   const config = {
-    healthy: { label: 'Healthy', classes: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
+    healthy: {
+      label: 'Healthy',
+      classes: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    },
     low: { label: 'Low', classes: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
-    critical: { label: 'Critical', classes: 'bg-red-200 text-red-900 font-semibold dark:bg-red-900/60 dark:text-red-300' },
-    unset: { label: 'No Minimum', classes: 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400' },
+    critical: {
+      label: 'Critical',
+      classes: 'bg-red-200 text-red-900 font-semibold dark:bg-red-900/60 dark:text-red-300',
+    },
+    unset: {
+      label: 'No Benchmark Set',
+      classes: 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400',
+    },
   } as const;
   const { label, classes } = config[status];
-  return <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs', classes)}>{label}</span>;
+  return (
+    <span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs', classes)}>
+      {label}
+    </span>
+  );
+}
+
+function stockDifferenceClasses(difference: number): string {
+  if (difference < 0) return 'font-medium text-red-700 dark:text-red-400';
+  if (difference > 0) return 'text-green-700 dark:text-green-400';
+  return 'text-muted-foreground';
+}
+
+function formatStockDifference(difference: number): string {
+  const formatted = Math.abs(difference).toLocaleString();
+  if (difference > 0) return `+${formatted}`;
+  if (difference < 0) return `-${formatted}`;
+  return formatted;
 }
 
 export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPanelProps) {
@@ -37,11 +65,7 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
 
   const apiError = error as ApiError | null;
   if (apiError) {
-    return (
-      <div className="p-4 text-sm text-red-600">
-        Failed to load warehouse details.
-      </div>
-    );
+    return <div className="p-4 text-sm text-red-600">Failed to load warehouse details.</div>;
   }
 
   const items = data?.data ?? [];
@@ -61,7 +85,8 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
           <tr className="border-b text-muted-foreground">
             <th className="pb-2 pr-3 text-left font-medium">Warehouse</th>
             <th className="pb-2 pr-3 text-right font-medium">On Hand</th>
-            <th className="pb-2 pr-3 text-right font-medium">Min Stock</th>
+            <th className="pb-2 pr-3 text-right font-medium">Benchmark</th>
+            <th className="pb-2 pr-3 text-right font-medium">Difference</th>
             <th className="pb-2 pr-3 text-right font-medium">Health</th>
             <th className="pb-2 pr-3 text-left font-medium">UOM</th>
             <th className="pb-2 text-left font-medium">Status</th>
@@ -72,8 +97,20 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
             <tr key={item.warehouse} className="border-b last:border-0">
               <td className="py-2 pr-3 font-medium">{item.warehouse}</td>
               <td className="py-2 pr-3 text-right tabular-nums">{item.on_hand.toLocaleString()}</td>
-              <td className="py-2 pr-3 text-right tabular-nums">{item.min_stock.toLocaleString()}</td>
-              <td className="py-2 pr-3 text-right tabular-nums">{(item.health_ratio * 100).toFixed(0)}%</td>
+              <td className="py-2 pr-3 text-right tabular-nums">
+                {item.min_stock.toLocaleString()}
+              </td>
+              <td
+                className={cn(
+                  'py-2 pr-3 text-right tabular-nums',
+                  stockDifferenceClasses(item.on_hand - item.min_stock),
+                )}
+              >
+                {formatStockDifference(item.on_hand - item.min_stock)}
+              </td>
+              <td className="py-2 pr-3 text-right tabular-nums">
+                {(item.health_ratio * 100).toFixed(0)}%
+              </td>
               <td className="py-2 pr-3 text-muted-foreground">{item.uom}</td>
               <td className="py-2">
                 <StatusBadge status={item.stock_status} />

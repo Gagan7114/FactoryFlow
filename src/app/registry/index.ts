@@ -6,12 +6,14 @@ import type { ModuleConfig, ModuleNavItem, ModuleRoute } from '@/core/types';
 import { authModuleConfig } from '@/modules/auth/module.config';
 import { dashboardModuleConfig } from '@/modules/dashboard/module.config';
 import { dashboardsModuleConfig } from '@/modules/dashboards/module.config';
+import { financeModuleConfig } from '@/modules/finance/module.config';
 import { gateModuleConfig } from '@/modules/gate/module.config';
 import { grpoModuleConfig } from '@/modules/grpo/module.config';
 import { notificationsModuleConfig } from '@/modules/notifications/module.config';
 import { productionModuleConfig } from '@/modules/production/module.config';
 import { qcModuleConfig } from '@/modules/qc/module.config';
 import { settingsModuleConfig } from '@/modules/settings/module.config';
+import { vehicleManagementModuleConfig } from '@/modules/vehicle-management/module.config';
 import { warehouseModuleConfig } from '@/modules/warehouse/module.config';
 
 /**
@@ -23,7 +25,9 @@ export const moduleRegistry: ModuleConfig[] = [
   dashboardModuleConfig,
   dashboardsModuleConfig,
   gateModuleConfig,
+  vehicleManagementModuleConfig,
   qcModuleConfig,
+  financeModuleConfig,
   grpoModuleConfig,
   productionModuleConfig,
   warehouseModuleConfig,
@@ -75,13 +79,8 @@ export function getBreadcrumbMeta(): {
     navigablePaths.add(route.path);
 
     if (route.breadcrumb?.label) {
-      // Extract the last static segment to map label
+      labels.set(route.path, route.breadcrumb.label);
       // e.g. '/gate/raw-materials' → 'raw-materials' → 'RM'
-      const segments = route.path.split('/').filter(Boolean);
-      const lastStatic = [...segments].reverse().find((s) => !s.startsWith(':'));
-      if (lastStatic) {
-        labels.set(lastStatic, route.breadcrumb.label);
-      }
     }
   }
 

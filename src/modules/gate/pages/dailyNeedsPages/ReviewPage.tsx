@@ -9,7 +9,6 @@ import {
   FileText,
   Home,
   Package,
-  Phone,
   ShieldCheck,
   Truck,
   User,
@@ -18,12 +17,12 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ENTRY_STATUS, FINAL_STATUS } from '@/config/constants';
+import { ENTRY_STATUS } from '@/config/constants';
 import type { ApiError } from '@/core/api/types';
-import { EntryTimeSummary, RecordTimestamps } from '@/shared/components';
+import { GateStatusBadge } from '@/modules/gate/components';
+import { EntryTimeSummary } from '@/shared/components';
 import { Button, Card, CardContent, CardHeader, CardTitle, Label } from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
-import { cn } from '@/shared/utils';
 import {
   getErrorMessage,
   getServerErrorMessage,
@@ -39,29 +38,7 @@ import { useEntryId, useEntryStepTracker } from '../../hooks';
 
 // Status badge component
 function StatusBadge({ status }: { status: string }) {
-  const getStatusColor = () => {
-    const upper = status.toUpperCase();
-    switch (upper) {
-      case ENTRY_STATUS.COMPLETED:
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case ENTRY_STATUS.DRAFT:
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'PASSED':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'FAILED':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      case FINAL_STATUS.PENDING:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-      default:
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-    }
-  };
-
-  return (
-    <span className={cn('px-2 py-1 rounded-full text-xs font-medium', getStatusColor())}>
-      {status}
-    </span>
-  );
+  return <GateStatusBadge status={status} />;
 }
 
 // Check/Cross icon
@@ -480,10 +457,6 @@ export default function ReviewPage() {
                   <p className="font-medium">{dailyNeed.category}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs">Material Name</Label>
-                  <p className="font-medium">{dailyNeed.material_name}</p>
-                </div>
-                <div>
                   <Label className="text-muted-foreground text-xs">Supplier / Vendor</Label>
                   <p className="font-medium">{dailyNeed.supplier_name}</p>
                 </div>
@@ -491,19 +464,50 @@ export default function ReviewPage() {
                   <Label className="text-muted-foreground text-xs">Receiving Department</Label>
                   <p className="font-medium">{dailyNeed.receiving_department}</p>
                 </div>
-              </div>
-
-              {/* Quantity */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Quantity</Label>
-                  <p className="font-medium text-lg text-primary">
-                    {dailyNeed.quantity} {dailyNeed.unit}
-                  </p>
-                </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Supervisor</Label>
                   <p className="font-medium">{dailyNeed.canteen_supervisor || '-'}</p>
+                </div>
+              </div>
+
+              {/* Materials */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium flex items-center gap-2 mb-4">
+                  <Package className="h-4 w-4" />
+                  Materials
+                </h4>
+                <div className="overflow-hidden rounded-md border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left">
+                        <th className="px-4 py-3 font-medium">Line</th>
+                        <th className="px-4 py-3 font-medium">Material</th>
+                        <th className="px-4 py-3 font-medium">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {(dailyNeed.items && dailyNeed.items.length > 0
+                        ? dailyNeed.items
+                        : [
+                            {
+                              id: null,
+                              line_no: 1,
+                              material_name: dailyNeed.material_name,
+                              quantity: dailyNeed.quantity,
+                              unit: dailyNeed.unit,
+                            },
+                          ]
+                      ).map((item) => (
+                        <tr key={item.id || item.line_no}>
+                          <td className="px-4 py-3 text-muted-foreground">{item.line_no}</td>
+                          <td className="px-4 py-3 font-medium">{item.material_name}</td>
+                          <td className="px-4 py-3">
+                            {item.quantity} {item.unit || ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -511,9 +515,9 @@ export default function ReviewPage() {
               <div className="border-t pt-4">
                 <h4 className="text-sm font-medium flex items-center gap-2 mb-4">
                   <FileText className="h-4 w-4" />
-                  Documentation & Contact
+                  Documentation
                 </h4>
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label className="text-muted-foreground text-xs">Bill / Challan Number</Label>
                     <p className="font-medium">{dailyNeed.bill_number || '-'}</p>
@@ -521,17 +525,6 @@ export default function ReviewPage() {
                   <div>
                     <Label className="text-muted-foreground text-xs">Delivery Challan Number</Label>
                     <p className="font-medium">{dailyNeed.delivery_challan_number || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Vehicle / Person Name</Label>
-                    <p className="font-medium">{dailyNeed.vehicle_or_person_name || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      Contact Number
-                    </Label>
-                    <p className="font-medium">{dailyNeed.contact_number || '-'}</p>
                   </div>
                 </div>
               </div>

@@ -16,8 +16,8 @@ import {
 } from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
 
-import type { Vehicle } from '../api/vehicle/vehicle.api';
 import { useTransporters } from '../api/transporter/transporter.queries';
+import type { Vehicle } from '../api/vehicle/vehicle.api';
 import { useCreateVehicle, useUpdateVehicle, useVehicleById } from '../api/vehicle/vehicle.queries';
 import { type VehicleFormData, vehicleSchema } from '../schemas/vehicle.schema';
 import { TransporterSelect } from './TransporterSelect';
@@ -32,6 +32,7 @@ interface CreateVehicleDialogProps {
   initialData?: {
     id: number;
   };
+  initialVehicleNumber?: string;
 }
 
 export function CreateVehicleDialog({
@@ -39,6 +40,7 @@ export function CreateVehicleDialog({
   onOpenChange,
   onSuccess,
   initialData,
+  initialVehicleNumber,
 }: CreateVehicleDialogProps) {
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
   const [selectedTransporterId, setSelectedTransporterId] = useState<number | null>(null);
@@ -88,12 +90,17 @@ export function CreateVehicleDialog({
     setApiErrors({});
 
     if (!isEditMode) {
-      reset();
+      reset({
+        vehicle_number: initialVehicleNumber?.toUpperCase().replace(/\s/g, '') || '',
+        vehicle_type: 0,
+        transporter: 0,
+        capacity_ton: '',
+      });
       setSelectedTransporterId(null);
       setTransporterName('');
       setVehicleTypeValue('');
     }
-  }, [open, reset, isEditMode]);
+  }, [open, reset, isEditMode, initialVehicleNumber]);
 
   // Populate form when vehicle data is fetched (edit mode)
   useEffect(() => {
@@ -105,6 +112,7 @@ export function CreateVehicleDialog({
       transporter: vehicleData.transporter?.id ?? 0,
       capacity_ton: vehicleData.capacity_ton ?? '',
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Dialog edit form mirrors fetched vehicle details.
     setVehicleTypeValue(vehicleData.vehicle_type?.id ? String(vehicleData.vehicle_type.id) : '');
     setTransporterName(vehicleData.transporter?.name ?? '');
     setSelectedTransporterId(vehicleData.transporter?.id ?? null);
@@ -233,7 +241,7 @@ export function CreateVehicleDialog({
           <div className="space-y-2">
             <VehicleTypeSelect
               value={vehicleTypeValue || undefined}
-              onChange={(typeId, _typeName) => {
+              onChange={(typeId) => {
                 setValue('vehicle_type', typeId);
                 setVehicleTypeValue(String(typeId));
               }}

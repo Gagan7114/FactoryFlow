@@ -55,7 +55,7 @@ export default function PendingEntriesPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo')}
+              onClick={() => navigate('/grpo/material')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -149,7 +149,7 @@ export default function PendingEntriesPage() {
                       <tr
                         key={entry.vehicle_entry_id}
                         className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/grpo/preview/${entry.vehicle_entry_id}`)}
+                        onClick={() => navigate(`/grpo/material/preview/${entry.vehicle_entry_id}`)}
                       >
                         <td className="p-3 text-sm font-medium whitespace-nowrap">
                           {entry.entry_no}
