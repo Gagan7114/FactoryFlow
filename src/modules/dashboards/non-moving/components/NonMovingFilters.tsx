@@ -112,11 +112,11 @@ export function NonMovingFilters({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Age (Days) */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-5 flex flex-col gap-1.5">
         <Label htmlFor="nm-filter-age" className="text-xs">
           Age (Days)
         </Label>
-        <Select id="nm-filter-age" className="w-32" {...register('age')}>
+        <Select id="nm-filter-age" className="w-40" {...register('age')}>
           {NON_MOVING_AGE_OPTIONS.map((opt) => (
             <SelectOption key={opt.value} value={String(opt.value)}>
               {opt.label}
@@ -126,13 +126,13 @@ export function NonMovingFilters({
       </div>
 
       {/* Material Type */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-2 flex flex-col gap-1.5">
         <Label htmlFor="nm-filter-group" className="text-xs">
           Material Type
         </Label>
         <Select
           id="nm-filter-group"
-          className="w-56"
+          className="w-44"
           disabled={isLoadingGroups}
           {...register('item_group')}
         >
@@ -152,7 +152,7 @@ export function NonMovingFilters({
       </div>
 
       {/* Warehouse */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-3 flex flex-col gap-1.5">
         <Label htmlFor="nm-filter-warehouse" className="text-xs">
           Warehouse
         </Label>
@@ -165,15 +165,15 @@ export function NonMovingFilters({
               options={warehouses.map((w) => ({ label: w, value: w }))}
               selected={field.value}
               onChange={field.onChange}
-              placeholder="All Warehouses"
-              className="w-48"
+              placeholder="All"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Sub Group */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-4 flex flex-col gap-1.5">
         <Label htmlFor="nm-filter-subgroup" className="text-xs">
           Sub Group
         </Label>
@@ -186,15 +186,15 @@ export function NonMovingFilters({
               options={subGroups.map((sg) => ({ label: sg, value: sg }))}
               selected={field.value}
               onChange={field.onChange}
-              placeholder="All Sub Groups"
-              className="w-48"
+              placeholder="All"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Search */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-1 flex flex-col gap-1.5">
         <Label htmlFor="nm-filter-search" className="text-xs">
           Search
         </Label>
@@ -208,13 +208,13 @@ export function NonMovingFilters({
       </div>
 
       {/* Reset */}
-      <Button variant="outline" size="sm" onClick={handleReset} className="mb-0.5">
+      <Button variant="outline" size="sm" onClick={handleReset} className="order-6 mb-0.5">
         Reset
       </Button>
 
       {/* Fetch indicator */}
       {isFetching && (
-        <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="order-7 mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading…
         </div>

@@ -116,11 +116,11 @@ export function InventoryAgeFilters({
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Item Group — primary filter */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-2 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-item-group" className="text-xs font-semibold">
           Material Type
         </Label>
-        <Select id="inv-age-item-group" className="w-52" {...register('item_group')}>
+        <Select id="inv-age-item-group" className="w-44" {...register('item_group')}>
           <SelectOption value={ALL_MATERIAL_TYPES_VALUE}>All</SelectOption>
           {filterOptions?.item_groups.map((g) => (
             <SelectOption key={g.item_group_code} value={g.item_group_name}>
@@ -131,7 +131,7 @@ export function InventoryAgeFilters({
       </div>
 
       {/* Search */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-1 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-search" className="text-xs">
           Search
         </Label>
@@ -139,13 +139,13 @@ export function InventoryAgeFilters({
           id="inv-age-search"
           type="text"
           placeholder="Item code or name"
-          className="w-56"
+          className="w-64"
           {...register('search')}
         />
       </div>
 
       {/* Warehouse */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-3 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-warehouse" className="text-xs">
           Warehouse
         </Label>
@@ -159,14 +159,14 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-36"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Sub Group */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-4 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-sub-group" className="text-xs">
           Sub Group
         </Label>
@@ -180,14 +180,14 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-40"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Variety */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-5 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-variety" className="text-xs">
           Variety
         </Label>
@@ -201,18 +201,18 @@ export function InventoryAgeFilters({
               selected={field.value}
               onChange={field.onChange}
               placeholder="All"
-              className="w-36"
+              className="w-44"
             />
           )}
         />
       </div>
 
       {/* Age */}
-      <div className="flex flex-col gap-1.5">
+      <div className="order-6 flex flex-col gap-1.5">
         <Label htmlFor="inv-age-min-age" className="text-xs">
           Min Age
         </Label>
-        <Select id="inv-age-min-age" className="w-32" {...register('min_age')}>
+        <Select id="inv-age-min-age" className="w-40" {...register('min_age')}>
           {AGE_FILTER_OPTIONS.map((opt) => (
             <SelectOption key={opt.value} value={opt.value}>
               {opt.label}
@@ -222,13 +222,13 @@ export function InventoryAgeFilters({
       </div>
 
       {/* Reset */}
-      <Button variant="outline" size="sm" onClick={handleReset} className="mb-0.5">
+      <Button variant="outline" size="sm" onClick={handleReset} className="order-7 mb-0.5">
         Reset
       </Button>
 
       {/* Fetch indicator */}
       {isFetching && (
-        <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="order-8 mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading…
         </div>
