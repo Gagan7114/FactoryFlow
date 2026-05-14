@@ -32,6 +32,8 @@ export interface DispatchPlan {
   driver_id_proof_number: string;
   bilty_no: string;
   bilty_date: string | null;
+  bilty_attachment: string | null;
+  bilty_attachment_name: string;
   freight: string | null;
   total_freight: string | null;
   kanta_weight: string | null;
@@ -117,6 +119,7 @@ export interface DispatchPlanUpdatePayload {
   driver_id_proof_number?: string;
   bilty_no?: string;
   bilty_date?: string | null;
+  bilty_attachment?: File | null;
   freight?: string | null;
   total_freight?: string | null;
   kanta_weight?: string | null;

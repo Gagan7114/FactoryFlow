@@ -19,10 +19,26 @@ export const dispatchPlansApi = {
   },
 
   async updatePlan(docEntry: number, payload: DispatchPlanUpdatePayload): Promise<DispatchPlan> {
-    const response = await apiClient.patch<DispatchPlan>(EP.PLAN(docEntry), payload);
+    const requestBody = buildUpdateBody(payload);
+    const response = await apiClient.patch<DispatchPlan>(EP.PLAN(docEntry), requestBody);
     return response.data;
   },
 };
+
+function buildUpdateBody(payload: DispatchPlanUpdatePayload): DispatchPlanUpdatePayload | FormData {
+  if (!payload.bilty_attachment) return payload;
+
+  const formData = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined) return;
+    if (value === null) {
+      formData.append(key, '');
+      return;
+    }
+    formData.append(key, value instanceof File ? value : String(value));
+  });
+  return formData;
+}
 
 function buildParams(filters: DispatchPlanFilters): Record<string, string> {
   const params: Record<string, string> = {

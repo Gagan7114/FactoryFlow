@@ -257,7 +257,7 @@ export function CreateDriverDialog({
             </Label>
             <Input
               id="license_no"
-              placeholder="e.g., MH0220150001234"
+              placeholder="Enter driving license number"
               {...register('license_no', {
                 onChange: (e) => {
                   e.target.value = e.target.value.toUpperCase();
@@ -266,9 +266,6 @@ export function CreateDriverDialog({
               disabled={mutation.isPending}
               className={errors.license_no || apiErrors.license_no ? 'border-destructive' : ''}
             />
-            <p className="text-xs text-muted-foreground">
-              Format: State code + RTO + Year + Number (e.g., MH0220150001234)
-            </p>
             {errors.license_no && (
               <p className="text-sm text-destructive">{errors.license_no.message}</p>
             )}

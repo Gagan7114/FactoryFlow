@@ -1,4 +1,4 @@
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Paperclip, Save, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
@@ -48,6 +48,7 @@ interface FormState {
   driver_photo: string | null;
   bilty_no: string;
   bilty_date: string;
+  bilty_attachment: File | null;
   freight: string;
   total_freight: string;
   kanta_weight: string;
@@ -94,6 +95,7 @@ const EMPTY_FORM: FormState = {
   driver_photo: null,
   bilty_no: '',
   bilty_date: '',
+  bilty_attachment: null,
   freight: '',
   total_freight: '',
   kanta_weight: '',
@@ -124,6 +126,7 @@ function formFromBill(bill: DispatchBill | null): FormState {
     driver_photo: null,
     bilty_no: bill.plan.bilty_no || bill.sap_bilty_no || bill.sap_lr_number || '',
     bilty_date: bill.plan.bilty_date || bill.sap_bilty_date || '',
+    bilty_attachment: null,
     freight: bill.plan.freight ?? '',
     total_freight: bill.plan.total_freight ?? '',
     kanta_weight: bill.plan.kanta_weight ?? '',
@@ -206,6 +209,10 @@ export function DispatchLinkingSheet({
       setFormError('Please select a driver.');
       return;
     }
+    if (!form.bilty_no.trim()) {
+      setFormError('Please enter the bilty number.');
+      return;
+    }
 
     await onSave(bill.doc_entry, {
       sap_invoice_doc_num: bill.doc_num,
@@ -227,6 +234,7 @@ export function DispatchLinkingSheet({
       driver_id_proof_number: form.driver_id_proof_number.trim(),
       bilty_no: form.bilty_no.trim(),
       bilty_date: stringOrNull(form.bilty_date),
+      bilty_attachment: form.bilty_attachment || undefined,
       freight: stringOrNull(form.freight),
       total_freight: stringOrNull(form.total_freight),
       kanta_weight: stringOrNull(form.kanta_weight),
@@ -312,10 +320,13 @@ export function DispatchLinkingSheet({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-bilty">Bilty No.</Label>
+              <Label htmlFor="dispatch-link-bilty">
+                Bilty No. <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="dispatch-link-bilty"
                 value={form.bilty_no}
+                required
                 onChange={(event) => updateField('bilty_no', event.target.value)}
               />
             </div>
@@ -329,6 +340,13 @@ export function DispatchLinkingSheet({
                 onChange={(event) => updateField('bilty_date', event.target.value)}
               />
             </div>
+
+            <BiltyAttachmentField
+              existingFileName={bill?.plan.bilty_attachment_name}
+              existingFileUrl={bill?.plan.bilty_attachment}
+              file={form.bilty_attachment}
+              onChange={(file) => updateField('bilty_attachment', file)}
+            />
 
             <div className="space-y-1.5">
               <Label htmlFor="dispatch-link-freight">Freight</Label>
@@ -680,6 +698,71 @@ function InfoItem({ label, value }: { label: string; value?: string | null }) {
     <div>
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 font-medium">{compactText(value)}</div>
+    </div>
+  );
+}
+
+function BiltyAttachmentField({
+  existingFileName,
+  existingFileUrl,
+  file,
+  onChange,
+}: {
+  existingFileName?: string | null;
+  existingFileUrl?: string | null;
+  file: File | null;
+  onChange: (file: File | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const displayName = file?.name || existingFileName || '';
+
+  return (
+    <div className="space-y-1.5 sm:col-span-2">
+      <Label htmlFor="dispatch-link-bilty-attachment">Bilty Attachment</Label>
+      <input
+        ref={inputRef}
+        id="dispatch-link-bilty-attachment"
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+      />
+      <div className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
+          <Paperclip className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          {displayName ? (
+            existingFileUrl && !file ? (
+              <a
+                href={existingFileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="truncate font-medium text-primary hover:underline"
+                title={displayName}
+              >
+                {displayName}
+              </a>
+            ) : (
+              <span className="truncate font-medium" title={displayName}>
+                {displayName}
+              </span>
+            )
+          ) : (
+            <span className="text-muted-foreground">No bilty attachment selected</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {file && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
+              <X className="mr-2 h-4 w-4" />
+              Remove
+            </Button>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" />
+            Upload
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
