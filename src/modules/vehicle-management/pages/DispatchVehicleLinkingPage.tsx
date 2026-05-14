@@ -3,7 +3,7 @@ import { CalendarClock, CheckCircle2, Clock, RefreshCw, Search, Truck } from 'lu
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { DASHBOARDS_PERMISSIONS, VEHICLE_MANAGEMENT_PERMISSIONS } from '@/config/permissions';
+import { VEHICLE_MANAGEMENT_PERMISSIONS } from '@/config/permissions';
 import { useAuth } from '@/core/auth/hooks/useAuth';
 import { usePermission } from '@/core/auth/hooks/usePermission';
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
@@ -40,9 +40,7 @@ function todayInputValue() {
 export default function DispatchVehicleLinkingPage() {
   const { currentCompany } = useAuth();
   const { hasPermission } = usePermission();
-  const canEdit =
-    hasPermission(VEHICLE_MANAGEMENT_PERMISSIONS.LINK_DISPATCH_VEHICLE) ||
-    hasPermission(DASHBOARDS_PERMISSIONS.EDIT_DISPATCH_PLANS);
+  const canEdit = hasPermission(VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING);
 
   const [filters, setFilters] = useState<DispatchLinkingFilters>({
     bucket: 'today',

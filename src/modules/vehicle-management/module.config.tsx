@@ -13,8 +13,7 @@ const VehicleEntriesPage = lazy(() => import('./pages/VehicleEntriesPage'));
 
 const vehicleManagementViewPermissions = [
   VEHICLE_MANAGEMENT_PERMISSIONS.VIEW,
-  VEHICLE_MANAGEMENT_PERMISSIONS.VIEW_DISPATCH_LINKING,
-  VEHICLE_MANAGEMENT_PERMISSIONS.LINK_DISPATCH_VEHICLE,
+  VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING,
 ] as const;
 
 export const vehicleManagementModuleConfig: ModuleConfig = {
@@ -31,10 +30,7 @@ export const vehicleManagementModuleConfig: ModuleConfig = {
       path: '/vehicle-management/dispatch-linking',
       element: <DispatchVehicleLinkingPage />,
       layout: 'main',
-      permissions: [
-        VEHICLE_MANAGEMENT_PERMISSIONS.VIEW_DISPATCH_LINKING,
-        VEHICLE_MANAGEMENT_PERMISSIONS.LINK_DISPATCH_VEHICLE,
-      ],
+      permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
       breadcrumb: { label: 'Dispatch Linking' },
     },
     {
@@ -87,10 +83,7 @@ export const vehicleManagementModuleConfig: ModuleConfig = {
         {
           path: '/vehicle-management/dispatch-linking',
           title: 'Dispatch Vehicle Linking',
-          permissions: [
-            VEHICLE_MANAGEMENT_PERMISSIONS.VIEW_DISPATCH_LINKING,
-            VEHICLE_MANAGEMENT_PERMISSIONS.LINK_DISPATCH_VEHICLE,
-          ],
+          permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
         },
         {
           path: '/vehicle-management/vehicles',

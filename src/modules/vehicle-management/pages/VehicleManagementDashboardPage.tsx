@@ -22,10 +22,7 @@ const vehicleManagementCards: VehicleManagementCard[] = [
     route: '/vehicle-management/dispatch-linking',
     icon: <Link2 className="h-5 w-5" />,
     color: 'text-blue-600',
-    permissions: [
-      VEHICLE_MANAGEMENT_PERMISSIONS.VIEW_DISPATCH_LINKING,
-      VEHICLE_MANAGEMENT_PERMISSIONS.LINK_DISPATCH_VEHICLE,
-    ],
+    permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
   },
   {
     title: 'Vehicles',
