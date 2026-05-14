@@ -106,9 +106,9 @@ export const GATE_PERMISSIONS = {
 
   SALES_DISPATCH: {
     /** View customer dispatch gate-out entries */
-    VIEW: 'person_gatein.can_view_dashboard',
+    VIEW: 'gate_core.can_view_sales_dispatch_out',
     /** Create customer dispatch gate-out entries */
-    CREATE: 'person_gatein.can_view_dashboard',
+    CREATE: 'gate_core.can_create_sales_dispatch_out',
   },
 
   CUSTOMER_RETURN: {

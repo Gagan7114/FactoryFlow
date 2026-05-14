@@ -5,7 +5,10 @@ import { Navigate } from 'react-router-dom';
 import { GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
-import { GATE_ENTRY_CREATE_PERMISSIONS } from './constants/gateEntryTypes';
+import {
+  GATE_ENTRY_CREATE_PERMISSIONS,
+  GATE_ENTRY_VIEW_PERMISSIONS,
+} from './constants/gateEntryTypes';
 
 // Lazy load all gate pages
 const GateDashboardPage = lazy(() => import('./pages/GateDashboardPage'));
@@ -161,6 +164,18 @@ const JobWorkReviewPage = lazy(() => import('./pages/jobWorkPages/JobWorkReviewP
 const DailyNeedsPage = lazy(() => import('./pages/DailyNeedsPage'));
 const DailyNeedsAllPage = lazy(() => import('./pages/dailyNeedsPages/DailyNeedsAllPage'));
 
+const GATE_DASHBOARD_ACCESS_PERMISSIONS = Array.from(
+  new Set([
+    GATE_PERMISSIONS.DASHBOARD.VIEW,
+    GATE_PERMISSIONS.GATE_ENTRY.VIEW,
+    ...GATE_ENTRY_VIEW_PERMISSIONS,
+  ]),
+);
+
+const GATE_NAVIGATION_PERMISSIONS = Array.from(
+  new Set([...GATE_DASHBOARD_ACCESS_PERMISSIONS, ...GATE_ENTRY_CREATE_PERMISSIONS]),
+);
+
 /**
  * Gate module configuration
  */
@@ -172,7 +187,7 @@ export const gateModuleConfig: ModuleConfig = {
       path: '/gate',
       element: <GateDashboardPage />,
       layout: 'main',
-      permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.GATE_ENTRY.VIEW],
+      permissions: GATE_DASHBOARD_ACCESS_PERMISSIONS,
       breadcrumb: { label: 'Gate' },
     },
     {
@@ -982,13 +997,13 @@ export const gateModuleConfig: ModuleConfig = {
       title: 'Gate',
       icon: Truck,
       showInSidebar: true,
-      permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.GATE_ENTRY.VIEW],
+      permissions: GATE_NAVIGATION_PERMISSIONS,
       hasSubmenu: true,
       children: [
         {
           path: '/gate',
           title: 'Dashboard',
-          permissions: [GATE_PERMISSIONS.DASHBOARD.VIEW, GATE_PERMISSIONS.GATE_ENTRY.VIEW],
+          permissions: GATE_DASHBOARD_ACCESS_PERMISSIONS,
         },
         {
           path: '/gate/new',
