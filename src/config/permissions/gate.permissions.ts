@@ -112,9 +112,9 @@ export const GATE_PERMISSIONS = {
   },
 
   CUSTOMER_RETURN: {
-    /** View customer return gate-in entries */
+    /** View goods return gate-in entries */
     VIEW: 'person_gatein.can_view_dashboard',
-    /** Create customer return gate-in entries */
+    /** Create goods return gate-in entries */
     CREATE: 'person_gatein.can_view_dashboard',
   },
 

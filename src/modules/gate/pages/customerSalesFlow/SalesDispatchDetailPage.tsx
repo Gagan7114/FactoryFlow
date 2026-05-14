@@ -63,7 +63,7 @@ export default function SalesDispatchDetailPage() {
 
   const canCancel = entry.status !== 'CANCELLED' && linkedReturns.length === 0;
   const cannotCancelReason = linkedReturns.length > 0
-    ? `Cannot cancel because customer return ${linkedReturns[0].entryNo} is linked`
+    ? `Cannot cancel because goods return ${linkedReturns[0].entryNo} is linked`
     : '';
 
   const handleCancel = () => {
@@ -244,7 +244,7 @@ export default function SalesDispatchDetailPage() {
           <DialogHeader>
             <DialogTitle>Cancel Sales Dispatch</DialogTitle>
             <DialogDescription>
-              This keeps the dispatch in history and prevents it from being used for new customer returns.
+              This keeps the dispatch in history and preserves any linked goods return history.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

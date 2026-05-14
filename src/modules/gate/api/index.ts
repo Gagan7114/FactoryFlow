@@ -21,6 +21,10 @@ export * from './construction/construction.queries';
 export * from './dailyNeed/dailyNeed.api';
 export * from './dailyNeed/dailyNeed.queries';
 
+// Goods Return Invoice
+export * from './customerReturnInvoice/customerReturnInvoice.api';
+export * from './customerReturnInvoice/customerReturnInvoice.queries';
+
 // Department
 export * from './department/department.api';
 export * from './department/department.queries';

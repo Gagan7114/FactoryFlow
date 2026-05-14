@@ -152,8 +152,8 @@ export const GATE_ENTRY_TYPES: GateEntryTypeConfig[] = [
   },
   {
     id: 'customer-return',
-    title: 'Customer Return In',
-    description: 'Customer returned finished goods inward entries.',
+    title: 'Goods Return',
+    description: 'Customer returned goods inward entries against SAP invoices.',
     direction: 'return',
     vehicleMode: 'vehicle',
     dashboardRoute: '/gate/customer-return',
@@ -162,7 +162,7 @@ export const GATE_ENTRY_TYPES: GateEntryTypeConfig[] = [
     createPermissions: [GATE_PERMISSIONS.CUSTOMER_RETURN.CREATE],
     icon: Undo2,
     colorClassName: 'text-rose-700',
-    keywords: ['customer', 'return', 'credit note', 'finished goods'],
+    keywords: ['goods return', 'customer', 'return', 'invoice', 'credit note', 'finished goods'],
   },
   {
     id: 'repair-parts-in',

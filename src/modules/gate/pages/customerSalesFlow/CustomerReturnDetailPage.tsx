@@ -54,7 +54,7 @@ export default function CustomerReturnDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <EmptyState text="Customer return entry not found" />
+        <EmptyState text="Goods return entry not found" />
       </div>
     );
   }
@@ -63,7 +63,7 @@ export default function CustomerReturnDetailPage() {
 
   const handleMarkSapGrDone = () => {
     if (!sapGrDocNo.trim()) {
-      setFormError('SAP customer return / GR document number is required');
+      setFormError('SAP goods return document number is required');
       return;
     }
 
@@ -89,7 +89,7 @@ export default function CustomerReturnDetailPage() {
 
     setEntry(updatedEntry);
     setFormError('');
-    toast.success('Customer return marked complete after SAP GR');
+    toast.success('Goods return marked complete after SAP posting');
   };
 
   return (
@@ -100,7 +100,7 @@ export default function CustomerReturnDetailPage() {
         </Button>
         <div>
           <h2 className="text-3xl font-bold tracking-tight">{entry.entryNo}</h2>
-          <p className="text-muted-foreground">Customer return gate-in entry</p>
+          <p className="text-muted-foreground">Goods return gate-in entry</p>
         </div>
       </div>
 
@@ -113,14 +113,14 @@ export default function CustomerReturnDetailPage() {
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
           <InfoItem label="Entry No." value={entry.entryNo} />
-          <InfoItem label="Source Dispatch" value={getCustomerFlowValue(entry, 'dispatchEntry')} />
-          <InfoItem label="Invoice" value={getCustomerFlowValue(entry, 'invoiceNo')} />
+          <InfoItem label="Source Invoice" value={getCustomerFlowValue(entry, 'invoiceNo')} />
+          <InfoItem label="Customer" value={getCustomerFlowValue(entry, 'customerName')} />
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
             <StatusBadge entry={entry} />
           </div>
           <InfoItem label="Gate In" value={formatCustomerFlowDateTime(entry.values.gateInDate, entry.values.inTime)} />
-          <InfoItem label="Customer" value={getCustomerFlowValue(entry, 'customerName')} />
+          <InfoItem label="Invoice Date" value={getCustomerFlowValue(entry, 'invoiceDate')} />
           <InfoItem label="Claim No." value={getCustomerFlowValue(entry, 'customerClaimNo')} />
           <InfoItem label="Created" value={formatCustomerFlowTimestamp(entry.createdAt)} />
         </CardContent>
@@ -136,7 +136,7 @@ export default function CustomerReturnDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileCheck className="h-5 w-5" />
-            SAP Customer Return / GR
+            SAP Goods Return
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -154,7 +154,7 @@ export default function CustomerReturnDetailPage() {
                       setSapGrDocNo(event.target.value);
                       setFormError('');
                     }}
-                    placeholder="SAP customer return / GR no."
+                    placeholder="SAP goods return document no."
                   />
                 </div>
                 <div className="space-y-2">
@@ -188,7 +188,7 @@ export default function CustomerReturnDetailPage() {
               <div className="flex justify-end">
                 <Button onClick={handleMarkSapGrDone}>
                   <Save className="mr-2 h-4 w-4" />
-                  Mark SAP GR Done
+                  Mark SAP Posting Done
                 </Button>
               </div>
             </>
@@ -242,7 +242,7 @@ function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Item</th>
-              <th className="p-3 text-left text-sm font-medium">Dispatch Qty</th>
+              <th className="p-3 text-left text-sm font-medium">Invoice Qty</th>
               <th className="p-3 text-left text-sm font-medium">Return Qty</th>
               <th className="p-3 text-left text-sm font-medium">QC Result</th>
               <th className="p-3 text-left text-sm font-medium">Reason</th>

@@ -282,6 +282,8 @@ export const API_ENDPOINTS = {
   // Dispatch Plans Dashboard
   DISPATCH_PLANS: {
     BILLS: '/dispatch-plans/bills/',
+    BILL_BY_NUMBER: (invoiceNumber: string) =>
+      `/dispatch-plans/bills/by-number/${encodeURIComponent(invoiceNumber)}/`,
     PLAN: (docEntry: number) => `/dispatch-plans/bills/${docEntry}/plan/`,
   },
   // Production Execution

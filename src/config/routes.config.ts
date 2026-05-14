@@ -186,15 +186,15 @@ export const ROUTES = {
       },
       CUSTOMER_RETURN: {
         path: '/gate/customer-return',
-        title: 'Customer Return In',
+        title: 'Goods Return',
       },
       CUSTOMER_RETURN_NEW: {
         path: '/gate/customer-return/new',
-        title: 'New Customer Return In',
+        title: 'New Goods Return',
       },
       CUSTOMER_RETURN_ATTACHMENTS: {
         path: '/gate/customer-return/new/attachments',
-        title: 'Customer Return Attachments',
+        title: 'Goods Return Attachments',
       },
       SALES_DISPATCH: {
         path: '/gate/sales-dispatch',
@@ -266,7 +266,7 @@ export const ROUTES = {
     children: {
       CUSTOMER_RETURNS: {
         path: '/qc/customer-returns',
-        title: 'Customer Return QC',
+        title: 'Goods Return QC',
       },
     },
   },

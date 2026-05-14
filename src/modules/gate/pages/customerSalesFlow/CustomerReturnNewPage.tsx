@@ -1,8 +1,21 @@
-import { FileCheck2, PackageX, Truck } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileCheck2,
+  Loader2,
+  PackageX,
+  ReceiptText,
+  Search,
+  Truck,
+} from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import {
+  type CustomerReturnInvoice,
+  useCustomerReturnInvoiceSearch,
+} from '@/modules/gate/api/customerReturnInvoice';
 import {
   DriverSelect,
   type DriverSelection,
@@ -11,7 +24,8 @@ import {
   VehicleSelect,
   type VehicleSelection,
 } from '@/modules/gate/components';
-import { Input, Label, NativeSelect, SelectOption } from '@/shared/components/ui';
+import { Badge, Button, Input, Label } from '@/shared/components/ui';
+import { getErrorMessage, isNotFoundError } from '@/shared/utils';
 
 import {
   buildCustomerFlowEntryNo,
@@ -19,15 +33,14 @@ import {
   type CustomerFlowEntry,
   type CustomerFlowItem,
   findCustomerFlowEntry,
-  getAvailableDispatchSources,
-  getCustomerFlowValue,
   upsertCustomerFlowEntry,
 } from './customerSalesFlow.storage';
 
 interface ReturnDraft {
   vehicle: VehicleSelection | null;
   driver: DriverSelection | null;
-  dispatchId: string;
+  invoiceNumber: string;
+  invoice: CustomerReturnInvoice | null;
   gateInDate: string;
   inTime: string;
   securityName: string;
@@ -91,7 +104,8 @@ function buildEmptyDraft(): ReturnDraft {
   return {
     vehicle: null,
     driver: null,
-    dispatchId: '',
+    invoiceNumber: '',
+    invoice: null,
     gateInDate: toDateInputValue(),
     inTime: toTimeInputValue(),
     securityName: '',
@@ -100,12 +114,61 @@ function buildEmptyDraft(): ReturnDraft {
   };
 }
 
-function buildReturnItems(dispatch: CustomerFlowEntry): CustomerFlowItem[] {
-  return dispatch.items.map((item) => ({
-    ...item,
+function buildInvoiceFromEntry(entry: CustomerFlowEntry): CustomerReturnInvoice | null {
+  const invoiceNo = getRawString(entry, 'invoiceNo') || getRawString(entry, 'sourceInvoiceDocNum');
+  if (!invoiceNo) return null;
+
+  return {
+    doc_entry: Number(getRawString(entry, 'sourceInvoiceDocEntry')) || 0,
+    doc_num: invoiceNo,
+    doc_date: getRawString(entry, 'invoiceDate') || null,
+    create_date: getRawString(entry, 'invoiceCreateDate') || null,
+    create_time: getRawString(entry, 'invoiceCreateTime'),
+    card_code: getRawString(entry, 'customerCode'),
+    card_name: getRawString(entry, 'customerName'),
+    doc_total: Number(getRawString(entry, 'invoiceTotal')) || 0,
+    branch_id: Number(getRawString(entry, 'branchId')) || null,
+    branch_name: getRawString(entry, 'branchName'),
+    ship_to_code: getRawString(entry, 'shipToCode'),
+    ship_to_address: getRawString(entry, 'shipToAddress') || getRawString(entry, 'shipTo'),
+    state: getRawString(entry, 'state'),
+    city: getRawString(entry, 'city'),
+    bp_gstin: getRawString(entry, 'bpGstin'),
+    sap_dispatch_date: getRawString(entry, 'sapDispatchDate') || null,
+    sap_bilty_no: getRawString(entry, 'sapBiltyNo'),
+    sap_bilty_date: getRawString(entry, 'sapBiltyDate') || null,
+    sap_transporter_name: getRawString(entry, 'sapTransporterName'),
+    sap_vehicle_no: getRawString(entry, 'sapVehicleNo'),
+    sap_transporter_invoice: getRawString(entry, 'sapTransporterInvoice'),
+    sap_lr_number: getRawString(entry, 'sapLrNumber'),
+    gst_vehicle_no: getRawString(entry, 'gstVehicleNo'),
+    gst_transport_date: getRawString(entry, 'gstTransportDate') || null,
+    gst_transport_reason: getRawString(entry, 'gstTransportReason'),
+    line_count: entry.items.length,
+    total_quantity: entry.items.reduce((sum, item) => sum + Number(item.dispatchedQty || 0), 0),
+    total_litres: Number(getRawString(entry, 'totalLitres')) || 0,
+    total_boxes: Number(getRawString(entry, 'totalBoxes')) || 0,
+    total_weight: Number(getRawString(entry, 'totalWeight')) || 0,
+    total_line_amount: Number(getRawString(entry, 'totalLineAmount')) || 0,
+    total_gross_amount: Number(getRawString(entry, 'totalGrossAmount')) || 0,
+    warehouses: getRawString(entry, 'warehouses'),
+    item_summary: getRawString(entry, 'itemSummary'),
+    base_refs: getRawString(entry, 'baseRefs'),
+    items: [],
+  };
+}
+
+function buildReturnItemsFromInvoice(invoice: CustomerReturnInvoice): CustomerFlowItem[] {
+  return invoice.items.map((item) => ({
+    id: `invoice-${invoice.doc_entry}-${item.line_num}`,
+    itemCode: item.item_code,
+    itemName: item.item_name,
+    orderQty: String(item.quantity || ''),
+    dispatchedQty: String(item.quantity || ''),
     returnQty: '',
     acceptedQty: '',
     rejectedQty: '',
+    uom: item.uom,
     reason: 'Damaged',
     condition: '',
   }));
@@ -114,16 +177,43 @@ function buildReturnItems(dispatch: CustomerFlowEntry): CustomerFlowItem[] {
 function buildDraftFromEntry(entry: CustomerFlowEntry | null): ReturnDraft {
   if (!entry) return buildEmptyDraft();
 
+  const invoice = buildInvoiceFromEntry(entry);
   return {
     vehicle: buildVehicleFromEntry(entry),
     driver: buildDriverFromEntry(entry),
-    dispatchId: getRawString(entry, 'selectedDispatchId'),
+    invoiceNumber: invoice?.doc_num || '',
+    invoice,
     gateInDate: getRawString(entry, 'gateInDate') || toDateInputValue(),
     inTime: getRawString(entry, 'inTime') || toTimeInputValue(),
     securityName: getRawString(entry, 'securityName'),
     customerClaimNo: getRawString(entry, 'customerClaimNo'),
     items: entry.items,
   };
+}
+
+function formatQuantity(value: number | string) {
+  const parsed = Number(value || 0);
+  return parsed.toLocaleString('en-IN', { maximumFractionDigits: 3 });
+}
+
+function formatCurrency(value: number | string) {
+  const parsed = Number(value || 0);
+  return parsed.toLocaleString('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 export default function CustomerReturnNewPage() {
@@ -135,25 +225,64 @@ export default function CustomerReturnNewPage() {
     [entryId],
   );
   const [draft, setDraft] = useState<ReturnDraft>(() => buildDraftFromEntry(existingEntry));
+  const [searchedInvoiceNumber, setSearchedInvoiceNumber] = useState('');
+  const [invoiceValidationError, setInvoiceValidationError] = useState('');
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const invoiceSearch = useCustomerReturnInvoiceSearch();
 
-  const dispatches = useMemo(() => getAvailableDispatchSources(), []);
-  const selectedDispatch = dispatches.find((entry) => entry.id === draft.dispatchId) || null;
+  const invoiceSearchError = invoiceSearch.isError
+    ? isNotFoundError(invoiceSearch.error)
+      ? `No SAP invoice found for ${searchedInvoiceNumber}.`
+      : getErrorMessage(invoiceSearch.error, 'Unable to search SAP invoice right now.')
+    : '';
 
   const updateDraft = <K extends keyof ReturnDraft>(key: K, value: ReturnDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setFormError('');
   };
 
-  const handleDispatchChange = (dispatchId: string) => {
-    const dispatch = dispatches.find((entry) => entry.id === dispatchId);
-    setDraft((current) => ({
-      ...current,
-      dispatchId,
-      items: dispatch ? buildReturnItems(dispatch) : [],
-    }));
+  const handleInvoiceNumberChange = (value: string) => {
+    setDraft((current) => {
+      const keepCurrentInvoice = current.invoice?.doc_num === value.trim();
+      return {
+        ...current,
+        invoiceNumber: value,
+        invoice: keepCurrentInvoice ? current.invoice : null,
+        items: keepCurrentInvoice ? current.items : [],
+      };
+    });
+    setInvoiceValidationError('');
     setFormError('');
+    if (!invoiceSearch.isPending) {
+      invoiceSearch.reset();
+    }
+  };
+
+  const handleInvoiceSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedInvoiceNumber = draft.invoiceNumber.trim();
+
+    if (!trimmedInvoiceNumber) {
+      setInvoiceValidationError('Enter the complete SAP invoice number.');
+      return;
+    }
+
+    setInvoiceValidationError('');
+    setSearchedInvoiceNumber(trimmedInvoiceNumber);
+    invoiceSearch.reset();
+    invoiceSearch.mutate(trimmedInvoiceNumber, {
+      onSuccess: (invoice) => {
+        setDraft((current) => ({
+          ...current,
+          invoiceNumber: invoice.doc_num || trimmedInvoiceNumber,
+          invoice,
+          items: buildReturnItemsFromInvoice(invoice),
+        }));
+        setFormError('');
+        toast.success('SAP invoice found');
+      },
+    });
   };
 
   const updateItem = (itemId: string, key: keyof CustomerFlowItem, value: string) => {
@@ -165,8 +294,13 @@ export default function CustomerReturnNewPage() {
   };
 
   const handleSaveAndNext = () => {
-    if (!selectedDispatch) {
-      setFormError('Please select the original sales dispatch');
+    if (!draft.invoice) {
+      setFormError('Please search and select the SAP invoice first');
+      return;
+    }
+
+    if (draft.items.length === 0) {
+      setFormError('The selected SAP invoice does not have item lines to return');
       return;
     }
 
@@ -193,7 +327,7 @@ export default function CustomerReturnNewPage() {
       (item) => Number(item.returnQty) > Number(item.dispatchedQty || 0),
     );
     if (hasInvalidQty) {
-      setFormError('Return quantity cannot be greater than dispatched quantity');
+      setFormError('Return quantity cannot be greater than invoice quantity');
       return;
     }
 
@@ -201,17 +335,44 @@ export default function CustomerReturnNewPage() {
     const now = new Date().toISOString();
     const entry: CustomerFlowEntry = {
       id: existingEntry?.id || now,
-      entryNo: existingEntry?.entryNo || buildCustomerFlowEntryNo('CRI'),
+      entryNo: existingEntry?.entryNo || buildCustomerFlowEntryNo('GR'),
       status: existingEntry?.status === 'PENDING_QC' ? 'PENDING_QC' : 'IN_PROGRESS',
       values: {
         ...existingEntry?.values,
-        selectedDispatchId: selectedDispatch.id,
-        dispatchEntry: selectedDispatch.entryNo,
-        salesOrderNo: getCustomerFlowValue(selectedDispatch, 'salesOrderNo'),
-        outboundDeliveryNo: getCustomerFlowValue(selectedDispatch, 'outboundDeliveryNo'),
-        invoiceNo: getCustomerFlowValue(selectedDispatch, 'invoiceNo'),
-        customerCode: getCustomerFlowValue(selectedDispatch, 'customerCode'),
-        customerName: getCustomerFlowValue(selectedDispatch, 'customerName'),
+        sourceInvoiceDocEntry: String(draft.invoice.doc_entry),
+        sourceInvoiceDocNum: draft.invoice.doc_num,
+        invoiceNo: draft.invoice.doc_num,
+        invoiceDate: draft.invoice.doc_date || '',
+        invoiceCreateDate: draft.invoice.create_date || '',
+        invoiceCreateTime: draft.invoice.create_time || '',
+        invoiceTotal: String(draft.invoice.doc_total || ''),
+        customerCode: draft.invoice.card_code,
+        customerName: draft.invoice.card_name,
+        branchId: String(draft.invoice.branch_id || ''),
+        branchName: draft.invoice.branch_name,
+        shipToCode: draft.invoice.ship_to_code,
+        shipToAddress: draft.invoice.ship_to_address,
+        state: draft.invoice.state,
+        city: draft.invoice.city,
+        bpGstin: draft.invoice.bp_gstin,
+        sapDispatchDate: draft.invoice.sap_dispatch_date || '',
+        sapBiltyNo: draft.invoice.sap_bilty_no,
+        sapBiltyDate: draft.invoice.sap_bilty_date || '',
+        sapTransporterName: draft.invoice.sap_transporter_name,
+        sapVehicleNo: draft.invoice.sap_vehicle_no,
+        sapTransporterInvoice: draft.invoice.sap_transporter_invoice,
+        sapLrNumber: draft.invoice.sap_lr_number,
+        gstVehicleNo: draft.invoice.gst_vehicle_no,
+        gstTransportDate: draft.invoice.gst_transport_date || '',
+        gstTransportReason: draft.invoice.gst_transport_reason,
+        totalLitres: String(draft.invoice.total_litres || ''),
+        totalBoxes: String(draft.invoice.total_boxes || ''),
+        totalWeight: String(draft.invoice.total_weight || ''),
+        totalLineAmount: String(draft.invoice.total_line_amount || ''),
+        totalGrossAmount: String(draft.invoice.total_gross_amount || ''),
+        warehouses: draft.invoice.warehouses,
+        itemSummary: draft.invoice.item_summary,
+        baseRefs: draft.invoice.base_refs,
         vehicleId: String(draft.vehicle.vehicleId),
         vehicleNo: draft.vehicle.vehicleNumber,
         vehicleType: draft.vehicle.vehicleType,
@@ -231,13 +392,13 @@ export default function CustomerReturnNewPage() {
     };
 
     upsertCustomerFlowEntry(CUSTOMER_RETURN_KEY, entry);
-    toast.success('Return details saved');
+    toast.success('Goods return details saved');
     navigate(`/gate/customer-return/new/attachments?entryId=${encodeURIComponent(entry.id)}`);
   };
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader currentStep={1} totalSteps={2} title="Customer Return In" error={formError || null} />
+      <StepHeader currentStep={1} totalSteps={2} title="Goods Return" error={formError || null} />
 
       <div className="space-y-8">
         <FormSection icon={<Truck className="h-5 w-5" />} title="Vehicle & Driver">
@@ -258,7 +419,7 @@ export default function CustomerReturnNewPage() {
             />
             <ReadOnlyDateTime dateValue={draft.gateInDate} timeValue={draft.inTime} />
             <TextField
-              id="customer-return-security"
+              id="goods-return-security"
               label="Security Name"
               value={draft.securityName}
               onChange={(value) => updateDraft('securityName', value)}
@@ -267,32 +428,69 @@ export default function CustomerReturnNewPage() {
           </div>
         </FormSection>
 
-        <FormSection icon={<PackageX className="h-5 w-5" />} title="Original Dispatch">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="customer-return-dispatch">
-                Sales Dispatch <span className="text-destructive">*</span>
-              </Label>
-              <NativeSelect
-                id="customer-return-dispatch"
-                value={draft.dispatchId}
-                required
-                placeholder={dispatches.length ? 'Select sales dispatch' : 'No completed dispatches'}
-                onChange={(event) => handleDispatchChange(event.target.value)}
-              >
-                {dispatches.map((dispatch) => (
-                  <SelectOption key={dispatch.id} value={dispatch.id}>
-                    {[
-                      dispatch.entryNo,
-                      getCustomerFlowValue(dispatch, 'invoiceNo'),
-                      getCustomerFlowValue(dispatch, 'customerName'),
-                    ].join(' - ')}
-                  </SelectOption>
-                ))}
-              </NativeSelect>
-            </div>
-            <ReadOnlyTextField label="Invoice" value={selectedDispatch ? getCustomerFlowValue(selectedDispatch, 'invoiceNo') : ''} />
-            <ReadOnlyTextField label="Customer" value={selectedDispatch ? getCustomerFlowValue(selectedDispatch, 'customerName') : ''} />
+        <FormSection icon={<ReceiptText className="h-5 w-5" />} title="Source Invoice">
+          <div className="space-y-4">
+            <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleInvoiceSearch}>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="goods-return-invoice">
+                  SAP Invoice Number <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="goods-return-invoice"
+                  value={draft.invoiceNumber}
+                  onChange={(event) => handleInvoiceNumberChange(event.target.value)}
+                  placeholder="Enter complete SAP invoice number"
+                  disabled={invoiceSearch.isPending}
+                />
+              </div>
+              <Button type="submit" disabled={invoiceSearch.isPending} className="sm:w-auto">
+                {invoiceSearch.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="mr-2 h-4 w-4" />
+                )}
+                Search
+              </Button>
+            </form>
+
+            {(invoiceValidationError || invoiceSearchError) && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <span>{invoiceValidationError || invoiceSearchError}</span>
+              </div>
+            )}
+
+            {draft.invoice && !invoiceSearch.isPending && (
+              <div className="rounded-md border bg-muted/20 p-4">
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold">{draft.invoice.doc_num}</h3>
+                      <Badge variant="success" className="gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        SAP Invoice Found
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {draft.invoice.card_name} ({draft.invoice.card_code})
+                    </p>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Invoice Date:{' '}
+                    <span className="font-medium text-foreground">
+                      {formatDate(draft.invoice.doc_date)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 text-sm sm:grid-cols-4">
+                  <InvoiceMetric label="Items" value={draft.invoice.line_count} />
+                  <InvoiceMetric label="Invoice Qty" value={formatQuantity(draft.invoice.total_quantity)} />
+                  <InvoiceMetric label="Invoice Value" value={formatCurrency(draft.invoice.doc_total)} />
+                  <InvoiceMetric label="Branch" value={draft.invoice.branch_name || '-'} />
+                </div>
+              </div>
+            )}
           </div>
         </FormSection>
 
@@ -300,10 +498,10 @@ export default function CustomerReturnNewPage() {
           <ReturnItemsTable items={draft.items} onChange={updateItem} />
         </FormSection>
 
-        <FormSection icon={<FileCheck2 className="h-5 w-5" />} title="Return Reference">
+        <FormSection icon={<PackageX className="h-5 w-5" />} title="Return Reference">
           <div className="grid gap-4 lg:grid-cols-2">
             <TextField
-              id="customer-return-claim"
+              id="goods-return-claim"
               label="Customer Claim No."
               value={draft.customerClaimNo}
               onChange={(value) => updateDraft('customerClaimNo', value)}
@@ -347,16 +545,16 @@ function ReadOnlyDateTime({ dateValue, timeValue }: { dateValue: string; timeVal
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
-        <Label htmlFor="customer-return-date">
+        <Label htmlFor="goods-return-date">
           Gate In Date <span className="text-destructive">*</span>
         </Label>
-        <Input id="customer-return-date" type="date" value={dateValue} readOnly disabled className={lockedDateTimeInputClassName} />
+        <Input id="goods-return-date" type="date" value={dateValue} readOnly disabled className={lockedDateTimeInputClassName} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="customer-return-time">
+        <Label htmlFor="goods-return-time">
           In Time <span className="text-destructive">*</span>
         </Label>
-        <Input id="customer-return-time" type="time" value={timeValue} readOnly disabled className={lockedDateTimeInputClassName} />
+        <Input id="goods-return-time" type="time" value={timeValue} readOnly disabled className={lockedDateTimeInputClassName} />
       </div>
     </div>
   );
@@ -383,11 +581,11 @@ function TextField({
   );
 }
 
-function ReadOnlyTextField({ label, value }: { label: string; value: string }) {
+function InvoiceMetric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input value={value || '-'} readOnly disabled className={lockedDateTimeInputClassName} />
+    <div>
+      <p className="text-muted-foreground">{label}</p>
+      <p className="font-semibold">{value || '-'}</p>
     </div>
   );
 }
@@ -406,7 +604,7 @@ function ReturnItemsTable({
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Item</th>
-              <th className="p-3 text-left text-sm font-medium">Dispatch Qty</th>
+              <th className="p-3 text-left text-sm font-medium">Invoice Qty</th>
               <th className="p-3 text-left text-sm font-medium">Return Qty</th>
               <th className="p-3 text-left text-sm font-medium">Reason</th>
               <th className="p-3 text-left text-sm font-medium">Condition</th>
@@ -416,7 +614,7 @@ function ReturnItemsTable({
             {items.length === 0 ? (
               <tr>
                 <td colSpan={5} className="h-20 p-3 text-center text-sm text-muted-foreground">
-                  Select a sales dispatch to view items
+                  Search an SAP invoice to view items
                 </td>
               </tr>
             ) : (

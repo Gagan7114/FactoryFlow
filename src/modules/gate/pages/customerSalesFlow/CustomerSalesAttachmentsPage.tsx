@@ -55,13 +55,13 @@ const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
   },
   return: {
     storageKey: CUSTOMER_RETURN_KEY,
-    title: 'Customer Return In',
+    title: 'Goods Return',
     previousPath: '/gate/customer-return/new',
     dashboardPath: '/gate/customer-return',
     completeStatus: 'PENDING_QC',
-    completeLabel: 'Complete Return In',
-    successMessage: 'Customer return gate-in completed',
-    missingMessage: 'Customer return details not found',
+    completeLabel: 'Complete Goods Return',
+    successMessage: 'Goods return gate-in completed',
+    missingMessage: 'Goods return details not found',
   },
 };
 

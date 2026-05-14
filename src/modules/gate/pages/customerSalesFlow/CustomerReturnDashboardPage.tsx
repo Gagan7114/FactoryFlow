@@ -59,9 +59,9 @@ export default function CustomerReturnDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Customer Return In</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Goods Return</h2>
           <p className="text-muted-foreground">
-            Receive customer returns against completed sales dispatches
+            Receive returned goods against SAP invoices
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
@@ -99,23 +99,23 @@ export default function CustomerReturnDashboardPage() {
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <PackageX className="h-4 w-4" />
-            Customer Return Entries
+            Goods Return Entries
           </h3>
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search return, dispatch, customer, vehicle"
+              placeholder="Search return, invoice, customer, vehicle"
               className="pl-9"
             />
           </div>
         </div>
 
         {entries.length === 0 ? (
-          <EmptyState text="No customer return entries yet" />
+          <EmptyState text="No goods return entries yet" />
         ) : filteredEntries.length === 0 ? (
-          <EmptyState text="No customer returns match this search" />
+          <EmptyState text="No goods returns match this search" />
         ) : (
           <ReturnTable entries={filteredEntries} />
         )}
@@ -134,7 +134,7 @@ function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Entry No.</th>
-              <th className="p-3 text-left text-sm font-medium">Dispatch</th>
+              <th className="p-3 text-left text-sm font-medium">Invoice</th>
               <th className="p-3 text-left text-sm font-medium">Customer</th>
               <th className="p-3 text-left text-sm font-medium">Items</th>
               <th className="p-3 text-left text-sm font-medium">Vehicle</th>
@@ -157,7 +157,7 @@ function ReturnTable({ entries }: { entries: CustomerFlowEntry[] }) {
                       }}
               >
                 <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entryNo}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'dispatchEntry')}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'invoiceNo')}</td>
                 <td className="p-3 text-sm">{getCustomerFlowValue(entry, 'customerName')}</td>
                 <td className="p-3 text-sm">{buildCustomerFlowItemSummary(entry.items)}</td>
                 <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'vehicleNo')}</td>
