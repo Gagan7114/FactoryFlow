@@ -2,6 +2,7 @@
 export { FillDataAlert } from './FillDataAlert';
 export { GateStatusBadge } from './GateStatusBadge';
 export { GateSuccessScreen } from './GateSuccessScreen';
+export { PONumberLookup } from './PONumberLookup';
 export { RequiredWeighmentForm } from './RequiredWeighmentForm';
 export { StepFooter } from './StepFooter';
 export { StepHeader } from './StepHeader';

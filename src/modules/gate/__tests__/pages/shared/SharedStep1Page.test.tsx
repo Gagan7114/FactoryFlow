@@ -31,4 +31,9 @@ describe('SharedStep1Page', () => {
   it('defines SharedStep1PageProps', () => {
     expect(content).toContain('SharedStep1PageProps');
   });
+
+  it('renders PO lookup only for raw material entries', () => {
+    expect(content).toContain('PONumberLookup');
+    expect(content).toContain('ENTRY_TYPES.RAW_MATERIAL');
+  });
 });

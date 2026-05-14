@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { poApi } from './po.api';
 
@@ -16,5 +16,11 @@ export function useVendors(enabled: boolean = true) {
     queryFn: () => poApi.getVendors(),
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useOpenPOByNumberSearch() {
+  return useMutation({
+    mutationFn: (poNumber: string) => poApi.getOpenPOByNumber(poNumber),
   });
 }

@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   PO: {
     OPEN_POS: (supplierCode?: string) =>
       supplierCode ? `/po/open-pos/?supplier_code=${supplierCode}` : '/po/open-pos/',
+    OPEN_PO_BY_NUMBER: (poNumber: string) => `/po/open-pos/${encodeURIComponent(poNumber)}/items/`,
     WAREHOUSES: '/po/warehouses/',
     VENDORS: '/po/vendors/',
   },

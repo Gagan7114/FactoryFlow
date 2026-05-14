@@ -111,6 +111,7 @@ export interface VehicleDriverFormShellProps {
 
   // Custom content (optional)
   headerTitle?: string;
+  topContent?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -133,6 +134,7 @@ export function VehicleDriverFormShell({
   updateMode,
   serverError,
   headerTitle = 'Material Inward',
+  topContent,
   children,
 }: VehicleDriverFormShellProps) {
   const [isEditDriverOpen, setIsEditDriverOpen] = useState(false);
@@ -158,6 +160,8 @@ export function VehicleDriverFormShell({
         title={headerTitle}
         error={serverError || apiErrors.general || null}
       />
+
+      {topContent}
 
       <div className="space-y-6">
         {/* Vehicle Details Section */}

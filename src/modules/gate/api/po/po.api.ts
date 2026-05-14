@@ -16,6 +16,10 @@ export interface PurchaseOrder {
   po_number: string;
   supplier_code: string;
   supplier_name: string;
+  doc_entry: number;
+  branch_id?: number | null;
+  vendor_ref?: string;
+  doc_date?: string | null;
   items: POItem[];
 }
 
@@ -43,6 +47,13 @@ export interface Vendor {
 export const poApi = {
   async getOpenPOs(supplierCode?: string): Promise<PurchaseOrder[]> {
     const response = await apiClient.get<PurchaseOrder[]>(API_ENDPOINTS.PO.OPEN_POS(supplierCode));
+    return response.data;
+  },
+
+  async getOpenPOByNumber(poNumber: string): Promise<PurchaseOrder> {
+    const response = await apiClient.get<PurchaseOrder>(
+      API_ENDPOINTS.PO.OPEN_PO_BY_NUMBER(poNumber),
+    );
     return response.data;
   },
 
