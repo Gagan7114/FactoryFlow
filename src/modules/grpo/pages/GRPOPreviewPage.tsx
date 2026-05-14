@@ -346,10 +346,6 @@ export default function GRPOPreviewPage() {
         if (accepted < 0) {
           errors[`item_${item.po_item_receipt_id}`] = 'Cannot be negative';
         }
-        if (accepted > item.received_qty) {
-          errors[`item_${item.po_item_receipt_id}`] =
-            `Cannot exceed received qty (${item.received_qty})`;
-        }
       });
     });
 
@@ -441,7 +437,7 @@ export default function GRPOPreviewPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/pending')}
+              onClick={() => navigate('/grpo/material/pending')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -758,7 +754,6 @@ export default function GRPOPreviewPage() {
                             <Input
                               type="number"
                               min={0}
-                              max={item.received_qty}
                               step="any"
                               value={acceptedQty}
                               onChange={(e) =>
@@ -1234,7 +1229,7 @@ export default function GRPOPreviewPage() {
               className="w-full"
               onClick={() => {
                 setSuccessResult(null);
-                navigate('/grpo/history');
+                navigate('/grpo/material/history');
               }}
             >
               View History

@@ -62,7 +62,11 @@
       "Bash(python manage.py migrate barcode)",
       "Bash(npm ls:*)",
       "Bash(python -c ':*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(python manage.py makemigrations production_execution --name=\"simplify_line_clearance\")",
+      "Bash(python -c \"import django; django.setup\\(\\)\")",
+      "Bash(DJANGO_SETTINGS_MODULE=factory_app_v2.settings python -c \"import django; django.setup\\(\\); from production_execution.services.production_service import ProductionService; print\\('OK'\\)\")",
+      "Bash(git -C d:/Test_CompanyJivo/FactoryFlow log --oneline -5 -- src/modules/grpo/pages/GRPOPreviewPage.tsx)"
     ]
   }
 }

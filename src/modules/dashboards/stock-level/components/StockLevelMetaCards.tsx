@@ -1,4 +1,4 @@
-import { AlertTriangle, Package, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Package, ShieldAlert } from 'lucide-react';
 
 import { Card, CardContent } from '@/shared/components/ui';
 
@@ -9,11 +9,21 @@ interface StockLevelMetaCardsProps {
 }
 
 export function StockLevelMetaCards({ meta }: StockLevelMetaCardsProps) {
+  const statusTotal =
+    meta === undefined
+      ? undefined
+      : meta.healthy_count + meta.low_stock_count + meta.critical_stock_count;
+
   const cards = [
     {
       label: 'Total Items',
-      value: meta?.total_items ?? '—',
+      value: statusTotal ?? '—',
       icon: Package,
+    },
+    {
+      label: 'Healthy',
+      value: meta?.healthy_count ?? '—',
+      icon: CheckCircle,
     },
     {
       label: 'Low Stock',
@@ -30,7 +40,7 @@ export function StockLevelMetaCards({ meta }: StockLevelMetaCardsProps) {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardContent className="flex items-center gap-3 p-4">

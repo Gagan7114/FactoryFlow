@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
+import { GateStatusBadge } from '@/modules/gate/components';
 import { Button, Input } from '@/shared/components/ui';
 
 import { usePersonEntries } from '../../api/personGateIn/personGateIn.queries';
@@ -67,20 +68,6 @@ export default function PersonGateInAllPage() {
       });
     } catch {
       return dateTime;
-    }
-  };
-
-  // Format status badge
-  const getStatusBadgeClass = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'IN':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'OUT':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
@@ -196,13 +183,7 @@ export default function PersonGateInAllPage() {
                       {formatDateTime(entry.exit_time)}
                     </td>
                     <td className="p-3 text-sm">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(
-                          entry.status || '',
-                        )}`}
-                      >
-                        {entry.status || '-'}
-                      </span>
+                      <GateStatusBadge status={entry.status} />
                     </td>
                     <td className="p-3 text-sm text-muted-foreground max-w-[200px] truncate">
                       {entry.purpose || '-'}

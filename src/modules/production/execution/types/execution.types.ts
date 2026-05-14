@@ -55,6 +55,8 @@ export interface LineSkuConfig {
   rated_speed: string | null;
   labour_count: number;
   other_manpower_count: number;
+  electricity_cost_per_unit: string | null;
+  labour_cost_per_hour: string | null;
   supervisor: string;
   operators: string;
   is_active: boolean;
@@ -70,6 +72,8 @@ export interface CreateLineSkuConfigPayload {
   rated_speed?: string | number | null;
   labour_count?: number;
   other_manpower_count?: number;
+  electricity_cost_per_unit?: string | number | null;
+  labour_cost_per_hour?: string | number | null;
   supervisor?: string;
   operators?: string;
 }
@@ -81,6 +85,8 @@ export interface UpdateLineSkuConfigPayload {
   rated_speed?: string | number | null;
   labour_count?: number;
   other_manpower_count?: number;
+  electricity_cost_per_unit?: string | number | null;
+  labour_cost_per_hour?: string | number | null;
   supervisor?: string;
   operators?: string;
 }
@@ -181,6 +187,8 @@ export interface ProductionRun {
   product: string;
   required_qty: string | null;
   rated_speed: string;
+  electricity_cost_per_unit: string | null;
+  labour_cost_per_hour: string | null;
   total_production: string;
   total_running_minutes: number;
   total_breakdown_time: number;
@@ -248,8 +256,8 @@ export interface BreakdownCategory {
 export interface MachineBreakdown {
   id: number;
   production_run: number;
-  machine: number;
-  machine_name?: string;
+  machine: number | null;
+  machine_name?: string | null;
   breakdown_category: number | null;
   breakdown_category_name: string;
   start_time: string;
@@ -276,7 +284,17 @@ export interface MaterialUsage {
   issued_qty: string;
   closing_qty: string;
   wastage_qty: string;
+  bom_quantity?: string;
+  wastage_percentage?: string;
+  wastage_quantity?: string;
+  final_consumption_quantity?: string;
   uom: string;
+  warehouse_request_id?: number | null;
+  warehouse_request_status?: 'PENDING' | 'APPROVED' | 'PARTIALLY_APPROVED' | 'REJECTED' | null;
+  warehouse_line_status?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  warehouse_requested_qty?: string | null;
+  warehouse_approved_qty?: string | null;
+  warehouse_available_stock?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -334,6 +352,9 @@ export interface LineClearance {
   line_name?: string;
   document_id: string;
   status: ClearanceStatus;
+  qa_approved: boolean;
+  all_checks_passed: boolean;
+  production_supervisor_sign: string;
   created_by: number | null;
   created_at: string;
   updated_at: string;
@@ -341,11 +362,8 @@ export interface LineClearance {
 
 export interface LineClearanceDetail extends LineClearance {
   verified_by: number | null;
-  qa_approved: boolean;
   qa_approved_by: number | null;
   qa_approved_at: string | null;
-  production_supervisor_sign: string;
-  production_incharge_sign: string;
   items: LineClearanceItem[];
 }
 
@@ -400,6 +418,9 @@ export interface WasteLog {
   hod_signed_by: number | null;
   hod_signed_at: string | null;
   wastage_approval_status: WasteApprovalStatus;
+  approved_sign?: string;
+  approved_by?: number | null;
+  approved_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -640,6 +661,8 @@ export interface CreateRunRequest {
   product?: string;
   required_qty?: number | null;
   rated_speed?: string;
+  electricity_cost_per_unit?: string;
+  labour_cost_per_hour?: string;
   machine_ids?: number[];
   labour_count?: number;
   other_manpower_count?: number;
@@ -651,6 +674,8 @@ export interface CreateRunRequest {
 export interface UpdateRunRequest {
   product?: string;
   rated_speed?: string;
+  electricity_cost_per_unit?: string;
+  labour_cost_per_hour?: string;
   machine_ids?: number[];
   labour_count?: number;
   other_manpower_count?: number;
@@ -660,7 +685,7 @@ export interface UpdateRunRequest {
 
 export interface AddBreakdownRequest {
   breakdown_category_id: number;
-  machine_id: number;
+  machine_id?: number | null;
   reason: string;
   produced_cases?: string;
   remarks?: string;
@@ -723,9 +748,8 @@ export interface CreateLineClearanceRequest {
 }
 
 export interface UpdateLineClearanceRequest {
-  items?: { id: number; result: ClearanceResult; remarks?: string }[];
+  all_checks_passed?: boolean;
   production_supervisor_sign?: string;
-  production_incharge_sign?: string;
 }
 
 export interface CreateChecklistEntryRequest {
@@ -745,13 +769,22 @@ export interface BulkChecklistRequest {
   entries: CreateChecklistEntryRequest[];
 }
 
-export interface CreateWasteLogRequest {
-  production_run_id: number;
+export interface CreateWasteItemRequest {
   material_code: string;
   material_name: string;
   wastage_qty: string;
   uom: string;
-  reason: string;
+  reason?: string;
+}
+
+export interface CreateWasteLogRequest {
+  production_run_id: number;
+  material_code?: string;
+  material_name?: string;
+  wastage_qty?: string;
+  uom?: string;
+  reason?: string;
+  items?: CreateWasteItemRequest[];
 }
 
 export interface WasteApprovalRequest {

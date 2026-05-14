@@ -10,24 +10,11 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+import { GateStatusBadge } from '@/modules/gate/components';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
 
 import { PERSON_TYPE_IDS } from '../../api/personGateIn/personGateIn.api';
 import { usePersonGateInDashboard } from '../../api/personGateIn/personGateIn.queries';
-
-// Status badge styling
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'IN':
-      return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-    case 'OUT':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-    case 'CANCELLED':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-    default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
-  }
-};
 
 export default function PersonGateInDashboard() {
   const navigate = useNavigate();
@@ -163,11 +150,7 @@ export default function PersonGateInDashboard() {
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{entry.name_snapshot}</span>
-                        <span
-                          className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getStatusBadgeClass(entry.status)}`}
-                        >
-                          {entry.status}
-                        </span>
+                        <GateStatusBadge status={entry.status} size="xs" />
                       </div>
                       {entry.purpose && (
                         <span className="text-xs text-muted-foreground hidden sm:inline truncate max-w-[150px]">

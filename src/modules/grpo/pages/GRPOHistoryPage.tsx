@@ -98,7 +98,7 @@ export default function GRPOHistoryPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo')}
+              onClick={() => navigate('/grpo/material')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -190,7 +190,7 @@ export default function GRPOHistoryPage() {
                 <div
                   key={entry.id}
                   className="flex items-center justify-between px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/grpo/history/${entry.id}`)}
+                  onClick={() => navigate(`/grpo/material/history/${entry.id}`)}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="font-medium text-sm">{entry.entry_no}</span>

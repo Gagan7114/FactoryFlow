@@ -56,3 +56,9 @@ export {
   type BarcodePermission,
 } from './barcode.permissions';
 
+// Vehicle Management Module
+export {
+  VEHICLE_MANAGEMENT_MODULE_PREFIX,
+  VEHICLE_MANAGEMENT_PERMISSIONS,
+  type VehicleManagementPermission,
+} from './vehicle-management.permissions';

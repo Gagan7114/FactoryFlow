@@ -2,47 +2,91 @@ import { Loader2 } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { Button, Input, Label, MultiSelect } from '@/shared/components/ui';
+import {
+  Button,
+  Input,
+  Label,
+  MultiSelect,
+  NativeSelect as Select,
+  SelectOption,
+} from '@/shared/components/ui';
 
-import { STOCK_STATUS_FILTER_OPTIONS } from '../constants';
+import { ALL_MATERIAL_TYPES_VALUE } from '../../utils/itemGroupDefaults';
+import {
+  DEFAULT_STOCK_MOVEMENT_FILTER,
+  DEFAULT_STOCK_STATUS_FILTER,
+  DEFAULT_STOCK_WAREHOUSE_FILTER,
+  STOCK_MOVEMENT_FILTER_OPTIONS,
+  STOCK_STATUS_FILTER_OPTIONS,
+} from '../constants';
 import type { StockDashboardFilters } from '../types';
 
 const TEXT_DEBOUNCE_MS = 500;
+
+function normalizeSearch(value?: string): string | undefined {
+  const search = value?.trim();
+  return search ? search.toUpperCase() : undefined;
+}
 
 interface StockLevelFiltersProps {
   onFiltersChange: (filters: StockDashboardFilters) => void;
   isFetching?: boolean;
   defaultValues?: StockDashboardFilters;
+  warehouses?: string[];
+  itemGroups?: string[];
+  defaultItemGroup?: string;
 }
 
 interface FiltersForm {
   search: string;
-  warehouse: string;
+  item_group: string;
+  warehouse: string[];
   status: string[];
+  movement_status: string[];
 }
 
 function buildFilters(values: Partial<FiltersForm>): StockDashboardFilters {
   const filters: StockDashboardFilters = {};
-  if (values.search) filters.search = values.search;
-  if (values.warehouse) filters.warehouse = values.warehouse;
-  if (values.status?.length) filters.status = values.status as StockDashboardFilters['status'];
+  const search = normalizeSearch(values.search);
+  if (search) filters.search = search;
+  filters.item_group = values.item_group ?? ALL_MATERIAL_TYPES_VALUE;
+  if (values.warehouse?.length) filters.warehouse = values.warehouse;
+  filters.status = (values.status ?? []) as StockDashboardFilters['status'];
+  filters.movement_status = (values.movement_status ??
+    []) as StockDashboardFilters['movement_status'];
   return filters;
 }
 
-export function StockLevelFilters({ onFiltersChange, isFetching, defaultValues }: StockLevelFiltersProps) {
-  const { register, watch, reset, control } = useForm<FiltersForm>({
+export function StockLevelFilters({
+  onFiltersChange,
+  isFetching,
+  defaultValues,
+  warehouses = [],
+  itemGroups = [],
+  defaultItemGroup,
+}: StockLevelFiltersProps) {
+  const { register, watch, reset, control, setValue } = useForm<FiltersForm>({
     defaultValues: {
       search: defaultValues?.search ?? '',
-      warehouse: defaultValues?.warehouse ?? '',
-      status: defaultValues?.status ?? [],
+      item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+      warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
+      status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
+      movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
     },
   });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    setValue(
+      'item_group',
+      defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+    );
+  }, [defaultItemGroup, defaultValues?.item_group, setValue]);
+
+  useEffect(() => {
     const subscription = watch((values, { name }) => {
-      const isTextField = name === 'search' || name === 'warehouse';
+      const isTextField = name === 'search';
 
       if (isTextField) {
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -61,15 +105,24 @@ export function StockLevelFilters({ onFiltersChange, isFetching, defaultValues }
   }, [watch, onFiltersChange]);
 
   function handleReset() {
-    reset({ search: '', warehouse: '', status: [] });
-    onFiltersChange({});
+    const resetValues = {
+      search: '',
+      item_group: defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+      warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
+      status: [...DEFAULT_STOCK_STATUS_FILTER],
+      movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
+    };
+    reset(resetValues);
+    onFiltersChange(buildFilters(resetValues));
   }
 
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Search */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="stock-filter-search" className="text-xs">Search</Label>
+        <Label htmlFor="stock-filter-search" className="text-xs">
+          Search
+        </Label>
         <Input
           id="stock-filter-search"
           type="text"
@@ -79,21 +132,47 @@ export function StockLevelFilters({ onFiltersChange, isFetching, defaultValues }
         />
       </div>
 
+      {/* Material Type */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="stock-filter-material-type" className="text-xs">
+          Material Type
+        </Label>
+        <Select id="stock-filter-material-type" className="w-44" {...register('item_group')}>
+          <SelectOption value={ALL_MATERIAL_TYPES_VALUE}>All</SelectOption>
+          {itemGroups.map((group) => (
+            <SelectOption key={group} value={group}>
+              {group}
+            </SelectOption>
+          ))}
+        </Select>
+      </div>
+
       {/* Warehouse */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="stock-filter-warehouse" className="text-xs">Warehouse</Label>
-        <Input
-          id="stock-filter-warehouse"
-          type="text"
-          placeholder="e.g. WH-01"
-          className="w-28"
-          {...register('warehouse')}
+        <Label htmlFor="stock-filter-warehouse" className="text-xs">
+          Warehouse
+        </Label>
+        <Controller
+          name="warehouse"
+          control={control}
+          render={({ field }) => (
+            <MultiSelect
+              id="stock-filter-warehouse"
+              options={warehouses.map((w) => ({ label: w, value: w }))}
+              selected={field.value}
+              onChange={field.onChange}
+              placeholder="All"
+              className="w-44"
+            />
+          )}
         />
       </div>
 
       {/* Status */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="stock-filter-status" className="text-xs">Status</Label>
+        <Label htmlFor="stock-filter-status" className="text-xs">
+          Status
+        </Label>
         <Controller
           name="status"
           control={control}
@@ -108,6 +187,30 @@ export function StockLevelFilters({ onFiltersChange, isFetching, defaultValues }
               onChange={field.onChange}
               placeholder="All"
               className="w-36"
+            />
+          )}
+        />
+      </div>
+
+      {/* Movement */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="stock-filter-movement" className="text-xs">
+          Movement
+        </Label>
+        <Controller
+          name="movement_status"
+          control={control}
+          render={({ field }) => (
+            <MultiSelect
+              id="stock-filter-movement"
+              options={STOCK_MOVEMENT_FILTER_OPTIONS.map((o) => ({
+                label: o.label,
+                value: o.value,
+              }))}
+              selected={field.value}
+              onChange={field.onChange}
+              placeholder="All"
+              className="w-44"
             />
           )}
         />

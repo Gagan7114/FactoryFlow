@@ -180,7 +180,7 @@ export const CLEARANCE_RESULT_LABELS: Record<ClearanceResult, string> = {
 export const WASTE_APPROVAL_LABELS: Record<WasteApprovalStatus, string> = {
   PENDING: 'Pending',
   PARTIALLY_APPROVED: 'Partially Approved',
-  FULLY_APPROVED: 'Fully Approved',
+  FULLY_APPROVED: 'Approved',
 };
 
 export const WASTE_APPROVAL_COLORS: Record<WasteApprovalStatus, StatusColorConfig> = {

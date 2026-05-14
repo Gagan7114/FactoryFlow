@@ -126,14 +126,9 @@ describe('Driver Schema', () => {
       }
     });
 
-    it('rejects invalid license number format', () => {
-      const result = driverSchema.safeParse(makeValidDriver({ license_no: 'INVALID' }));
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        const licenseErrors = result.error.issues.filter((i) => i.path.includes('license_no'));
-        expect(licenseErrors.length).toBeGreaterThan(0);
-        expect(licenseErrors[0].message).toContain('License must be in format');
-      }
+    it('accepts license numbers without enforcing a fixed format', () => {
+      const result = driverSchema.safeParse(makeValidDriver({ license_no: 'DL12023006193' }));
+      expect(result.success).toBe(true);
     });
   });
 

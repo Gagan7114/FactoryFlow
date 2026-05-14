@@ -1,12 +1,31 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Plus, Search, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Button, Card, CardContent, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui';
 
-import { useRuns, useLines } from '../api';
-import { RunCard } from '../components/RunCard';
+import { useLines, useRuns } from '../api';
+import { ProductionStatusBadge } from '../components/ProductionStatusBadge';
+import type { ProductionRun } from '../types';
+
+function runSortTime(run: ProductionRun) {
+  const createdAt = Date.parse(run.created_at || '');
+  if (Number.isFinite(createdAt)) return createdAt;
+
+  const runDate = Date.parse(run.date || '');
+  return Number.isFinite(runDate) ? runDate : 0;
+}
+
+function formatDateTime(value: string) {
+  const parsed = Date.parse(value);
+  if (!Number.isFinite(parsed)) return value || '-';
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(parsed));
+}
 
 function ExecutionDashboardPage() {
   const navigate = useNavigate();
@@ -29,6 +48,18 @@ function ExecutionDashboardPage() {
   const hasFilters = statusFilter !== 'ALL' || lineFilter !== 'ALL' || dateFrom || dateTo || search;
 
   const { data: runs, isLoading } = useRuns(filters);
+
+  const sortedRuns = useMemo(
+    () => [...(runs ?? [])].sort((a, b) => {
+      const timeDiff = runSortTime(b) - runSortTime(a);
+      if (timeDiff !== 0) return timeDiff;
+
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      if (a.run_number !== b.run_number) return b.run_number - a.run_number;
+      return b.id - a.id;
+    }),
+    [runs],
+  );
 
   const clearFilters = () => {
     setStatusFilter('ALL');
@@ -109,20 +140,59 @@ function ExecutionDashboardPage() {
 
       {/* Results */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}><CardContent className="p-4 h-32 animate-pulse bg-muted/50" /></Card>
-          ))}
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full min-w-[980px] text-sm">
+            <tbody>
+              {[1, 2, 3].map((i) => (
+                <tr key={i} className="border-b last:border-b-0">
+                  <td className="p-4">
+                    <div className="h-7 animate-pulse rounded bg-muted/60" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ) : runs && runs.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {runs.map((run) => (
-            <RunCard
-              key={run.id}
-              run={run}
-              onClick={() => navigate(`/production/execution/runs/${run.id}`)}
-            />
-          ))}
+      ) : sortedRuns.length > 0 ? (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full min-w-[1040px] text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50 text-left">
+                <th className="px-3 py-2 font-medium">Run</th>
+                <th className="px-3 py-2 font-medium">Created</th>
+                <th className="px-3 py-2 font-medium">Date</th>
+                <th className="px-3 py-2 font-medium">Product</th>
+                <th className="px-3 py-2 font-medium">Line</th>
+                <th className="px-3 py-2 text-right font-medium">Production</th>
+                <th className="px-3 py-2 font-medium">SAP Entry</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRuns.map((run) => (
+                <tr
+                  key={run.id}
+                  className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted/50"
+                  onClick={() => navigate(`/production/execution/runs/${run.id}`)}
+                >
+                  <td className="px-3 py-3 font-semibold">Run #{run.run_number}</td>
+                  <td className="px-3 py-3 text-muted-foreground">{formatDateTime(run.created_at)}</td>
+                  <td className="px-3 py-3">{run.date}</td>
+                  <td className="px-3 py-3">
+                    <p className="max-w-[360px] truncate font-medium">{run.product || '-'}</p>
+                  </td>
+                  <td className="px-3 py-3">{run.line_name}</td>
+                  <td className="px-3 py-3 text-right">
+                    {parseFloat(run.total_production || '0') > 0 ? `${run.total_production} cases` : 'No production yet'}
+                  </td>
+                  <td className="px-3 py-3">{run.sap_doc_entry ?? '-'}</td>
+                  <td className="px-3 py-3">
+                    <ProductionStatusBadge status={run.live_status || run.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <Card>

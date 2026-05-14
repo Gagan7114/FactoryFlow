@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SearchableSelect } from '@/shared/components';
 
@@ -11,6 +11,7 @@ export interface TransporterDetails {
   name: string;
   contact_person: string;
   mobile_no: string;
+  gstin?: string;
 }
 
 interface TransporterSelectProps {
@@ -21,8 +22,11 @@ interface TransporterSelectProps {
   error?: string;
   label?: string;
   required?: boolean;
+  defaultDisplayText?: string;
   /** Externally provided transporter details (e.g., from vehicle data) */
   externalDetails?: TransporterDetails | null;
+  onTransporterSelect?: (transporter: TransporterName | null) => void;
+  onDetailsLoaded?: (details: TransporterDetails | null) => void;
 }
 
 export function TransporterSelect({
@@ -33,7 +37,10 @@ export function TransporterSelect({
   error,
   label,
   required = false,
+  defaultDisplayText,
   externalDetails,
+  onTransporterSelect,
+  onDetailsLoaded,
 }: TransporterSelectProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -43,7 +50,13 @@ export function TransporterSelect({
   );
   const { data: transporterDetails } = useTransporterById(selectedId, selectedId !== null);
 
-  const details = externalDetails || transporterDetails;
+  const details = transporterDetails || externalDetails;
+
+  useEffect(() => {
+    if (!externalDetails && transporterDetails) {
+      onDetailsLoaded?.(transporterDetails);
+    }
+  }, [externalDetails, onDetailsLoaded, transporterDetails]);
 
   return (
     <SearchableSelect<TransporterName>
@@ -55,6 +68,7 @@ export function TransporterSelect({
       error={error}
       label={label}
       required={required}
+      defaultDisplayText={defaultDisplayText}
       inputId="transporter-select"
       getItemKey={(t) => t.id}
       getItemLabel={(t) => t.name}
@@ -69,10 +83,13 @@ export function TransporterSelect({
       onItemSelect={(transporter) => {
         setSelectedId(transporter.id);
         onChange(transporter.name);
+        onTransporterSelect?.(transporter);
       }}
       onClear={() => {
         setSelectedId(null);
         onChange('');
+        onTransporterSelect?.(null);
+        onDetailsLoaded?.(null);
       }}
       renderPopoverContent={(selKey) =>
         details ? (
@@ -90,6 +107,12 @@ export function TransporterSelect({
                 <span className="font-medium">Mobile Number:</span>{' '}
                 <span className="text-muted-foreground">{details.mobile_no}</span>
               </div>
+              {details.gstin && (
+                <div>
+                  <span className="font-medium">GSTIN:</span>{' '}
+                  <span className="text-muted-foreground">{details.gstin}</span>
+                </div>
+              )}
             </div>
           </div>
         ) : selKey ? (
@@ -111,6 +134,8 @@ export function TransporterSelect({
             updateSelection(transporter.id, transporter.name);
             setSelectedId(transporter.id);
             onChange(transporter.name);
+            onTransporterSelect?.({ id: transporter.id, name: transporter.name });
+            onDetailsLoaded?.(transporter);
           }}
         />
       )}

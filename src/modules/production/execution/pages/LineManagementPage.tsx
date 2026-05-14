@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Edit, Plus, Trash2, Settings2, Copy } from 'lucide-react';
+import { Copy, Edit, Plus, Settings2, Trash2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
@@ -25,14 +25,27 @@ import {
 } from '@/shared/components/ui';
 
 import {
-  useLines,
-  useLineConfigs,
   useCreateLineConfig,
-  useUpdateLineConfig,
   useDeleteLineConfig,
+  useLineConfigs,
+  useLines,
   useSearchSAPItems,
+  useUpdateLineConfig,
 } from '../api';
 import type { LineSkuConfig, SAPItem } from '../types';
+
+const parseCost = (value: string | number | null | undefined) => {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatCost = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined || value === '') return '-';
+  return parseCost(value).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+};
+
+const getPresetLabourCost = (config: LineSkuConfig) =>
+  config.labour_count * parseCost(config.labour_cost_per_hour);
 
 const EMPTY_FORM = {
   config_name: '',
@@ -41,6 +54,8 @@ const EMPTY_FORM = {
   rated_speed: '',
   labour_count: 0,
   other_manpower_count: 0,
+  electricity_cost_per_unit: '',
+  labour_cost_per_hour: '',
   supervisor: '',
   operators: '',
 };
@@ -74,6 +89,8 @@ function LineManagementPage() {
         rated_speed: config.rated_speed || '',
         labour_count: config.labour_count,
         other_manpower_count: config.other_manpower_count,
+        electricity_cost_per_unit: config.electricity_cost_per_unit || '',
+        labour_cost_per_hour: config.labour_cost_per_hour || '',
         supervisor: config.supervisor,
         operators: config.operators,
       });
@@ -94,6 +111,8 @@ function LineManagementPage() {
       rated_speed: config.rated_speed || '',
       labour_count: config.labour_count,
       other_manpower_count: config.other_manpower_count,
+      electricity_cost_per_unit: config.electricity_cost_per_unit || '',
+      labour_cost_per_hour: config.labour_cost_per_hour || '',
       supervisor: config.supervisor,
       operators: config.operators,
     });
@@ -116,6 +135,8 @@ function LineManagementPage() {
             rated_speed: form.rated_speed || null,
             labour_count: form.labour_count,
             other_manpower_count: form.other_manpower_count,
+            electricity_cost_per_unit: form.electricity_cost_per_unit || null,
+            labour_cost_per_hour: form.labour_cost_per_hour || null,
             supervisor: form.supervisor,
             operators: form.operators,
           },
@@ -134,6 +155,8 @@ function LineManagementPage() {
           rated_speed: form.rated_speed || null,
           labour_count: form.labour_count,
           other_manpower_count: form.other_manpower_count,
+          electricity_cost_per_unit: form.electricity_cost_per_unit || null,
+          labour_cost_per_hour: form.labour_cost_per_hour || null,
           supervisor: form.supervisor,
           operators: form.operators,
         });
@@ -212,8 +235,8 @@ function LineManagementPage() {
                 <Settings2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p>No configurations yet for this line.</p>
                 <p className="text-sm mt-1">
-                  Add multiple presets (e.g., different SKUs, shifts, or speed settings).
-                  Users can pick one when starting a production run.
+                  Add multiple presets (e.g., different SKUs, shifts, or speed settings). Users can
+                  pick one when starting a production run.
                 </p>
               </div>
             ) : (
@@ -225,6 +248,9 @@ function LineManagementPage() {
                       <th className="text-left p-3 font-medium">SKU</th>
                       <th className="text-right p-3 font-medium">Speed (cases/hr)</th>
                       <th className="text-right p-3 font-medium">Labour</th>
+                      <th className="text-right p-3 font-medium">Labour/hr</th>
+                      <th className="text-right p-3 font-medium">Electric/unit</th>
+                      <th className="text-right p-3 font-medium">Labour total/hr</th>
                       <th className="text-right p-3 font-medium">Other Manpower</th>
                       <th className="text-left p-3 font-medium">Supervisor</th>
                       <th className="text-left p-3 font-medium">Operators</th>
@@ -243,6 +269,17 @@ function LineManagementPage() {
                         </td>
                         <td className="p-3 text-right font-mono">{cfg.rated_speed || '-'}</td>
                         <td className="p-3 text-right">{cfg.labour_count}</td>
+                        <td className="p-3 text-right font-mono">
+                          {formatCost(cfg.labour_cost_per_hour)}
+                        </td>
+                        <td className="p-3 text-right font-mono">
+                          {formatCost(cfg.electricity_cost_per_unit)}
+                        </td>
+                        <td className="p-3 text-right font-mono">
+                          {getPresetLabourCost(cfg).toLocaleString('en-IN', {
+                            maximumFractionDigits: 2,
+                          })}
+                        </td>
                         <td className="p-3 text-right">{cfg.other_manpower_count}</td>
                         <td className="p-3">{cfg.supervisor || '-'}</td>
                         <td className="p-3 max-w-[150px] truncate">{cfg.operators || '-'}</td>
@@ -292,11 +329,9 @@ function LineManagementPage() {
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {editing ? 'Edit Configuration' : 'Add Configuration'}
-            </DialogTitle>
+            <DialogTitle>{editing ? 'Edit Configuration' : 'Add Configuration'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -361,7 +396,9 @@ function LineManagementPage() {
                   type="number"
                   min={0}
                   value={form.labour_count}
-                  onChange={(e) => setForm({ ...form, labour_count: parseInt(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    setForm({ ...form, labour_count: parseInt(e.target.value) || 0 })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -373,6 +410,30 @@ function LineManagementPage() {
                   onChange={(e) =>
                     setForm({ ...form, other_manpower_count: parseInt(e.target.value) || 0 })
                   }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Electricity Cost / Unit</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={form.electricity_cost_per_unit}
+                  onChange={(e) => setForm({ ...form, electricity_cost_per_unit: e.target.value })}
+                  placeholder="e.g., 500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Labour Cost / Hour</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={form.labour_cost_per_hour}
+                  onChange={(e) => setForm({ ...form, labour_cost_per_hour: e.target.value })}
+                  placeholder="e.g., 120"
                 />
               </div>
             </div>

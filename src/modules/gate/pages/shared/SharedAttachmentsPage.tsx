@@ -20,9 +20,19 @@ function isImageUrl(url: string): boolean {
 
 interface SharedAttachmentsPageProps {
   config: EntryFlowConfig;
+  requireGatepass?: boolean;
+  requiredDocumentLabel?: string;
+  requiredDocumentDescription?: string;
+  requiredDocumentError?: string;
 }
 
-export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageProps) {
+export default function SharedAttachmentsPage({
+  config,
+  requireGatepass = false,
+  requiredDocumentLabel,
+  requiredDocumentDescription,
+  requiredDocumentError,
+}: SharedAttachmentsPageProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
@@ -33,6 +43,12 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
   const previousStep = `step${config.totalSteps - 1}`;
 
   const [error, setError] = useState<string | null>(null);
+  const [uploadedAttachmentCount, setUploadedAttachmentCount] = useState(0);
+  const requiredLabel = requiredDocumentLabel || (requireGatepass ? 'Gatepass Document' : '');
+  const requiredDescription = requiredDocumentDescription || (
+    requireGatepass ? 'Gatepass scan, photo, or PDF' : ''
+  );
+  const isDocumentRequired = Boolean(requiredLabel);
 
   // Fetch existing attachments
   const { data: attachments, isLoading } = useGateAttachments(entryIdNumber);
@@ -49,6 +65,7 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
     for (const file of Array.from(files)) {
       try {
         await uploadAttachment.mutateAsync(file);
+        setUploadedAttachmentCount((count) => count + 1);
       } catch (err) {
         const apiError = err as ApiError;
         setError(apiError.message || `Failed to upload ${file.name}`);
@@ -79,6 +96,12 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
   };
 
   const handleNext = () => {
+    const attachmentCount = (attachments?.length || 0) + uploadedAttachmentCount;
+    if (isDocumentRequired && attachmentCount === 0) {
+      setError(requiredDocumentError || `${requiredLabel} upload is required before review.`);
+      return;
+    }
+
     if (isEditMode && entryId) {
       navigate(`${config.routePrefix}/edit/${entryId}/review`);
     } else {
@@ -106,7 +129,7 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Paperclip className="h-5 w-5" />
-                Attachments
+                {requiredLabel || 'Attachments'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -118,9 +141,11 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
                 >
                   <Upload className="h-10 w-10 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Click to upload files</p>
+                    <p className="text-sm font-medium">
+                      {requiredLabel ? `Click to upload ${requiredLabel.toLowerCase()}` : 'Click to upload files'}
+                    </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Images, documents, and other files
+                      {requiredDescription || 'Images, documents, and other files'}
                     </p>
                   </div>
                   {uploadAttachment.isPending && (
@@ -206,7 +231,9 @@ export default function SharedAttachmentsPage({ config }: SharedAttachmentsPageP
                 {/* Empty State */}
                 {(!attachments || attachments.length === 0) && (
                   <p className="text-sm text-muted-foreground text-center py-2">
-                    No attachments yet. Upload files or skip to continue.
+                    {requiredLabel
+                      ? `${requiredLabel} is required before continuing.`
+                      : 'No attachments yet. Upload files or skip to continue.'}
                   </p>
                 )}
               </div>

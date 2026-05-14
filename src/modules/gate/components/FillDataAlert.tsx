@@ -5,6 +5,8 @@ import { Button } from '@/shared/components/ui';
 interface FillDataAlertProps {
   /** Error message to display */
   message: string;
+  /** Optional button label */
+  buttonLabel?: string;
   /** Handler for Fill Data button click */
   onFillData: () => void;
 }
@@ -13,7 +15,7 @@ interface FillDataAlertProps {
  * Alert component shown when data is not found in edit mode.
  * Provides a "Fill Data" button to allow users to enter new data.
  */
-export function FillDataAlert({ message, onFillData }: FillDataAlertProps) {
+export function FillDataAlert({ message, buttonLabel = 'Fill Data', onFillData }: FillDataAlertProps) {
   return (
     <div className="rounded-md bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4">
       <div className="flex items-center justify-between gap-4">
@@ -22,7 +24,7 @@ export function FillDataAlert({ message, onFillData }: FillDataAlertProps) {
           <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">{message}</p>
         </div>
         <Button onClick={onFillData} size="sm" variant="outline">
-          Fill Data
+          {buttonLabel}
         </Button>
       </div>
     </div>

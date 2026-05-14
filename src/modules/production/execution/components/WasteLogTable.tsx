@@ -7,10 +7,14 @@ interface WasteLogTableProps {
   showRunNumber?: boolean;
 }
 
+const getApprovalSign = (waste: WasteLog) => (
+  waste.approved_sign || waste.hod_sign || waste.store_sign || waste.am_sign || waste.engineer_sign || ''
+);
+
 export function WasteLogTable({ wasteLogs, onView, showRunNumber = false }: WasteLogTableProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[760px] text-sm">
         <thead>
           <tr className="border-b bg-muted/50">
             {showRunNumber && <th className="text-left p-2 font-medium">Run</th>}
@@ -19,10 +23,7 @@ export function WasteLogTable({ wasteLogs, onView, showRunNumber = false }: Wast
             <th className="text-left p-2 font-medium">UoM</th>
             <th className="text-left p-2 font-medium">Reason</th>
             <th className="text-left p-2 font-medium">Status</th>
-            <th className="text-center p-2 font-medium">Engineer</th>
-            <th className="text-center p-2 font-medium">AM</th>
-            <th className="text-center p-2 font-medium">Store</th>
-            <th className="text-center p-2 font-medium">HOD</th>
+            <th className="text-left p-2 font-medium">Approved By</th>
           </tr>
         </thead>
         <tbody>
@@ -40,14 +41,11 @@ export function WasteLogTable({ wasteLogs, onView, showRunNumber = false }: Wast
               <td className="p-2">{w.uom}</td>
               <td className="p-2 truncate max-w-[150px]">{w.reason}</td>
               <td className="p-2"><WasteApprovalBadge status={w.wastage_approval_status} /></td>
-              <td className="p-2 text-center">{w.engineer_sign ? '✓' : '-'}</td>
-              <td className="p-2 text-center">{w.am_sign ? '✓' : '-'}</td>
-              <td className="p-2 text-center">{w.store_sign ? '✓' : '-'}</td>
-              <td className="p-2 text-center">{w.hod_sign ? '✓' : '-'}</td>
+              <td className="p-2">{getApprovalSign(w) || '-'}</td>
             </tr>
           ))}
           {wasteLogs.length === 0 && (
-            <tr><td colSpan={showRunNumber ? 10 : 9} className="p-4 text-center text-muted-foreground">No waste logs</td></tr>
+            <tr><td colSpan={showRunNumber ? 7 : 6} className="p-4 text-center text-muted-foreground">No waste logs</td></tr>
           )}
         </tbody>
       </table>

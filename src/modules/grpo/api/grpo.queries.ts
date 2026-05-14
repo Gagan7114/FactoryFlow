@@ -1,17 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { PostGRPORequest } from '../types';
+import type { PostGRPORequest, PostServiceGRPORequest } from '../types';
 import { grpoApi } from './grpo.api';
 
 // Query keys
 export const GRPO_QUERY_KEYS = {
   all: ['grpo'] as const,
   pending: () => [...GRPO_QUERY_KEYS.all, 'pending'] as const,
+  allEntries: () => [...GRPO_QUERY_KEYS.all, 'all-entries'] as const,
   preview: (vehicleEntryId: number) =>
     [...GRPO_QUERY_KEYS.all, 'preview', vehicleEntryId] as const,
   history: (vehicleEntryId?: number) =>
     [...GRPO_QUERY_KEYS.all, 'history', vehicleEntryId] as const,
   detail: (postingId: number) => [...GRPO_QUERY_KEYS.all, 'detail', postingId] as const,
+  servicePending: () => [...GRPO_QUERY_KEYS.all, 'service', 'pending'] as const,
+  serviceOptions: () => [...GRPO_QUERY_KEYS.all, 'service', 'options'] as const,
+  servicePreview: (dispatchPlanId: number) =>
+    [...GRPO_QUERY_KEYS.all, 'service', 'preview', dispatchPlanId] as const,
+  serviceHistory: (dispatchPlanId?: number) =>
+    [...GRPO_QUERY_KEYS.all, 'service', 'history', dispatchPlanId] as const,
+  serviceDetail: (postingId: number) =>
+    [...GRPO_QUERY_KEYS.all, 'service', 'detail', postingId] as const,
   warehouses: () => ['warehouses'] as const,
   attachments: (postingId: number) =>
     [...GRPO_QUERY_KEYS.all, 'attachments', postingId] as const,
@@ -22,6 +31,16 @@ export function usePendingGRPOEntries() {
   return useQuery({
     queryKey: GRPO_QUERY_KEYS.pending(),
     queryFn: () => grpoApi.getPendingEntries(),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+}
+
+// Get all gate entries visible to GRPO (gate / QC / done)
+export function useAllGRPOEntries() {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.allEntries(),
+    queryFn: () => grpoApi.getAllEntries(),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
@@ -64,6 +83,61 @@ export function useGRPODetail(postingId: number | null) {
   return useQuery({
     queryKey: GRPO_QUERY_KEYS.detail(postingId!),
     queryFn: () => grpoApi.getDetail(postingId!),
+    enabled: !!postingId,
+  });
+}
+
+export function usePendingServiceGRPOEntries() {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.servicePending(),
+    queryFn: () => grpoApi.getServicePendingEntries(),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+}
+
+export function useServiceGRPOPreview(dispatchPlanId: number | null) {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.servicePreview(dispatchPlanId!),
+    queryFn: () => grpoApi.getServicePreview(dispatchPlanId!),
+    enabled: !!dispatchPlanId,
+  });
+}
+
+export function useServiceGRPOOptions(enabled: boolean = true) {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.serviceOptions(),
+    queryFn: () => grpoApi.getServiceOptions(),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePostServiceGRPO() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: PostServiceGRPORequest) => grpoApi.postService(data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: GRPO_QUERY_KEYS.servicePending() });
+      queryClient.invalidateQueries({
+        queryKey: GRPO_QUERY_KEYS.servicePreview(variables.dispatch_plan_id),
+      });
+      queryClient.invalidateQueries({ queryKey: GRPO_QUERY_KEYS.serviceHistory() });
+    },
+  });
+}
+
+export function useServiceGRPOHistory(dispatchPlanId?: number) {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.serviceHistory(dispatchPlanId),
+    queryFn: () => grpoApi.getServiceHistory(dispatchPlanId),
+  });
+}
+
+export function useServiceGRPODetail(postingId: number | null) {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.serviceDetail(postingId!),
+    queryFn: () => grpoApi.getServiceDetail(postingId!),
     enabled: !!postingId,
   });
 }

@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronRight,
+  Loader2,
   Plus,
   Trash2,
   XCircle,
@@ -33,20 +34,32 @@ import {
   useCreateProductionQCSession,
   useDeleteProductionQCSession,
 } from '../../api/productionQC';
-import type { ProductionQCSessionType, ProductionQCWorkflowStatus } from '../../types';
+import type {
+  ProductionQCSessionListItem,
+  ProductionQCSessionType,
+  ProductionQCWorkflowStatus,
+} from '../../types';
 
 // We need the run detail from production execution module
 import { useRunDetail } from '@/modules/production/execution/api';
 
 const WORKFLOW_BADGE: Record<
-  ProductionQCWorkflowStatus,
+  ProductionQCWorkflowStatus | 'PENDING',
   { label: string; className: string }
 > = {
+  PENDING: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' },
   DRAFT: { label: 'Draft', className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300' },
   SUBMITTED: { label: 'Submitted', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
   APPROVED: { label: 'Approved', className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
   REJECTED: { label: 'Rejected', className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' },
 };
+
+function getWorkflowBadge(session: ProductionQCSessionListItem) {
+  if (session.workflow_status === 'DRAFT' && !session.material_type) {
+    return WORKFLOW_BADGE.PENDING;
+  }
+  return WORKFLOW_BADGE[session.workflow_status];
+}
 
 export default function ProductionQCRunPage() {
   const { runId } = useParams<{ runId: string }>();
@@ -66,6 +79,17 @@ export default function ProductionQCRunPage() {
   const inProcessSessions = sessions.filter((s) => s.session_type === 'IN_PROCESS');
   const finalSessions = sessions.filter((s) => s.session_type === 'FINAL');
   const hasFinal = finalSessions.length > 0;
+  const finalNeedsParameterSetup = finalSessions.find(
+    (s) => s.workflow_status === 'DRAFT' && !s.material_type,
+  );
+  const canSelectFinalInDialog = !hasFinal || Boolean(finalNeedsParameterSetup);
+
+  const openCreateDialog = (type: ProductionQCSessionType = 'IN_PROCESS') => {
+    setMaterialTypeId(null);
+    setSessionType(type);
+    setCheckedAt(new Date().toISOString().slice(0, 16));
+    setShowCreateDialog(true);
+  };
 
   const handleCreate = async () => {
     if (!materialTypeId) {
@@ -78,7 +102,11 @@ export default function ProductionQCRunPage() {
         session_type: sessionType,
         checked_at: new Date(checkedAt).toISOString(),
       });
-      toast.success(`QC Round #${session.session_number} created`);
+      toast.success(
+        sessionType === 'FINAL' && finalNeedsParameterSetup
+          ? 'Final QC parameters selected'
+          : `QC Round #${session.session_number} created`,
+      );
       setShowCreateDialog(false);
       navigate(`/qc/production/sessions/${session.id}`);
     } catch {
@@ -115,7 +143,7 @@ export default function ProductionQCRunPage() {
             </p>
           )}
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => openCreateDialog()}>
           <Plus className="h-4 w-4 mr-2" /> New QC Round
         </Button>
       </div>
@@ -138,7 +166,7 @@ export default function ProductionQCRunPage() {
             ) : (
               <div className="space-y-2">
                 {inProcessSessions.map((session) => {
-                  const badge = WORKFLOW_BADGE[session.workflow_status];
+                  const badge = getWorkflowBadge(session);
                   return (
                     <Card
                       key={session.id}
@@ -212,12 +240,19 @@ export default function ProductionQCRunPage() {
               </div>
             ) : (
               finalSessions.map((session) => {
-                const badge = WORKFLOW_BADGE[session.workflow_status];
+                const badge = getWorkflowBadge(session);
+                const needsParameterSetup = session.workflow_status === 'DRAFT' && !session.material_type;
                 return (
                   <Card
                     key={session.id}
                     className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-purple-500"
-                    onClick={() => navigate(`/qc/production/sessions/${session.id}`)}
+                    onClick={() => {
+                      if (needsParameterSetup) {
+                        openCreateDialog('FINAL');
+                        return;
+                      }
+                      navigate(`/qc/production/sessions/${session.id}`);
+                    }}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -245,8 +280,15 @@ export default function ProductionQCRunPage() {
                               </span>
                             </div>
                             <div className="text-xs text-muted-foreground mt-0.5">
-                              {new Date(session.checked_at).toLocaleString()} &middot;{' '}
-                              {session.pass_count}/{session.total_params} pass
+                              {needsParameterSetup ? (
+                                <>FG approval requested &middot; select parameters</>
+                              ) : (
+                                <>
+                                  {new Date(session.checked_at).toLocaleString()} &middot;{' '}
+                                  {session.material_type_name && <>{session.material_type_name} &middot; </>}
+                                  {session.pass_count}/{session.total_params} pass
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -265,7 +307,11 @@ export default function ProductionQCRunPage() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New QC Round</DialogTitle>
+            <DialogTitle>
+              {sessionType === 'FINAL' && finalNeedsParameterSetup
+                ? 'Select Final QC Parameters'
+                : 'New QC Round'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -289,8 +335,8 @@ export default function ProductionQCRunPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="IN_PROCESS">In-Process</SelectItem>
-                  <SelectItem value="FINAL" disabled={hasFinal}>
-                    Final {hasFinal ? '(already exists)' : ''}
+                  <SelectItem value="FINAL" disabled={!canSelectFinalInDialog}>
+                    Final {!canSelectFinalInDialog ? '(already exists)' : finalNeedsParameterSetup ? '(requested)' : ''}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -314,7 +360,12 @@ export default function ProductionQCRunPage() {
                 onClick={handleCreate}
                 disabled={createSession.isPending}
               >
-                {createSession.isPending ? 'Creating...' : 'Create & Fill Results'}
+                {createSession.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {createSession.isPending
+                  ? 'Creating...'
+                  : sessionType === 'FINAL' && finalNeedsParameterSetup
+                    ? 'Load Parameters'
+                    : 'Create & Fill Results'}
               </Button>
             </div>
           </div>

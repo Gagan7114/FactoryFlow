@@ -45,6 +45,7 @@ export interface PendingGRPOEntry {
   entry_no: string;
   status: string;
   entry_time: string;
+  po_date: string | null;
   total_po_count: number;
   posted_po_count: number;
   pending_po_count: number;
@@ -186,10 +187,146 @@ export interface PendingSupplierGroup {
     supplier_name: string;
     branch_id: number | null;
     item_count: number;
+    po_date: string | null;
   }[];
 }
 
 // Enhanced pending entry with supplier grouping
 export interface PendingGRPOEntryWithSuppliers extends PendingGRPOEntry {
   suppliers?: PendingSupplierGroup[];
+}
+
+// Phase of a gate entry as surfaced to the GRPO operator
+export type EntryPhase = 'GATE' | 'QC' | 'DONE' | 'CANCELLED';
+
+// Compact supplier summary used in the All Entries view
+export interface AllGRPOEntrySupplier {
+  supplier_code: string;
+  supplier_name: string;
+  po_count: number;
+}
+
+// All-entries row (GET /grpo/all-entries/)
+export interface AllGRPOEntry {
+  vehicle_entry_id: number;
+  entry_no: string;
+  status: string;
+  status_label: string;
+  phase: EntryPhase;
+  is_ready_for_grpo: boolean;
+  is_fully_posted: boolean;
+  entry_time: string | null;
+  total_po_count: number;
+  posted_po_count: number;
+  pending_po_count: number;
+  suppliers: AllGRPOEntrySupplier[];
+  po_numbers: string[];
+}
+
+// Booked dispatch plan shown in Service GRPO pending queue
+export interface ServiceGRPOPendingEntry {
+  dispatch_plan_id: number;
+  sap_invoice_doc_entry: number;
+  sap_invoice_doc_num: string;
+  booking_status: string;
+  dispatch_date: string | null;
+  vehicle_no: string;
+  driver_name: string;
+  transporter_name: string;
+  transporter_gstin: string;
+  bilty_no: string;
+  bilty_date: string | null;
+  freight: string | null;
+  total_freight: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
+  is_ready_for_grpo: boolean;
+  default_amount: string;
+  default_service_description: string;
+  grpo_status: GRPOStatus | null;
+  sap_doc_num: number | null;
+  total_amount: string | null;
+}
+
+export interface PostServiceGRPORequest {
+  dispatch_plan_id: number;
+  vendor_code: string;
+  branch_id: number;
+  service_description: string;
+  amount: number;
+  tax_code?: string;
+  gl_account?: string;
+  comments?: string;
+  vendor_ref?: string;
+  extra_charges?: ExtraCharge[];
+  attachments?: File[];
+  doc_date?: string;
+  doc_due_date?: string;
+  tax_date?: string;
+  should_roundoff?: boolean;
+}
+
+export interface PostServiceGRPOResponse {
+  success: boolean;
+  service_grpo_posting_id: number;
+  sap_doc_entry: number | null;
+  sap_doc_num: number | null;
+  sap_doc_total: number | null;
+  message: string;
+  attachments: PostGRPOAttachmentResult[];
+}
+
+export interface ServiceGRPOBranchOption {
+  branch_id: number;
+  branch_name: string;
+}
+
+export interface ServiceGRPOTaxCodeOption {
+  tax_code: string;
+  tax_name: string;
+  rate: number | null;
+}
+
+export interface ServiceGRPOGLAccountOption {
+  account_code: string;
+  account_name: string;
+}
+
+export interface ServiceGRPOOptions {
+  branches: ServiceGRPOBranchOption[];
+  tax_codes: ServiceGRPOTaxCodeOption[];
+  gl_accounts: ServiceGRPOGLAccountOption[];
+}
+
+export interface ServiceGRPOHistoryLine {
+  id: number;
+  service_description: string;
+  amount: string;
+  tax_code: string;
+  gl_account: string;
+}
+
+export interface ServiceGRPOHistoryEntry {
+  id: number;
+  dispatch_plan: number;
+  dispatch_bill_no: string;
+  sap_invoice_doc_entry: number;
+  vehicle_no: string;
+  transporter_name: string;
+  vendor_code: string;
+  vendor_name: string;
+  sap_doc_entry: number | null;
+  sap_doc_num: number | null;
+  sap_doc_total: string | null;
+  total_amount: string | null;
+  status: GRPOStatus;
+  error_message: string | null;
+  posted_at: string | null;
+  posted_by: number | null;
+  created_at: string;
+  lines: ServiceGRPOHistoryLine[];
+  attachments: GRPOAttachment[];
 }

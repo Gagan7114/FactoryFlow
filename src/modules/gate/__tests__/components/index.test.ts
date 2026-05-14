@@ -34,6 +34,10 @@ describe('components/index barrel exports', () => {
     expect(content).toContain("export { FillDataAlert } from './FillDataAlert'");
   });
 
+  it('exports PONumberLookup', () => {
+    expect(content).toContain("export { PONumberLookup } from './PONumberLookup'");
+  });
+
   // ─── Form components ────────────────────────────────────────
 
   it('exports CategorySelect', () => {

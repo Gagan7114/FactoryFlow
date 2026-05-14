@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
 import { ChevronRight, Home, MoreHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getBreadcrumbMeta } from '@/app/registry';
@@ -9,10 +8,34 @@ import { getBreadcrumbMeta } from '@/app/registry';
  * Get display name for a path segment.
  * Uses label overrides from the module registry, falls back to auto-formatting.
  */
-function getDisplayName(segment: string, labels: Map<string, string>): string {
-  if (/^\d+$/.test(segment)) return `#${segment}`;
-  if (labels.has(segment)) return labels.get(segment)!;
+function matchesPathPattern(pattern: string, path: string): boolean {
+  const patternParts = pattern.split('/').filter(Boolean);
+  const pathParts = path.split('/').filter(Boolean);
+  if (patternParts.length !== pathParts.length) return false;
+
+  return patternParts.every((part, index) => part.startsWith(':') || part === pathParts[index]);
+}
+
+function getPatternLabel(path: string, labels: Map<string, string>): string | null {
+  for (const [pattern, label] of labels) {
+    if (pattern.includes(':') && matchesPathPattern(pattern, path)) {
+      return label;
+    }
+  }
+
+  return null;
+}
+
+function formatSegment(segment: string): string {
+  const stepMatch = segment.match(/^step(\d+)$/i);
+  if (stepMatch) return `Step ${stepMatch[1]}`;
   return segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+}
+
+function getDisplayName(segment: string, path: string, labels: Map<string, string>): string {
+  if (/^\d+$/.test(segment)) return `#${segment}`;
+  if (labels.has(path)) return labels.get(path)!;
+  return getPatternLabel(path, labels) || formatSegment(segment);
 }
 
 /**
@@ -92,7 +115,7 @@ export function Breadcrumbs() {
         return {
           path,
           segment,
-          displayName: getDisplayName(segment, labels),
+          displayName: getDisplayName(segment, path, labels),
           isNavigable: isNav,
           redirectPath,
           isClickable: !isLast && (isNav || !!redirectPath),

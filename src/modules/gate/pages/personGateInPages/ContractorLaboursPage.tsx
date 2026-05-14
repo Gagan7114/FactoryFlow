@@ -1,7 +1,5 @@
 import {
   ArrowLeft,
-  CircleCheck,
-  CircleMinus,
   Clock,
   LogIn,
   LogOut,
@@ -12,11 +10,12 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Badge, Button, Card, CardContent, Input, Label } from '@/shared/components/ui';
+import { GateStatusBadge } from '@/modules/gate/components';
+import { Button, Card, CardContent, Input, Label } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
 
-import { PERSON_TYPE_IDS } from '../../api/personGateIn/personGateIn.api';
 import type { ContractorLabourStatus, Gate } from '../../api/personGateIn/personGateIn.api';
+import { PERSON_TYPE_IDS } from '../../api/personGateIn/personGateIn.api';
 import {
   useBulkCreateEntry,
   useBulkExitEntry,
@@ -418,18 +417,9 @@ export default function ContractorLaboursPage() {
                       </td>
                       <td className="p-3 text-center">
                         {labour.is_inside ? (
-                          <Badge
-                            variant="default"
-                            className="bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-200"
-                          >
-                            <CircleCheck className="h-3 w-3 mr-1" />
-                            Inside
-                          </Badge>
+                          <GateStatusBadge status="IN" label="Inside" />
                         ) : (
-                          <Badge variant="secondary">
-                            <CircleMinus className="h-3 w-3 mr-1" />
-                            Outside
-                          </Badge>
+                          <GateStatusBadge status="OUT" label="Outside" />
                         )}
                       </td>
                       <td className="p-3 text-right">

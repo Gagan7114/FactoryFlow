@@ -127,6 +127,10 @@ describe('API_ENDPOINTS.PO', () => {
   it('OPEN_POS returns path with supplier code query param', () => {
     expect(API_ENDPOINTS.PO.OPEN_POS('SUP001')).toBe('/po/open-pos/?supplier_code=SUP001');
   });
+
+  it('OPEN_PO_BY_NUMBER returns exact PO lookup path', () => {
+    expect(API_ENDPOINTS.PO.OPEN_PO_BY_NUMBER('4500001234')).toBe('/po/open-pos/4500001234/items/');
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

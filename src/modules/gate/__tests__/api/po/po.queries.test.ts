@@ -16,12 +16,13 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('../../../api/po/po.api', () => ({
   poApi: {
+    getOpenPOByNumber: vi.fn(),
     getOpenPOs: vi.fn(),
     getVendors: vi.fn(),
   },
 }));
 
-import { useOpenPOs, useVendors } from '../../../api/po/po.queries';
+import { useOpenPOByNumberSearch, useOpenPOs, useVendors } from '../../../api/po/po.queries';
 
 // ═══════════════════════════════════════════════════════════════
 // Hook existence
@@ -34,5 +35,9 @@ describe('po queries', () => {
 
   it('exports useVendors as a function', () => {
     expect(typeof useVendors).toBe('function');
+  });
+
+  it('exports useOpenPOByNumberSearch as a function', () => {
+    expect(typeof useOpenPOByNumberSearch).toBe('function');
   });
 });

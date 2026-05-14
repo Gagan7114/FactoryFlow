@@ -20,10 +20,14 @@ export function useVehicleEntries(params?: VehicleEntriesParams) {
   });
 }
 
-export function useVehicleEntriesCount(params?: VehicleEntriesParams) {
+export function useVehicleEntriesCount(
+  params?: VehicleEntriesParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ['vehicleEntriesCount', params?.from_date, params?.to_date, params?.entry_type],
     queryFn: () => vehicleEntryApi.getCount(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

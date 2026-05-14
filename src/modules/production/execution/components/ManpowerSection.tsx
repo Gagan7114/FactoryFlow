@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2, Users } from 'lucide-react';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+
 import { Button, Card, CardContent, Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label } from '@/shared/components/ui';
-import { createLabourSchema, type CreateLabourFormData } from '../schemas';
+
+import { type CreateLabourFormData, createLabourSchema } from '../schemas';
 import type { ProductionRunDetail, ResourceLabour } from '../types';
 
 interface ManpowerSectionProps {
@@ -27,7 +29,9 @@ export function ManpowerSection({
 }: ManpowerSectionProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ResourceLabour | null>(null);
-  const totalManpower = run.labour_count + run.other_manpower_count;
+  const actualLabourCount = labourEntries.reduce((sum, e) => sum + e.worker_count, 0);
+  const labourCount = actualLabourCount > 0 ? actualLabourCount : run.labour_count;
+  const totalManpower = labourCount + run.other_manpower_count;
   const totalLabourCost = labourEntries.reduce((sum, e) => sum + parseFloat(e.total_cost || '0'), 0);
   const totalHours = (totalRunningMinutes / 60).toFixed(1);
 
@@ -80,7 +84,7 @@ export function ManpowerSection({
         <Card>
           <CardContent className="p-3">
             <div className="text-xs text-muted-foreground mb-1">Labour</div>
-            <p className="text-xl font-bold">{run.labour_count}</p>
+            <p className="text-xl font-bold">{labourCount}</p>
           </CardContent>
         </Card>
         <Card>

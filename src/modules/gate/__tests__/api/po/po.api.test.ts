@@ -21,6 +21,7 @@ vi.mock('@/config/constants', () => ({
   API_ENDPOINTS: {
     PO: {
       OPEN_POS: vi.fn(),
+      OPEN_PO_BY_NUMBER: vi.fn(),
       VENDORS: '/po/vendors/',
     },
   },
@@ -50,12 +51,16 @@ describe('poApi', () => {
     expect(typeof poApi.getVendors).toBe('function');
   });
 
+  it('has a getOpenPOByNumber method', () => {
+    expect(typeof poApi.getOpenPOByNumber).toBe('function');
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // No unexpected methods
   // ═══════════════════════════════════════════════════════════════
 
   it('exposes exactly the expected methods', () => {
     const methodNames = Object.keys(poApi).sort();
-    expect(methodNames).toEqual(['getOpenPOs', 'getVendors']);
+    expect(methodNames).toEqual(['getOpenPOByNumber', 'getOpenPOs', 'getVendors']);
   });
 });

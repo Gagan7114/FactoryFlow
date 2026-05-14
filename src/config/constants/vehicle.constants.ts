@@ -7,6 +7,10 @@ export const ENTRY_TYPES = {
   CONSTRUCTION: 'CONSTRUCTION',
   DAILY_NEED: 'DAILY_NEED',
   MAINTENANCE: 'MAINTENANCE',
+  EMPTY_VEHICLE: 'EMPTY_VEHICLE',
+  BST_IN: 'BST_IN',
+  BST_RETURN: 'BST_RETURN',
+  JOB_WORK: 'JOB_WORK',
 } as const;
 
 export type EntryType = (typeof ENTRY_TYPES)[keyof typeof ENTRY_TYPES];
@@ -19,6 +23,10 @@ export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
   CONSTRUCTION: 'Construction',
   DAILY_NEED: 'Daily Needs',
   MAINTENANCE: 'Maintenance',
+  EMPTY_VEHICLE: 'Empty Vehicle',
+  BST_IN: 'BST In',
+  BST_RETURN: 'BST Return',
+  JOB_WORK: 'Job Work',
 };
 
 // ============================================================================
@@ -82,6 +90,18 @@ export const WIZARD_CONFIGS: Record<EntryType, WizardStepConfig> = {
   MAINTENANCE: {
     totalSteps: 4,
     stepLabels: ['Vehicle & Driver', 'Security Check', 'Maintenance Details', 'Review'],
+  },
+  EMPTY_VEHICLE: {
+    totalSteps: 1,
+    stepLabels: ['Vehicle & Reason'],
+  },
+  BST_IN: {
+    totalSteps: 2,
+    stepLabels: ['Vehicle Receipt', 'Review'],
+  },
+  BST_RETURN: {
+    totalSteps: 2,
+    stepLabels: ['Vehicle Return', 'Review'],
   },
 };
 

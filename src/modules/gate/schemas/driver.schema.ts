@@ -51,13 +51,7 @@ export const driverSchema = z
       .string()
       .min(1, VALIDATION_MESSAGES.required('Mobile number'))
       .regex(VALIDATION_PATTERNS.phone, VALIDATION_MESSAGES.invalidPhone),
-    license_no: z
-      .string()
-      .min(1, VALIDATION_MESSAGES.required('Driving license number'))
-      .regex(
-        VALIDATION_PATTERNS.drivingLicense,
-        'License must be in format: State code + RTO + Year + Number (e.g., MH0220150001234)',
-      ),
+    license_no: z.string().min(1, VALIDATION_MESSAGES.required('Driving license number')),
     id_proof_type: z.string().min(1, VALIDATION_MESSAGES.required('ID proof type')),
     id_proof_number: z.string().min(1, VALIDATION_MESSAGES.required('ID proof number')),
     photo: z.instanceof(File).optional(),

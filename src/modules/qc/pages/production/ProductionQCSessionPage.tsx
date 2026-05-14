@@ -35,7 +35,7 @@ import {
   useSubmitProductionQCSession,
 } from '../../api/productionQC';
 import type {
-  ProductionQCResult,
+  ProductionQCSession,
   UpdateProductionQCResultRequest,
 } from '../../types';
 
@@ -50,6 +50,29 @@ interface ParameterState {
   remarks: string;
 }
 
+const WORKFLOW_BADGE: Record<string, { label: string; className: string }> = {
+  PENDING: {
+    label: 'Pending',
+    className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+  },
+  DRAFT: {
+    label: 'Draft',
+    className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+  },
+  SUBMITTED: {
+    label: 'Submitted',
+    className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  },
+  APPROVED: {
+    label: 'Approved',
+    className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  },
+};
+
 const getResultPlaceholder = (paramType: string) => {
   switch (paramType) {
     case 'NUMERIC': return 'Enter numeric value';
@@ -58,6 +81,13 @@ const getResultPlaceholder = (paramType: string) => {
     case 'TEXT': default: return 'Enter text value';
   }
 };
+
+function getWorkflowBadge(session: ProductionQCSession) {
+  if (session.workflow_status === 'DRAFT' && !session.material_type) {
+    return WORKFLOW_BADGE.PENDING;
+  }
+  return WORKFLOW_BADGE[session.workflow_status] ?? WORKFLOW_BADGE.DRAFT;
+}
 
 // ============================================================================
 // Component
@@ -73,7 +103,7 @@ export default function ProductionQCSessionPage() {
     numSessionId,
     session?.production_run ?? 0,
   );
-  const submitSession = useSubmitProductionQCSession(session?.production_run ?? 0);
+  const submitSession = useSubmitProductionQCSession();
 
   const [parameterResults, setParameterResults] = useState<Record<number, ParameterState>>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -193,6 +223,8 @@ export default function ProductionQCSessionPage() {
     );
   }
 
+  const workflowBadge = getWorkflowBadge(session);
+
   return (
     <div className="space-y-6">
       <Button
@@ -210,12 +242,8 @@ export default function ProductionQCSessionPage() {
             <h2 className="text-2xl font-bold tracking-tight">
               {session.session_type === 'FINAL' ? 'Final QC' : `QC Round #${session.session_number}`}
             </h2>
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-              session.workflow_status === 'SUBMITTED'
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-            }`}>
-              {session.workflow_status === 'SUBMITTED' ? 'Submitted' : 'Draft'}
+            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${workflowBadge.className}`}>
+              {workflowBadge.label}
             </span>
             {session.workflow_status === 'SUBMITTED' && session.overall_result && (
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -233,7 +261,7 @@ export default function ProductionQCSessionPage() {
             )}
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            Run #{session.run_number} &middot; {session.material_type_name} &middot;{' '}
+            Run #{session.run_number} &middot; {session.material_type_name || 'Parameters not selected'} &middot;{' '}
             {new Date(session.checked_at).toLocaleString()}
             {session.checked_by_name && ` · by ${session.checked_by_name}`}
           </p>
@@ -259,7 +287,24 @@ export default function ProductionQCSessionPage() {
         </div>
       )}
 
+      {!session.material_type && (
+        <Card>
+          <CardContent className="flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-semibold">FG QC request received</h3>
+              <p className="text-sm text-muted-foreground">
+                Select the parameter set from the run QC page before entering results.
+              </p>
+            </div>
+            <Button onClick={() => navigate(`/qc/production/runs/${session.production_run}`)}>
+              Select Parameters
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* QC Parameters — same layout as InspectionDetailPage */}
+      {session.material_type && (
       <Card>
         <CardHeader>
           <CardTitle>QC Parameters</CardTitle>
@@ -418,8 +463,10 @@ export default function ProductionQCSessionPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Footer Actions — same position as arrival slip inspection */}
+      {session.material_type && (
       <div className="flex flex-col-reverse gap-4 sm:flex-row sm:justify-between">
         <Button variant="outline" onClick={() => navigate(`/qc/production/runs/${session.production_run}`)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -440,6 +487,7 @@ export default function ProductionQCSessionPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Submit Dialog */}
       <Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>

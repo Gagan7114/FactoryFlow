@@ -40,6 +40,13 @@ export interface DailyNeedFullView {
     material_name: string;
     quantity: number;
     unit: string;
+    items?: Array<{
+      id: number | null;
+      line_no: number;
+      material_name: string;
+      quantity: number;
+      unit: string | null;
+    }>;
     receiving_department: string;
     bill_number: string | null;
     delivery_challan_number: string | null;

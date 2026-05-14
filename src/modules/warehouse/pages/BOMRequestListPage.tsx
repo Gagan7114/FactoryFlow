@@ -1,6 +1,6 @@
+import { AlertCircle, CheckCircle2, ClipboardList, Clock, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/shared/components/ui';
 
 import { useBOMRequests } from '../api';
-import type { BOMRequest, BOMRequestStatus } from '../types';
+import type { BOMRequestStatus } from '../types';
 
 function StatusBadge({ status }: { status: BOMRequestStatus }) {
   const config: Record<BOMRequestStatus, { label: string; variant: string; icon: typeof Clock }> = {
@@ -36,55 +36,10 @@ function StatusBadge({ status }: { status: BOMRequestStatus }) {
 
 function IssueBadge({ status }: { status: string }) {
   if (status === 'NOT_ISSUED') return <Badge variant="outline">Not Issued</Badge>;
-  if (status === 'PARTIALLY_ISSUED')
+  if (status === 'PARTIALLY_ISSUED') {
     return <Badge className="bg-amber-100 text-amber-800 border-0">Partial</Badge>;
+  }
   return <Badge className="bg-green-100 text-green-800 border-0">Fully Issued</Badge>;
-}
-
-function BOMRequestCard({ request, onClick }: { request: BOMRequest; onClick: () => void }) {
-  return (
-    <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
-      <CardContent className="p-4 space-y-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="font-semibold text-sm">BOM Request #{request.id}</p>
-            <p className="text-xs text-muted-foreground">
-              Run #{request.run_number} &middot; {request.run_date}
-            </p>
-          </div>
-          <StatusBadge status={request.status} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <p className="text-muted-foreground text-xs">Product</p>
-            <p className="font-medium truncate">{request.product || 'N/A'}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Required Qty</p>
-            <p className="font-medium">{request.required_qty}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Line</p>
-            <p className="font-medium">{request.line_name}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Materials</p>
-            <p className="font-medium">{request.lines_count ?? '—'} items</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">
-            By {request.requested_by_name || 'Unknown'}
-          </span>
-          {request.status !== 'PENDING' && request.status !== 'REJECTED' && (
-            <IssueBadge status={request.material_issue_status} />
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 export default function BOMRequestListPage() {
@@ -127,14 +82,54 @@ export default function BOMRequestListPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {requests.map((req) => (
-            <BOMRequestCard
-              key={req.id}
-              request={req}
-              onClick={() => navigate(`/warehouse/bom-requests/${req.id}`)}
-            />
-          ))}
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full min-w-[1040px] text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50 text-left">
+                <th className="px-3 py-2 font-medium">Request</th>
+                <th className="px-3 py-2 font-medium">Run</th>
+                <th className="px-3 py-2 font-medium">Product</th>
+                <th className="px-3 py-2 text-right font-medium">Required Qty</th>
+                <th className="px-3 py-2 font-medium">Line</th>
+                <th className="px-3 py-2 text-right font-medium">Materials</th>
+                <th className="px-3 py-2 font-medium">Requested By</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Issue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map((req) => (
+                <tr
+                  key={req.id}
+                  className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-muted/50"
+                  onClick={() => navigate(`/warehouse/bom-requests/${req.id}`)}
+                >
+                  <td className="px-3 py-3 font-semibold">#{req.id}</td>
+                  <td className="px-3 py-3">
+                    <p className="font-medium">Run #{req.run_number}</p>
+                    <p className="text-xs text-muted-foreground">{req.run_date}</p>
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="max-w-[320px] truncate font-medium">{req.product || 'N/A'}</p>
+                  </td>
+                  <td className="px-3 py-3 text-right font-medium">{req.required_qty}</td>
+                  <td className="px-3 py-3 font-medium">{req.line_name}</td>
+                  <td className="px-3 py-3 text-right font-medium">{req.lines_count ?? '-'} items</td>
+                  <td className="px-3 py-3 text-muted-foreground">
+                    {req.requested_by_name || 'Unknown'}
+                  </td>
+                  <td className="px-3 py-3">
+                    <StatusBadge status={req.status} />
+                  </td>
+                  <td className="px-3 py-3">
+                    {req.status !== 'PENDING' && req.status !== 'REJECTED'
+                      ? <IssueBadge status={req.material_issue_status} />
+                      : <span className="text-xs text-muted-foreground">-</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
