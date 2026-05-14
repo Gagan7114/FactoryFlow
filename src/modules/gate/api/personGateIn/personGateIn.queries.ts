@@ -346,12 +346,13 @@ export function useSearchPersonEntries(filters?: EntryFilters, enabled: boolean 
 
 // ===== Dashboard =====
 
-export function usePersonGateInDashboard() {
+export function usePersonGateInDashboard(enabled: boolean = true) {
   return useQuery({
     queryKey: ['personGateInDashboard'],
     queryFn: () => personGateInApi.getDashboard(),
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000, // Auto-refresh every minute
+    enabled,
   });
 }
 

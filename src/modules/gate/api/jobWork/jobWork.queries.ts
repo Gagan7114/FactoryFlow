@@ -11,26 +11,27 @@ import {
 
 export const JOB_WORK_QUERY_KEYS = {
   all: ['jobWork'] as const,
-  list: (params?: JobWorkGateInParams) =>
-    [...JOB_WORK_QUERY_KEYS.all, 'list', params] as const,
+  list: (params?: JobWorkGateInParams) => [...JOB_WORK_QUERY_KEYS.all, 'list', params] as const,
   detail: (id?: number | null) => [...JOB_WORK_QUERY_KEYS.all, 'detail', id] as const,
   byVehicleEntry: (vehicleEntryId?: number | null) =>
     [...JOB_WORK_QUERY_KEYS.all, 'byVehicleEntry', vehicleEntryId] as const,
-  sapGrpos: (params?: SAPGRPOParams) =>
-    [...JOB_WORK_QUERY_KEYS.all, 'sapGrpos', params] as const,
-  sapGrpo: (docEntry?: number | null) =>
-    [...JOB_WORK_QUERY_KEYS.all, 'sapGrpo', docEntry] as const,
+  sapGrpos: (params?: SAPGRPOParams) => [...JOB_WORK_QUERY_KEYS.all, 'sapGrpos', params] as const,
+  sapGrpo: (docEntry?: number | null) => [...JOB_WORK_QUERY_KEYS.all, 'sapGrpo', docEntry] as const,
   sapProductionOrders: (params?: SAPProductionOrderParams) =>
     [...JOB_WORK_QUERY_KEYS.all, 'sapProductionOrders', params] as const,
   sapProductionOrder: (docEntry?: number | null) =>
     [...JOB_WORK_QUERY_KEYS.all, 'sapProductionOrder', docEntry] as const,
 };
 
-export function useJobWorkGateInEntries(params?: JobWorkGateInParams) {
+export function useJobWorkGateInEntries(
+  params?: JobWorkGateInParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: JOB_WORK_QUERY_KEYS.list(params),
     queryFn: () => jobWorkApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

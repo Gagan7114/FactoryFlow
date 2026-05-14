@@ -16,19 +16,27 @@ export const EMPTY_VEHICLE_OUT_QUERY_KEYS = {
   detail: (id?: number | null) => [...EMPTY_VEHICLE_OUT_QUERY_KEYS.all, 'detail', id] as const,
 };
 
-export function useEmptyVehicleEligibleEntries(params?: EmptyVehicleGateOutParams) {
+export function useEmptyVehicleEligibleEntries(
+  params?: EmptyVehicleGateOutParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: EMPTY_VEHICLE_OUT_QUERY_KEYS.eligible(params),
     queryFn: () => emptyVehicleOutApi.eligibleEntries(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useEmptyVehicleGateOutEntries(params?: EmptyVehicleGateOutParams) {
+export function useEmptyVehicleGateOutEntries(
+  params?: EmptyVehicleGateOutParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: EMPTY_VEHICLE_OUT_QUERY_KEYS.list(params),
     queryFn: () => emptyVehicleOutApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

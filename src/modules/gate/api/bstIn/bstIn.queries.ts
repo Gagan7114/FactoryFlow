@@ -18,11 +18,12 @@ export const BST_IN_QUERY_KEYS = {
     [...BST_IN_QUERY_KEYS.all, 'eligibleOuts', params] as const,
 };
 
-export function useBSTGateInEntries(params?: BSTGateInParams) {
+export function useBSTGateInEntries(params?: BSTGateInParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: BST_IN_QUERY_KEYS.list(params),
     queryFn: () => bstInApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -42,11 +43,15 @@ export function useBSTGateInByVehicleEntry(vehicleEntryId?: number | null) {
   });
 }
 
-export function useBSTGateInEligibleOuts(params?: BSTGateInEligibleOutParams) {
+export function useBSTGateInEligibleOuts(
+  params?: BSTGateInEligibleOutParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: BST_IN_QUERY_KEYS.eligibleOuts(params),
     queryFn: () => bstInApi.eligibleOuts(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

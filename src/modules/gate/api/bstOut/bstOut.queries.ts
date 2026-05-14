@@ -21,11 +21,12 @@ export const BST_OUT_QUERY_KEYS = {
     [...BST_OUT_QUERY_KEYS.all, 'sapTransfer', docEntry] as const,
 };
 
-export function useBSTGateOutEntries(params?: BSTGateOutParams) {
+export function useBSTGateOutEntries(params?: BSTGateOutParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: BST_OUT_QUERY_KEYS.list(params),
     queryFn: () => bstOutApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

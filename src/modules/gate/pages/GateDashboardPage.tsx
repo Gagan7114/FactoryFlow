@@ -77,12 +77,12 @@ export default function GateDashboardPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermission();
   const [searchTerm, setSearchTerm] = useState('');
-  const statsByEntryType = useGateDashboardStats();
 
   const visibleEntryTypes = useMemo(
     () => GATE_ENTRY_TYPES.filter((entryType) => hasAnyPermission(entryType.viewPermissions)),
     [hasAnyPermission],
   );
+  const statsByEntryType = useGateDashboardStats(visibleEntryTypes);
 
   const filteredEntryTypes = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -219,37 +219,67 @@ function EntryTypeStatsPills({ stats }: { stats?: EntryTypeStats }) {
   );
 }
 
-function useGateDashboardStats(): Record<string, EntryTypeStats> {
+function useGateDashboardStats(
+  visibleEntryTypes: GateEntryTypeConfig[],
+): Record<string, EntryTypeStats> {
   const { dateRange } = useGlobalDateRange();
-  const rawMaterialCounts = useVehicleEntriesCount({
-    from_date: dateRange.from,
-    to_date: dateRange.to,
-    entry_type: ENTRY_TYPES.RAW_MATERIAL,
+  const visibleEntryIds = useMemo(
+    () => new Set(visibleEntryTypes.map((entryType) => entryType.id)),
+    [visibleEntryTypes],
+  );
+  const isVisible = (entryTypeId: string) => visibleEntryIds.has(entryTypeId);
+
+  const rawMaterialCounts = useVehicleEntriesCount(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      entry_type: ENTRY_TYPES.RAW_MATERIAL,
+    },
+    { enabled: isVisible('raw-materials') },
+  );
+  const dailyNeedsCounts = useVehicleEntriesCount(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      entry_type: ENTRY_TYPES.DAILY_NEED,
+    },
+    { enabled: isVisible('daily-needs') },
+  );
+  const maintenanceCounts = useVehicleEntriesCount(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      entry_type: ENTRY_TYPES.MAINTENANCE,
+    },
+    { enabled: isVisible('maintenance') },
+  );
+  const constructionCounts = useVehicleEntriesCount(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      entry_type: ENTRY_TYPES.CONSTRUCTION,
+    },
+    { enabled: isVisible('construction') },
+  );
+  const personDashboard = usePersonGateInDashboard(isVisible('visitor-labour'));
+  const emptyVehicleInEntries = useEmptyVehicleGateInEntries(undefined, {
+    enabled: isVisible('empty-vehicle-in'),
   });
-  const dailyNeedsCounts = useVehicleEntriesCount({
-    from_date: dateRange.from,
-    to_date: dateRange.to,
-    entry_type: ENTRY_TYPES.DAILY_NEED,
+  const emptyVehicleEligibleEntries = useEmptyVehicleEligibleEntries(undefined, {
+    enabled: isVisible('empty-vehicle-out'),
   });
-  const maintenanceCounts = useVehicleEntriesCount({
-    from_date: dateRange.from,
-    to_date: dateRange.to,
-    entry_type: ENTRY_TYPES.MAINTENANCE,
+  const emptyVehicleOutEntries = useEmptyVehicleGateOutEntries(undefined, {
+    enabled: isVisible('empty-vehicle-out'),
   });
-  const constructionCounts = useVehicleEntriesCount({
-    from_date: dateRange.from,
-    to_date: dateRange.to,
-    entry_type: ENTRY_TYPES.CONSTRUCTION,
+  const bstOutEntries = useBSTGateOutEntries(undefined, { enabled: isVisible('bst-out') });
+  const bstInEntries = useBSTGateInEntries(undefined, { enabled: isVisible('bst-in') });
+  const bstReturnEntries = useBSTGateReturnEntries(undefined, {
+    enabled: isVisible('bst-return'),
   });
-  const personDashboard = usePersonGateInDashboard();
-  const emptyVehicleInEntries = useEmptyVehicleGateInEntries();
-  const emptyVehicleEligibleEntries = useEmptyVehicleEligibleEntries();
-  const emptyVehicleOutEntries = useEmptyVehicleGateOutEntries();
-  const bstOutEntries = useBSTGateOutEntries();
-  const bstInEntries = useBSTGateInEntries();
-  const bstReturnEntries = useBSTGateReturnEntries();
-  const rejectedQCReturnEntries = useRejectedQCReturnEntries();
-  const jobWorkEntries = useJobWorkGateInEntries();
+  const rejectedQCReturnEntries = useRejectedQCReturnEntries({
+    enabled: isVisible('rejected-qc-return'),
+  });
+  const jobWorkEntries = useJobWorkGateInEntries(undefined, { enabled: isVisible('job-work') });
 
   const salesDispatchEntries = useMemo(() => readCustomerFlowEntries(SALES_DISPATCH_KEY), []);
   const customerReturnEntries = useMemo(() => readCustomerFlowEntries(CUSTOMER_RETURN_KEY), []);

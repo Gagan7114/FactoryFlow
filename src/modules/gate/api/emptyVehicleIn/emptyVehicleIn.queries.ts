@@ -25,19 +25,27 @@ export function useEmptyVehicleGateInReasons() {
   });
 }
 
-export function useEmptyVehicleGateInEntries(params?: EmptyVehicleGateInParams) {
+export function useEmptyVehicleGateInEntries(
+  params?: EmptyVehicleGateInParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: EMPTY_VEHICLE_IN_QUERY_KEYS.list(params),
     queryFn: () => emptyVehicleInApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useEligibleEmptyVehicleGateInEntries(params?: EmptyVehicleGateInParams) {
+export function useEligibleEmptyVehicleGateInEntries(
+  params?: EmptyVehicleGateInParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: EMPTY_VEHICLE_IN_QUERY_KEYS.eligible(params),
     queryFn: () => emptyVehicleInApi.eligible(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 

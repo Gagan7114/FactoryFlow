@@ -10,8 +10,7 @@ import {
 
 export const BST_RETURN_QUERY_KEYS = {
   all: ['bstReturn'] as const,
-  list: (params?: BSTGateReturnParams) =>
-    [...BST_RETURN_QUERY_KEYS.all, 'list', params] as const,
+  list: (params?: BSTGateReturnParams) => [...BST_RETURN_QUERY_KEYS.all, 'list', params] as const,
   detail: (id?: number | null) => [...BST_RETURN_QUERY_KEYS.all, 'detail', id] as const,
   byVehicleEntry: (vehicleEntryId?: number | null) =>
     [...BST_RETURN_QUERY_KEYS.all, 'byVehicleEntry', vehicleEntryId] as const,
@@ -19,11 +18,15 @@ export const BST_RETURN_QUERY_KEYS = {
     [...BST_RETURN_QUERY_KEYS.all, 'eligibleOuts', params] as const,
 };
 
-export function useBSTGateReturnEntries(params?: BSTGateReturnParams) {
+export function useBSTGateReturnEntries(
+  params?: BSTGateReturnParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: BST_RETURN_QUERY_KEYS.list(params),
     queryFn: () => bstReturnApi.list(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -43,11 +46,15 @@ export function useBSTGateReturnByVehicleEntry(vehicleEntryId?: number | null) {
   });
 }
 
-export function useBSTGateReturnEligibleOuts(params?: BSTGateReturnEligibleOutParams) {
+export function useBSTGateReturnEligibleOuts(
+  params?: BSTGateReturnEligibleOutParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: BST_RETURN_QUERY_KEYS.eligibleOuts(params),
     queryFn: () => bstReturnApi.eligibleOuts(params),
     staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
   });
 }
 
