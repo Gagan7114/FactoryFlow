@@ -139,29 +139,6 @@ function getFinalQCGate(session?: FinalQCGateSession) {
   };
 }
 
-function getProductionQCWorkflowBadge(status: string) {
-  const config: Record<string, { label: string; className: string }> = {
-    DRAFT: {
-      label: 'Draft',
-      className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-    },
-    SUBMITTED: {
-      label: 'Submitted',
-      className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    },
-    APPROVED: {
-      label: 'Approved',
-      className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    },
-    REJECTED: {
-      label: 'Rejected',
-      className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    },
-  };
-
-  return config[status] ?? config.DRAFT;
-}
-
 function RunDetailPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
@@ -569,7 +546,6 @@ function RunDetailPage() {
         <TabsList>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="materials">Materials ({materials.length})</TabsTrigger>
-          <TabsTrigger value="qc">QC ({qcSessions.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="timeline">
@@ -600,83 +576,6 @@ function RunDetailPage() {
                 actualProduction={isCompleted ? parseFloat(run.total_production || '0') : run.segments.reduce((sum, s) => sum + parseFloat(s.produced_cases || '0'), 0)}
                 requiredQty={run.required_qty ? parseFloat(run.required_qty) : undefined}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="qc">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Quality Control Sessions</h3>
-                <Button size="sm" variant="outline" onClick={() => navigate(`/qc/production/runs/${run.id}`)}>
-                  Open QC Page
-                </Button>
-              </div>
-              {qcSessions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  No QC sessions recorded for this run
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-2 font-medium">Round</th>
-                      <th className="text-left p-2 font-medium">Type</th>
-                      <th className="text-left p-2 font-medium">Material Type</th>
-                      <th className="text-left p-2 font-medium">Checked At</th>
-                      <th className="text-center p-2 font-medium">Parameters</th>
-                      <th className="text-left p-2 font-medium">Status</th>
-                      <th className="text-left p-2 font-medium">Result</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {qcSessions.map((s) => {
-                      const workflowBadge = getProductionQCWorkflowBadge(s.workflow_status);
-
-                      return (
-                        <tr
-                          key={s.id}
-                          className="border-b cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/qc/production/sessions/${s.id}`)}
-                        >
-                          <td className="p-2 font-medium">#{s.session_number}</td>
-                          <td className="p-2">
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                              s.session_type === 'FINAL'
-                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                                : 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400'
-                            }`}>
-                              {s.session_type === 'FINAL' ? 'Final' : 'In-Process'}
-                            </span>
-                          </td>
-                          <td className="p-2 text-muted-foreground">{s.material_type_name}</td>
-                          <td className="p-2 text-muted-foreground text-xs">{new Date(s.checked_at).toLocaleString()}</td>
-                          <td className="p-2 text-center">{s.pass_count}/{s.total_params}</td>
-                          <td className="p-2">
-                            <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${workflowBadge.className}`}>
-                              {workflowBadge.label}
-                            </span>
-                          </td>
-                          <td className="p-2">
-                            {s.overall_result ? (
-                              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                s.overall_result === 'PASS'
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                              }`}>
-                                {s.overall_result}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
             </CardContent>
           </Card>
         </TabsContent>
