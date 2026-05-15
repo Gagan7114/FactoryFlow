@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { SIDEBAR_CONFIG } from '@/config/constants';
+import { AiAssistantWidget } from '@/modules/ai/components';
 import { TooltipProvider } from '@/shared/components/ui';
 import { useLocalStorage } from '@/shared/hooks';
 
@@ -51,6 +52,7 @@ export function MainLayout() {
             <Outlet />
           </div>
         </main>
+        <AiAssistantWidget />
       </div>
     </TooltipProvider>
   );
