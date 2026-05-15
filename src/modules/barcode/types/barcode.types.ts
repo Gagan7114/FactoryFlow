@@ -254,6 +254,8 @@ export interface LabelData {
   exp_date: string;
   production_line: string;
   warehouse: string;
+  g_weight?: string;
+  n_weight?: string;
 }
 
 export interface PrintRequestPayload {
@@ -267,6 +269,7 @@ export interface BulkPrintItem {
   id: number;
   print_type?: 'ORIGINAL' | 'REPRINT';
   reprint_reason?: string;
+  printer_name?: string;
 }
 
 export interface LabelPrintLog {

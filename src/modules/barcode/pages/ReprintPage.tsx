@@ -10,9 +10,11 @@ import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { useBoxes, usePallets, usePrintBoxLabel, usePrintPalletLabel } from '../api';
 import type { BoxLabelData } from '../components/BoxLabel';
 import BoxLabel from '../components/BoxLabel';
-import { LABEL_PRINT_PAGE_STYLE } from '../components/labelPrint';
+import { DEFAULT_THERMAL_PRINTER_NAME, getLabelPrintPageStyle } from '../components/labelPrint';
 import type { PalletLabelData } from '../components/PalletLabel';
 import PalletLabel from '../components/PalletLabel';
+import PrinterProfileControls from '../components/PrinterProfileControls';
+import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, LabelData, Pallet } from '../types';
 
 export default function ReprintPage() {
@@ -23,12 +25,14 @@ export default function ReprintPage() {
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [reprintReason, setReprintReason] = useState('');
   const [currentLabel, setCurrentLabel] = useState<LabelData | null>(null);
+  const { printerName, printMode, setPrinterName, setPrintMode } = usePrinterProfile();
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: 'Reprint Label 60x40mm',
-    pageStyle: LABEL_PRINT_PAGE_STYLE,
+    documentTitle: 'Reprint Label 100x40mm',
+    ignoreGlobalStyles: true,
+    pageStyle: getLabelPrintPageStyle(printMode),
   });
 
   const { data: boxes = [], isLoading: loadingBoxes } = useBoxes(
@@ -56,12 +60,20 @@ export default function ReprintPage() {
       if (searchType === 'BOX') {
         label = await printBoxMutation.mutateAsync({
           boxId: selectedId,
-          data: { print_type: 'REPRINT', reprint_reason: reprintReason },
+          data: {
+            print_type: 'REPRINT',
+            reprint_reason: reprintReason,
+            printer_name: printerName.trim() || DEFAULT_THERMAL_PRINTER_NAME,
+          },
         });
       } else {
         label = await printPalletMutation.mutateAsync({
           palletId: selectedId,
-          data: { print_type: 'REPRINT', reprint_reason: reprintReason },
+          data: {
+            print_type: 'REPRINT',
+            reprint_reason: reprintReason,
+            printer_name: printerName.trim() || DEFAULT_THERMAL_PRINTER_NAME,
+          },
         });
       }
       setCurrentLabel(label);
@@ -216,31 +228,39 @@ export default function ReprintPage() {
 
           {/* Reprint reason + button */}
           {selectedId && (
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Reprint Reason *
-                </label>
-                <input
-                  className="w-full border rounded px-3 py-2 text-sm mt-1"
-                  placeholder="e.g. Label damaged, fell off, new repack"
-                  value={reprintReason}
-                  onChange={(e) => setReprintReason(e.target.value)}
-                />
+            <div className="space-y-3">
+              <PrinterProfileControls
+                printerName={printerName}
+                printMode={printMode}
+                onPrinterNameChange={setPrinterName}
+                onPrintModeChange={setPrintMode}
+              />
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Reprint Reason *
+                  </label>
+                  <input
+                    className="w-full border rounded px-3 py-2 text-sm mt-1"
+                    placeholder="e.g. Label damaged, fell off, new repack"
+                    value={reprintReason}
+                    onChange={(e) => setReprintReason(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={handleReprint}
+                  disabled={
+                    printBoxMutation.isPending ||
+                    printPalletMutation.isPending ||
+                    !reprintReason.trim()
+                  }
+                >
+                  <Printer className="h-4 w-4 mr-1" />
+                  {printBoxMutation.isPending || printPalletMutation.isPending
+                    ? 'Printing...'
+                    : `Reprint ${selectedLabel}`}
+                </Button>
               </div>
-              <Button
-                onClick={handleReprint}
-                disabled={
-                  printBoxMutation.isPending ||
-                  printPalletMutation.isPending ||
-                  !reprintReason.trim()
-                }
-              >
-                <Printer className="h-4 w-4 mr-1" />
-                {printBoxMutation.isPending || printPalletMutation.isPending
-                  ? 'Printing...'
-                  : `Reprint ${selectedLabel}`}
-              </Button>
             </div>
           )}
         </CardContent>

@@ -43,6 +43,16 @@ const MOVEMENT_COLORS: Record<PalletMovementType, string> = {
   VOID: 'text-red-600',
 };
 
+const formatApiError = (err: unknown, fallback: string) => {
+  const data = (err as { response?: { data?: unknown } })?.response?.data;
+  if (data && typeof data === 'object') {
+    const errorData = data as Record<string, unknown>;
+    if (typeof errorData.error === 'string') return errorData.error;
+    if (typeof errorData.detail === 'string') return errorData.detail;
+  }
+  return (err as Error)?.message || fallback;
+};
+
 export default function PalletDetailPage() {
   const { palletId } = useParams();
   const navigate = useNavigate();
@@ -54,10 +64,14 @@ export default function PalletDetailPage() {
   const [selectedAddBoxIds, setSelectedAddBoxIds] = useState<number[]>([]);
 
   // Fetch unpalletized boxes matching this pallet's item+batch
-  // Show all unpalletized boxes for this item (backend enforces same-batch on save)
   const { data: availableBoxes = [] } = useBoxes(
     addBoxesOpen && pallet
-      ? { item_code: pallet.item_code, unpalletized: 'true', status: 'ACTIVE' }
+      ? {
+          item_code: pallet.item_code,
+          batch_number: pallet.batch_number,
+          unpalletized: 'true',
+          status: 'ACTIVE',
+        }
       : undefined,
   );
 
@@ -81,10 +95,7 @@ export default function PalletDetailPage() {
       setAddBoxesOpen(false);
       setSelectedAddBoxIds([]);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Failed to add boxes',
-      );
+      toast.error(formatApiError(err, 'Failed to add boxes'));
     }
   };
 
@@ -340,36 +351,24 @@ export default function PalletDetailPage() {
             </p>
           ) : (
             <div className="max-h-64 overflow-y-auto space-y-1">
-              {availableBoxes.map((box) => {
-                const batchMatch = box.batch_number === pallet.batch_number;
-                return (
-                  <label
-                    key={box.id}
-                    className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-muted/50 ${batchMatch ? 'bg-muted/30' : 'bg-amber-50 border border-amber-200'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAddBoxIds.includes(box.id)}
-                      onChange={() => toggleAddBox(box.id)}
-                    />
-                    <span className="font-mono text-xs">{box.box_barcode}</span>
-                    <span className="text-sm">
-                      {box.qty} {box.uom}
-                    </span>
-                    <span
-                      className={`text-xs ${batchMatch ? 'text-muted-foreground' : 'text-amber-700 font-medium'}`}
-                    >
-                      Batch: {box.batch_number}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{box.current_warehouse}</span>
-                    {!batchMatch && (
-                      <Badge className="bg-amber-100 text-amber-800 text-[10px]">
-                        Different batch
-                      </Badge>
-                    )}
-                  </label>
-                );
-              })}
+              {availableBoxes.map((box) => (
+                <label
+                  key={box.id}
+                  className="flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-muted/50 bg-muted/30"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedAddBoxIds.includes(box.id)}
+                    onChange={() => toggleAddBox(box.id)}
+                  />
+                  <span className="font-mono text-xs">{box.box_barcode}</span>
+                  <span className="text-sm">
+                    {box.qty} {box.uom}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Batch: {box.batch_number}</span>
+                  <span className="text-xs text-muted-foreground">{box.current_warehouse}</span>
+                </label>
+              ))}
             </div>
           )}
           <DialogFooter>

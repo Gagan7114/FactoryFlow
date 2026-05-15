@@ -453,8 +453,8 @@ What happens:
 
 The current implementation renders QR labels. The backend returns `qr_payload`,
 and the frontend prints that value as the QR code. Each label is sized at
-60 mm x 40 mm, and print actions lay labels in three columns on a single A4
-PDF/print page so generated batches do not waste one page per barcode.
+100 mm x 40 mm for the TSC DA310, and print actions render one label per
+print-preview page. A4 barcode sheet printing is not used for this flow.
 
 ### 4. Scan Or Lookup
 
@@ -867,7 +867,7 @@ Configured in `FactoryFlow/src/modules/barcode/module.config.tsx`.
 | `BoxLabel.tsx` | Printable box label |
 | `PalletLabel.tsx` | Printable pallet label |
 | `PrintableLabel.tsx` | Print wrapper around rendered labels |
-| `labelPrint.ts` | Shared A4 grid print style for 60 mm x 40 mm labels |
+| `labelPrint.ts` | Shared TSC DA310 print style for 100 mm x 40 mm labels |
 
 Frontend barcode dependencies:
 

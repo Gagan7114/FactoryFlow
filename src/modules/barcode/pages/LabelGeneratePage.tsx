@@ -22,7 +22,9 @@ import {
 
 import { useCreatePallet, useGenerateBoxes, usePrintBulk, useProductionReleaseOil } from '../api';
 import BoxLabel from '../components/BoxLabel';
-import { LABEL_PRINT_PAGE_STYLE } from '../components/labelPrint';
+import { DEFAULT_THERMAL_PRINTER_NAME, getLabelPrintPageStyle } from '../components/labelPrint';
+import PrinterProfileControls from '../components/PrinterProfileControls';
+import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, BoxLabelData, ProductionReleaseOilRow } from '../types';
 import type { LabelData } from '../types';
 
@@ -107,12 +109,14 @@ export default function LabelGeneratePage() {
   const [generatedBoxes, setGeneratedBoxes] = useState<Box[]>([]);
   const [labelDataList, setLabelDataList] = useState<LabelData[]>([]);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
+  const { printerName, printMode, setPrinterName, setPrintMode } = usePrinterProfile();
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: 'Box Labels 60x40mm',
-    pageStyle: LABEL_PRINT_PAGE_STYLE,
+    documentTitle: 'Box Labels 100x40mm',
+    ignoreGlobalStyles: true,
+    pageStyle: getLabelPrintPageStyle(printMode),
   });
 
   // Form state
@@ -210,7 +214,11 @@ export default function LabelGeneratePage() {
 
       // Fetch label data for printing
       const labels = await printBulkMutation.mutateAsync(
-        boxes.map((b) => ({ label_type: 'BOX' as const, id: b.id })),
+        boxes.map((b) => ({
+          label_type: 'BOX' as const,
+          id: b.id,
+          printer_name: printerName.trim() || DEFAULT_THERMAL_PRINTER_NAME,
+        })),
       );
       setLabelDataList(labels);
     } catch (err: unknown) {
@@ -221,14 +229,15 @@ export default function LabelGeneratePage() {
   const handleCreatePallet = async () => {
     if (selectedBoxIds.length === 0) return;
     try {
+      const productionLine = form.production_line.trim();
       await palletMutation.mutateAsync({
         box_ids: selectedBoxIds,
         warehouse: form.warehouse,
-        production_line: form.production_line,
+        ...(productionLine ? { production_line: productionLine } : {}),
       });
-      alert('Pallet created successfully!');
-    } catch {
-      // Error handled by mutation
+      toast.success('Pallet created successfully!');
+    } catch (err: unknown) {
+      toast.error(formatApiError(err));
     }
   };
 
@@ -517,6 +526,15 @@ export default function LabelGeneratePage() {
               <Plus className="h-4 w-4 mr-1" />
               {generateMutation.isPending ? 'Generating...' : 'Generate Boxes'}
             </Button>
+          </div>
+
+          <div className="mt-4">
+            <PrinterProfileControls
+              printerName={printerName}
+              printMode={printMode}
+              onPrinterNameChange={setPrinterName}
+              onPrintModeChange={setPrintMode}
+            />
           </div>
 
           {generateMutation.isError && (

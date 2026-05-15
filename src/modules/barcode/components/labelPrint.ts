@@ -1,18 +1,25 @@
-export const LABEL_WIDTH = '60mm';
+export const LABEL_WIDTH = '100mm';
 export const LABEL_HEIGHT = '40mm';
 
-export const LABEL_PRINT_PAGE_STYLE = `
+export type LabelPrintMode = 'TSC_DA310_100X40';
+
+export const DEFAULT_THERMAL_PRINTER_NAME = 'TSC DA310';
+
+const TSC_DA310_100X40_PAGE_STYLE = `
   @page {
-    size: A4 portrait;
-    margin: 5mm;
+    size: 100mm 40mm;
+    margin: 0;
   }
 
   @media print {
     html,
     body {
+      width: 100mm;
+      min-height: 40mm;
       margin: 0 !important;
       padding: 0 !important;
       background: #fff !important;
+      overflow: visible !important;
     }
 
     * {
@@ -22,23 +29,32 @@ export const LABEL_PRINT_PAGE_STYLE = `
     }
 
     .barcode-print-sheet {
-      width: 100%;
+      width: 100mm;
       margin: 0;
       padding: 0;
       background: #fff;
-      display: grid;
-      grid-template-columns: repeat(3, 60mm);
-      grid-auto-rows: 40mm;
-      gap: 1mm;
-      align-content: start;
-      justify-content: start;
+      display: block;
     }
 
     .barcode-label {
-      width: 60mm;
+      width: 100mm;
       height: 40mm;
+      margin: 0;
+      page-break-after: always;
+      break-after: page;
       page-break-inside: avoid;
       break-inside: avoid;
+      overflow: hidden;
+    }
+
+    .barcode-label:last-child {
+      page-break-after: auto;
+      break-after: auto;
     }
   }
 `;
+
+export const getLabelPrintPageStyle = (_mode: LabelPrintMode = 'TSC_DA310_100X40') =>
+  TSC_DA310_100X40_PAGE_STYLE;
+
+export const LABEL_PRINT_PAGE_STYLE = getLabelPrintPageStyle('TSC_DA310_100X40');

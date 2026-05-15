@@ -23,7 +23,8 @@ export default function PrintableLabel({
 
   const handlePrint = useReactToPrint({
     contentRef,
-    documentTitle: 'Barcode Label 60x40mm',
+    documentTitle: 'Barcode Label 100x40mm',
+    ignoreGlobalStyles: true,
     pageStyle: LABEL_PRINT_PAGE_STYLE,
   });
 
