@@ -5,7 +5,7 @@ export const generateBoxesSchema = z.object({
   item_name: z.string().optional().default(''),
   batch_number: z.string().min(1, 'Batch number is required'),
   qty: z.coerce.number().positive('Quantity must be positive'),
-  box_count: z.coerce.number().int().min(1).max(500, 'Max 500 boxes at once'),
+  box_count: z.coerce.number().int().min(1).max(5000, 'Max 5000 boxes at once'),
   uom: z.string().optional().default(''),
   mfg_date: z.string().min(1, 'Manufacturing date is required'),
   exp_date: z.string().min(1, 'Expiry date is required'),

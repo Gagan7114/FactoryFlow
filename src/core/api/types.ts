@@ -13,11 +13,7 @@ export interface ApiError {
   detail?: string;
   /** Raw response object for accessing nested error data */
   response?: {
-    data?: {
-      detail?: string;
-      message?: string;
-      errors?: Record<string, string[]>;
-    };
+    data?: Record<string, unknown>;
     status?: number;
   };
 }

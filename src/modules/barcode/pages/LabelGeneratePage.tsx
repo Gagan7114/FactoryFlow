@@ -28,6 +28,8 @@ import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, BoxLabelData, ProductionReleaseOilRow } from '../types';
 import type { LabelData } from '../types';
 
+const MAX_BOX_LABELS_PER_REQUEST = 5000;
+
 const getProductionReleaseLabel = (release: ProductionReleaseOilRow) => {
   const docNumber = release.doc_num ?? release.doc_entry ?? '';
   return `${docNumber} - ${release.item_code} - ${release.item_name}`;
@@ -191,6 +193,11 @@ export default function LabelGeneratePage() {
 
     if (!Number.isInteger(boxCount) || boxCount < 1) {
       toast.error('Number of Boxes must be a whole number of labels, like 1 or 25');
+      return;
+    }
+
+    if (boxCount > MAX_BOX_LABELS_PER_REQUEST) {
+      toast.error(`Number of Boxes cannot be more than ${MAX_BOX_LABELS_PER_REQUEST}`);
       return;
     }
 

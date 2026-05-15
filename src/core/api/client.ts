@@ -118,6 +118,12 @@ function extractFieldErrors(
   return Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
 }
 
+function formatFieldErrors(errors: Record<string, string[]>): string {
+  return Object.entries(errors)
+    .map(([field, messages]) => `${field.replaceAll('_', ' ')}: ${messages.join(', ')}`)
+    .join(' | ');
+}
+
 /**
  * Extract a human-readable error message from API response data.
  * Checks 'detail' (Django REST), 'message', and 'error' fields.
@@ -143,6 +149,9 @@ function extractErrorMessage(
       return String(errValue[0]);
     }
   }
+
+  const fieldErrors = extractFieldErrors(responseData);
+  if (fieldErrors) return formatFieldErrors(fieldErrors);
 
   return fallback;
 }
@@ -219,6 +228,10 @@ function createApiClient(): AxiosInstance {
             code: error.code,
             errors: extractFieldErrors(responseData),
             status: error.response?.status || 401,
+            response: {
+              data: responseData,
+              status: error.response?.status,
+            },
           };
           return Promise.reject(apiError);
         }
@@ -255,6 +268,10 @@ function createApiClient(): AxiosInstance {
         code: error.code,
         errors: extractFieldErrors(responseData),
         status: error.response?.status || 500,
+        response: {
+          data: responseData,
+          status: error.response?.status,
+        },
       };
 
       // Show global toast notification for API errors
