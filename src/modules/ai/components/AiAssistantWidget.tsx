@@ -1,5 +1,5 @@
 import { Bot, Loader2, MessageCircle, Send, X } from 'lucide-react';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -20,6 +20,148 @@ const suggestedQuestions = [
   'Find latest boxes for FG0000004',
   'Explain status code 400 in label generation',
 ];
+
+type AssistantMarkdownBlock =
+  | {
+      type: 'paragraph';
+      text: string;
+    }
+  | {
+      type: 'list';
+      ordered: boolean;
+      items: string[];
+    };
+
+function parseAssistantMarkdown(content: string): AssistantMarkdownBlock[] {
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  const blocks: AssistantMarkdownBlock[] = [];
+  let paragraphLines: string[] = [];
+  let listBlock: Extract<AssistantMarkdownBlock, { type: 'list' }> | null = null;
+
+  const flushParagraph = () => {
+    if (paragraphLines.length === 0) return;
+    blocks.push({
+      type: 'paragraph',
+      text: paragraphLines.join(' '),
+    });
+    paragraphLines = [];
+  };
+
+  const flushList = () => {
+    if (!listBlock) return;
+    blocks.push(listBlock);
+    listBlock = null;
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+
+    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+    const numberedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+    const listMatch = bulletMatch ?? numberedMatch;
+
+    if (listMatch) {
+      const ordered = Boolean(numberedMatch);
+      flushParagraph();
+      if (!listBlock || listBlock.ordered !== ordered) {
+        flushList();
+        listBlock = { type: 'list', ordered, items: [] };
+      }
+      listBlock.items.push(listMatch[1]);
+      continue;
+    }
+
+    flushList();
+    paragraphLines.push(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+function renderInlineMarkdown(text: string, keyPrefix: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    const content = token.slice(2, -2);
+    if (token.startsWith('**')) {
+      nodes.push(
+        <strong className="font-semibold" key={`${keyPrefix}-bold-${match.index}`}>
+          {content}
+        </strong>,
+      );
+    } else {
+      nodes.push(
+        <code
+          className="rounded bg-background/80 px-1 py-0.5 font-mono text-[0.82em]"
+          key={`${keyPrefix}-code-${match.index}`}
+        >
+          {token.slice(1, -1)}
+        </code>,
+      );
+    }
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function AssistantMessageContent({ content }: { content: string }) {
+  const blocks = parseAssistantMarkdown(content);
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2 leading-6">
+      {blocks.map((block, blockIndex) => {
+        if (block.type === 'paragraph') {
+          return (
+            <p key={`paragraph-${blockIndex}`}>
+              {renderInlineMarkdown(block.text, `paragraph-${blockIndex}`)}
+            </p>
+          );
+        }
+
+        const ListTag = block.ordered ? 'ol' : 'ul';
+        return (
+          <ListTag
+            className={cn(
+              'ml-4 space-y-1',
+              block.ordered ? 'list-decimal' : 'list-disc',
+            )}
+            key={`list-${blockIndex}`}
+          >
+            {block.items.map((item, itemIndex) => (
+              <li key={`list-${blockIndex}-${itemIndex}`}>
+                {renderInlineMarkdown(item, `list-${blockIndex}-${itemIndex}`)}
+              </li>
+            ))}
+          </ListTag>
+        );
+      })}
+    </div>
+  );
+}
 
 function getAssistantErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -156,7 +298,11 @@ export function AiAssistantWidget() {
                       : 'bg-muted text-foreground',
                   )}
                 >
-                  <p className="whitespace-pre-wrap leading-6">{message.content}</p>
+                  {message.role === 'assistant' ? (
+                    <AssistantMessageContent content={message.content} />
+                  ) : (
+                    <p className="whitespace-pre-wrap leading-6">{message.content}</p>
+                  )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {message.sources.map((source) => (
