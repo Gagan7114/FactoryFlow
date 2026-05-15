@@ -36,9 +36,15 @@ export function PONumberLookup() {
   const [poNumber, setPoNumber] = useState('');
   const [searchedPoNumber, setSearchedPoNumber] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [showAllItems, setShowAllItems] = useState(false);
   const poSearch = useOpenPOByNumberSearch();
 
   const po = poSearch.data;
+  const visibleItems = useMemo(() => {
+    if (!po) return [];
+    return showAllItems ? po.items : po.items.slice(0, 3);
+  }, [po, showAllItems]);
+
   const totalOpenQty = useMemo(() => {
     if (!po) return 0;
     return po.items.reduce((sum, item) => sum + Number(item.remaining_qty || 0), 0);
@@ -61,6 +67,7 @@ export function PONumberLookup() {
 
     setValidationError('');
     setSearchedPoNumber(trimmedPoNumber);
+    setShowAllItems(false);
     poSearch.reset();
     poSearch.mutate(trimmedPoNumber);
   };
@@ -157,7 +164,7 @@ export function PONumberLookup() {
                     </tr>
                   </thead>
                   <tbody>
-                    {po.items.slice(0, 3).map((item) => (
+                    {visibleItems.map((item) => (
                       <tr key={item.line_num} className="border-t">
                         <td className="p-2">
                           <div className="font-medium">{item.item_name}</div>
@@ -170,10 +177,14 @@ export function PONumberLookup() {
                     ))}
                   </tbody>
                 </table>
-                {po.items.length > 3 && (
-                  <p className="border-t p-2 text-xs text-muted-foreground">
+                {po.items.length > 3 && !showAllItems && (
+                  <button
+                    type="button"
+                    className="w-full border-t p-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => setShowAllItems(true)}
+                  >
                     +{po.items.length - 3} more item{po.items.length - 3 === 1 ? '' : 's'}
-                  </p>
+                  </button>
                 )}
               </div>
             )}
