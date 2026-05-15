@@ -115,10 +115,10 @@ describe('Sidebar', () => {
     expect(content).toMatch(/from\s*['"]@\/config\/constants['"]/);
   });
 
-  it('renders Jivo Wellness logo', () => {
+  it('renders JI logo', () => {
     const content = readSource();
-    expect(content).toContain('src="/JivoWellnessLogo.png"');
-    expect(content).toContain('alt="Jivo Wellness Logo"');
+    expect(content).toContain('src="/factoryLogoNew.png"');
+    expect(content).toContain('alt="JI Logo"');
   });
 
   it('contains <nav> element for navigation items', () => {

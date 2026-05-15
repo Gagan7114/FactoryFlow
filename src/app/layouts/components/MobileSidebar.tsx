@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { getAllNavigation } from '@/app/registry';
+import { APP_NAME } from '@/config/constants';
 import { usePermission } from '@/core/auth';
 import type { ModuleNavItem } from '@/core/types';
 import {
@@ -98,7 +99,8 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
       <SheetContent side="left" className="w-64 p-0 flex flex-col overflow-hidden">
         <SheetHeader className="border-b p-4">
           <SheetTitle className="flex items-center gap-2">
-            <img src="/JivoWellnessLogo.png" alt="Jivo Wellness Logo" className="h-8 dark:invert" />
+            <img src="/factoryLogoNew.png" alt="JI Logo" className="h-8 dark:invert" />
+            <span className="text-xl font-semibold tracking-normal">{APP_NAME}</span>
           </SheetTitle>
         </SheetHeader>
 

@@ -107,7 +107,7 @@ describe('MobileSidebar', () => {
 
   it('renders logo in SheetHeader', () => {
     const content = readSource();
-    expect(content).toContain('src="/JivoWellnessLogo.png"');
+    expect(content).toContain('src="/factoryLogoNew.png"');
     expect(content).toContain('<SheetHeader');
   });
 

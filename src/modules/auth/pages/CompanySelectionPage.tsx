@@ -88,8 +88,8 @@ export default function CompanySelectionPage() {
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-4">
           <img
-            src="/JivoWellnessLogo.png"
-            alt="Jivo Wellness Logo"
+            src="/factoryLogoNew.png"
+            alt="JI Logo"
             className="h-16 w-auto dark:invert cursor-pointer"
             onClick={() => window.location.reload()}
           />

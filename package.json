@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "generate-pwa-assets": "pwa-assets-generator",
+    "generate-pwa-assets": "pwa-assets-generator -p minimal public/factoryLogoNew.png",
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
