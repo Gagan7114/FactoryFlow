@@ -89,7 +89,7 @@ export default function CompanySelectionPage() {
         <div className="flex justify-center mb-4">
           <img
             src="/factoryLogoNew.png"
-            alt="JI Logo"
+            alt="Jivo Info Logo"
             className="h-16 w-auto dark:invert cursor-pointer"
             onClick={() => window.location.reload()}
           />

@@ -84,7 +84,7 @@ describe('LoginPage', () => {
 
   it('renders the brand logo', () => {
     render(<LoginPage />);
-    const logo = screen.getByAltText('JI Logo');
+    const logo = screen.getByAltText('Jivo Info Logo');
     expect(logo).toBeInTheDocument();
     expect(logo).toHaveAttribute('src', '/factoryLogoNew.png');
   });

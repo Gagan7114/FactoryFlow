@@ -123,7 +123,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       >
         <img
           src="/factoryLogoNew.png"
-          alt="JI Logo"
+          alt="Jivo Info Logo"
           className={cn(
             'dark:invert transition-all object-contain',
             isCollapsed ? 'h-8 w-8' : 'h-10 w-auto',

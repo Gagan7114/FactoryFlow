@@ -115,10 +115,10 @@ describe('Sidebar', () => {
     expect(content).toMatch(/from\s*['"]@\/config\/constants['"]/);
   });
 
-  it('renders JI logo', () => {
+  it('renders Jivo Info logo', () => {
     const content = readSource();
     expect(content).toContain('src="/factoryLogoNew.png"');
-    expect(content).toContain('alt="JI Logo"');
+    expect(content).toContain('alt="Jivo Info Logo"');
   });
 
   it('contains <nav> element for navigation items', () => {

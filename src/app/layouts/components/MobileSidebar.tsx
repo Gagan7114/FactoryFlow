@@ -99,7 +99,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
       <SheetContent side="left" className="w-64 p-0 flex flex-col overflow-hidden">
         <SheetHeader className="border-b p-4">
           <SheetTitle className="flex items-center gap-2">
-            <img src="/factoryLogoNew.png" alt="JI Logo" className="h-8 dark:invert" />
+            <img src="/factoryLogoNew.png" alt="Jivo Info Logo" className="h-8 dark:invert" />
             <span className="text-xl font-semibold tracking-normal">{APP_NAME}</span>
           </SheetTitle>
         </SheetHeader>

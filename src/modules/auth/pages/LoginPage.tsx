@@ -60,7 +60,7 @@ export default function LoginPage() {
         <div className="flex justify-center mb-4">
           <img
             src="/factoryLogoNew.png"
-            alt="JI Logo"
+            alt="Jivo Info Logo"
             className="h-16 w-auto dark:invert"
           />
         </div>
