@@ -1,11 +1,11 @@
 import { Truck } from 'lucide-react';
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { VEHICLE_MANAGEMENT_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
 const VehicleManagementDashboardPage = lazy(() => import('./pages/VehicleManagementDashboardPage'));
-const DispatchVehicleLinkingPage = lazy(() => import('./pages/DispatchVehicleLinkingPage'));
 const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
 const TransportersPage = lazy(() => import('./pages/TransportersPage'));
 const DriversPage = lazy(() => import('./pages/DriversPage'));
@@ -13,7 +13,6 @@ const VehicleEntriesPage = lazy(() => import('./pages/VehicleEntriesPage'));
 
 const vehicleManagementViewPermissions = [
   VEHICLE_MANAGEMENT_PERMISSIONS.VIEW,
-  VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING,
 ] as const;
 
 export const vehicleManagementModuleConfig: ModuleConfig = {
@@ -28,7 +27,7 @@ export const vehicleManagementModuleConfig: ModuleConfig = {
     },
     {
       path: '/vehicle-management/dispatch-linking',
-      element: <DispatchVehicleLinkingPage />,
+      element: <Navigate to="/dispatch/vehicle-linking" replace />,
       layout: 'main',
       permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
       breadcrumb: { label: 'Dispatch Linking' },
@@ -80,11 +79,6 @@ export const vehicleManagementModuleConfig: ModuleConfig = {
       permissions: vehicleManagementViewPermissions,
       hasSubmenu: true,
       children: [
-        {
-          path: '/vehicle-management/dispatch-linking',
-          title: 'Dispatch Vehicle Linking',
-          permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
-        },
         {
           path: '/vehicle-management/vehicles',
           title: 'Vehicles',

@@ -22,6 +22,10 @@ function formatNumber(value: number, fractionDigits = 2): string {
   });
 }
 
+function hasQuantity(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
 export function DispatchLinkingTable({
   bills,
   isLoading,
@@ -99,7 +103,9 @@ export function DispatchLinkingTable({
                 <td className="px-4 py-3 align-top tabular-nums">
                   <div>{formatNumber(bill.total_litres)} L</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatNumber(bill.total_boxes)} boxes
+                    {hasQuantity(bill.total_boxes)
+                      ? `${formatNumber(bill.total_boxes)} boxes`
+                      : 'Boxes not available'}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {formatNumber(bill.total_weight, 3)} kg

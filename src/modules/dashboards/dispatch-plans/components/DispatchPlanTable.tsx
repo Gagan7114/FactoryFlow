@@ -47,6 +47,10 @@ function compactText(value: string | null | undefined, fallback = '-'): string {
   return value?.trim() || fallback;
 }
 
+function hasQuantity(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
 export function DispatchPlanTable({ bills, isLoading, canEdit, onEdit }: DispatchPlanTableProps) {
   const [sort, setSort] = useState<SortState>({
     col: 'create_date',
@@ -204,7 +208,9 @@ export function DispatchPlanTable({ bills, isLoading, canEdit, onEdit }: Dispatc
                   <td className="px-4 py-3 text-right align-top tabular-nums">
                     <div>{formatNumber(bill.total_litres, 2)} L</div>
                     <div className="text-xs text-muted-foreground">
-                      {formatNumber(bill.total_boxes, 2)} boxes
+                      {hasQuantity(bill.total_boxes)
+                        ? `${formatNumber(bill.total_boxes, 2)} boxes`
+                        : 'Boxes not available'}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {formatNumber(bill.total_weight, 3)} kg

@@ -1,4 +1,4 @@
-import { ClipboardList, IdCard, Link2, Truck, UsersRound } from 'lucide-react';
+import { ClipboardList, IdCard, Truck, UsersRound } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,14 +16,6 @@ interface VehicleManagementCard {
 }
 
 const vehicleManagementCards: VehicleManagementCard[] = [
-  {
-    title: 'Dispatch Vehicle Linking',
-    description: 'Link vehicles and drivers to dispatch plans released by planning.',
-    route: '/vehicle-management/dispatch-linking',
-    icon: <Link2 className="h-5 w-5" />,
-    color: 'text-blue-600',
-    permissions: [VEHICLE_MANAGEMENT_PERMISSIONS.DISPATCH_VEHICLE_LINKING],
-  },
   {
     title: 'Vehicles',
     description: 'Maintain vehicle numbers, types, capacity, and transporter ownership.',

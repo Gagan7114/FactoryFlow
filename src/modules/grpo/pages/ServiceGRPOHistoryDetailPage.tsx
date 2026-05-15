@@ -60,7 +60,7 @@ export default function ServiceGRPOHistoryDetailPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service/history')}
+              onClick={() => navigate('/dispatch/bilty-grpo/history')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>

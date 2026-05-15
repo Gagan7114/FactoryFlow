@@ -305,7 +305,7 @@ export default function ServiceGRPOPreviewPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service/pending')}
+              onClick={() => navigate('/dispatch/bilty-grpo/pending')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -791,7 +791,7 @@ export default function ServiceGRPOPreviewPage() {
               className="w-full"
               onClick={() => {
                 setSuccessResult(null);
-                navigate('/grpo/service/history');
+                navigate('/dispatch/bilty-grpo/history');
               }}
             >
               View History
