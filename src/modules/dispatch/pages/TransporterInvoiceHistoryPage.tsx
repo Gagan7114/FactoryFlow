@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
 import { Badge, Button, Card, CardContent, Input } from '@/shared/components/ui';
@@ -53,15 +53,18 @@ const formatCurrency = (value?: string | number | null) => {
 
 export default function TransporterInvoiceHistoryPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: history = [], isLoading, error, refetch } = useTransporterInvoiceHistory();
   const [search, setSearch] = useState('');
+  const statusFilter = (searchParams.get('status') || '').toUpperCase();
 
   const apiError = error as ApiError | null;
   const filteredHistory = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return history;
-    return history.filter((entry) =>
-      [
+    return history.filter((entry) => {
+      if (statusFilter && entry.status !== statusFilter) return false;
+      if (!term) return true;
+      return [
         entry.invoice_number,
         entry.vendor_code,
         entry.vendor_name,
@@ -70,9 +73,9 @@ export default function TransporterInvoiceHistoryPage() {
         entry.status,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(term)),
-    );
-  }, [history, search]);
+        .some((value) => String(value).toLowerCase().includes(term));
+    });
+  }, [history, search, statusFilter]);
 
   const postedTotal = history
     .filter((entry) => entry.status === 'POSTED')
@@ -91,9 +94,9 @@ export default function TransporterInvoiceHistoryPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-3xl font-bold tracking-tight">Transporter Invoice History</h2>
+            <h2 className="text-3xl font-bold tracking-tight">A/P Invoice History</h2>
           </div>
-          <p className="text-muted-foreground">SAP A/P Invoices posted from bilty GRPOs</p>
+          <p className="text-muted-foreground">Submitted and posted A/P Invoices from bilty GRPOs</p>
         </div>
         <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
           <RefreshCw className="mr-2 h-4 w-4" />
@@ -117,11 +120,17 @@ export default function TransporterInvoiceHistoryPage() {
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search invoice, vendor, SAP document"
           />
+          {statusFilter && (
+            <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              Showing {STATUS_LABELS[statusFilter as TransporterAPInvoiceStatus] || statusFilter}
+              {' '}A/P Invoice records
+            </div>
+          )}
 
           {apiError && (
             <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-              <span>{apiError.message || 'Failed to load transporter invoice history.'}</span>
+              <span>{apiError.message || 'Failed to load A/P Invoice history.'}</span>
             </div>
           )}
 
@@ -131,7 +140,7 @@ export default function TransporterInvoiceHistoryPage() {
             </div>
           ) : filteredHistory.length === 0 ? (
             <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
-              No transporter invoice postings found.
+              No A/P Invoice records found.
             </div>
           ) : (
             <div className="space-y-2">

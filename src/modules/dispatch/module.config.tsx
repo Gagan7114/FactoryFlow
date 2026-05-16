@@ -28,6 +28,9 @@ const ServiceGRPOHistoryDetailPage = lazy(
 );
 const OpenBiltiesPage = lazy(() => import('./pages/OpenBiltiesPage'));
 const TransporterInvoicesPage = lazy(() => import('./pages/TransporterInvoicesPage'));
+const TransporterInvoiceQueuePage = lazy(
+  () => import('./pages/TransporterInvoiceQueuePage'),
+);
 const TransporterInvoiceHistoryPage = lazy(
   () => import('./pages/TransporterInvoiceHistoryPage'),
 );
@@ -148,14 +151,21 @@ export const dispatchModuleConfig: ModuleConfig = {
       element: <TransporterInvoicesPage />,
       layout: 'main',
       permissions: [DISPATCH_PERMISSIONS.POST_TRANSPORTER_AP_INVOICE],
-      breadcrumb: { label: 'Transporter Invoices' },
+      breadcrumb: { label: 'A/P Invoice' },
+    },
+    {
+      path: '/dispatch/transporter-invoices/pending',
+      element: <TransporterInvoiceQueuePage />,
+      layout: 'main',
+      permissions: [DISPATCH_PERMISSIONS.POST_TRANSPORTER_AP_INVOICE],
+      breadcrumb: { label: 'Pending A/P Invoice' },
     },
     {
       path: '/dispatch/transporter-invoices/history',
       element: <TransporterInvoiceHistoryPage />,
       layout: 'main',
       permissions: [DISPATCH_PERMISSIONS.VIEW_TRANSPORTER_AP_INVOICE],
-      breadcrumb: { label: 'Invoice History' },
+      breadcrumb: { label: 'A/P Invoice History' },
     },
     {
       path: '/dispatch/transporter-invoices/history/:postingId',
@@ -196,13 +206,8 @@ export const dispatchModuleConfig: ModuleConfig = {
         },
         {
           path: '/dispatch/transporter-invoices',
-          title: 'Transporter Invoices',
+          title: 'A/P Invoice',
           permissions: [DISPATCH_PERMISSIONS.POST_TRANSPORTER_AP_INVOICE],
-        },
-        {
-          path: '/dispatch/transporter-invoices/history',
-          title: 'Invoice History',
-          permissions: [DISPATCH_PERMISSIONS.VIEW_TRANSPORTER_AP_INVOICE],
         },
       ],
     },

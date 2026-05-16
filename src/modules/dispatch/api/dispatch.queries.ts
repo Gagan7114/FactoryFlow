@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   TransporterAPInvoicePostRequest,
   TransporterAPInvoicePreviewRequest,
+  TransporterAPInvoiceSAPPostRequest,
+  TransporterAPInvoiceSubmitRequest,
 } from '../types';
 import { dispatchApi } from './dispatch.api';
 
@@ -38,6 +40,49 @@ export function usePostTransporterInvoice() {
   return useMutation({
     mutationFn: (data: TransporterAPInvoicePostRequest) =>
       dispatchApi.postTransporterInvoice(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: DISPATCH_QUERY_KEYS.openBilties() });
+      queryClient.invalidateQueries({
+        queryKey: DISPATCH_QUERY_KEYS.transporterInvoiceHistory(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: DISPATCH_QUERY_KEYS.transporterInvoiceDetail(
+          response.transporter_ap_invoice_posting_id,
+        ),
+      });
+    },
+  });
+}
+
+export function useSubmitTransporterInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TransporterAPInvoiceSubmitRequest) =>
+      dispatchApi.submitTransporterInvoice(data),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: DISPATCH_QUERY_KEYS.openBilties() });
+      queryClient.invalidateQueries({
+        queryKey: DISPATCH_QUERY_KEYS.transporterInvoiceHistory(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: DISPATCH_QUERY_KEYS.transporterInvoiceDetail(
+          response.transporter_ap_invoice_posting_id,
+        ),
+      });
+    },
+  });
+}
+
+export function usePostSubmittedAPInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      postingId,
+      data,
+    }: {
+      postingId: number;
+      data: TransporterAPInvoiceSAPPostRequest;
+    }) => dispatchApi.postSubmittedAPInvoice(postingId, data),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: DISPATCH_QUERY_KEYS.openBilties() });
       queryClient.invalidateQueries({

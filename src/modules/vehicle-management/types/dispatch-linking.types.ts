@@ -31,6 +31,14 @@ export interface DispatchVehicleLinkPayload {
   invoice_weight: string | null;
   invoice_amount: string | null;
   place_of_supply: string;
+  product_variety: string;
+  total_litres: string | null;
+  effective_month: string | null;
+  budget_delivery_point: string;
+  service_location_code: number | null;
+  service_location_name: string;
+  sac_entry: number | null;
+  sac_code: string;
   vehicle_id: number | null;
   transporter_id: number | null;
   driver_id: number | null;

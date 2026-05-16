@@ -8,6 +8,8 @@ import type {
   TransporterAPInvoicePostResponse,
   TransporterAPInvoicePreview,
   TransporterAPInvoicePreviewRequest,
+  TransporterAPInvoiceSAPPostRequest,
+  TransporterAPInvoiceSubmitRequest,
 } from '../types';
 
 export const dispatchApi = {
@@ -49,6 +51,44 @@ export const dispatchApi = {
     const response = await apiClient.post<TransporterAPInvoicePostResponse>(
       API_ENDPOINTS.DISPATCH.TRANSPORTER_INVOICE_POST_AP_INVOICE,
       jsonData,
+    );
+    return response.data;
+  },
+
+  async submitTransporterInvoice(
+    data: TransporterAPInvoiceSubmitRequest,
+  ): Promise<TransporterAPInvoicePostResponse> {
+    const { attachments, ...jsonData } = data;
+    const files = attachments ?? [];
+
+    if (files.length > 0) {
+      const formData = new FormData();
+      formData.append('data', JSON.stringify(jsonData));
+      files.forEach((file) => {
+        formData.append('attachments', file);
+      });
+      const response = await apiClient.post<TransporterAPInvoicePostResponse>(
+        API_ENDPOINTS.DISPATCH.TRANSPORTER_INVOICE_SUBMIT,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      return response.data;
+    }
+
+    const response = await apiClient.post<TransporterAPInvoicePostResponse>(
+      API_ENDPOINTS.DISPATCH.TRANSPORTER_INVOICE_SUBMIT,
+      jsonData,
+    );
+    return response.data;
+  },
+
+  async postSubmittedAPInvoice(
+    postingId: number,
+    data: TransporterAPInvoiceSAPPostRequest,
+  ): Promise<TransporterAPInvoicePostResponse> {
+    const response = await apiClient.post<TransporterAPInvoicePostResponse>(
+      API_ENDPOINTS.DISPATCH.TRANSPORTER_INVOICE_POST_SUBMITTED(postingId),
+      data,
     );
     return response.data;
   },

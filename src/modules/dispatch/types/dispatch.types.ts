@@ -64,6 +64,15 @@ export interface TransporterAPInvoicePostRequest extends TransporterAPInvoicePre
   attachments?: File[];
 }
 
+export type TransporterAPInvoiceSubmitRequest = TransporterAPInvoicePostRequest;
+
+export interface TransporterAPInvoiceSAPPostRequest {
+  doc_date?: string | null;
+  doc_due_date?: string | null;
+  tax_date?: string | null;
+  comments?: string;
+}
+
 export interface TransporterAPInvoiceLine {
   id: number;
   service_grpo_posting_id: number;

@@ -297,8 +297,11 @@ export const API_ENDPOINTS = {
     BILTY_GRPO_HISTORY: '/dispatch/bilty-grpo/history/',
     BILTY_GRPO_DETAIL: (postingId: number) => `/dispatch/bilty-grpo/${postingId}/`,
     TRANSPORTER_INVOICE_PREVIEW: '/dispatch/transporter-invoices/preview/',
+    TRANSPORTER_INVOICE_SUBMIT: '/dispatch/transporter-invoices/submit/',
     TRANSPORTER_INVOICE_POST_AP_INVOICE:
       '/dispatch/transporter-invoices/post-ap-invoice/',
+    TRANSPORTER_INVOICE_POST_SUBMITTED: (postingId: number) =>
+      `/dispatch/transporter-invoices/${postingId}/post-ap-invoice/`,
     TRANSPORTER_INVOICE_HISTORY: '/dispatch/transporter-invoices/history/',
     TRANSPORTER_INVOICE_DETAIL: (postingId: number) =>
       `/dispatch/transporter-invoices/${postingId}/`,

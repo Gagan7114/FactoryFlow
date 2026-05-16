@@ -37,6 +37,7 @@ interface FormState {
   invoice_weight: string;
   invoice_amount: string;
   place_of_supply: string;
+  budget_delivery_point: string;
   vehicle_id: number | null;
   transporter_id: number | null;
   driver_id: number | null;
@@ -89,6 +90,7 @@ const EMPTY_FORM: FormState = {
   invoice_weight: '',
   invoice_amount: '',
   place_of_supply: '',
+  budget_delivery_point: '',
   vehicle_id: null,
   transporter_id: null,
   driver_id: null,
@@ -116,14 +118,15 @@ const EMPTY_FORM: FormState = {
 function formFromBill(bill: DispatchBill | null): FormState {
   if (!bill) return EMPTY_FORM;
   const sapVehicleNo = bill.sap_vehicle_no || bill.gst_vehicle_no || '';
-  const placeOfSupply = [bill.city, bill.state].filter(Boolean).join(' ');
+  const placeOfSupply = bill.state || bill.city || '';
 
   return {
     invoice_number: bill.plan.invoice_number || bill.doc_num || '',
     eway_bill: bill.plan.eway_bill || bill.sap_eway_bill || '',
-    invoice_weight: bill.plan.invoice_weight ?? numberToString(bill.total_weight),
+    invoice_weight: bill.plan.invoice_weight ?? '',
     invoice_amount: bill.plan.invoice_amount ?? numberToString(bill.doc_total),
     place_of_supply: bill.plan.place_of_supply || placeOfSupply,
+    budget_delivery_point: bill.plan.budget_delivery_point || bill.city || '',
     vehicle_id: bill.plan.vehicle_id ?? null,
     transporter_id: bill.plan.transporter_id ?? null,
     driver_id: bill.plan.driver_id ?? null,
@@ -163,6 +166,23 @@ function numberOrNull(value: string): number | null {
 
 function numberToString(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
+}
+
+function inferProductVariety(itemSummary: string): string {
+  const normalized = itemSummary.toLowerCase();
+  if (['water', 'drink', 'beverage', 'juice'].some((token) => normalized.includes(token))) {
+    return 'Beverage';
+  }
+  return itemSummary.trim() ? 'Oil' : '';
+}
+
+function monthValue(dateValue: string | null | undefined): string | null {
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 function formatNumber(value: number, fractionDigits = 2): string {
@@ -298,6 +318,14 @@ export function DispatchLinkingSheet({
       invoice_weight: stringOrNull(form.invoice_weight),
       invoice_amount: stringOrNull(form.invoice_amount),
       place_of_supply: form.place_of_supply.trim(),
+      product_variety: bill.plan.product_variety || inferProductVariety(bill.item_summary),
+      total_litres: bill.plan.total_litres ?? numberToString(bill.total_litres),
+      effective_month: bill.plan.effective_month || monthValue(bill.doc_date),
+      budget_delivery_point: form.budget_delivery_point.trim(),
+      service_location_code: bill.plan.service_location_code ?? null,
+      service_location_name: bill.plan.service_location_name || '',
+      sac_entry: bill.plan.sac_entry ?? null,
+      sac_code: bill.plan.sac_code || '',
       vehicle_id: form.vehicle_id,
       transporter_id: form.transporter_id,
       driver_id: form.driver_id,
@@ -384,7 +412,9 @@ export function DispatchLinkingSheet({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-invoice-weight">Invoice Weight</Label>
+              <Label htmlFor="dispatch-link-invoice-weight">
+                Invoice Weight <span className="text-muted-foreground">(Charged Kgs)</span>
+              </Label>
               <Input
                 id="dispatch-link-invoice-weight"
                 type="number"
@@ -405,12 +435,21 @@ export function DispatchLinkingSheet({
               />
             </div>
 
-            <div className="space-y-1.5 sm:col-span-2">
+            <div className="space-y-1.5">
               <Label htmlFor="dispatch-link-place-of-supply">Place of Supply</Label>
               <Input
                 id="dispatch-link-place-of-supply"
                 value={form.place_of_supply}
                 onChange={(event) => updateField('place_of_supply', event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="dispatch-link-delivery-point">Delivery Point</Label>
+              <Input
+                id="dispatch-link-delivery-point"
+                value={form.budget_delivery_point}
+                onChange={(event) => updateField('budget_delivery_point', event.target.value)}
               />
             </div>
           </div>
@@ -446,7 +485,9 @@ export function DispatchLinkingSheet({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-kanta">Kanta Weight</Label>
+              <Label htmlFor="dispatch-link-kanta">
+                Kanta Weight <span className="text-muted-foreground">(Actual Kgs)</span>
+              </Label>
               <Input
                 id="dispatch-link-kanta"
                 type="number"

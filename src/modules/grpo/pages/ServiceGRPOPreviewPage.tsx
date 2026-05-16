@@ -41,6 +41,9 @@ import type {
   PostServiceGRPOResponse,
   ServiceGRPOBranchOption,
   ServiceGRPOGLAccountOption,
+  ServiceGRPOLocationOption,
+  ServiceGRPOProjectOption,
+  ServiceGRPOSACCodeOption,
   ServiceGRPOTaxCodeOption,
 } from '../types';
 
@@ -49,8 +52,22 @@ interface ServiceFormState {
   branchId: number;
   serviceDescription: string;
   amount: number;
+  unitPrice: number;
   taxCode: string;
   glAccount: string;
+  placeOfSupply: string;
+  effectiveMonth: string;
+  budgetDeliveryPoint: string;
+  locationCode: number | null;
+  locationName: string;
+  sacEntry: number | null;
+  sacCode: string;
+  productVariety: string;
+  totalLitres: number | null;
+  invoiceNumber: string;
+  ewayBill: string;
+  invoiceWeight: number | null;
+  invoiceAmount: number | null;
   vendorRef: string;
   comments: string;
   extraCharges: ExtraCharge[];
@@ -88,6 +105,16 @@ const parseAmount = (value?: string | number | null) => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
+const parseNullableAmount = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const monthInputValue = (dateStr?: string | null) => (dateStr ? dateStr.slice(0, 7) : '');
+
+const monthPayloadValue = (month: string) => (month ? month : null);
+
 const formatCurrency = (amount: number) =>
   amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
 
@@ -108,6 +135,50 @@ const parseTaxPercent = (taxCode?: string | null): number => {
   if (!taxCode) return 0;
   const match = taxCode.match(/@(\d+(?:\.\d+)?)$/);
   return match ? parseFloat(match[1]) : 0;
+};
+
+const findDefaultTaxCode = (options: ServiceGRPOTaxCodeOption[]) => {
+  const exact = options.find((tax) => tax.tax_code.toUpperCase() === 'GST05R');
+  if (exact) return exact.tax_code;
+  return options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || '';
+};
+
+const findDefaultSac = (
+  options: ServiceGRPOSACCodeOption[],
+  productVariety: string,
+  defaultEntry?: number | null,
+  defaultCode?: string,
+) => {
+  const byEntry = options.find((sac) => sac.sac_entry === defaultEntry);
+  if (byEntry) return byEntry;
+
+  const byCode = options.find((sac) => sac.sac_code === defaultCode);
+  if (byCode) return byCode;
+
+  const preferredCodes = productVariety.toLowerCase().includes('beverage')
+    ? ['996812']
+    : ['9967', '9965'];
+  return options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null;
+};
+
+const findDefaultLocation = (
+  options: ServiceGRPOLocationOption[],
+  defaultCode?: number | null,
+  defaultName?: string,
+) => {
+  const byCode = options.find((location) => location.location_code === defaultCode);
+  if (byCode) return byCode;
+
+  const normalizedDefault = (defaultName || '').toLowerCase();
+  const byName = normalizedDefault
+    ? options.find((location) => location.location_name.toLowerCase() === normalizedDefault)
+    : null;
+  if (byName) return byName;
+
+  return (
+    options.find((location) => /haryana|hr/i.test(`${location.location_name} ${location.state}`)) ||
+    null
+  );
 };
 
 export default function ServiceGRPOPreviewPage() {
@@ -131,31 +202,6 @@ export default function ServiceGRPOPreviewPage() {
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
 
-  const defaultForm = useMemo<ServiceFormState | null>(() => {
-    if (!preview) return null;
-    const date = preview.dispatch_date || today();
-    return {
-      vendorCode: '',
-      branchId: DEFAULT_BRANCH_ID,
-      serviceDescription: preview.default_service_description,
-      amount: parseAmount(preview.default_amount),
-      taxCode: '',
-      glAccount: '',
-      vendorRef: preview.bilty_no || preview.sap_invoice_doc_num || '',
-      comments: '',
-      extraCharges: [],
-      attachments: [],
-      docDate: date,
-      docDueDate: date,
-      taxDate: date,
-      shouldRoundoff: true,
-    };
-  }, [preview]);
-
-  const currentPlanId = preview?.dispatch_plan_id ?? null;
-  const form =
-    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
-
   const branchOptions =
     serviceOptions?.branches && serviceOptions.branches.length > 0
       ? serviceOptions.branches
@@ -165,6 +211,61 @@ export default function ServiceGRPOPreviewPage() {
       ? serviceOptions.tax_codes
       : FALLBACK_TAX_CODE_OPTIONS;
   const glAccountOptions = serviceOptions?.gl_accounts ?? [];
+  const sacOptions = serviceOptions?.sac_codes ?? [];
+  const locationOptions = serviceOptions?.locations ?? [];
+  const projectOptions = serviceOptions?.projects ?? [];
+
+  const defaultForm = useMemo<ServiceFormState | null>(() => {
+    if (!preview) return null;
+    const date = preview.dispatch_date || today();
+    const productVariety = preview.default_product_variety || '';
+    const defaultSac = findDefaultSac(
+      sacOptions,
+      productVariety,
+      preview.default_sac_entry,
+      preview.default_sac_code,
+    );
+    const defaultLocation = findDefaultLocation(
+      locationOptions,
+      preview.default_location_code,
+      preview.default_location_name,
+    );
+    const amount = parseAmount(preview.default_amount);
+    return {
+      vendorCode: '',
+      branchId: DEFAULT_BRANCH_ID,
+      serviceDescription: preview.default_service_description,
+      amount,
+      unitPrice: amount,
+      taxCode: findDefaultTaxCode(taxCodeOptions),
+      glAccount: '',
+      placeOfSupply: preview.default_place_of_supply || 'HR',
+      effectiveMonth: monthInputValue(preview.default_effective_month),
+      budgetDeliveryPoint: preview.default_budget_delivery_point || '',
+      locationCode: defaultLocation?.location_code ?? null,
+      locationName: defaultLocation?.location_name || preview.default_location_name || '',
+      sacEntry: defaultSac?.sac_entry ?? preview.default_sac_entry ?? null,
+      sacCode: defaultSac?.sac_code || preview.default_sac_code || '',
+      productVariety,
+      totalLitres: parseNullableAmount(preview.default_total_litres),
+      invoiceNumber: preview.invoice_number || preview.sap_invoice_doc_num || '',
+      ewayBill: preview.eway_bill || '',
+      invoiceWeight: parseNullableAmount(preview.invoice_weight),
+      invoiceAmount: parseNullableAmount(preview.invoice_amount),
+      vendorRef: preview.bilty_no || preview.sap_invoice_doc_num || '',
+      comments: '',
+      extraCharges: [],
+      attachments: [],
+      docDate: date,
+      docDueDate: date,
+      taxDate: date,
+      shouldRoundoff: true,
+    };
+  }, [locationOptions, preview, sacOptions, taxCodeOptions]);
+
+  const currentPlanId = preview?.dispatch_plan_id ?? null;
+  const form =
+    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
 
   const updateCurrentForm = useCallback(
     (updater: (current: ServiceFormState) => ServiceFormState) => {
@@ -192,6 +293,38 @@ export default function ServiceGRPOPreviewPage() {
     },
     [updateCurrentForm],
   );
+
+  const updateSac = (sac: ServiceGRPOSACCodeOption | null) => {
+    updateCurrentForm((current) => ({
+      ...current,
+      sacEntry: sac?.sac_entry ?? null,
+      sacCode: sac?.sac_code || '',
+    }));
+    setApiErrors((prev) => {
+      if (!prev.sacEntry) return prev;
+      const next = { ...prev };
+      delete next.sacEntry;
+      return next;
+    });
+  };
+
+  const updateLocation = (location: ServiceGRPOLocationOption | null) => {
+    updateCurrentForm((current) => ({
+      ...current,
+      locationCode: location?.location_code ?? null,
+      locationName: location?.location_name || '',
+    }));
+    setApiErrors((prev) => {
+      if (!prev.locationCode) return prev;
+      const next = { ...prev };
+      delete next.locationCode;
+      return next;
+    });
+  };
+
+  const updateProject = (project: ServiceGRPOProjectOption | null) => {
+    updateFormField('budgetDeliveryPoint', project?.project_code || '');
+  };
 
   const addAttachments = (files: FileList) => {
     updateCurrentForm((current) => ({
@@ -245,6 +378,21 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.glAccount.trim()) {
       errors.glAccount = 'G/L account is required for service GRPO';
     }
+    if (!form.placeOfSupply.trim()) {
+      errors.placeOfSupply = 'Place of supply is required';
+    }
+    if (!form.effectiveMonth) {
+      errors.effectiveMonth = 'Effective month is required';
+    }
+    if (!form.locationCode) {
+      errors.locationCode = 'Location is required';
+    }
+    if (!form.sacEntry) {
+      errors.sacEntry = 'SAC is required';
+    }
+    if (!form.productVariety.trim()) {
+      errors.productVariety = 'Variety is required';
+    }
     if (!form.vendorRef.trim()) {
       errors.vendorRef = 'Vendor reference is required';
     }
@@ -273,8 +421,22 @@ export default function ServiceGRPOPreviewPage() {
         branch_id: form.branchId,
         service_description: form.serviceDescription,
         amount: form.amount,
+        unit_price: form.unitPrice || form.amount,
         tax_code: form.taxCode || undefined,
         gl_account: form.glAccount || undefined,
+        place_of_supply: form.placeOfSupply || undefined,
+        effective_month: monthPayloadValue(form.effectiveMonth),
+        budget_delivery_point: form.budgetDeliveryPoint || undefined,
+        location_code: form.locationCode,
+        location_name: form.locationName || undefined,
+        sac_entry: form.sacEntry,
+        sac_code: form.sacCode || undefined,
+        product_variety: form.productVariety || undefined,
+        total_litres: form.totalLitres,
+        invoice_number: form.invoiceNumber || undefined,
+        eway_bill: form.ewayBill || undefined,
+        invoice_weight: form.invoiceWeight,
+        invoice_amount: form.invoiceAmount,
         comments: form.comments || undefined,
         vendor_ref: form.vendorRef || undefined,
         extra_charges: form.extraCharges.length > 0 ? form.extraCharges : undefined,
@@ -508,6 +670,19 @@ export default function ServiceGRPOPreviewPage() {
                       <p className="text-xs text-destructive">{apiErrors.amount}</p>
                     )}
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Unit Price</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form.unitPrice || ''}
+                      onChange={(e) =>
+                        updateFormField('unitPrice', parseFloat(e.target.value) || 0)
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
                   <SearchableSelect<ServiceGRPOTaxCodeOption>
                     value={form.taxCode}
                     items={taxCodeOptions}
@@ -537,6 +712,35 @@ export default function ServiceGRPOPreviewPage() {
                     notFoundText="No tax codes found"
                     onItemSelect={(tax) => updateFormField('taxCode', tax.tax_code)}
                     onClear={() => updateFormField('taxCode', '')}
+                  />
+                  <SearchableSelect<ServiceGRPOSACCodeOption>
+                    value={form.sacEntry ? String(form.sacEntry) : ''}
+                    items={sacOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && sacOptions.length === 0}
+                    error={apiErrors.sacEntry}
+                    label="SAC"
+                    required
+                    placeholder="Search SAC"
+                    inputId="service-grpo-sac"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(sac) => sac.sac_entry}
+                    getItemLabel={(sac) => `${sac.sac_code} - ${sac.sac_name}`}
+                    filterFn={(sac, search) =>
+                      sac.sac_code.toLowerCase().includes(search.toLowerCase()) ||
+                      sac.sac_name.toLowerCase().includes(search.toLowerCase())
+                    }
+                    renderItem={(sac) => (
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{sac.sac_code}</span>
+                        <span className="text-xs text-muted-foreground">{sac.sac_name}</span>
+                      </div>
+                    )}
+                    loadingText="Loading SAC codes..."
+                    emptyText="No SAC codes available"
+                    notFoundText="No SAC codes found"
+                    onItemSelect={updateSac}
+                    onClear={() => updateSac(null)}
                   />
                   <SearchableSelect<ServiceGRPOGLAccountOption>
                     value={form.glAccount}
@@ -573,6 +777,161 @@ export default function ServiceGRPOPreviewPage() {
                     }
                     onClear={() => updateFormField('glAccount', '')}
                   />
+                  <SearchableSelect<ServiceGRPOLocationOption>
+                    value={form.locationCode ? String(form.locationCode) : ''}
+                    items={locationOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && locationOptions.length === 0}
+                    error={apiErrors.locationCode}
+                    label="Location"
+                    required
+                    placeholder="Select location"
+                    inputId="service-grpo-location"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(location) => location.location_code}
+                    getItemLabel={(location) =>
+                      `${location.location_name}${location.state ? ` (${location.state})` : ''}`
+                    }
+                    filterFn={(location, search) =>
+                      `${location.location_name} ${location.state}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading locations..."
+                    emptyText="No locations available"
+                    notFoundText="No locations found"
+                    onItemSelect={updateLocation}
+                    onClear={() => updateLocation(null)}
+                  />
+                  <SearchableSelect<ServiceGRPOProjectOption>
+                    value={form.budgetDeliveryPoint}
+                    items={projectOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && projectOptions.length === 0}
+                    label="Budget / Delivery Point"
+                    placeholder="Select budget/project"
+                    inputId="service-grpo-project"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(project) => project.project_code}
+                    getItemLabel={(project) =>
+                      `${project.project_code} - ${project.project_name}`
+                    }
+                    filterFn={(project, search) =>
+                      `${project.project_code} ${project.project_name}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading projects..."
+                    emptyText="No projects available"
+                    notFoundText="No projects found"
+                    onItemSelect={updateProject}
+                    onClear={() => updateProject(null)}
+                  />
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Place of Supply <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      value={form.placeOfSupply}
+                      onChange={(e) => updateFormField('placeOfSupply', e.target.value)}
+                      className={`h-8 text-sm${
+                        apiErrors.placeOfSupply ? ' border-destructive' : ''
+                      }`}
+                    />
+                    {apiErrors.placeOfSupply && (
+                      <p className="text-xs text-destructive">{apiErrors.placeOfSupply}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Effective Month <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      type="month"
+                      value={form.effectiveMonth}
+                      onChange={(e) => updateFormField('effectiveMonth', e.target.value)}
+                      className={`h-8 text-sm${
+                        apiErrors.effectiveMonth ? ' border-destructive' : ''
+                      }`}
+                    />
+                    {apiErrors.effectiveMonth && (
+                      <p className="text-xs text-destructive">{apiErrors.effectiveMonth}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Variety <span className="text-destructive">*</span>
+                    </Label>
+                    <NativeSelect
+                      value={form.productVariety}
+                      onChange={(e) => updateFormField('productVariety', e.target.value)}
+                      placeholder="Select variety"
+                      className={`h-8 text-sm${
+                        apiErrors.productVariety ? ' border-destructive' : ''
+                      }`}
+                    >
+                      <SelectOption value="Oil">Oil</SelectOption>
+                      <SelectOption value="Beverage">Beverage</SelectOption>
+                    </NativeSelect>
+                    {apiErrors.productVariety && (
+                      <p className="text-xs text-destructive">{apiErrors.productVariety}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Total Litre</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form.totalLitres ?? ''}
+                      onChange={(e) =>
+                        updateFormField('totalLitres', parseNullableAmount(e.target.value))
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Invoice Number</Label>
+                    <Input
+                      value={form.invoiceNumber}
+                      onChange={(e) => updateFormField('invoiceNumber', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">E-way Bill</Label>
+                    <Input
+                      value={form.ewayBill}
+                      onChange={(e) => updateFormField('ewayBill', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Invoice Weight (Charged Kgs)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form.invoiceWeight ?? ''}
+                      onChange={(e) =>
+                        updateFormField('invoiceWeight', parseNullableAmount(e.target.value))
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Invoice Amount</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form.invoiceAmount ?? ''}
+                      onChange={(e) =>
+                        updateFormField('invoiceAmount', parseNullableAmount(e.target.value))
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Posting Date</Label>
                     <Input
@@ -734,6 +1093,18 @@ export default function ServiceGRPOPreviewPage() {
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">G/L Account</span>
                 <span className="font-medium">{form.glAccount}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">SAC</span>
+                <span className="font-medium">{form.sacCode || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Location</span>
+                <span className="font-medium">{form.locationName || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Place of Supply</span>
+                <span className="font-medium">{form.placeOfSupply || '-'}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
