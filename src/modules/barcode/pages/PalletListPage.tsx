@@ -1,11 +1,14 @@
-import { Search } from 'lucide-react';
+import { PackageOpen, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
+import { useWMSWarehouses } from '@/modules/warehouse/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import { Badge, Card, CardContent } from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePallets } from '../api';
+import { useCreatePallet, usePallets } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { PalletStatus } from '../types';
 
 const STATUS_COLORS: Record<PalletStatus, string> = {
@@ -15,21 +18,96 @@ const STATUS_COLORS: Record<PalletStatus, string> = {
   VOID: 'bg-red-100 text-red-800',
 };
 
+const formatBoxCapacity = (boxCount: number, maxBoxCount: number) => {
+  if (!maxBoxCount) return boxCount === 0 ? 'Not set' : String(boxCount);
+  return `${boxCount}/${maxBoxCount}`;
+};
+
 export default function PalletListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialStatus = searchParams.get('status') || '';
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [search, setSearch] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const createPalletMutation = useCreatePallet();
+  const { data: whList, isError: warehouseLoadFailed, isLoading: loadingWarehouses } =
+    useWMSWarehouses();
+  const [form, setForm] = useState({
+    warehouse: '',
+  });
 
   const { data: pallets = [], isLoading } = usePallets({
     status: statusFilter || undefined,
     search: search || undefined,
   });
 
+  const updateForm = (field: string, value: string) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleCreateEmptyPallet = async () => {
+    const warehouse = form.warehouse.trim();
+
+    if (!warehouse) {
+      toast.error('Warehouse name is required.');
+      return;
+    }
+
+    try {
+      const pallet = await createPalletMutation.mutateAsync({
+        box_ids: [],
+        warehouse,
+      });
+      toast.success(`Created pallet ${pallet.pallet_id}`);
+      navigate(`/barcode/pallets/${pallet.id}`);
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { error?: string; detail?: string } } })?.response
+        ?.data;
+      toast.error(data?.error || data?.detail || 'Failed to create pallet');
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Pallets" subtitle="All pallets with barcode tracking" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DashboardHeader title="Pallets" subtitle="All pallets with barcode tracking" />
+        <Button size="sm" onClick={() => setShowCreate((prev) => !prev)}>
+          <Plus className="h-4 w-4 mr-1" /> New Pallet
+        </Button>
+      </div>
+
+      {showCreate && (
+        <Card>
+          <CardContent className="space-y-4 p-4">
+            <div className="max-w-sm">
+              <label className="text-xs font-medium text-muted-foreground">Warehouse</label>
+              <select
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                value={form.warehouse}
+                onChange={(e) => updateForm('warehouse', e.target.value)}
+                disabled={loadingWarehouses}
+              >
+                <option value="">
+                  {loadingWarehouses ? 'Loading warehouses...' : 'Select warehouse'}
+                </option>
+                {whList?.warehouses.map((warehouse) => (
+                  <option key={warehouse.code} value={warehouse.code}>
+                    {warehouse.name ? `${warehouse.code} - ${warehouse.name}` : warehouse.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {warehouseLoadFailed && (
+              <p className="text-sm text-destructive">
+                Could not load warehouses from SAP HANA. Please refresh and try again.
+              </p>
+            )}
+            <Button onClick={handleCreateEmptyPallet} disabled={createPalletMutation.isPending}>
+              {createPalletMutation.isPending ? 'Creating...' : 'Create Empty Pallet'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -43,6 +121,7 @@ export default function PalletListPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <ScanSearchButton onScan={setSearch} />
         <select
           className="border rounded-md px-3 py-2 text-sm"
           value={statusFilter}
@@ -69,8 +148,6 @@ export default function PalletListPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-3 font-medium">Pallet ID</th>
-                    <th className="text-left p-3 font-medium">Item</th>
-                    <th className="text-left p-3 font-medium">Batch</th>
                     <th className="text-right p-3 font-medium">Boxes</th>
                     <th className="text-right p-3 font-medium">Total Qty</th>
                     <th className="text-left p-3 font-medium">Warehouse</th>
@@ -79,21 +156,25 @@ export default function PalletListPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pallets.map((p) => (
+                  {pallets.map((p) => {
+                    const isEmpty = p.box_count === 0;
+                    return (
                     <tr
                       key={p.id}
-                      className="border-b hover:bg-muted/30 cursor-pointer"
+                      className={`border-b cursor-pointer hover:bg-muted/30 ${
+                        isEmpty ? 'bg-amber-50/80' : ''
+                      }`}
                       onClick={() => navigate(`/barcode/pallets/${p.id}`)}
                     >
-                      <td className="p-3 font-mono text-xs">{p.pallet_id}</td>
-                      <td className="p-3">
-                        <div className="font-medium">{p.item_code}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                          {p.item_name}
+                      <td className="p-3 font-mono text-xs">
+                        <div className="flex items-center gap-2">
+                          {isEmpty && <PackageOpen className="h-4 w-4 text-amber-600" />}
+                          {p.pallet_id}
                         </div>
                       </td>
-                      <td className="p-3 text-xs">{p.batch_number}</td>
-                      <td className="p-3 text-right">{p.box_count}</td>
+                      <td className="p-3 text-right">
+                        {formatBoxCapacity(p.box_count, p.max_box_count)}
+                      </td>
                       <td className="p-3 text-right">
                         {p.total_qty} {p.uom}
                       </td>
@@ -105,7 +186,8 @@ export default function PalletListPage() {
                         {new Date(p.created_at).toLocaleDateString()}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

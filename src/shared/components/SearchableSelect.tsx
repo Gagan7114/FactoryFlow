@@ -32,6 +32,8 @@ export interface SearchableSelectProps<TItem> {
   inputClassName?: string;
   /** Text to display when value exists but items haven't loaded yet (edit mode) */
   defaultDisplayText?: string;
+  /** External scanned value to place in the search input */
+  scannedSearchValue?: string;
   // Item identity & display
   getItemKey: (item: TItem) => ItemKey;
   getItemLabel: (item: TItem) => string;
@@ -77,6 +79,7 @@ export function SearchableSelect<TItem>({
   inputId,
   inputClassName,
   defaultDisplayText,
+  scannedSearchValue,
   getItemKey,
   getItemLabel,
   renderItem,
@@ -102,6 +105,7 @@ export function SearchableSelect<TItem>({
   const inputRef = useRef<HTMLInputElement>(null);
   const prevValueRef = useRef(value);
   const prevDefaultDisplayTextRef = useRef(defaultDisplayText);
+  const prevScannedSearchValueRef = useRef(scannedSearchValue);
 
   const debouncedSearch = useDebounce(searchTerm, 100);
 
@@ -151,6 +155,16 @@ export function SearchableSelect<TItem>({
       }
     }
   }, [defaultDisplayText]);
+
+  useEffect(() => {
+    if (scannedSearchValue && scannedSearchValue !== prevScannedSearchValueRef.current) {
+      prevScannedSearchValueRef.current = scannedSearchValue;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing state with scanned search value.
+      setSearchTerm(scannedSearchValue);
+      updateIsOpen(true);
+      inputRef.current?.focus();
+    }
+  }, [scannedSearchValue, updateIsOpen]);
 
   // Sync search term with value prop — uses refs for items to avoid
   // re-running when items change (which would steal focus during server-side search)

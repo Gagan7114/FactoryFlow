@@ -14,6 +14,7 @@ import {
   usePalletDetail,
   usePallets,
 } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { Box, DismantleReason, Pallet } from '../types';
 
 const REASONS: { value: DismantleReason; label: string }[] = [
@@ -28,6 +29,8 @@ export default function DismantlePage() {
   const [mode, setMode] = useState<'pallet' | 'box'>('pallet');
   const [palletSearch, setPalletSearch] = useState('');
   const [boxSearch, setBoxSearch] = useState('');
+  const [scannedPalletSearch, setScannedPalletSearch] = useState('');
+  const [scannedBoxSearch, setScannedBoxSearch] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
   const [reason, setReason] = useState<DismantleReason>('OTHER');
@@ -162,6 +165,8 @@ export default function DismantlePage() {
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
                   label="Select Pallet"
+                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+                  scannedSearchValue={scannedPalletSearch}
                   required
                   inputId="dismantle-pallet"
                   loadingText="Searching..."
@@ -195,6 +200,8 @@ export default function DismantlePage() {
                   )}
                   placeholder="Search box by barcode, item, or batch..."
                   label="Select Box"
+                  labelAction={<ScanSearchButton onScan={setScannedBoxSearch} />}
+                  scannedSearchValue={scannedBoxSearch}
                   required
                   inputId="dismantle-box"
                   loadingText="Searching..."

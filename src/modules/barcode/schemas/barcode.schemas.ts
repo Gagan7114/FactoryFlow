@@ -15,7 +15,6 @@ export const generateBoxesSchema = z.object({
 });
 
 export const createPalletSchema = z.object({
-  box_ids: z.array(z.number().int()).min(1, 'Select at least one box'),
   warehouse: z.string().min(1, 'Warehouse is required'),
   production_line: z.string().optional().default(''),
   production_run_id: z.coerce.number().int().optional(),

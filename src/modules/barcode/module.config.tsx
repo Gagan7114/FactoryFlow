@@ -157,7 +157,7 @@ export const barcodeModuleConfig: ModuleConfig = {
         },
         {
           path: '/barcode/generate',
-          title: 'Generate Labels',
+          title: 'Pallet QR Print',
           permissions: [BARCODE_PERMISSIONS.CREATE_BOX],
         },
         {

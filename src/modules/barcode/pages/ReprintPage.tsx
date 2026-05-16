@@ -14,6 +14,7 @@ import { DEFAULT_THERMAL_PRINTER_NAME, getLabelPrintPageStyle } from '../compone
 import type { PalletLabelData } from '../components/PalletLabel';
 import PalletLabel from '../components/PalletLabel';
 import PrinterProfileControls from '../components/PrinterProfileControls';
+import ScanSearchButton from '../components/ScanSearchButton';
 import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, LabelData, Pallet } from '../types';
 
@@ -21,6 +22,8 @@ export default function ReprintPage() {
   const [searchType, setSearchType] = useState<'BOX' | 'PALLET'>('BOX');
   const [boxSearch, setBoxSearch] = useState('');
   const [palletSearch, setPalletSearch] = useState('');
+  const [scannedBoxSearch, setScannedBoxSearch] = useState('');
+  const [scannedPalletSearch, setScannedPalletSearch] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selectedLabel, setSelectedLabel] = useState<string>('');
   const [reprintReason, setReprintReason] = useState('');
@@ -159,6 +162,8 @@ export default function ReprintPage() {
                   )}
                   placeholder="Search box by barcode, item, or batch..."
                   label="Select Box"
+                  labelAction={<ScanSearchButton onScan={setScannedBoxSearch} />}
+                  scannedSearchValue={scannedBoxSearch}
                   required
                   inputId="reprint-box-search"
                   loadingText="Searching..."
@@ -207,6 +212,8 @@ export default function ReprintPage() {
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
                   label="Select Pallet"
+                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+                  scannedSearchValue={scannedPalletSearch}
                   required
                   inputId="reprint-pallet-search"
                   loadingText="Searching..."

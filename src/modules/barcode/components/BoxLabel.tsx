@@ -8,6 +8,9 @@ export interface BoxLabelData {
   id: number;
   barcode: string;
   qr_payload: string;
+  pallet_id?: string;
+  box_number?: number | null;
+  box_count?: number | null;
   item_code: string;
   item_name: string;
   batch_number: string;
@@ -120,6 +123,8 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
 
         {[
           ['LABEL TYPE', 'BOX'],
+          ['PALLET ID', data.pallet_id || '-'],
+          ['BOX NO', data.box_number && data.box_count ? `${data.box_number}/${data.box_count}` : '-'],
           ['QUANTITY', `${data.qty} ${data.uom}`],
           ['ITEM CODE', data.item_code],
           ['BATCH NUMBER', data.batch_number],

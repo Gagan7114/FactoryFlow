@@ -54,7 +54,9 @@ const TSC_DA310_100X40_PAGE_STYLE = `
   }
 `;
 
-export const getLabelPrintPageStyle = (_mode: LabelPrintMode = 'TSC_DA310_100X40') =>
-  TSC_DA310_100X40_PAGE_STYLE;
+export const getLabelPrintPageStyle = (mode: LabelPrintMode = 'TSC_DA310_100X40') => {
+  void mode;
+  return TSC_DA310_100X40_PAGE_STYLE;
+};
 
 export const LABEL_PRINT_PAGE_STYLE = getLabelPrintPageStyle('TSC_DA310_100X40');

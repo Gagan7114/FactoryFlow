@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Link2, Plus, XCircle } from 'lucide-react';
+import { ArrowLeft, Clock, Link2, XCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -17,7 +17,8 @@ import {
   DialogTitle,
 } from '@/shared/components/ui';
 
-import { useAddBoxesToPallet, useBoxDetail, useCreatePallet, usePallets, useVoidBox } from '../api';
+import { useAddBoxesToPallet, useBoxDetail, usePallets, useVoidBox } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { BoxMovementType, Pallet } from '../types';
 
 const MOVEMENT_COLORS: Record<BoxMovementType, string> = {
@@ -35,10 +36,10 @@ export default function BoxDetailPage() {
   const { data: box, isLoading } = useBoxDetail(boxId ? Number(boxId) : null);
   const voidMutation = useVoidBox();
   const addBoxesMutation = useAddBoxesToPallet();
-  const createPalletMutation = useCreatePallet();
   // Link to pallet dialog
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [palletSearch, setPalletSearch] = useState('');
+  const [scannedPalletSearch, setScannedPalletSearch] = useState('');
   const [selectedPalletId, setSelectedPalletId] = useState<number | null>(null);
   const handlePalletSearch = useCallback((s: string) => setPalletSearch(s), []);
 
@@ -63,24 +64,6 @@ export default function BoxDetailPage() {
       toast.success('Box added to pallet');
       setLinkDialogOpen(false);
       setSelectedPalletId(null);
-    } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
-      );
-    }
-  };
-
-  const handleCreateNewPallet = async () => {
-    if (!box) return;
-    try {
-      const pallet = await createPalletMutation.mutateAsync({
-        box_ids: [box.id],
-        warehouse: box.current_warehouse,
-        production_line: box.production_line || '',
-      });
-      toast.success(`Created pallet ${pallet.pallet_id}`);
-      setLinkDialogOpen(false);
-      navigate(`/barcode/pallets/${pallet.id}`);
     } catch (err: unknown) {
       toast.error(
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
@@ -363,6 +346,8 @@ export default function BoxDetailPage() {
               }}
               placeholder="Search existing pallet..."
               label="Add to Existing Pallet"
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              scannedSearchValue={scannedPalletSearch}
               inputId="link-pallet-search"
               loadingText="Searching..."
               emptyText="Type at least 2 characters"
@@ -377,11 +362,9 @@ export default function BoxDetailPage() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={handleCreateNewPallet}
-              disabled={createPalletMutation.isPending}
+              onClick={() => navigate('/barcode/pallets')}
             >
-              <Plus className="h-4 w-4 mr-1" />
-              {createPalletMutation.isPending ? 'Creating...' : 'Create New Pallet with This Box'}
+              Open Pallets Page
             </Button>
           </div>
 
