@@ -17,7 +17,13 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
 
   const startScanning = useCallback(async () => {
     setError(null);
+    setIsScanning(true);
+
     try {
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(elementId);
       }
@@ -44,7 +50,6 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
         },
       );
 
-      setIsScanning(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to start camera';
       setError(msg);
