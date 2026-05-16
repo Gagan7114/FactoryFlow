@@ -1,5 +1,5 @@
 import { Camera, CameraOff, ScanBarcode } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   Button,
@@ -81,9 +81,9 @@ export default function ScanSearchButton({
   const [open, setOpen] = useState(false);
   const [manualInput, setManualInput] = useState('');
   const [scanError, setScanError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const autoStartedRef = useRef(false);
 
-  const handleScan = (barcode: string) => {
+  const handleScan = useCallback((barcode: string) => {
     const result = parseScannedValue(barcode, expectedType);
     if (result.error) {
       setScanError(result.error);
@@ -94,22 +94,32 @@ export default function ScanSearchButton({
     setManualInput('');
     setScanError('');
     setOpen(false);
-  };
+  }, [expectedType, onScan]);
 
   const { isScanning, error, elementId, startScanning, stopScanning } = useScanner({
     onScan: handleScan,
     debounceMs: 1500,
   });
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setScanError('');
+    }
+    setOpen(nextOpen);
+  };
+
   useEffect(() => {
-    if (open) {
-      window.setTimeout(() => inputRef.current?.focus(), 50);
+    if (open && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startScanning();
       return;
     }
-    if (isScanning) {
+
+    if (!open) {
+      autoStartedRef.current = false;
       stopScanning();
     }
-  }, [isScanning, open, stopScanning]);
+  }, [open, startScanning, stopScanning]);
 
   const submitManualScan = () => handleScan(manualInput);
   const expectedLabel = getExpectedLabel(expectedType);
@@ -121,7 +131,7 @@ export default function ScanSearchButton({
         {label}
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Scan for Search</DialogTitle>
@@ -134,7 +144,6 @@ export default function ScanSearchButton({
               </label>
               <div className="flex gap-2">
                 <input
-                  ref={inputRef}
                   className="flex-1 border rounded px-3 py-2 text-sm font-mono"
                   value={manualInput}
                   onChange={(event) => setManualInput(event.target.value)}
@@ -165,7 +174,7 @@ export default function ScanSearchButton({
               {!isScanning ? (
                 <Button type="button" variant="outline" size="sm" onClick={startScanning}>
                   <Camera className="h-4 w-4 mr-1" />
-                  Use Camera
+                  Start Camera
                 </Button>
               ) : (
                 <Button type="button" variant="outline" size="sm" onClick={stopScanning}>
