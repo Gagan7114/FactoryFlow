@@ -10,11 +10,13 @@ import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useMovePallet, usePalletDetail, usePallets } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
 
 export default function PalletMovePage() {
   const navigate = useNavigate();
   const [palletSearch, setPalletSearch] = useState('');
+  const [scannedPalletSearch, setScannedPalletSearch] = useState('');
   const [selectedPalletId, setSelectedPalletId] = useState<number | null>(null);
   const [toWarehouse, setToWarehouse] = useState('');
   const [notes, setNotes] = useState('');
@@ -70,6 +72,8 @@ export default function PalletMovePage() {
               )}
               placeholder="Search pallet..."
               label="Select Pallet"
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              scannedSearchValue={scannedPalletSearch}
               required
               inputId="move-pallet"
               loadingText="Searching..."

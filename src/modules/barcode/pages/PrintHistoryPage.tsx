@@ -5,6 +5,7 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { usePrintHistory } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 
 const TYPE_COLORS = {
   BOX: 'bg-blue-100 text-blue-800',
@@ -48,6 +49,7 @@ export default function PrintHistoryPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <ScanSearchButton onScan={setSearch} />
         <select
           className="border rounded-md px-3 py-2 text-sm"
           value={labelTypeFilter}

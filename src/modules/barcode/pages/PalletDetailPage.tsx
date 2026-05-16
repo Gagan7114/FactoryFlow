@@ -1,22 +1,10 @@
-import { ArrowLeft, Boxes, Clock, Plus, Scissors, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Boxes, Clock, Printer, Scissors, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/components/ui';
+import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { useAddBoxesToPallet, useBoxes, usePalletDetail, useVoidPallet } from '../api';
+import { usePalletDetail, useVoidPallet } from '../api';
 import type { BoxStatus, PalletMovementType, PalletStatus } from '../types';
 
 const STATUS_COLORS: Record<PalletStatus, string> = {
@@ -43,14 +31,9 @@ const MOVEMENT_COLORS: Record<PalletMovementType, string> = {
   VOID: 'text-red-600',
 };
 
-const formatApiError = (err: unknown, fallback: string) => {
-  const data = (err as { response?: { data?: unknown } })?.response?.data;
-  if (data && typeof data === 'object') {
-    const errorData = data as Record<string, unknown>;
-    if (typeof errorData.error === 'string') return errorData.error;
-    if (typeof errorData.detail === 'string') return errorData.detail;
-  }
-  return (err as Error)?.message || fallback;
+const capacityText = (boxCount: number, maxBoxCount: number) => {
+  if (!maxBoxCount) return boxCount === 0 ? 'Not set' : String(boxCount);
+  return `${boxCount}/${maxBoxCount}`;
 };
 
 export default function PalletDetailPage() {
@@ -58,79 +41,49 @@ export default function PalletDetailPage() {
   const navigate = useNavigate();
   const { data: pallet, isLoading } = usePalletDetail(palletId ? Number(palletId) : null);
   const voidMutation = useVoidPallet();
-  const addBoxesMutation = useAddBoxesToPallet();
-  // Add boxes dialog
-  const [addBoxesOpen, setAddBoxesOpen] = useState(false);
-  const [selectedAddBoxIds, setSelectedAddBoxIds] = useState<number[]>([]);
-
-  // Fetch unpalletized boxes matching this pallet's item+batch
-  const { data: availableBoxes = [] } = useBoxes(
-    addBoxesOpen && pallet
-      ? {
-          item_code: pallet.item_code,
-          batch_number: pallet.batch_number,
-          unpalletized: 'true',
-          status: 'ACTIVE',
-        }
-      : undefined,
-  );
 
   const handleVoid = () => {
     if (
       !pallet ||
       !confirm('Are you sure you want to void this pallet? All boxes will be disassociated.')
-    )
+    ) {
       return;
-    voidMutation.mutate({ palletId: pallet.id, data: { reason: 'Voided from detail page' } });
-  };
-
-  const handleAddBoxes = async () => {
-    if (!pallet || selectedAddBoxIds.length === 0) return;
-    try {
-      await addBoxesMutation.mutateAsync({
-        palletId: pallet.id,
-        data: { box_ids: selectedAddBoxIds },
-      });
-      toast.success(`Added ${selectedAddBoxIds.length} boxes to pallet`);
-      setAddBoxesOpen(false);
-      setSelectedAddBoxIds([]);
-    } catch (err: unknown) {
-      toast.error(formatApiError(err, 'Failed to add boxes'));
     }
-  };
-
-  const toggleAddBox = (id: number) => {
-    setSelectedAddBoxIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    );
+    voidMutation.mutate({ palletId: pallet.id, data: { reason: 'Voided from detail page' } });
   };
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
   if (!pallet) return <div className="p-8 text-center text-muted-foreground">Pallet not found</div>;
 
+  const isEmpty = pallet.box_count === 0;
+
   return (
     <div className="space-y-6">
       <DashboardHeader
         title={pallet.pallet_id}
-        subtitle={`${pallet.item_name || pallet.item_code} — Batch: ${pallet.batch_number}`}
+        subtitle={`${pallet.current_warehouse || 'No warehouse'} - ${
+          isEmpty ? 'Empty pallet' : `${pallet.box_count} linked boxes`
+        }`}
       />
 
       <Button variant="ghost" size="sm" onClick={() => navigate('/barcode/pallets')}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back to pallets
       </Button>
 
-      {/* Info Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge className={`mt-1 ${STATUS_COLORS[pallet.status]}`}>{pallet.status}</Badge>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Badge className={STATUS_COLORS[pallet.status]}>{pallet.status}</Badge>
+              {isEmpty && <Badge className="bg-amber-100 text-amber-800">EMPTY</Badge>}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Boxes</p>
-            <p className="text-2xl font-bold">{pallet.box_count}</p>
+            <p className="text-2xl font-bold">{capacityText(pallet.box_count, pallet.max_box_count)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -144,25 +97,28 @@ export default function PalletDetailPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Warehouse</p>
-            <p className="text-lg font-bold">{pallet.current_warehouse}</p>
+            <p className="text-lg font-bold">{pallet.current_warehouse || '-'}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detail Info */}
       <Card>
         <CardContent className="p-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground">Item Code:</span>{' '}
-            <span className="font-medium">{pallet.item_code}</span>
+            <span className="text-muted-foreground">Pallet ID:</span>{' '}
+            <span className="font-mono">{pallet.pallet_id}</span>
           </div>
           <div>
-            <span className="text-muted-foreground">Item Name:</span>{' '}
-            <span className="font-medium">{pallet.item_name}</span>
+            <span className="text-muted-foreground">Line:</span>{' '}
+            {pallet.production_line || '-'}
           </div>
           <div>
-            <span className="text-muted-foreground">Batch:</span>{' '}
-            <span className="font-mono">{pallet.batch_number}</span>
+            <span className="text-muted-foreground">Created By:</span>{' '}
+            {pallet.created_by_name || '-'}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Created:</span>{' '}
+            {new Date(pallet.created_at).toLocaleString()}
           </div>
           <div>
             <span className="text-muted-foreground">Mfg Date:</span> {pallet.mfg_date}
@@ -170,32 +126,16 @@ export default function PalletDetailPage() {
           <div>
             <span className="text-muted-foreground">Exp Date:</span> {pallet.exp_date}
           </div>
-          <div>
-            <span className="text-muted-foreground">Line:</span> {pallet.production_line || '—'}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Created By:</span>{' '}
-            {pallet.created_by_name || '—'}
-          </div>
-          <div>
-            <span className="text-muted-foreground">Created:</span>{' '}
-            {new Date(pallet.created_at).toLocaleString()}
-          </div>
         </CardContent>
       </Card>
 
-      {/* Actions */}
       {pallet.status === 'ACTIVE' && (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              setAddBoxesOpen(true);
-              setSelectedAddBoxIds([]);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Add Boxes
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          {isEmpty && (
+            <Button size="sm" onClick={() => navigate('/barcode/generate')}>
+              <Printer className="h-4 w-4 mr-1" /> Pallet QR Print
+            </Button>
+          )}
           <Button
             variant="destructive"
             size="sm"
@@ -207,7 +147,6 @@ export default function PalletDetailPage() {
         </div>
       )}
 
-      {/* Boxes Table */}
       <Card>
         <CardContent className="p-4">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -219,6 +158,8 @@ export default function PalletDetailPage() {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="text-left p-2 font-medium">Barcode</th>
+                    <th className="text-left p-2 font-medium">Item</th>
+                    <th className="text-left p-2 font-medium">Batch</th>
                     <th className="text-right p-2 font-medium">Qty</th>
                     <th className="text-left p-2 font-medium">Warehouse</th>
                     <th className="text-left p-2 font-medium">Status</th>
@@ -232,6 +173,11 @@ export default function PalletDetailPage() {
                       onClick={() => navigate(`/barcode/boxes/${box.id}`)}
                     >
                       <td className="p-2 font-mono text-xs">{box.box_barcode}</td>
+                      <td className="p-2">
+                        <div className="font-medium">{box.item_code}</div>
+                        <div className="text-xs text-muted-foreground">{box.item_name}</div>
+                      </td>
+                      <td className="p-2 text-xs">{box.batch_number}</td>
                       <td className="p-2 text-right">
                         {box.qty} {box.uom}
                       </td>
@@ -250,7 +196,6 @@ export default function PalletDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Dismantled Boxes */}
       {pallet.dismantled_boxes && pallet.dismantled_boxes.length > 0 && (
         <Card>
           <CardContent className="p-4">
@@ -296,7 +241,6 @@ export default function PalletDetailPage() {
         </Card>
       )}
 
-      {/* Movement History */}
       <Card>
         <CardContent className="p-4">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -304,28 +248,32 @@ export default function PalletDetailPage() {
           </h3>
           {pallet.movements && pallet.movements.length > 0 ? (
             <div className="space-y-3">
-              {pallet.movements.map((m) => (
-                <div key={m.id} className="flex items-start gap-3 p-2 bg-muted/30 rounded">
+              {pallet.movements.map((movement) => (
+                <div key={movement.id} className="flex items-start gap-3 p-2 bg-muted/30 rounded">
                   <div
-                    className={`text-xs font-bold uppercase ${MOVEMENT_COLORS[m.movement_type]}`}
+                    className={`text-xs font-bold uppercase ${
+                      MOVEMENT_COLORS[movement.movement_type]
+                    }`}
                   >
-                    {m.movement_type}
+                    {movement.movement_type}
                   </div>
                   <div className="flex-1 text-sm">
-                    {m.from_warehouse && m.to_warehouse ? (
+                    {movement.from_warehouse && movement.to_warehouse ? (
                       <span>
-                        {m.from_warehouse} → {m.to_warehouse}
+                        {movement.from_warehouse} - {movement.to_warehouse}
                       </span>
-                    ) : m.to_warehouse ? (
-                      <span>→ {m.to_warehouse}</span>
-                    ) : m.from_warehouse ? (
-                      <span>{m.from_warehouse} →</span>
+                    ) : movement.to_warehouse ? (
+                      <span>To {movement.to_warehouse}</span>
+                    ) : movement.from_warehouse ? (
+                      <span>From {movement.from_warehouse}</span>
                     ) : null}
-                    {m.notes && <p className="text-xs text-muted-foreground mt-1">{m.notes}</p>}
+                    {movement.notes && (
+                      <p className="text-xs text-muted-foreground mt-1">{movement.notes}</p>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground text-right">
-                    <div>{m.performed_by_name || '—'}</div>
-                    <div>{new Date(m.performed_at).toLocaleString()}</div>
+                    <div>{movement.performed_by_name || '-'}</div>
+                    <div>{new Date(movement.performed_at).toLocaleString()}</div>
                   </div>
                 </div>
               ))}
@@ -335,55 +283,6 @@ export default function PalletDetailPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Add Boxes Dialog */}
-      <Dialog open={addBoxesOpen} onOpenChange={setAddBoxesOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Boxes to {pallet.pallet_id}</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Showing unpalletized active boxes for {pallet.item_code} — {pallet.batch_number}
-          </p>
-          {availableBoxes.length === 0 ? (
-            <p className="py-4 text-center text-muted-foreground text-sm">
-              No unpalletized boxes available for this item and batch
-            </p>
-          ) : (
-            <div className="max-h-64 overflow-y-auto space-y-1">
-              {availableBoxes.map((box) => (
-                <label
-                  key={box.id}
-                  className="flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-muted/50 bg-muted/30"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedAddBoxIds.includes(box.id)}
-                    onChange={() => toggleAddBox(box.id)}
-                  />
-                  <span className="font-mono text-xs">{box.box_barcode}</span>
-                  <span className="text-sm">
-                    {box.qty} {box.uom}
-                  </span>
-                  <span className="text-xs text-muted-foreground">Batch: {box.batch_number}</span>
-                  <span className="text-xs text-muted-foreground">{box.current_warehouse}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddBoxesOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAddBoxes}
-              disabled={addBoxesMutation.isPending || selectedAddBoxIds.length === 0}
-            >
-              {addBoxesMutation.isPending ? 'Adding...' : `Add ${selectedAddBoxIds.length} Boxes`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

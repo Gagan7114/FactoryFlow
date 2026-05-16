@@ -12,6 +12,7 @@ export interface PalletLabelData {
   item_name: string;
   batch_number: string;
   box_count: number;
+  max_box_count?: number;
   total_qty: string;
   uom: string;
   mfg_date: string;
@@ -119,7 +120,8 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
 
         {[
           ['LABEL TYPE', 'PALLET'],
-          ['BOXES', data.box_count],
+          ['PALLET ID', data.barcode],
+          ['BOXES', `${data.box_count}/${data.max_box_count || data.box_count}`],
           ['QUANTITY', `${data.total_qty} ${data.uom}`],
           ['ITEM CODE', data.item_code],
           ['BATCH NUMBER', data.batch_number],

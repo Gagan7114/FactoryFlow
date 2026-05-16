@@ -1,5 +1,5 @@
 import { Html5Qrcode } from 'html5-qrcode';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 interface UseScannerOptions {
   onScan: (decodedText: string) => void;
@@ -12,7 +12,8 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<string>('');
   const lastScanTimeRef = useRef<number>(0);
-  const elementId = 'barcode-scanner-viewport';
+  const reactId = useId();
+  const elementId = `barcode-scanner-viewport-${reactId.replace(/:/g, '')}`;
 
   const startScanning = useCallback(async () => {
     setError(null);
@@ -49,7 +50,7 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
       setError(msg);
       setIsScanning(false);
     }
-  }, [onScan, debounceMs]);
+  }, [onScan, debounceMs, elementId]);
 
   const stopScanning = useCallback(async () => {
     try {

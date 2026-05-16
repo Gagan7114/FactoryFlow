@@ -6,6 +6,7 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Badge, Card, CardContent } from '@/shared/components/ui';
 
 import { useBoxes } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { BoxStatus } from '../types';
 
 const STATUS_COLORS: Record<BoxStatus, string> = {
@@ -45,6 +46,7 @@ export default function BoxListPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <ScanSearchButton onScan={setSearch} />
         <select
           className="border rounded-md px-3 py-2 text-sm"
           value={statusFilter}

@@ -96,6 +96,7 @@ export interface Pallet {
   item_name: string;
   batch_number: string;
   box_count: number;
+  max_box_count: number;
   total_qty: string;
   uom: string;
   mfg_date: string;
@@ -154,10 +155,18 @@ export interface GenerateBoxesPayload {
 }
 
 export interface CreatePalletPayload {
-  box_ids: number[];
-  warehouse: string;
+  box_ids?: number[];
+  warehouse?: string;
   production_line?: string;
   production_run_id?: number;
+  item_code?: string;
+  item_name?: string;
+  batch_number?: string;
+  total_qty?: number;
+  uom?: string;
+  mfg_date?: string;
+  exp_date?: string;
+  max_box_count?: number;
 }
 
 export interface ProductionReleaseOilRow {
@@ -195,7 +204,7 @@ export interface PalletClearPayload {
 
 export interface PalletSplitPayload {
   box_ids: number[];
-  warehouse: string;
+  target_pallet_id: number;
 }
 
 export interface PalletAddBoxesPayload {
@@ -243,11 +252,14 @@ export interface LabelData {
   id: number;
   barcode: string;
   qr_payload: string;
+  pallet_id?: string;
+  box_number?: number | null;
   item_code: string;
   item_name: string;
   batch_number: string;
   qty?: string;
   box_count?: number;
+  max_box_count?: number;
   total_qty?: string;
   uom: string;
   mfg_date: string;

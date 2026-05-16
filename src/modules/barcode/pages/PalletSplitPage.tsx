@@ -3,46 +3,55 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { useWMSWarehouses } from '@/modules/warehouse/api';
-import type { WarehouseOption } from '@/modules/warehouse/types';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { usePalletDetail, usePallets, useSplitPallet } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
 
 export default function PalletSplitPage() {
   const navigate = useNavigate();
   const [palletSearch, setPalletSearch] = useState('');
+  const [targetPalletSearch, setTargetPalletSearch] = useState('');
+  const [scannedSourcePalletSearch, setScannedSourcePalletSearch] = useState('');
+  const [scannedTargetPalletSearch, setScannedTargetPalletSearch] = useState('');
   const [selectedPalletId, setSelectedPalletId] = useState<number | null>(null);
+  const [targetPalletId, setTargetPalletId] = useState<number | null>(null);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
-  const [warehouse, setWarehouse] = useState('');
 
   const { data: pallets = [], isLoading } = usePallets(
     palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined,
   );
+  const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
+    targetPalletSearch.length >= 2
+      ? { search: targetPalletSearch, status: 'ACTIVE' }
+      : { status: 'ACTIVE' },
+  );
   const { data: palletDetail } = usePalletDetail(selectedPalletId);
-  const { data: whData } = useWMSWarehouses();
-  const warehouses: WarehouseOption[] = whData?.warehouses ?? [];
   const splitMutation = useSplitPallet();
 
   const activeBoxes =
     palletDetail?.boxes?.filter((b) => b.status === 'ACTIVE' || b.status === 'PARTIAL') || [];
+  const emptyTargetPallets = targetPallets.filter(
+    (pallet) => pallet.box_count === 0 && pallet.id !== selectedPalletId,
+  );
+  const targetPallet = targetPallets.find((pallet) => pallet.id === targetPalletId);
 
   const toggleBox = (id: number) => {
     setSelectedBoxIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleSplit = async () => {
-    if (!selectedPalletId || selectedBoxIds.length === 0 || !warehouse) return;
+    if (!selectedPalletId || !targetPalletId || selectedBoxIds.length === 0) return;
     try {
-      const newPallet = await splitMutation.mutateAsync({
+      const updatedTargetPallet = await splitMutation.mutateAsync({
         palletId: selectedPalletId,
-        data: { box_ids: selectedBoxIds, warehouse },
+        data: { box_ids: selectedBoxIds, target_pallet_id: targetPalletId },
       });
-      toast.success(`Split into new pallet: ${newPallet.pallet_id}`);
-      navigate(`/barcode/pallets/${newPallet.id}`);
+      toast.success(`Split into pallet: ${updatedTargetPallet.pallet_id}`);
+      navigate(`/barcode/pallets/${updatedTargetPallet.id}`);
     } catch (err: unknown) {
       toast.error(
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
@@ -52,14 +61,14 @@ export default function PalletSplitPage() {
   };
 
   const selectedQty = activeBoxes
-    .filter((b) => selectedBoxIds.includes(b.id))
-    .reduce((sum, b) => sum + Number(b.qty), 0);
+    .filter((box) => selectedBoxIds.includes(box.id))
+    .reduce((sum, box) => sum + Number(box.qty), 0);
 
   return (
     <div className="space-y-6">
       <DashboardHeader
         title="Split Pallet"
-        subtitle="Move selected boxes from a pallet into a new pallet"
+        subtitle="Move selected boxes from one pallet into an existing empty pallet"
       />
 
       <Card>
@@ -68,58 +77,71 @@ export default function PalletSplitPage() {
             <SearchableSelect<Pallet>
               items={pallets}
               isLoading={isLoading && palletSearch.length >= 2}
-              getItemKey={(p) => p.id}
-              getItemLabel={(p) => `${p.pallet_id} — ${p.item_name || p.item_code}`}
+              getItemKey={(pallet) => pallet.id}
+              getItemLabel={(pallet) => pallet.pallet_id}
               filterFn={() => true}
-              renderItem={(p) => (
+              renderItem={(pallet) => (
                 <div className="flex items-center justify-between w-full">
                   <div>
-                    <span className="font-mono text-xs font-medium">{p.pallet_id}</span>
-                    <span className="ml-2 text-sm">{p.item_name || p.item_code}</span>
+                    <span className="font-mono text-xs font-medium">{pallet.pallet_id}</span>
+                    <span className="ml-2 text-sm">{pallet.item_name || pallet.item_code}</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {p.box_count} boxes · {p.current_warehouse}
+                    {pallet.box_count} boxes | {pallet.current_warehouse}
                   </span>
                 </div>
               )}
               placeholder="Search pallet to split..."
               label="Source Pallet"
+              labelAction={<ScanSearchButton onScan={setScannedSourcePalletSearch} />}
+              scannedSearchValue={scannedSourcePalletSearch}
               required
               inputId="split-pallet"
               loadingText="Searching..."
               emptyText="Type at least 2 characters"
               notFoundText="No active pallets found"
-              onSearchChange={useCallback((s: string) => setPalletSearch(s), [])}
-              onItemSelect={(p) => {
-                setSelectedPalletId(p.id);
+              onSearchChange={useCallback((search: string) => setPalletSearch(search), [])}
+              onItemSelect={(pallet) => {
+                setSelectedPalletId(pallet.id);
+                setTargetPalletId(null);
                 setSelectedBoxIds([]);
               }}
               onClear={() => {
                 setSelectedPalletId(null);
+                setTargetPalletId(null);
                 setSelectedBoxIds([]);
               }}
             />
 
-            <SearchableSelect<WarehouseOption>
-              items={warehouses}
-              isLoading={false}
-              getItemKey={(wh) => wh.code}
-              getItemLabel={(wh) => `${wh.code} — ${wh.name}`}
-              renderItem={(wh) => (
-                <div className="flex items-center gap-2 w-full">
-                  <span className="font-mono text-xs font-medium">{wh.code}</span>
-                  <span className="text-sm truncate">{wh.name}</span>
+            <SearchableSelect<Pallet>
+              items={emptyTargetPallets}
+              isLoading={loadingTargetPallets}
+              getItemKey={(pallet) => pallet.id}
+              getItemLabel={(pallet) => pallet.pallet_id}
+              filterFn={() => true}
+              renderItem={(pallet) => (
+                <div className="flex items-center justify-between w-full">
+                  <div>
+                    <span className="font-mono text-xs font-medium">{pallet.pallet_id}</span>
+                    <Badge className="ml-2 bg-amber-100 text-amber-800">EMPTY</Badge>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {pallet.current_warehouse || 'No warehouse'}
+                  </span>
                 </div>
               )}
-              placeholder="Warehouse for new pallet..."
-              label="New Pallet Warehouse"
+              placeholder="Search empty target pallet..."
+              label="Target Empty Pallet"
+              labelAction={<ScanSearchButton onScan={setScannedTargetPalletSearch} />}
+              scannedSearchValue={scannedTargetPalletSearch}
               required
-              inputId="split-warehouse"
-              loadingText="Loading..."
-              emptyText="No warehouses"
-              notFoundText="No match"
-              onItemSelect={(wh) => setWarehouse(wh.code)}
-              onClear={() => setWarehouse('')}
+              inputId="split-target-pallet"
+              loadingText="Loading empty pallets..."
+              emptyText="No empty pallets available"
+              notFoundText="No matching empty pallet"
+              onSearchChange={useCallback((search: string) => setTargetPalletSearch(search), [])}
+              onItemSelect={(pallet) => setTargetPalletId(pallet.id)}
+              onClear={() => setTargetPalletId(null)}
             />
           </div>
         </CardContent>
@@ -139,7 +161,7 @@ export default function PalletSplitPage() {
                   setSelectedBoxIds(
                     selectedBoxIds.length === activeBoxes.length
                       ? []
-                      : activeBoxes.map((b) => b.id),
+                      : activeBoxes.map((box) => box.id),
                   )
                 }
               >
@@ -177,8 +199,8 @@ export default function PalletSplitPage() {
 
             {selectedBoxIds.length > 0 && (
               <div className="p-3 bg-blue-50 rounded-lg mb-4 text-sm">
-                <strong>New pallet will have:</strong> {selectedBoxIds.length} boxes, {selectedQty}{' '}
-                qty → {warehouse || '...'}
+                <strong>Target pallet will have:</strong> {selectedBoxIds.length} boxes,{' '}
+                {selectedQty} qty to {targetPallet?.pallet_id || '...'}
                 <br />
                 <strong>Original pallet keeps:</strong> {activeBoxes.length - selectedBoxIds.length}{' '}
                 boxes
@@ -186,17 +208,17 @@ export default function PalletSplitPage() {
             )}
 
             {selectedBoxIds.length > 0 && selectedBoxIds.length < activeBoxes.length && (
-              <Button onClick={handleSplit} disabled={splitMutation.isPending || !warehouse}>
+              <Button onClick={handleSplit} disabled={splitMutation.isPending || !targetPalletId}>
                 <Split className="h-4 w-4 mr-1" />
                 {splitMutation.isPending
                   ? 'Splitting...'
-                  : `Split ${selectedBoxIds.length} boxes → New Pallet`}
+                  : `Split ${selectedBoxIds.length} boxes to selected pallet`}
               </Button>
             )}
 
             {selectedBoxIds.length === activeBoxes.length && (
               <p className="text-sm text-amber-600">
-                Cannot split all boxes — use Move Pallet instead to move the entire pallet.
+                Cannot split all boxes. Use Move Pallet instead to move the entire pallet.
               </p>
             )}
           </CardContent>

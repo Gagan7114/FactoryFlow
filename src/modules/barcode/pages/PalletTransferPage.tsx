@@ -9,10 +9,12 @@ import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useMovePallet, usePallets } from '../api';
+import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
 
 export default function PalletTransferPage() {
   const [palletSearch, setPalletSearch] = useState('');
+  const [scannedPalletSearch, setScannedPalletSearch] = useState('');
   const [selectedPallets, setSelectedPallets] = useState<Pallet[]>([]);
   const [toWarehouse, setToWarehouse] = useState('');
 
@@ -88,6 +90,8 @@ export default function PalletTransferPage() {
               )}
               placeholder="Search and add pallets..."
               label="Add Pallets"
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              scannedSearchValue={scannedPalletSearch}
               inputId="transfer-add-pallet"
               loadingText="Searching..."
               emptyText="Type at least 2 characters"
