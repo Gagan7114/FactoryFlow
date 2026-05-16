@@ -90,7 +90,7 @@ export default function PalletTransferPage() {
               )}
               placeholder="Search and add pallets..."
               label="Add Pallets"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedPalletSearch}
               inputId="transfer-add-pallet"
               loadingText="Searching..."

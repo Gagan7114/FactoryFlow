@@ -46,7 +46,7 @@ export default function BoxListPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <ScanSearchButton onScan={setSearch} />
+        <ScanSearchButton onScan={setSearch} expectedType="BOX" />
         <select
           className="border rounded-md px-3 py-2 text-sm"
           value={statusFilter}

@@ -93,7 +93,7 @@ export default function PalletSplitPage() {
               )}
               placeholder="Search pallet to split..."
               label="Source Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedSourcePalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedSourcePalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedSourcePalletSearch}
               required
               inputId="split-pallet"
@@ -132,7 +132,7 @@ export default function PalletSplitPage() {
               )}
               placeholder="Search empty target pallet..."
               label="Target Empty Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedTargetPalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedTargetPalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedTargetPalletSearch}
               required
               inputId="split-target-pallet"

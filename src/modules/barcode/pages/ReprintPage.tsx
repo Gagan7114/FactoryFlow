@@ -162,7 +162,7 @@ export default function ReprintPage() {
                   )}
                   placeholder="Search box by barcode, item, or batch..."
                   label="Select Box"
-                  labelAction={<ScanSearchButton onScan={setScannedBoxSearch} />}
+                  labelAction={<ScanSearchButton onScan={setScannedBoxSearch} expectedType="BOX" />}
                   scannedSearchValue={scannedBoxSearch}
                   required
                   inputId="reprint-box-search"
@@ -212,7 +212,7 @@ export default function ReprintPage() {
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
                   label="Select Pallet"
-                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
                   scannedSearchValue={scannedPalletSearch}
                   required
                   inputId="reprint-pallet-search"

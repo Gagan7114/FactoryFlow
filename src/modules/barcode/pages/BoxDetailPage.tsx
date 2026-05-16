@@ -346,7 +346,7 @@ export default function BoxDetailPage() {
               }}
               placeholder="Search existing pallet..."
               label="Add to Existing Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedPalletSearch}
               inputId="link-pallet-search"
               loadingText="Searching..."

@@ -11,21 +11,88 @@ import {
 
 import { useScanner } from '../hooks/useScanner';
 
+type ScanEntityType = 'BOX' | 'PALLET' | 'ANY';
+
 interface ScanSearchButtonProps {
   onScan: (barcode: string) => void;
   label?: string;
+  expectedType?: ScanEntityType;
 }
 
-export default function ScanSearchButton({ onScan, label = 'Scan' }: ScanSearchButtonProps) {
+const getExpectedLabel = (expectedType: ScanEntityType) => {
+  if (expectedType === 'BOX') return 'box';
+  if (expectedType === 'PALLET') return 'pallet';
+  return 'barcode';
+};
+
+const parseScannedValue = (rawValue: string, expectedType: ScanEntityType) => {
+  const value = rawValue.trim();
+  if (!value) return { value: '', error: '' };
+
+  try {
+    const payload = JSON.parse(value) as Record<string, unknown>;
+    const payloadType = String(payload.type || '').toUpperCase();
+
+    if (payloadType === 'BOX') {
+      if (expectedType === 'PALLET') {
+        return { value: '', error: 'This is a box label. Please scan a pallet label.' };
+      }
+      return { value: String(payload.box_barcode || payload.barcode || '').trim(), error: '' };
+    }
+
+    if (payloadType === 'PALLET') {
+      if (expectedType === 'BOX') {
+        return { value: '', error: 'This is a pallet label. Please scan a box label.' };
+      }
+      return { value: String(payload.pallet_id || payload.barcode || '').trim(), error: '' };
+    }
+  } catch {
+    // Plain 1D barcode or manually typed value.
+  }
+
+  const upperValue = value.toUpperCase();
+  const isBox = upperValue.startsWith('BOX-') || upperValue.startsWith('BBOX');
+  const isPallet = upperValue.startsWith('PLT-') || upperValue.startsWith('PPLT');
+
+  if (expectedType === 'BOX' && isPallet) {
+    return { value: '', error: 'This is a pallet label. Please scan a box label.' };
+  }
+
+  if (expectedType === 'PALLET' && isBox) {
+    return { value: '', error: 'This is a box label. Please scan a pallet label.' };
+  }
+
+  if (expectedType === 'BOX' && !isBox && isPallet) {
+    return { value: '', error: 'Please scan a box label.' };
+  }
+
+  if (expectedType === 'PALLET' && !isPallet && isBox) {
+    return { value: '', error: 'Please scan a pallet label.' };
+  }
+
+  return { value, error: '' };
+};
+
+export default function ScanSearchButton({
+  onScan,
+  label = 'Scan',
+  expectedType = 'ANY',
+}: ScanSearchButtonProps) {
   const [open, setOpen] = useState(false);
   const [manualInput, setManualInput] = useState('');
+  const [scanError, setScanError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleScan = (barcode: string) => {
-    const trimmed = barcode.trim();
-    if (!trimmed) return;
-    onScan(trimmed);
+    const result = parseScannedValue(barcode, expectedType);
+    if (result.error) {
+      setScanError(result.error);
+      return;
+    }
+    if (!result.value) return;
+    onScan(result.value);
     setManualInput('');
+    setScanError('');
     setOpen(false);
   };
 
@@ -45,6 +112,7 @@ export default function ScanSearchButton({ onScan, label = 'Scan' }: ScanSearchB
   }, [isScanning, open, stopScanning]);
 
   const submitManualScan = () => handleScan(manualInput);
+  const expectedLabel = getExpectedLabel(expectedType);
 
   return (
     <>
@@ -62,7 +130,7 @@ export default function ScanSearchButton({ onScan, label = 'Scan' }: ScanSearchB
           <div className="space-y-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Scan or type barcode
+                Scan or type {expectedLabel}
               </label>
               <div className="flex gap-2">
                 <input
@@ -76,7 +144,7 @@ export default function ScanSearchButton({ onScan, label = 'Scan' }: ScanSearchB
                       submitManualScan();
                     }
                   }}
-                  placeholder="Scan barcode or type manually..."
+                  placeholder={`Scan ${expectedLabel} or type manually...`}
                 />
                 <Button type="button" size="sm" disabled={!manualInput.trim()} onClick={submitManualScan}>
                   Use
@@ -107,7 +175,9 @@ export default function ScanSearchButton({ onScan, label = 'Scan' }: ScanSearchB
               )}
             </div>
 
-            {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            {(scanError || error) && (
+              <p className="text-sm text-destructive text-center">{scanError || error}</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

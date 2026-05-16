@@ -72,7 +72,7 @@ export default function PalletMovePage() {
               )}
               placeholder="Search pallet..."
               label="Select Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedPalletSearch}
               required
               inputId="move-pallet"

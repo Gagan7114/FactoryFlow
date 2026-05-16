@@ -301,7 +301,7 @@ export default function LabelGeneratePage() {
               )}
               placeholder="Search and select empty pallet..."
               label="Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} />}
+              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
               scannedSearchValue={scannedPalletSearch}
               inputId="barcode-pallet-select"
               loadingText="Loading pallets..."
