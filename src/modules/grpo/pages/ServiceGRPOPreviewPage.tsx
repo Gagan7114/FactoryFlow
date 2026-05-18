@@ -46,6 +46,7 @@ import type {
   ServiceGRPOLocationOption,
   ServiceGRPOProjectOption,
   ServiceGRPOSACCodeOption,
+  ServiceGRPOSubAccountOption,
   ServiceGRPOTaxCodeOption,
 } from '../types';
 
@@ -54,12 +55,12 @@ interface ServiceFormState {
   branchId: number;
   serviceDescription: string;
   amount: number;
-  unitPrice: number;
   taxCode: string;
   glAccount: string;
   placeOfSupply: string;
   effectiveMonth: string;
   budgetDeliveryPoint: string;
+  subAccount: string;
   locationCode: number | null;
   locationName: string;
   sacEntry: number | null;
@@ -188,6 +189,11 @@ const projectLabel = (project: ServiceGRPOProjectOption) =>
     ? project.project_code
     : `${project.project_code} - ${project.project_name}`;
 
+const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
+  subAccount.sub_account_code === subAccount.sub_account_name
+    ? subAccount.sub_account_code
+    : `${subAccount.sub_account_code} - ${subAccount.sub_account_name}`;
+
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
   const { dispatchPlanId } = useParams<{ dispatchPlanId: string }>();
@@ -221,6 +227,7 @@ export default function ServiceGRPOPreviewPage() {
   const sacOptions = serviceOptions?.sac_codes ?? [];
   const locationOptions = serviceOptions?.locations ?? [];
   const sapProjectOptions = serviceOptions?.projects ?? [];
+  const subAccountOptions = serviceOptions?.sub_accounts ?? [];
   const projectOptions = useMemo<ServiceGRPOProjectOption[]>(() => {
     const deliveryPoint = (preview?.default_budget_delivery_point || '').trim();
     if (!deliveryPoint) return sapProjectOptions;
@@ -258,12 +265,12 @@ export default function ServiceGRPOPreviewPage() {
       branchId: DEFAULT_BRANCH_ID,
       serviceDescription: preview.default_service_description,
       amount,
-      unitPrice: amount,
       taxCode: findDefaultTaxCode(taxCodeOptions),
       glAccount: '',
       placeOfSupply: preview.default_place_of_supply || 'HR',
       effectiveMonth: monthInputValue(preview.default_effective_month),
       budgetDeliveryPoint: preview.default_budget_delivery_point || '',
+      subAccount: preview.default_sub_account || '',
       locationCode: defaultLocation?.location_code ?? null,
       locationName: defaultLocation?.location_name || preview.default_location_name || '',
       sacEntry: defaultSac?.sac_entry ?? preview.default_sac_entry ?? null,
@@ -406,6 +413,9 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.effectiveMonth) {
       errors.effectiveMonth = 'Effective month is required';
     }
+    if (!form.subAccount.trim()) {
+      errors.subAccount = 'Sub account is required';
+    }
     if (!form.locationCode) {
       errors.locationCode = 'Location is required';
     }
@@ -443,12 +453,13 @@ export default function ServiceGRPOPreviewPage() {
         branch_id: form.branchId,
         service_description: form.serviceDescription,
         amount: form.amount,
-        unit_price: form.unitPrice || form.amount,
+        unit_price: form.amount,
         tax_code: form.taxCode || undefined,
         gl_account: form.glAccount || undefined,
         place_of_supply: form.placeOfSupply || undefined,
         effective_month: monthPayloadValue(form.effectiveMonth),
         budget_delivery_point: form.budgetDeliveryPoint || undefined,
+        sub_account: form.subAccount || undefined,
         location_code: form.locationCode,
         location_name: form.locationName || undefined,
         sac_entry: form.sacEntry,
@@ -700,19 +711,6 @@ export default function ServiceGRPOPreviewPage() {
                       <p className="text-xs text-destructive">{apiErrors.amount}</p>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={form.unitPrice || ''}
-                      onChange={(e) =>
-                        updateFormField('unitPrice', parseFloat(e.target.value) || 0)
-                      }
-                      className="h-8 text-sm"
-                    />
-                  </div>
                   <SearchableSelect<ServiceGRPOTaxCodeOption>
                     value={form.taxCode}
                     items={taxCodeOptions}
@@ -854,6 +852,32 @@ export default function ServiceGRPOPreviewPage() {
                     notFoundText="No delivery points found"
                     onItemSelect={updateProject}
                     onClear={() => updateProject(null)}
+                  />
+                  <SearchableSelect<ServiceGRPOSubAccountOption>
+                    value={form.subAccount}
+                    items={subAccountOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && subAccountOptions.length === 0}
+                    error={apiErrors.subAccount}
+                    label="Sub Account"
+                    required
+                    placeholder="Select sub account"
+                    inputId="service-grpo-sub-account"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(subAccount) => subAccount.sub_account_code}
+                    getItemLabel={subAccountLabel}
+                    filterFn={(subAccount, search) =>
+                      `${subAccount.sub_account_code} ${subAccount.sub_account_name}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading sub accounts..."
+                    emptyText="No sub accounts available"
+                    notFoundText="No sub accounts found"
+                    onItemSelect={(subAccount) =>
+                      updateFormField('subAccount', subAccount.sub_account_code)
+                    }
+                    onClear={() => updateFormField('subAccount', '')}
                   />
                   <div className="space-y-1">
                     <Label className="text-xs">
@@ -1152,6 +1176,10 @@ export default function ServiceGRPOPreviewPage() {
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Location</span>
                 <span className="font-medium">{form.locationName || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Sub Account</span>
+                <span className="font-medium">{form.subAccount || '-'}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Place of Supply</span>

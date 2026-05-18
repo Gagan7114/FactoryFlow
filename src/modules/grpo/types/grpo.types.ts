@@ -269,6 +269,7 @@ export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
   default_sac_code: string;
   default_product_variety: string;
   default_total_litres: string | null;
+  default_sub_account: string;
   invoice_number: string;
   eway_bill: string;
   invoice_weight: string | null;
@@ -295,6 +296,7 @@ export interface PostServiceGRPORequest {
   place_of_supply?: string;
   effective_month?: string | null;
   budget_delivery_point?: string;
+  sub_account?: string;
   location_code?: number | null;
   location_name?: string;
   sac_entry?: number | null;
@@ -359,6 +361,11 @@ export interface ServiceGRPOProjectOption {
   project_name: string;
 }
 
+export interface ServiceGRPOSubAccountOption {
+  sub_account_code: string;
+  sub_account_name: string;
+}
+
 export interface ServiceGRPOOptions {
   branches: ServiceGRPOBranchOption[];
   tax_codes: ServiceGRPOTaxCodeOption[];
@@ -366,6 +373,7 @@ export interface ServiceGRPOOptions {
   sac_codes: ServiceGRPOSACCodeOption[];
   locations: ServiceGRPOLocationOption[];
   projects: ServiceGRPOProjectOption[];
+  sub_accounts: ServiceGRPOSubAccountOption[];
 }
 
 export interface ServiceGRPOHistoryLine {
@@ -380,6 +388,7 @@ export interface ServiceGRPOHistoryLine {
   location_code: number | null;
   location_name: string;
   project_code: string;
+  sub_account: string;
   product_variety: string;
   total_litres: string | null;
 }
@@ -400,6 +409,7 @@ export interface ServiceGRPOHistoryEntry {
   place_of_supply: string;
   effective_month: string | null;
   budget_delivery_point: string;
+  sub_account: string;
   location_code: number | null;
   location_name: string;
   sac_entry: number | null;
