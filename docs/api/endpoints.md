@@ -257,7 +257,7 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | `warehouse` | comma-separated string | Warehouse codes. Two or more selected warehouses return grouped item rows. |
 | `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. With the default `healthy,low,critical` set, benchmarked slow rows can remain visible with no stock status unless the Movement filter excludes slow rows. |
 | `movement_status` | comma-separated string | `planned`, `recent`, `slow`. Omit to include all movement states. |
-| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
+| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `planned_qty`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
 | `sort_dir` | string | `asc` or `desc`. |
 | `page` | integer | Page number. |
 | `page_size` | integer | Page size, maximum 200. |
@@ -269,11 +269,10 @@ Backend status rules:
 
 | Status | Rule |
 |--------|------|
-| `healthy` | Not slow-moving, benchmark is set, and `OnHand >= Benchmark` |
-| `low` | Not slow-moving, benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
-| `critical` | Not slow-moving, benchmark is set, and `OnHand < Benchmark * 0.6` |
-| `critical` | Benchmark is not set and the item is present in open production planning demand |
-| `unset` | Not slow-moving, benchmark is not set, and the item is not present in open production planning demand |
+| `healthy` | Not slow-moving, required quantity is set, and `OnHand >= Benchmark + Planned Qty` |
+| `low` | Not slow-moving, required quantity is set, `OnHand < Benchmark + Planned Qty`, and `OnHand >= (Benchmark + Planned Qty) * 0.6` |
+| `critical` | Not slow-moving, required quantity is set, and `OnHand < (Benchmark + Planned Qty) * 0.6` |
+| `unset` | Not slow-moving, and benchmark plus planned quantity is zero |
 
 The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility.
 Slow-moving rows have no stock status and do not contribute to Healthy, Low, Critical, or No Benchmark Set counts. In the default operational status filter, only benchmarked slow rows remain visible; slow rows with no benchmark are excluded.
@@ -286,7 +285,7 @@ Movement rules:
 | `recent` | No open plan, and outbound consumption exists within 30 days. |
 | `slow` | No open plan, and no outbound consumption exists or last consumption is older than 30 days. |
 
-Stock and benchmark quantities are scoped to selected warehouses, but movement age is item-level across SAP inventory movement.
+Stock and benchmark quantities are scoped to selected warehouses, but movement age is item-level across SAP inventory movement. `planned_qty` is the remaining open production component demand. Difference, status, and health ratio all use `On Hand - Benchmark - Planned Qty`.
 
 **Types:** `StockDashboardFilters`, `StockItem`, `StockDashboardMeta` - see `src/modules/dashboards/stock-level/types/stock-level.types.ts`
 

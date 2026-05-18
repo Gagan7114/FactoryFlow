@@ -15,6 +15,7 @@ export type StockSortCol =
   | 'warehouse'
   | 'on_hand'
   | 'min_stock'
+  | 'planned_qty'
   | 'health_ratio';
 
 export interface StockDashboardFilters {
@@ -39,6 +40,7 @@ export interface StockItem {
   warehouse: string;
   on_hand: number;
   min_stock: number;
+  planned_qty: number;
   uom: string;
   stock_status: StockHealthStatus;
   health_ratio: number;

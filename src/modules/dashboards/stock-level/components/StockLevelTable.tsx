@@ -53,6 +53,14 @@ function formatStockDifference(difference: number): string {
   return formatted;
 }
 
+function plannedQty(item: StockItem): number {
+  return item.planned_qty ?? 0;
+}
+
+function stockDifference(item: StockItem): number {
+  return item.on_hand - item.min_stock - plannedQty(item);
+}
+
 function SortIcon({
   col,
   sortCol,
@@ -86,7 +94,7 @@ export function StockLevelTable({
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = isGrouped ? 11 : 10;
+  const colCount = isGrouped ? 12 : 11;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -160,6 +168,12 @@ export function StockLevelTable({
                 >
                   Benchmark <SortIcon col="min_stock" sortCol={sortCol} sortDir={sortDir} />
                 </th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
+                  onClick={() => toggleSort('planned_qty')}
+                >
+                  Planned Qty <SortIcon col="planned_qty" sortCol={sortCol} sortDir={sortDir} />
+                </th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">
                   Difference
                 </th>
@@ -171,9 +185,7 @@ export function StockLevelTable({
                   Health <SortIcon col="health_ratio" sortCol={sortCol} sortDir={sortDir} />
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                  Movement
-                </th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Movement</th>
                 {isGrouped && <th className="w-10 px-4 py-3" />}
               </tr>
             </thead>
@@ -181,6 +193,8 @@ export function StockLevelTable({
               {items.map((item) => {
                 const canExpand = isGrouped && (item.warehouse_count ?? 1) > 1;
                 const isExpanded = canExpand && expandedItem === item.item_code;
+                const planned = plannedQty(item);
+                const difference = stockDifference(item);
 
                 return (
                   <Fragment key={`${item.item_code}-${item.warehouse}`}>
@@ -201,13 +215,16 @@ export function StockLevelTable({
                       <td className="px-4 py-3 text-right tabular-nums">
                         {item.min_stock.toLocaleString()}
                       </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {planned.toLocaleString()}
+                      </td>
                       <td
                         className={cn(
                           'px-4 py-3 text-right tabular-nums',
-                          stockDifferenceClasses(item.on_hand - item.min_stock),
+                          stockDifferenceClasses(difference),
                         )}
                       >
-                        {formatStockDifference(item.on_hand - item.min_stock)}
+                        {formatStockDifference(difference)}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{item.uom}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
@@ -310,7 +327,9 @@ function StockMovementBadge({ item }: { item: StockItem }) {
 
   return (
     <div className="flex flex-col items-start gap-1">
-      <span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs', classes)}>
+      <span
+        className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs', classes)}
+      >
         {label}
       </span>
       {item.days_since_last_consumption !== null &&

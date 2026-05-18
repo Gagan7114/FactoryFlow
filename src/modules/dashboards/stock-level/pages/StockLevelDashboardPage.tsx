@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api';
@@ -30,6 +30,10 @@ function normalizeSearchParam(value: string | null): string | undefined {
   return search ? search.toUpperCase() : undefined;
 }
 
+function sameStringArray(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
 export default function StockLevelDashboardPage() {
   const [searchParams] = useSearchParams();
 
@@ -46,6 +50,7 @@ export default function StockLevelDashboardPage() {
   }); // Only read URL params on mount
 
   const [filters, setFilters] = useState<StockDashboardFilters>(initialFilters);
+  const [warehouseOptions, setWarehouseOptions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ col: StockSortCol; dir: 'asc' | 'desc' }>({
     col: 'health_ratio',
@@ -100,8 +105,21 @@ export default function StockLevelDashboardPage() {
   );
   const meta = query.data?.meta;
   const statsMeta = statsQuery.data?.meta;
+  const latestWarehouses =
+    meta?.warehouses && meta.warehouses.length > 0
+      ? meta.warehouses
+      : statsMeta?.warehouses && statsMeta.warehouses.length > 0
+        ? statsMeta.warehouses
+        : undefined;
   const sapError = query.error ?? statsQuery.error;
   const hasSAPError = sapError && isSAPError(sapError);
+
+  useEffect(() => {
+    if (!latestWarehouses) return;
+    setWarehouseOptions((current) =>
+      sameStringArray(current, latestWarehouses) ? current : latestWarehouses,
+    );
+  }, [latestWarehouses]);
 
   return (
     <div className="space-y-6 p-6">
@@ -114,7 +132,7 @@ export default function StockLevelDashboardPage() {
         onFiltersChange={handleFiltersChange}
         isFetching={itemGroupsQuery.isFetching || query.isFetching || statsQuery.isFetching}
         defaultValues={effectiveFilters}
-        warehouses={meta?.warehouses ?? []}
+        warehouses={warehouseOptions}
         itemGroups={itemGroups}
         defaultItemGroup={defaultItemGroup}
       />
