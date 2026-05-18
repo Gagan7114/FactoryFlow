@@ -22,6 +22,7 @@ import {
 
 import { usePostSubmittedAPInvoice, useTransporterInvoiceHistory } from '../api';
 import type {
+  TransporterAPInvoiceLine,
   TransporterAPInvoicePosting,
   TransporterAPInvoicePostResponse,
   TransporterAPInvoiceStatus,
@@ -303,7 +304,7 @@ export default function TransporterInvoiceQueuePage() {
       </div>
 
       <Dialog open={showConfirm} onOpenChange={() => setShowConfirm(false)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Confirm A/P Invoice Posting</DialogTitle>
             <DialogDescription>Review the details below before posting to SAP.</DialogDescription>
@@ -328,6 +329,7 @@ export default function TransporterInvoiceQueuePage() {
                 <span className="text-muted-foreground">GRPO Lines</span>
                 <span className="font-medium">{selectedInvoice.lines.length}</span>
               </div>
+              <BaseLineSummary lines={selectedInvoice.lines} />
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
                 <span className="font-medium">{selectedInvoice.attachments.length} file(s)</span>
@@ -373,6 +375,10 @@ export default function TransporterInvoiceQueuePage() {
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">SAP Document Number</span>
                 <span className="font-semibold">{successResult.sap_doc_num}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">SAP DocEntry</span>
+                <span className="font-semibold">{successResult.sap_doc_entry}</span>
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Total Value</span>
@@ -428,6 +434,38 @@ function DateInput({
     <div className="space-y-1">
       <Label className="text-xs">{label}</Label>
       <Input type="date" value={value} onChange={(event) => onChange(event.target.value)} />
+    </div>
+  );
+}
+
+function BaseLineSummary({ lines }: { lines: TransporterAPInvoiceLine[] }) {
+  return (
+    <div className="rounded-md border">
+      <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+        SAP GRPO Base Lines
+      </div>
+      <div className="max-h-44 overflow-auto">
+        <table className="w-full min-w-[520px]">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium">Bilty</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">Doc No.</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">DocEntry</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">Line</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line) => (
+              <tr key={line.id} className="border-t">
+                <td className="px-3 py-2 text-xs">{line.bilty_no || '-'}</td>
+                <td className="px-3 py-2 text-xs">{line.base_doc_num || '-'}</td>
+                <td className="px-3 py-2 text-xs">{line.base_entry}</td>
+                <td className="px-3 py-2 text-xs">{line.base_line}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

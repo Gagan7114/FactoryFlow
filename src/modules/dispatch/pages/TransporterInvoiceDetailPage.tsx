@@ -21,7 +21,11 @@ import {
 } from '@/shared/components/ui';
 
 import { usePostSubmittedAPInvoice, useTransporterInvoiceDetail } from '../api';
-import type { TransporterAPInvoicePostResponse, TransporterAPInvoiceStatus } from '../types';
+import type {
+  TransporterAPInvoiceLine,
+  TransporterAPInvoicePostResponse,
+  TransporterAPInvoiceStatus,
+} from '../types';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -180,6 +184,7 @@ export default function TransporterInvoiceDetailPage() {
                 <Fact label="GRPO Total" value={formatCurrency(posting.selected_grpo_total)} />
                 <Fact label="Difference" value={formatCurrency(posting.amount_difference)} />
                 <Fact label="Branch" value={posting.branch_id} />
+                <Fact label="SAP A/P DocEntry" value={posting.sap_doc_entry || '-'} />
                 <Fact label="Invoice Date" value={posting.invoice_date || '-'} />
                 <Fact label="Posted At" value={formatDateTime(posting.posted_at)} />
                 <Fact label="Created At" value={formatDateTime(posting.created_at)} />
@@ -264,11 +269,13 @@ export default function TransporterInvoiceDetailPage() {
                 <h3 className="font-semibold">Bilty GRPO Lines</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px]">
+                <table className="w-full min-w-[960px]">
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="p-3 text-left text-sm font-medium">Bilty</th>
-                      <th className="p-3 text-left text-sm font-medium">GRPO</th>
+                      <th className="p-3 text-left text-sm font-medium">GRPO Doc No.</th>
+                      <th className="p-3 text-left text-sm font-medium">GRPO DocEntry</th>
+                      <th className="p-3 text-left text-sm font-medium">Line</th>
                       <th className="p-3 text-left text-sm font-medium">Description</th>
                       <th className="p-3 text-left text-sm font-medium">Tax</th>
                       <th className="p-3 text-right text-sm font-medium">Line Total</th>
@@ -278,9 +285,9 @@ export default function TransporterInvoiceDetailPage() {
                     {posting.lines.map((line) => (
                       <tr key={line.id} className="border-t">
                         <td className="p-3 text-sm">{line.bilty_no || '-'}</td>
-                        <td className="p-3 text-sm">
-                          {line.base_doc_num || line.base_entry} / {line.base_line}
-                        </td>
+                        <td className="p-3 text-sm">{line.base_doc_num || '-'}</td>
+                        <td className="p-3 text-sm">{line.base_entry}</td>
+                        <td className="p-3 text-sm">{line.base_line}</td>
                         <td className="p-3 text-sm">{line.service_description}</td>
                         <td className="p-3 text-sm">{line.tax_code || '-'}</td>
                         <td className="p-3 text-right text-sm font-medium">
@@ -322,7 +329,7 @@ export default function TransporterInvoiceDetailPage() {
       )}
 
       <Dialog open={showConfirm} onOpenChange={() => setShowConfirm(false)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Confirm A/P Invoice Posting</DialogTitle>
             <DialogDescription>Review the details below before posting to SAP.</DialogDescription>
@@ -347,6 +354,7 @@ export default function TransporterInvoiceDetailPage() {
                 <span className="text-muted-foreground">GRPO Lines</span>
                 <span className="font-medium">{posting.lines.length}</span>
               </div>
+              <BaseLineSummary lines={posting.lines} />
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
                 <span className="font-medium">{posting.attachments.length} file(s)</span>
@@ -392,6 +400,10 @@ export default function TransporterInvoiceDetailPage() {
                 <span className="font-semibold">{successResult.sap_doc_num}</span>
               </div>
               <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">SAP DocEntry</span>
+                <span className="font-semibold">{successResult.sap_doc_entry}</span>
+              </div>
+              <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Total Value</span>
                 <span className="font-semibold">
                   {formatCurrency(successResult.sap_doc_total || 0)}
@@ -432,6 +444,38 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 break-words text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
+function BaseLineSummary({ lines }: { lines: TransporterAPInvoiceLine[] }) {
+  return (
+    <div className="rounded-md border">
+      <div className="border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+        SAP GRPO Base Lines
+      </div>
+      <div className="max-h-44 overflow-auto">
+        <table className="w-full min-w-[520px]">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-medium">Bilty</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">Doc No.</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">DocEntry</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">Line</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line) => (
+              <tr key={line.id} className="border-t">
+                <td className="px-3 py-2 text-xs">{line.bilty_no || '-'}</td>
+                <td className="px-3 py-2 text-xs">{line.base_doc_num || '-'}</td>
+                <td className="px-3 py-2 text-xs">{line.base_entry}</td>
+                <td className="px-3 py-2 text-xs">{line.base_line}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

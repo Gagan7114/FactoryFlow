@@ -1143,6 +1143,10 @@ export default function ServiceGRPOPreviewPage() {
                 <span className="font-semibold">{successResult.sap_doc_num}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">SAP DocEntry</span>
+                <span className="font-semibold">{successResult.sap_doc_entry}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Value</span>
                 <span className="font-semibold">
                   {formatCurrency(successResult.sap_doc_total || 0)}

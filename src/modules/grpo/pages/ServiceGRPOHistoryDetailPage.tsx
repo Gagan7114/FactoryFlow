@@ -112,6 +112,14 @@ export default function ServiceGRPOHistoryDetailPage() {
                   <p className="text-sm font-medium">{posting.sap_doc_num || '-'}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-muted-foreground">SAP Doc Entry</p>
+                  <p className="text-sm font-medium">{posting.sap_doc_entry || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Dispatch Bill DocEntry</p>
+                  <p className="text-sm font-medium">{posting.sap_invoice_doc_entry || '-'}</p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Total</p>
                   <p className="text-sm font-medium">
                     {formatCurrency(posting.total_amount || posting.sap_doc_total)}
