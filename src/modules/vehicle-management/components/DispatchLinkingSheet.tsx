@@ -1,4 +1,4 @@
-import { Loader2, Paperclip, Plus, Save, Upload, X } from 'lucide-react';
+import { Eye, Loader2, Paperclip, Plus, Save, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
@@ -20,6 +20,7 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
+import { resolveFileUrl } from '@/shared/utils';
 
 import type { DispatchVehicleLinkPayload } from '../types';
 
@@ -963,6 +964,20 @@ function BiltyAttachmentField({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const displayName = file?.name || existingFileName || '';
+  const [localPreviewUrl, setLocalPreviewUrl] = useState('');
+
+  useEffect(() => {
+    if (!file) {
+      setLocalPreviewUrl('');
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  const previewUrl = localPreviewUrl || resolveFileUrl(existingFileUrl);
 
   return (
     <div className="space-y-1.5 sm:col-span-2">
@@ -981,9 +996,9 @@ function BiltyAttachmentField({
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <Paperclip className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
           {displayName ? (
-            existingFileUrl && !file ? (
+            previewUrl ? (
               <a
-                href={existingFileUrl}
+                href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="truncate font-medium text-primary hover:underline"
@@ -1001,6 +1016,14 @@ function BiltyAttachmentField({
           )}
         </div>
         <div className="flex gap-2">
+          {previewUrl && (
+            <Button asChild variant="ghost" size="sm">
+              <a href={previewUrl} target="_blank" rel="noreferrer">
+                <Eye className="mr-2 h-4 w-4" />
+                Preview
+              </a>
+            </Button>
+          )}
           {file && (
             <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
               <X className="mr-2 h-4 w-4" />

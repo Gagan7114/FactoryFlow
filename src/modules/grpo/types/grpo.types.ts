@@ -234,6 +234,7 @@ export interface ServiceGRPOPendingEntry {
   driver_name: string;
   transporter_name: string;
   transporter_gstin: string;
+  source_state?: string;
   bilty_no: string;
   bilty_date: string | null;
   freight: string | null;
@@ -275,6 +276,8 @@ export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
   source_state: string;
   source_city: string;
   item_summary: string;
+  bilty_attachment: string | null;
+  bilty_attachment_name: string;
   grpo_status: GRPOStatus | null;
   sap_doc_num: number | null;
   total_amount: string | null;
@@ -306,6 +309,7 @@ export interface PostServiceGRPORequest {
   vendor_ref?: string;
   extra_charges?: ExtraCharge[];
   attachments?: File[];
+  include_bilty_attachment?: boolean;
   doc_date?: string;
   doc_due_date?: string;
   tax_date?: string;

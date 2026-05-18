@@ -2,6 +2,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Eye,
   FileText,
   Paperclip,
   RefreshCw,
@@ -32,6 +33,7 @@ import {
   SelectOption,
   Textarea,
 } from '@/shared/components/ui';
+import { resolveFileUrl } from '@/shared/utils';
 
 import { usePostServiceGRPO, useServiceGRPOOptions, useServiceGRPOPreview } from '../api';
 import { ExtraChargesSection } from '../components';
@@ -181,6 +183,11 @@ const findDefaultLocation = (
   );
 };
 
+const projectLabel = (project: ServiceGRPOProjectOption) =>
+  project.project_code === project.project_name
+    ? project.project_code
+    : `${project.project_code} - ${project.project_name}`;
+
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
   const { dispatchPlanId } = useParams<{ dispatchPlanId: string }>();
@@ -213,7 +220,22 @@ export default function ServiceGRPOPreviewPage() {
   const glAccountOptions = serviceOptions?.gl_accounts ?? [];
   const sacOptions = serviceOptions?.sac_codes ?? [];
   const locationOptions = serviceOptions?.locations ?? [];
-  const projectOptions = serviceOptions?.projects ?? [];
+  const sapProjectOptions = serviceOptions?.projects ?? [];
+  const projectOptions = useMemo<ServiceGRPOProjectOption[]>(() => {
+    const deliveryPoint = (preview?.default_budget_delivery_point || '').trim();
+    if (!deliveryPoint) return sapProjectOptions;
+    const hasDeliveryPoint = sapProjectOptions.some(
+      (project) => project.project_code.toLowerCase() === deliveryPoint.toLowerCase(),
+    );
+    if (hasDeliveryPoint) return sapProjectOptions;
+    return [
+      {
+        project_code: deliveryPoint,
+        project_name: deliveryPoint,
+      },
+      ...sapProjectOptions,
+    ];
+  }, [preview?.default_budget_delivery_point, sapProjectOptions]);
 
   const defaultForm = useMemo<ServiceFormState | null>(() => {
     if (!preview) return null;
@@ -396,7 +418,7 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.vendorRef.trim()) {
       errors.vendorRef = 'Vendor reference is required';
     }
-    if (form.attachments.length === 0) {
+    if (form.attachments.length === 0 && !preview.bilty_attachment) {
       errors.attachments = 'At least one attachment is required';
     }
 
@@ -441,6 +463,7 @@ export default function ServiceGRPOPreviewPage() {
         vendor_ref: form.vendorRef || undefined,
         extra_charges: form.extraCharges.length > 0 ? form.extraCharges : undefined,
         attachments: form.attachments.length > 0 ? form.attachments : undefined,
+        include_bilty_attachment: Boolean(preview.bilty_attachment),
         doc_date: form.docDate || undefined,
         doc_due_date: form.docDueDate || undefined,
         tax_date: form.taxDate || undefined,
@@ -457,6 +480,9 @@ export default function ServiceGRPOPreviewPage() {
 
   const billNo = preview?.sap_invoice_doc_num || preview?.sap_invoice_doc_entry || '';
   const estimatedTotal = calcTotal();
+  const biltyAttachmentUrl = resolveFileUrl(preview?.bilty_attachment);
+  const biltyAttachmentName = preview?.bilty_attachment_name || 'Bilty attachment';
+  const attachmentCount = (form?.attachments.length ?? 0) + (preview?.bilty_attachment ? 1 : 0);
 
   return (
     <div className="space-y-6 pb-32">
@@ -541,6 +567,10 @@ export default function ServiceGRPOPreviewPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Transporter</p>
                   <p className="text-sm font-medium">{preview.transporter_name || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ship-To State</p>
+                  <p className="text-sm font-medium">{preview.source_state || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Driver</p>
@@ -809,21 +839,19 @@ export default function ServiceGRPOPreviewPage() {
                     isLoading={isOptionsLoading}
                     isError={isOptionsError && projectOptions.length === 0}
                     label="Budget / Delivery Point"
-                    placeholder="Select budget/project"
+                    placeholder="Select delivery point"
                     inputId="service-grpo-project"
                     inputClassName="h-8 text-sm"
                     getItemKey={(project) => project.project_code}
-                    getItemLabel={(project) =>
-                      `${project.project_code} - ${project.project_name}`
-                    }
+                    getItemLabel={projectLabel}
                     filterFn={(project, search) =>
                       `${project.project_code} ${project.project_name}`
                         .toLowerCase()
                         .includes(search.toLowerCase())
                     }
-                    loadingText="Loading projects..."
-                    emptyText="No projects available"
-                    notFoundText="No projects found"
+                    loadingText="Loading delivery points..."
+                    emptyText="No delivery points available"
+                    notFoundText="No delivery points found"
                     onItemSelect={updateProject}
                     onClear={() => updateProject(null)}
                   />
@@ -1009,6 +1037,29 @@ export default function ServiceGRPOPreviewPage() {
                       PDF, PNG, JPG, DOC, XLS accepted
                     </span>
                   </div>
+                  {preview.bilty_attachment && (
+                    <div className="flex items-center gap-2 rounded border bg-muted/40 p-1.5 text-sm">
+                      <Paperclip className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      <a
+                        href={biltyAttachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate font-medium text-primary hover:underline"
+                        title={biltyAttachmentName}
+                      >
+                        {biltyAttachmentName}
+                      </a>
+                      <span className="hidden flex-shrink-0 text-xs text-muted-foreground sm:inline">
+                        From vehicle linking
+                      </span>
+                      <Button asChild variant="ghost" size="sm" className="h-7 px-2">
+                        <a href={biltyAttachmentUrl} target="_blank" rel="noreferrer">
+                          <Eye className="h-3.5 w-3.5" />
+                          Preview
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                   {form.attachments.length > 0 && (
                     <div className="space-y-1">
                       {form.attachments.map((file, index) => (
@@ -1108,7 +1159,7 @@ export default function ServiceGRPOPreviewPage() {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
-                <span className="font-medium">{form.attachments.length} file(s)</span>
+                <span className="font-medium">{attachmentCount} file(s)</span>
               </div>
               <div className="border-t pt-3 flex justify-between gap-4">
                 <span className="font-semibold">Estimated Total</span>
