@@ -73,14 +73,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   const isSubmenuOpen = (routePath: string) => openSubmenus.has(routePath);
 
-  const isRouteActive = useCallback((item: ModuleNavItem) => {
-    if (location.pathname === item.path) return true;
-    // Check if any child route is active
-    if (item.children) {
-      return item.children.some((child) => location.pathname === child.path);
-    }
-    return false;
-  }, [location.pathname]);
+  const isRouteActive = useCallback(
+    (item: ModuleNavItem) => {
+      if (location.pathname === item.path) return true;
+      // Check if any child route is active
+      if (item.children) {
+        return item.children.some((child) => location.pathname === child.path);
+      }
+      return false;
+    },
+    [location.pathname],
+  );
 
   // Auto-open submenu if current route is a child
   useEffect(() => {
@@ -124,10 +127,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         <img
           src="/factoryLogoNew.png"
           alt="Jivo Info Logo"
-          className={cn(
-            'dark:invert transition-all object-contain',
-            isCollapsed ? 'h-8 w-8' : 'h-10 w-auto',
-          )}
+          className={cn('transition-all object-contain', isCollapsed ? 'h-8 w-8' : 'h-10 w-auto')}
         />
         {!isCollapsed && (
           <span className="text-xl font-semibold tracking-normal text-foreground">{APP_NAME}</span>
@@ -257,12 +257,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* Settings Button */}
-      <div
-        className={cn(
-          'border-t py-2',
-          isCollapsed ? 'flex justify-center' : 'px-2',
-        )}
-      >
+      <div className={cn('border-t py-2', isCollapsed ? 'flex justify-center' : 'px-2')}>
         <SettingsDialog isCollapsed={isCollapsed} />
       </div>
 

@@ -23,9 +23,11 @@ describe('Sidebar', () => {
 
   it('imports useState, useEffect, useMemo from react', () => {
     const content = readSource();
-    expect(content).toMatch(
-      /import\s*\{[^}]*useState[^}]*useEffect[^}]*useMemo[^}]*\}\s*from\s*['"]react['"]/,
-    );
+    const reactImport = content.match(/import\s*\{([^}]*)\}\s*from\s*['"]react['"]/);
+    expect(reactImport).not.toBeNull();
+    expect(reactImport![1]).toContain('useState');
+    expect(reactImport![1]).toContain('useEffect');
+    expect(reactImport![1]).toContain('useMemo');
   });
 
   it('imports NavLink and useLocation from react-router-dom', () => {
@@ -76,7 +78,7 @@ describe('Sidebar', () => {
   it('calls getAllNavigation() from @/app/modules', () => {
     const content = readSource();
     expect(content).toContain('getAllNavigation()');
-    expect(content).toMatch(/from\s*['"]@\/app\/modules['"]/);
+    expect(content).toMatch(/from\s*['"]@\/app\/registry['"]/);
   });
 
   it('filters nav items by showInSidebar flag', () => {
@@ -92,12 +94,12 @@ describe('Sidebar', () => {
 
   it('falls back to hasAnyPermission for explicit permissions', () => {
     const content = readSource();
-    expect(content).toContain('hasAnyPermission([...item.permissions])');
+    expect(content).toMatch(/hasAnyPermission\(\s*(?:\[\.\.\.)?item\.permissions/);
   });
 
   it('filters children by permission', () => {
     const content = readSource();
-    expect(content).toContain('hasAnyPermission([...child.permissions])');
+    expect(content).toMatch(/hasAnyPermission\(\s*(?:\[\.\.\.)?child\.permissions/);
   });
 
   // ─── Sidebar Structure ──────────────────────────────────
@@ -119,6 +121,7 @@ describe('Sidebar', () => {
     const content = readSource();
     expect(content).toContain('src="/factoryLogoNew.png"');
     expect(content).toContain('alt="Jivo Info Logo"');
+    expect(content).not.toContain('dark:invert');
   });
 
   it('contains <nav> element for navigation items', () => {

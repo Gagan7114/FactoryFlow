@@ -90,7 +90,7 @@ export default function CompanySelectionPage() {
           <img
             src="/factoryLogoNew.png"
             alt="Jivo Info Logo"
-            className="h-16 w-auto dark:invert cursor-pointer"
+            className="h-16 w-auto cursor-pointer"
             onClick={() => window.location.reload()}
           />
         </div>

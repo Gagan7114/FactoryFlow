@@ -58,11 +58,7 @@ export default function LoginPage() {
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-4">
-          <img
-            src="/factoryLogoNew.png"
-            alt="Jivo Info Logo"
-            className="h-16 w-auto dark:invert"
-          />
+          <img src="/factoryLogoNew.png" alt="Jivo Info Logo" className="h-16 w-auto" />
         </div>
         <CardTitle className="text-2xl font-bold">{APP_NAME}</CardTitle>
         <CardDescription>Enter your credentials to access the system</CardDescription>
