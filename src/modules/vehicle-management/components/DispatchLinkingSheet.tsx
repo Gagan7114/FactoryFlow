@@ -26,6 +26,7 @@ import type { DispatchVehicleLinkPayload } from '../types';
 
 interface DispatchLinkingSheetProps {
   bill: DispatchBill | null;
+  selectedBills: DispatchBill[];
   open: boolean;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
@@ -217,6 +218,7 @@ function normalizeVehicleNumber(value: string | null | undefined) {
 
 export function DispatchLinkingSheet({
   bill,
+  selectedBills,
   open,
   isSaving,
   onOpenChange,
@@ -237,6 +239,20 @@ export function DispatchLinkingSheet({
       gstin: cleanSapSeed(form.transporter_gstin),
     }),
     [form.contact_person, form.mobile_no, form.transporter_gstin, form.transporter_name],
+  );
+  const activeBills = useMemo(
+    () => (selectedBills.length > 0 ? selectedBills : bill ? [bill] : []),
+    [bill, selectedBills],
+  );
+  const isBatchLink = activeBills.length > 1;
+  const selectedTotals = useMemo(
+    () => ({
+      invoices: activeBills.length,
+      litres: activeBills.reduce((sum, item) => sum + (item.total_litres || 0), 0),
+      weight: activeBills.reduce((sum, item) => sum + (item.total_weight || 0), 0),
+      amount: activeBills.reduce((sum, item) => sum + (item.doc_total || 0), 0),
+    }),
+    [activeBills],
   );
 
   const showFormError = useCallback(
@@ -314,6 +330,7 @@ export function DispatchLinkingSheet({
 
     await onSave(bill.doc_entry, {
       sap_invoice_doc_num: bill.doc_num,
+      linked_invoice_doc_entries: activeBills.map((selected) => selected.doc_entry),
       invoice_number: form.invoice_number.trim(),
       eway_bill: form.eway_bill.trim(),
       invoice_weight: stringOrNull(form.invoice_weight),
@@ -372,12 +389,61 @@ export function DispatchLinkingSheet({
             <InfoItem label="Dispatch Date" value={bill.plan.dispatch_date} />
             <InfoItem
               label="Ship To"
-              value={`${compactText(bill.city)} ${compactText(bill.state)}`}
+              value={
+                isBatchLink
+                  ? 'Multiple invoices'
+                  : `${compactText(bill.city)} ${compactText(bill.state)}`
+              }
             />
             <InfoItem
               label="Load"
-              value={formatLoadLabel(bill.total_boxes, bill.total_weight)}
+              value={
+                isBatchLink
+                  ? formatLoadLabel(0, selectedTotals.weight)
+                  : formatLoadLabel(bill.total_boxes, bill.total_weight)
+              }
             />
+          </div>
+        )}
+
+        {activeBills.length > 1 && (
+          <div className="mt-4 rounded-md border bg-primary/5 p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-medium">{activeBills.length} invoices selected for one bilty</div>
+              <div className="text-xs text-muted-foreground">
+                {formatNumber(selectedTotals.litres, 3)} L / {formatNumber(selectedTotals.weight, 3)} kg / Rs {formatNumber(selectedTotals.amount)}
+              </div>
+            </div>
+            <div className="mt-3 max-h-48 overflow-auto rounded border bg-background">
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="px-2 py-1 text-left font-medium">Invoice</th>
+                    <th className="px-2 py-1 text-left font-medium">Customer</th>
+                    <th className="px-2 py-1 text-left font-medium">State</th>
+                    <th className="px-2 py-1 text-left font-medium">Delivery Point</th>
+                    <th className="px-2 py-1 text-right font-medium">Weight</th>
+                    <th className="px-2 py-1 text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBills.map((selected) => (
+                    <tr key={selected.doc_entry} className="border-b last:border-b-0">
+                      <td className="px-2 py-1 font-mono">{selected.doc_num}</td>
+                      <td className="px-2 py-1">{selected.card_name}</td>
+                      <td className="px-2 py-1 whitespace-nowrap">{compactText(selected.state)}</td>
+                      <td className="px-2 py-1 whitespace-nowrap">{compactText(selected.city)}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {formatNumber(selected.total_weight, 3)} kg
+                      </td>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        Rs {formatNumber(selected.doc_total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -393,67 +459,69 @@ export function DispatchLinkingSheet({
         )}
 
         <form className="mt-4 flex flex-1 flex-col gap-6" noValidate onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-invoice-number">Invoice Number</Label>
-              <Input
-                id="dispatch-link-invoice-number"
-                value={form.invoice_number}
-                onChange={(event) => updateField('invoice_number', event.target.value)}
-              />
-            </div>
+          {!isBatchLink && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-invoice-number">Invoice Number</Label>
+                <Input
+                  id="dispatch-link-invoice-number"
+                  value={form.invoice_number}
+                  onChange={(event) => updateField('invoice_number', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-eway-bill">E-way Bill</Label>
-              <Input
-                id="dispatch-link-eway-bill"
-                value={form.eway_bill}
-                onChange={(event) => updateField('eway_bill', event.target.value)}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-eway-bill">E-way Bill</Label>
+                <Input
+                  id="dispatch-link-eway-bill"
+                  value={form.eway_bill}
+                  onChange={(event) => updateField('eway_bill', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-invoice-weight">
-                Invoice Weight <span className="text-muted-foreground">(Charged Kgs)</span>
-              </Label>
-              <Input
-                id="dispatch-link-invoice-weight"
-                type="number"
-                step="0.001"
-                value={form.invoice_weight}
-                onChange={(event) => updateField('invoice_weight', event.target.value)}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-invoice-weight">
+                  Invoice Weight <span className="text-muted-foreground">(Charged Kgs)</span>
+                </Label>
+                <Input
+                  id="dispatch-link-invoice-weight"
+                  type="number"
+                  step="0.001"
+                  value={form.invoice_weight}
+                  onChange={(event) => updateField('invoice_weight', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-invoice-amount">Amount</Label>
-              <Input
-                id="dispatch-link-invoice-amount"
-                type="number"
-                step="0.01"
-                value={form.invoice_amount}
-                onChange={(event) => updateField('invoice_amount', event.target.value)}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-invoice-amount">Amount</Label>
+                <Input
+                  id="dispatch-link-invoice-amount"
+                  type="number"
+                  step="0.01"
+                  value={form.invoice_amount}
+                  onChange={(event) => updateField('invoice_amount', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-place-of-supply">Place of Supply</Label>
-              <Input
-                id="dispatch-link-place-of-supply"
-                value={form.place_of_supply}
-                onChange={(event) => updateField('place_of_supply', event.target.value)}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-place-of-supply">Place of Supply</Label>
+                <Input
+                  id="dispatch-link-place-of-supply"
+                  value={form.place_of_supply}
+                  onChange={(event) => updateField('place_of_supply', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-delivery-point">Delivery Point</Label>
-              <Input
-                id="dispatch-link-delivery-point"
-                value={form.budget_delivery_point}
-                onChange={(event) => updateField('budget_delivery_point', event.target.value)}
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="dispatch-link-delivery-point">Delivery Point</Label>
+                <Input
+                  id="dispatch-link-delivery-point"
+                  value={form.budget_delivery_point}
+                  onChange={(event) => updateField('budget_delivery_point', event.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <DispatchVehicleSelect

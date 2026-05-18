@@ -2,13 +2,15 @@ import { Link2, Loader2 } from 'lucide-react';
 
 import { StatusBadge } from '@/modules/dashboards/dispatch-plans/components';
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
-import { Button } from '@/shared/components/ui';
+import { Button, Checkbox } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
 
 interface DispatchLinkingTableProps {
   bills: DispatchBill[];
   isLoading: boolean;
   canEdit: boolean;
+  selectedDocEntries: Set<number>;
+  onToggleSelection: (bill: DispatchBill) => void;
   onLink: (bill: DispatchBill) => void;
 }
 
@@ -30,6 +32,8 @@ export function DispatchLinkingTable({
   bills,
   isLoading,
   canEdit,
+  selectedDocEntries,
+  onToggleSelection,
   onLink,
 }: DispatchLinkingTableProps) {
   if (isLoading) {
@@ -55,6 +59,7 @@ export function DispatchLinkingTable({
         <table className="w-full min-w-[1180px] text-sm">
           <thead className="border-b bg-muted/40">
             <tr>
+              <th className="w-10 px-4 py-3 text-left font-medium text-muted-foreground"></th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Dispatch</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Bill</th>
               <th className="px-4 py-3 text-left font-medium text-muted-foreground">Customer</th>
@@ -68,11 +73,25 @@ export function DispatchLinkingTable({
             </tr>
           </thead>
           <tbody>
-            {bills.map((bill) => (
+            {bills.map((bill) => {
+              const selected = selectedDocEntries.has(bill.doc_entry);
+              return (
               <tr
                 key={bill.doc_entry}
-                className={cn('border-b transition-colors', canEdit && 'hover:bg-muted/30')}
+                className={cn(
+                  'border-b transition-colors',
+                  selected && 'bg-primary/5',
+                  canEdit && 'hover:bg-muted/30',
+                )}
               >
+                <td className="px-4 py-3 align-top">
+                  <Checkbox
+                    checked={selected}
+                    disabled={!canEdit}
+                    aria-label={`Select invoice ${bill.doc_num}`}
+                    onCheckedChange={() => onToggleSelection(bill)}
+                  />
+                </td>
                 <td className="px-4 py-3 align-top">
                   <div className="font-medium">{compactText(bill.plan.dispatch_date)}</div>
                   <div className="text-xs text-muted-foreground">
@@ -146,11 +165,16 @@ export function DispatchLinkingTable({
                     onClick={() => onLink(bill)}
                   >
                     <Link2 className="mr-2 h-4 w-4" />
-                    {bill.plan.vehicle_id ? 'Edit Link' : 'Link'}
+                    {selectedDocEntries.size > 1 && selected
+                      ? 'Link Selected'
+                      : bill.plan.vehicle_id
+                        ? 'Edit Link'
+                        : 'Link'}
                   </Button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

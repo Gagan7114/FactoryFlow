@@ -239,6 +239,7 @@ export interface ServiceGRPOPendingEntry {
   bilty_date: string | null;
   freight: string | null;
   total_freight: string | null;
+  invoice_count?: number;
   invoice_number?: string;
   eway_bill?: string;
   invoice_weight?: string | null;
@@ -282,6 +283,24 @@ export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
   grpo_status: GRPOStatus | null;
   sap_doc_num: number | null;
   total_amount: string | null;
+  invoice_lines: ServiceGRPOInvoiceLinePreview[];
+}
+
+export interface ServiceGRPOInvoiceLinePreview {
+  dispatch_plan_id: number;
+  sap_invoice_doc_entry: number;
+  sap_invoice_doc_num: string;
+  invoice_number: string;
+  customer_code: string;
+  customer_name: string;
+  source_state: string;
+  source_city: string;
+  service_description: string;
+  product_variety: string;
+  total_litres: string | null;
+  invoice_weight: string | null;
+  invoice_amount: string | null;
+  freight_amount: string | null;
 }
 
 export interface PostServiceGRPORequest {
@@ -378,6 +397,7 @@ export interface ServiceGRPOOptions {
 
 export interface ServiceGRPOHistoryLine {
   id: number;
+  dispatch_plan: number | null;
   service_description: string;
   amount: string;
   unit_price: string | null;

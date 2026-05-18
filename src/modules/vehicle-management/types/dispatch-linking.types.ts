@@ -26,6 +26,7 @@ export interface DispatchLinkingResponse {
 
 export interface DispatchVehicleLinkPayload {
   sap_invoice_doc_num: string;
+  linked_invoice_doc_entries?: number[];
   invoice_number: string;
   eway_bill: string;
   invoice_weight: string | null;

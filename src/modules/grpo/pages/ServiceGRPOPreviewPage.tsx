@@ -121,6 +121,14 @@ const monthPayloadValue = (month: string) => (month ? month : null);
 const formatCurrency = (amount: number) =>
   amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
 
+const formatQuantity = (value?: string | number | null, fractionDigits = 2) => {
+  const amount = parseAmount(value);
+  if (!amount) return '-';
+  return amount.toLocaleString('en-IN', {
+    maximumFractionDigits: fractionDigits,
+  });
+};
+
 const formatDate = (dateStr?: string | null) => {
   if (!dateStr) return '-';
   try {
@@ -247,6 +255,7 @@ export default function ServiceGRPOPreviewPage() {
   const defaultForm = useMemo<ServiceFormState | null>(() => {
     if (!preview) return null;
     const date = preview.dispatch_date || today();
+    const isMultiInvoice = (preview.invoice_count || 1) > 1;
     const productVariety = preview.default_product_variety || '';
     const defaultSac = findDefaultSac(
       sacOptions,
@@ -267,7 +276,7 @@ export default function ServiceGRPOPreviewPage() {
       amount,
       taxCode: findDefaultTaxCode(taxCodeOptions),
       glAccount: '',
-      placeOfSupply: preview.default_place_of_supply || 'HR',
+      placeOfSupply: isMultiInvoice ? '' : preview.default_place_of_supply || 'HR',
       effectiveMonth: monthInputValue(preview.default_effective_month),
       budgetDeliveryPoint: preview.default_budget_delivery_point || '',
       subAccount: preview.default_sub_account || '',
@@ -407,7 +416,8 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.glAccount.trim()) {
       errors.glAccount = 'G/L account is required for service GRPO';
     }
-    if (!form.placeOfSupply.trim()) {
+    const isMultiInvoice = (preview.invoice_count || 1) > 1;
+    if (!isMultiInvoice && !form.placeOfSupply.trim()) {
       errors.placeOfSupply = 'Place of supply is required';
     }
     if (!form.effectiveMonth) {
@@ -494,6 +504,7 @@ export default function ServiceGRPOPreviewPage() {
   const biltyAttachmentUrl = resolveFileUrl(preview?.bilty_attachment);
   const biltyAttachmentName = preview?.bilty_attachment_name || 'Bilty attachment';
   const attachmentCount = (form?.attachments.length ?? 0) + (preview?.bilty_attachment ? 1 : 0);
+  const isMultiInvoicePreview = (preview?.invoice_count || 1) > 1;
 
   return (
     <div className="space-y-6 pb-32">
@@ -581,7 +592,9 @@ export default function ServiceGRPOPreviewPage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Ship-To State</p>
-                  <p className="text-sm font-medium">{preview.source_state || '-'}</p>
+                  <p className="text-sm font-medium">
+                    {isMultiInvoicePreview ? 'Multiple invoices' : preview.source_state || '-'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Driver</p>
@@ -605,6 +618,10 @@ export default function ServiceGRPOPreviewPage() {
                     {formatCurrency(parseAmount(preview.total_freight || preview.freight))}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Invoices</p>
+                  <p className="text-sm font-medium">{preview.invoice_count || 1}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -621,6 +638,80 @@ export default function ServiceGRPOPreviewPage() {
                 </p>
               </div>
             </div>
+          )}
+
+          {preview.invoice_lines.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">GRPO Lines</h3>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {preview.invoice_lines.length} invoice
+                    {preview.invoice_lines.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full min-w-[980px] text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="p-3 text-left font-medium">SAP Invoice</th>
+                        <th className="p-3 text-left font-medium">Customer</th>
+                        <th className="p-3 text-left font-medium">State</th>
+                        <th className="p-3 text-left font-medium">Service</th>
+                        <th className="p-3 text-right font-medium">Litres</th>
+                        <th className="p-3 text-right font-medium">Weight</th>
+                        <th className="p-3 text-right font-medium">Freight</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.invoice_lines.map((line) => (
+                        <tr key={line.dispatch_plan_id} className="border-t">
+                          <td className="p-3 align-top">
+                            <div className="font-mono text-xs font-semibold">
+                              {line.sap_invoice_doc_num || line.invoice_number || '-'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              DocEntry {line.sap_invoice_doc_entry}
+                            </div>
+                          </td>
+                          <td className="p-3 align-top">
+                            <div className="max-w-[260px] truncate font-medium">
+                              {line.customer_name || '-'}
+                            </div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {line.customer_code || '-'}
+                            </div>
+                          </td>
+                          <td className="p-3 align-top whitespace-nowrap">
+                            {line.source_state || '-'}
+                          </td>
+                          <td className="p-3 align-top">
+                            <div className="max-w-[280px] truncate">
+                              {line.service_description || '-'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {line.product_variety || '-'}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatQuantity(line.total_litres, 3)}
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatQuantity(line.invoice_weight, 3)}
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatCurrency(parseAmount(line.freight_amount))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {form && (
@@ -879,21 +970,23 @@ export default function ServiceGRPOPreviewPage() {
                     }
                     onClear={() => updateFormField('subAccount', '')}
                   />
-                  <div className="space-y-1">
-                    <Label className="text-xs">
-                      Place of Supply <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      value={form.placeOfSupply}
-                      onChange={(e) => updateFormField('placeOfSupply', e.target.value)}
-                      className={`h-8 text-sm${
-                        apiErrors.placeOfSupply ? ' border-destructive' : ''
-                      }`}
-                    />
-                    {apiErrors.placeOfSupply && (
-                      <p className="text-xs text-destructive">{apiErrors.placeOfSupply}</p>
-                    )}
-                  </div>
+                  {!isMultiInvoicePreview && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        Place of Supply <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        value={form.placeOfSupply}
+                        onChange={(e) => updateFormField('placeOfSupply', e.target.value)}
+                        className={`h-8 text-sm${
+                          apiErrors.placeOfSupply ? ' border-destructive' : ''
+                        }`}
+                      />
+                      {apiErrors.placeOfSupply && (
+                        <p className="text-xs text-destructive">{apiErrors.placeOfSupply}</p>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">
                       Effective Month <span className="text-destructive">*</span>
@@ -942,48 +1035,52 @@ export default function ServiceGRPOPreviewPage() {
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Invoice Number</Label>
-                    <Input
-                      value={form.invoiceNumber}
-                      onChange={(e) => updateFormField('invoiceNumber', e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">E-way Bill</Label>
-                    <Input
-                      value={form.ewayBill}
-                      onChange={(e) => updateFormField('ewayBill', e.target.value)}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Invoice Weight (Charged Kgs)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={form.invoiceWeight ?? ''}
-                      onChange={(e) =>
-                        updateFormField('invoiceWeight', parseNullableAmount(e.target.value))
-                      }
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Invoice Amount</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={form.invoiceAmount ?? ''}
-                      onChange={(e) =>
-                        updateFormField('invoiceAmount', parseNullableAmount(e.target.value))
-                      }
-                      className="h-8 text-sm"
-                    />
-                  </div>
+                  {!isMultiInvoicePreview && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Number</Label>
+                        <Input
+                          value={form.invoiceNumber}
+                          onChange={(e) => updateFormField('invoiceNumber', e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">E-way Bill</Label>
+                        <Input
+                          value={form.ewayBill}
+                          onChange={(e) => updateFormField('ewayBill', e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Weight (Charged Kgs)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={form.invoiceWeight ?? ''}
+                          onChange={(e) =>
+                            updateFormField('invoiceWeight', parseNullableAmount(e.target.value))
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Amount</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={form.invoiceAmount ?? ''}
+                          onChange={(e) =>
+                            updateFormField('invoiceAmount', parseNullableAmount(e.target.value))
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">Posting Date</Label>
                     <Input
@@ -1181,10 +1278,12 @@ export default function ServiceGRPOPreviewPage() {
                 <span className="text-muted-foreground">Sub Account</span>
                 <span className="font-medium">{form.subAccount || '-'}</span>
               </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">Place of Supply</span>
-                <span className="font-medium">{form.placeOfSupply || '-'}</span>
-              </div>
+              {!isMultiInvoicePreview && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Place of Supply</span>
+                  <span className="font-medium">{form.placeOfSupply || '-'}</span>
+                </div>
+              )}
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
                 <span className="font-medium">{attachmentCount} file(s)</span>

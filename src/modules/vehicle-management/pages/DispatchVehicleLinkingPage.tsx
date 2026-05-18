@@ -50,6 +50,7 @@ export default function DispatchVehicleLinkingPage() {
   });
   const [searchDraft, setSearchDraft] = useState('');
   const [selectedBill, setSelectedBill] = useState<DispatchBill | null>(null);
+  const [selectedDocEntries, setSelectedDocEntries] = useState<Set<number>>(() => new Set());
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const effectiveFilters = useMemo(
@@ -65,7 +66,23 @@ export default function DispatchVehicleLinkingPage() {
 
   const handleLink = (bill: DispatchBill) => {
     setSelectedBill(bill);
+    setSelectedDocEntries((current) => {
+      if (current.size > 0 && current.has(bill.doc_entry)) return current;
+      return new Set([bill.doc_entry]);
+    });
     setIsSheetOpen(true);
+  };
+
+  const handleToggleSelection = (bill: DispatchBill) => {
+    setSelectedDocEntries((current) => {
+      const next = new Set(current);
+      if (next.has(bill.doc_entry)) {
+        next.delete(bill.doc_entry);
+      } else {
+        next.add(bill.doc_entry);
+      }
+      return next;
+    });
   };
 
   const handleSave = async (docEntry: number, payload: DispatchVehicleLinkPayload) => {
@@ -74,12 +91,21 @@ export default function DispatchVehicleLinkingPage() {
       toast.success('Vehicle linked to dispatch plan');
       setIsSheetOpen(false);
       setSelectedBill(null);
+      setSelectedDocEntries(new Set());
     } catch {
       toast.error('Failed to link vehicle');
     }
   };
 
   const meta = plansQuery.data?.meta;
+  const selectedBills = useMemo(() => {
+    const bills = plansQuery.data?.data ?? [];
+    if (!selectedBill) return [];
+    const selected = bills.filter((bill) => selectedDocEntries.has(bill.doc_entry));
+    return selected.some((bill) => bill.doc_entry === selectedBill.doc_entry)
+      ? selected
+      : [selectedBill];
+  }, [plansQuery.data?.data, selectedBill, selectedDocEntries]);
 
   return (
     <div className="space-y-6 p-6">
@@ -201,6 +227,8 @@ export default function DispatchVehicleLinkingPage() {
           bills={plansQuery.data?.data ?? []}
           isLoading={plansQuery.isLoading || plansQuery.isFetching}
           canEdit={canEdit}
+          selectedDocEntries={selectedDocEntries}
+          onToggleSelection={handleToggleSelection}
           onLink={handleLink}
         />
       )}
@@ -208,6 +236,7 @@ export default function DispatchVehicleLinkingPage() {
       <DispatchLinkingSheet
         key={selectedBill?.doc_entry ?? 'empty'}
         bill={selectedBill}
+        selectedBills={selectedBills}
         open={isSheetOpen}
         isSaving={linkMutation.isPending}
         onOpenChange={setIsSheetOpen}
