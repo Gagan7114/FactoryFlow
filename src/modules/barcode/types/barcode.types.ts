@@ -225,7 +225,24 @@ export interface BoxTransferPayload {
 // Filter Types
 // ============================================================================
 
-export interface BoxFilters {
+export interface PaginationParams {
+  page?: number;
+  page_size?: number;
+}
+
+export interface PaginatedResponse<T> {
+  results: T[];
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  next: boolean;
+  previous: boolean;
+}
+
+export type ListResponse<T> = T[] | PaginatedResponse<T>;
+
+export interface BoxFilters extends PaginationParams {
   status?: string;
   item_code?: string;
   batch_number?: string;
@@ -235,7 +252,7 @@ export interface BoxFilters {
   search?: string;
 }
 
-export interface PalletFilters {
+export interface PalletFilters extends PaginationParams {
   status?: string;
   item_code?: string;
   batch_number?: string;
@@ -297,7 +314,7 @@ export interface LabelPrintLog {
   printer_name: string;
 }
 
-export interface PrintHistoryFilters {
+export interface PrintHistoryFilters extends PaginationParams {
   label_type?: string;
   print_type?: string;
   search?: string;
@@ -352,7 +369,7 @@ export interface RepackPayload {
   warehouse: string;
 }
 
-export interface LooseStockFilters {
+export interface LooseStockFilters extends PaginationParams {
   status?: string;
   item_code?: string;
   warehouse?: string;

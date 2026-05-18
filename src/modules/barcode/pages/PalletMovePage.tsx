@@ -12,6 +12,7 @@ import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { useMovePallet, usePalletDetail, usePallets } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 export default function PalletMovePage() {
   const navigate = useNavigate();
@@ -39,10 +40,7 @@ export default function PalletMovePage() {
       toast.success(`Pallet moved to ${toWarehouse}`);
       navigate(`/barcode/pallets/${selectedPalletId}`);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Failed to move',
-      );
+      toastBarcodeError(err, 'Unable to move pallet. Please check the selected warehouse.');
     }
   };
 
@@ -72,7 +70,9 @@ export default function PalletMovePage() {
               )}
               placeholder="Search pallet..."
               label="Select Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedPalletSearch}
               required
               inputId="move-pallet"

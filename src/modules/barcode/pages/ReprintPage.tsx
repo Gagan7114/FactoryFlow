@@ -17,6 +17,7 @@ import PrinterProfileControls from '../components/PrinterProfileControls';
 import ScanSearchButton from '../components/ScanSearchButton';
 import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, LabelData, Pallet } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 export default function ReprintPage() {
   const [searchType, setSearchType] = useState<'BOX' | 'PALLET'>('BOX');
@@ -83,10 +84,7 @@ export default function ReprintPage() {
       toast.success('Label ready — printing...');
       setTimeout(() => handlePrint(), 300);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Failed to print',
-      );
+      toastBarcodeError(err, 'Unable to prepare this label for reprint.');
     }
   };
 
@@ -212,7 +210,9 @@ export default function ReprintPage() {
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
                   label="Select Pallet"
-                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+                  labelAction={
+                    <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+                  }
                   scannedSearchValue={scannedPalletSearch}
                   required
                   inputId="reprint-pallet-search"

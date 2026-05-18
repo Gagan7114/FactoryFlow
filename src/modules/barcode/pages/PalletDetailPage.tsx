@@ -83,7 +83,9 @@ export default function PalletDetailPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Boxes</p>
-            <p className="text-2xl font-bold">{capacityText(pallet.box_count, pallet.max_box_count)}</p>
+            <p className="text-2xl font-bold">
+              {capacityText(pallet.box_count, pallet.max_box_count)}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -109,8 +111,7 @@ export default function PalletDetailPage() {
             <span className="font-mono">{pallet.pallet_id}</span>
           </div>
           <div>
-            <span className="text-muted-foreground">Line:</span>{' '}
-            {pallet.production_line || '-'}
+            <span className="text-muted-foreground">Line:</span> {pallet.production_line || '-'}
           </div>
           <div>
             <span className="text-muted-foreground">Created By:</span>{' '}
@@ -129,21 +130,23 @@ export default function PalletDetailPage() {
         </CardContent>
       </Card>
 
-      {pallet.status === 'ACTIVE' && (
+      {(pallet.status === 'ACTIVE' || pallet.status === 'CLEARED') && (
         <div className="flex flex-wrap gap-2">
           {isEmpty && (
             <Button size="sm" onClick={() => navigate('/barcode/generate')}>
               <Printer className="h-4 w-4 mr-1" /> Pallet QR Print
             </Button>
           )}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleVoid}
-            disabled={voidMutation.isPending}
-          >
-            <XCircle className="h-4 w-4 mr-1" /> Void Pallet
-          </Button>
+          {pallet.status === 'ACTIVE' && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleVoid}
+              disabled={voidMutation.isPending}
+            >
+              <XCircle className="h-4 w-4 mr-1" /> Void Pallet
+            </Button>
+          )}
         </div>
       )}
 

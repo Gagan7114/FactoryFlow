@@ -10,6 +10,7 @@ import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
 import { useLooseStock, useRepack } from '../api';
+import { toastBarcodeError } from '../utils/errors';
 
 export default function RepackPage() {
   const navigate = useNavigate();
@@ -41,10 +42,7 @@ export default function RepackPage() {
       toast.success(`Repacked into ${newBox.box_barcode}`);
       navigate(`/barcode/boxes/${newBox.id}`);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Failed to repack',
-      );
+      toastBarcodeError(err, 'Unable to repack the selected loose stock.');
     }
   };
 

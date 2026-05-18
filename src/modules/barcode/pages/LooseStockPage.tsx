@@ -1,11 +1,12 @@
 import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { PaginationControls } from '@/shared/components/PaginationControls';
 import { Badge, Card, CardContent } from '@/shared/components/ui';
 
-import { useLooseStock } from '../api';
+import { useLooseStockPage } from '../api';
 import type { DismantleReason, LooseStockStatus } from '../types';
 
 const STATUS_COLORS: Record<LooseStockStatus, string> = {
@@ -27,12 +28,21 @@ export default function LooseStockPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [reasonFilter, setReasonFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const { data: items = [], isLoading } = useLooseStock({
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, reasonFilter, search, pageSize]);
+
+  const { data: loosePage, isLoading } = useLooseStockPage({
     status: statusFilter || undefined,
     reason: reasonFilter || undefined,
     search: search || undefined,
+    page,
+    page_size: pageSize,
   });
+  const items = loosePage?.results ?? [];
 
   const activeItems = items.filter((i) => i.status === 'ACTIVE');
 
@@ -159,6 +169,15 @@ export default function LooseStockPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={loosePage?.page ?? page}
+              pageSize={loosePage?.page_size ?? pageSize}
+              total={loosePage?.count ?? 0}
+              totalPages={loosePage?.total_pages ?? 1}
+              isLoading={isLoading}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </CardContent>
         </Card>
       )}

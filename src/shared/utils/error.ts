@@ -31,15 +31,42 @@ export function getErrorMessage(error: unknown, fallbackMessage: string): string
   if (typeof error !== 'object') return fallbackMessage;
 
   const apiError = error as ApiError;
+  const responseData = apiError.response?.data;
 
   // Try to get detail from response.data first (most specific)
-  if (apiError.response?.data?.detail) {
-    return apiError.response.data.detail;
+  if (typeof responseData?.detail === 'string') {
+    return responseData.detail;
+  }
+
+  if (typeof responseData?.message === 'string') {
+    return responseData.message;
+  }
+
+  if (responseData?.error) {
+    const value = responseData.error;
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value) && value.length > 0) return String(value[0]);
   }
 
   // Try direct detail property
   if (apiError.detail) {
     return apiError.detail;
+  }
+
+  const fieldErrors = apiError.errors || responseData?.errors || responseData;
+  if (fieldErrors && typeof fieldErrors === 'object') {
+    const message = Object.entries(fieldErrors)
+      .filter(([field]) => !['detail', 'message', 'error', 'errors', 'success'].includes(field))
+      .map(([field, value]) => {
+        const formattedField = field.replaceAll('_', ' ');
+        if (Array.isArray(value)) return `${formattedField}: ${value.join(', ')}`;
+        if (typeof value === 'string') return `${formattedField}: ${value}`;
+        return '';
+      })
+      .filter(Boolean)
+      .join(' | ');
+
+    if (message) return message;
   }
 
   // Try message property

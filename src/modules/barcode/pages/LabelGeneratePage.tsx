@@ -37,6 +37,7 @@ import PrinterProfileControls from '../components/PrinterProfileControls';
 import ScanSearchButton from '../components/ScanSearchButton';
 import { usePrinterProfile } from '../hooks/usePrinterProfile';
 import type { Box, LabelData, Pallet, ProductionReleaseOilRow } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 const MAX_BOX_LABELS_PER_REQUEST = 5000;
 
@@ -69,31 +70,6 @@ const getReleaseQtyPerBox = (release: ProductionReleaseOilRow) => {
   return '';
 };
 
-const formatApiError = (err: unknown, fallback = 'Failed to print labels') => {
-  const data = (err as { response?: { data?: unknown } })?.response?.data;
-  if (data && typeof data === 'object') {
-    const errorData = data as Record<string, unknown>;
-    if (typeof errorData.error === 'string') return errorData.error;
-    if (typeof errorData.detail === 'string') return errorData.detail;
-
-    const fieldMessages = Object.entries(errorData)
-      .map(([field, value]) => {
-        const message = Array.isArray(value)
-          ? value.join(', ')
-          : typeof value === 'string'
-            ? value
-            : JSON.stringify(value);
-        return `${field.replaceAll('_', ' ')}: ${message}`;
-      })
-      .filter(Boolean)
-      .join(' | ');
-
-    if (fieldMessages) return fieldMessages;
-  }
-
-  return (err as Error)?.message || fallback;
-};
-
 export default function LabelGeneratePage() {
   const generateMutation = useGenerateBoxes();
   const addBoxesMutation = useAddBoxesToPallet();
@@ -109,9 +85,12 @@ export default function LabelGeneratePage() {
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: pallets = [], isLoading: loadingPallets } = usePallets(
-    palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : { status: 'ACTIVE' },
+    palletSearch.length >= 2 ? { search: palletSearch } : undefined,
   );
-  const emptyPallets = pallets.filter((pallet) => pallet.box_count === 0);
+  const emptyPallets = pallets.filter(
+    (pallet) =>
+      (pallet.status === 'ACTIVE' || pallet.status === 'CLEARED') && pallet.box_count === 0,
+  );
   const {
     data: productionReleaseRows = [],
     isLoading: isProductionReleaseLoading,
@@ -270,13 +249,16 @@ export default function LabelGeneratePage() {
       toast.success('Printing 2 pallet labels first, then item labels linked to the pallet.');
       setTimeout(() => handlePrint(), 50);
     } catch (err: unknown) {
-      toast.error(formatApiError(err));
+      toastBarcodeError(err, 'Unable to generate and print linked labels.');
     }
   };
 
   return (
     <div className="space-y-6">
-      <DashboardHeader title="Pallet QR Print" subtitle="Select pallet, fetch item from SAP, then print linked labels" />
+      <DashboardHeader
+        title="Pallet QR Print"
+        subtitle="Select pallet, fetch item from SAP, then print linked labels"
+      />
 
       <Card>
         <CardContent className="p-4">
@@ -301,7 +283,9 @@ export default function LabelGeneratePage() {
               )}
               placeholder="Search and select empty pallet..."
               label="Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedPalletSearch}
               inputId="barcode-pallet-select"
               loadingText="Loading pallets..."
@@ -580,7 +564,9 @@ export default function LabelGeneratePage() {
               }
             >
               <Plus className="h-4 w-4 mr-1" />
-              {generateMutation.isPending || addBoxesMutation.isPending || printBulkMutation.isPending
+              {generateMutation.isPending ||
+              addBoxesMutation.isPending ||
+              printBulkMutation.isPending
                 ? 'Preparing...'
                 : 'Generate Linked Labels & Print'}
             </Button>

@@ -1,11 +1,12 @@
 import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { PaginationControls } from '@/shared/components/PaginationControls';
 import { Badge, Card, CardContent } from '@/shared/components/ui';
 
-import { useBoxes } from '../api';
+import { useBoxesPage } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { BoxStatus } from '../types';
 
@@ -23,12 +24,21 @@ export default function BoxListPage() {
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [unpalletized, setUnpalletized] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const { data: boxes = [], isLoading } = useBoxes({
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, unpalletized, search, pageSize]);
+
+  const { data: boxPage, isLoading } = useBoxesPage({
     status: statusFilter || undefined,
     unpalletized: unpalletized ? 'true' : undefined,
     search: search || undefined,
+    page,
+    page_size: pageSize,
   });
+  const boxes = boxPage?.results ?? [];
 
   return (
     <div className="space-y-6">
@@ -114,6 +124,15 @@ export default function BoxListPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={boxPage?.page ?? page}
+              pageSize={boxPage?.page_size ?? pageSize}
+              total={boxPage?.count ?? 0}
+              totalPages={boxPage?.total_pages ?? 1}
+              isLoading={isLoading}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </CardContent>
         </Card>
       )}
