@@ -18,6 +18,8 @@ import type {
   Warehouse,
 } from '../types';
 
+const SAP_SERVICE_GRPO_POST_TIMEOUT_MS = 5 * 60 * 1000;
+
 export const grpoApi = {
   // Get list of pending gate entries for GRPO posting
   async getPendingEntries(): Promise<PendingGRPOEntryWithSuppliers[]> {
@@ -119,7 +121,10 @@ export const grpoApi = {
       const response = await apiClient.post<PostServiceGRPOResponse>(
         API_ENDPOINTS.DISPATCH.BILTY_GRPO_POST,
         formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: SAP_SERVICE_GRPO_POST_TIMEOUT_MS,
+        },
       );
       return response.data;
     }
@@ -127,6 +132,7 @@ export const grpoApi = {
     const response = await apiClient.post<PostServiceGRPOResponse>(
       API_ENDPOINTS.DISPATCH.BILTY_GRPO_POST,
       jsonData,
+      { timeout: SAP_SERVICE_GRPO_POST_TIMEOUT_MS },
     );
     return response.data;
   },

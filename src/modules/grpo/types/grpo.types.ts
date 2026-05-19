@@ -350,6 +350,7 @@ export interface PostServiceGRPOResponse {
 export interface ServiceGRPOBranchOption {
   branch_id: number;
   branch_name: string;
+  state?: string;
 }
 
 export interface ServiceGRPOTaxCodeOption {

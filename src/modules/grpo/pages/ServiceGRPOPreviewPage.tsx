@@ -95,6 +95,8 @@ const FALLBACK_BRANCH_OPTIONS: ServiceGRPOBranchOption[] = [1, 2, 3, 4, 5].map((
 
 const FALLBACK_TAX_CODE_OPTIONS: ServiceGRPOTaxCodeOption[] = [
   { tax_code: 'GST0', tax_name: 'GST 0%', rate: 0 },
+  { tax_code: 'GST05R', tax_name: 'SGST @ 2.5 % + CGST @ 2.5 % RCM', rate: 5 },
+  { tax_code: 'RIGST@5', tax_name: 'RCM IGST @5%', rate: 5 },
   { tax_code: 'GST5', tax_name: 'GST 5%', rate: 5 },
   { tax_code: 'GST12', tax_name: 'GST 12%', rate: 12 },
   { tax_code: 'GST18', tax_name: 'GST 18%', rate: 18 },
@@ -144,13 +146,72 @@ const formatDate = (dateStr?: string | null) => {
 
 const parseTaxPercent = (taxCode?: string | null): number => {
   if (!taxCode) return 0;
-  const match = taxCode.match(/@(\d+(?:\.\d+)?)$/);
+  const match = taxCode.match(/@(\d+(?:\.\d+)?)/) || taxCode.match(/(\d+(?:\.\d+)?)/);
   return match ? parseFloat(match[1]) : 0;
 };
 
-const findDefaultTaxCode = (options: ServiceGRPOTaxCodeOption[]) => {
-  const exact = options.find((tax) => tax.tax_code.toUpperCase() === 'GST05R');
-  if (exact) return exact.tax_code;
+const STATE_NAME_CODES: Record<string, string> = {
+  HARYANA: 'HR',
+  DELHI: 'DL',
+  'NEW DELHI': 'DL',
+  PUNJAB: 'PB',
+  'UTTAR PRADESH': 'UP',
+  RAJASTHAN: 'RJ',
+  'HIMACHAL PRADESH': 'HP',
+  UTTARAKHAND: 'UK',
+  CHANDIGARH: 'CH',
+};
+
+const normalizeState = (value?: string | null) => {
+  const state = (value || '').trim().toUpperCase();
+  if (!state) return '';
+  const match = state.match(/\(([A-Z]{2})\)/);
+  if (match) return match[1];
+  if (state.length === 2) return state;
+  return STATE_NAME_CODES[state] || state;
+};
+
+const findTaxCode = (options: ServiceGRPOTaxCodeOption[], candidates: string[]) => {
+  for (const candidate of candidates) {
+    const exact = options.find((tax) => tax.tax_code.toUpperCase() === candidate.toUpperCase());
+    if (exact) return exact.tax_code;
+  }
+  return '';
+};
+
+const isReverseChargeTaxCode = (
+  options: ServiceGRPOTaxCodeOption[],
+  taxCode?: string | null,
+) => {
+  const code = (taxCode || '').trim().toUpperCase();
+  if (!code) return false;
+  const option = options.find((tax) => tax.tax_code.toUpperCase() === code);
+  const details = `${code} ${option?.tax_name || ''}`.toUpperCase();
+  return (
+    details.includes('RCM') ||
+    code.startsWith('RIGST') ||
+    code.startsWith('RISGT') ||
+    code.startsWith('RCGSG') ||
+    code === 'GST05R'
+  );
+};
+
+const findDefaultTaxCode = (
+  options: ServiceGRPOTaxCodeOption[],
+  branchState?: string,
+  supplyState?: string,
+) => {
+  const normalizedBranchState = normalizeState(branchState);
+  const normalizedSupplyState = normalizeState(supplyState);
+  const isInterstate =
+    Boolean(normalizedBranchState && normalizedSupplyState) &&
+    normalizedBranchState !== normalizedSupplyState;
+
+  const preferredCode = isInterstate
+    ? findTaxCode(options, ['RIGST@5', 'RISGT@5', 'IGST@5'])
+    : findTaxCode(options, ['GST05R', 'RCGSG@5', 'CG+SG@5']);
+  if (preferredCode) return preferredCode;
+
   return options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || '';
 };
 
@@ -268,13 +329,18 @@ export default function ServiceGRPOPreviewPage() {
       preview.default_location_code,
       preview.default_location_name,
     );
+    const defaultBranch = branchOptions.find((branch) => branch.branch_id === DEFAULT_BRANCH_ID);
     const amount = parseAmount(preview.default_amount);
     return {
       vendorCode: '',
       branchId: DEFAULT_BRANCH_ID,
       serviceDescription: preview.default_service_description,
       amount,
-      taxCode: findDefaultTaxCode(taxCodeOptions),
+      taxCode: findDefaultTaxCode(
+        taxCodeOptions,
+        defaultBranch?.state,
+        isMultiInvoice ? '' : preview.default_place_of_supply || preview.source_state,
+      ),
       glAccount: '',
       placeOfSupply: isMultiInvoice ? '' : preview.default_place_of_supply || 'HR',
       effectiveMonth: monthInputValue(preview.default_effective_month),
@@ -299,7 +365,7 @@ export default function ServiceGRPOPreviewPage() {
       taxDate: date,
       shouldRoundoff: true,
     };
-  }, [locationOptions, preview, sacOptions, taxCodeOptions]);
+  }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions]);
 
   const currentPlanId = preview?.dispatch_plan_id ?? null;
   const form =
@@ -386,13 +452,18 @@ export default function ServiceGRPOPreviewPage() {
 
   const calcTotal = useCallback(() => {
     if (!form) return 0;
-    const lineTax = (form.amount * parseTaxPercent(form.taxCode)) / 100;
+    const lineTax = isReverseChargeTaxCode(taxCodeOptions, form.taxCode)
+      ? 0
+      : (form.amount * parseTaxPercent(form.taxCode)) / 100;
     const chargesTotal = form.extraCharges.reduce((sum, charge) => {
       const amount = charge.amount || 0;
-      return sum + amount + (amount * parseTaxPercent(charge.tax_code)) / 100;
+      const taxAmount = isReverseChargeTaxCode(taxCodeOptions, charge.tax_code)
+        ? 0
+        : (amount * parseTaxPercent(charge.tax_code)) / 100;
+      return sum + amount + taxAmount;
     }, 0);
     return form.amount + lineTax + chargesTotal;
-  }, [form]);
+  }, [form, taxCodeOptions]);
 
   const validatePost = () => {
     if (!form || !preview) return false;
