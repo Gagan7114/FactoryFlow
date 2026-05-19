@@ -28,6 +28,7 @@ interface CreateTransporterDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (transporter: Transporter) => void;
+  initialValues?: Partial<TransporterFormData>;
 
   /** Optional — pass to enable edit mode */
   initialData?: {
@@ -39,6 +40,7 @@ export function CreateTransporterDialog({
   open,
   onOpenChange,
   onSuccess,
+  initialValues,
   initialData,
 }: CreateTransporterDialogProps) {
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
@@ -82,9 +84,14 @@ export function CreateTransporterDialog({
     setApiErrors({});
 
     if (!isEditMode) {
-      reset();
+      reset({
+        name: initialValues?.name ?? '',
+        contact_person: initialValues?.contact_person ?? '',
+        mobile_no: initialValues?.mobile_no ?? '',
+        gstin: initialValues?.gstin ?? '',
+      });
     }
-  }, [open, reset, isEditMode]);
+  }, [open, reset, isEditMode, initialValues]);
 
   // Populate form when transporter data is fetched (edit mode)
   useEffect(() => {

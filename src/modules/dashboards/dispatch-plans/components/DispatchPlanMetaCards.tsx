@@ -22,6 +22,10 @@ function formatNumber(value: number, fractionDigits = 0): string {
   });
 }
 
+function formatBoxes(value: number): string {
+  return value > 0 ? `${formatNumber(value, 2)} boxes` : 'Boxes not available';
+}
+
 export function DispatchPlanMetaCards({ meta }: DispatchPlanMetaCardsProps) {
   const cards: MetaCard[] = [
     {
@@ -45,7 +49,7 @@ export function DispatchPlanMetaCards({ meta }: DispatchPlanMetaCardsProps) {
     {
       label: 'Load',
       value: formatNumber(meta?.total_litres ?? 0, 2),
-      sub: `${formatNumber(meta?.total_boxes ?? 0, 2)} boxes`,
+      sub: formatBoxes(meta?.total_boxes ?? 0),
       icon: <Truck className="h-4 w-4 text-violet-600" />,
     },
   ];

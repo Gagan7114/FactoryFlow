@@ -1,4 +1,4 @@
-import { BarChart3, CalendarClock, Package, PackageX, Truck } from 'lucide-react';
+import { BarChart3, CalendarClock, Package, PackageX } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,14 +47,6 @@ const dashboardsModules: DashboardsModuleCard[] = [
     route: '/dashboards/non-moving',
     color: 'text-amber-600',
     permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
-  },
-  {
-    title: 'Dispatch Plans',
-    description: 'Track SAP bills and set dispatch handoff dates for transport',
-    icon: <Truck className="h-5 w-5" />,
-    route: '/dashboards/dispatch-plans',
-    color: 'text-sky-600',
-    permissions: [DASHBOARDS_PERMISSIONS.VIEW_DISPATCH_PLANS],
   },
 ];
 

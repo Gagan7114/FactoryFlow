@@ -1,5 +1,6 @@
 import { BarChart3 } from 'lucide-react';
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 import { DASHBOARDS_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -15,10 +16,6 @@ const InventoryAgeDashboardPage = lazy(
 const NonMovingDashboardPage = lazy(
   () => import('./non-moving/pages/NonMovingDashboardPage'),
 );
-const DispatchPlansDashboardPage = lazy(
-  () => import('./dispatch-plans/pages/DispatchPlansDashboardPage'),
-);
-
 export const dashboardsModuleConfig: ModuleConfig = {
   name: 'dashboards',
   routes: [
@@ -31,7 +28,6 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
-        DASHBOARDS_PERMISSIONS.VIEW_DISPATCH_PLANS,
       ],
     },
     {
@@ -64,7 +60,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
     },
     {
       path: '/dashboards/dispatch-plans',
-      element: <DispatchPlansDashboardPage />,
+      element: <Navigate to="/dispatch/plans" replace />,
       layout: 'main',
       permissions: [DASHBOARDS_PERMISSIONS.VIEW_DISPATCH_PLANS],
       breadcrumb: { label: 'Dispatch Plans' },
@@ -81,7 +77,6 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
-        DASHBOARDS_PERMISSIONS.VIEW_DISPATCH_PLANS,
       ],
       hasSubmenu: true,
       children: [
@@ -104,11 +99,6 @@ export const dashboardsModuleConfig: ModuleConfig = {
           path: '/dashboards/non-moving',
           title: 'Non-Moving',
           permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
-        },
-        {
-          path: '/dashboards/dispatch-plans',
-          title: 'Dispatch Plans',
-          permissions: [DASHBOARDS_PERMISSIONS.VIEW_DISPATCH_PLANS],
         },
       ],
     },

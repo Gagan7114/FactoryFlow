@@ -8,8 +8,9 @@ export const VEHICLE_MANAGEMENT_PERMISSIONS = {
   MANAGE_VEHICLES: 'vehicle_management.change_vehicle',
   MANAGE_TRANSPORTERS: 'vehicle_management.change_transporter',
   MANAGE_DRIVERS: 'driver_management.change_driver',
-  VIEW_DISPATCH_LINKING: 'dispatch_plans.can_view_dispatch_plans',
-  LINK_DISPATCH_VEHICLE: 'dispatch_plans.can_edit_dispatch_plans',
+  DISPATCH_VEHICLE_LINKING: 'dispatch_plans.can_link_dispatch_vehicle',
+  VIEW_DISPATCH_LINKING: 'dispatch_plans.can_link_dispatch_vehicle',
+  LINK_DISPATCH_VEHICLE: 'dispatch_plans.can_link_dispatch_vehicle',
 } as const;
 
 export type VehicleManagementPermission =

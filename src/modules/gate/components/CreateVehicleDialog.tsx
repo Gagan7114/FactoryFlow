@@ -20,7 +20,7 @@ import { useTransporters } from '../api/transporter/transporter.queries';
 import type { Vehicle } from '../api/vehicle/vehicle.api';
 import { useCreateVehicle, useUpdateVehicle, useVehicleById } from '../api/vehicle/vehicle.queries';
 import { type VehicleFormData, vehicleSchema } from '../schemas/vehicle.schema';
-import { TransporterSelect } from './TransporterSelect';
+import { TransporterSelect, type TransporterDetails } from './TransporterSelect';
 import { VehicleTypeSelect } from './VehicleTypeSelect';
 
 interface CreateVehicleDialogProps {
@@ -33,6 +33,7 @@ interface CreateVehicleDialogProps {
     id: number;
   };
   initialVehicleNumber?: string;
+  initialTransporterDetails?: Partial<TransporterDetails>;
 }
 
 export function CreateVehicleDialog({
@@ -41,6 +42,7 @@ export function CreateVehicleDialog({
   onSuccess,
   initialData,
   initialVehicleNumber,
+  initialTransporterDetails,
 }: CreateVehicleDialogProps) {
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
   const [selectedTransporterId, setSelectedTransporterId] = useState<number | null>(null);
@@ -77,6 +79,7 @@ export function CreateVehicleDialog({
   });
 
   const [transporterName, setTransporterName] = useState('');
+  const initialTransporterName = initialTransporterDetails?.name?.trim() ?? '';
 
   // Combine form errors and API errors for scroll-to-error
   const combinedErrors = useMemo(() => ({ ...errors, ...apiErrors }), [errors, apiErrors]);
@@ -97,10 +100,10 @@ export function CreateVehicleDialog({
         capacity_ton: '',
       });
       setSelectedTransporterId(null);
-      setTransporterName('');
+      setTransporterName(initialTransporterName);
       setVehicleTypeValue('');
     }
-  }, [open, reset, isEditMode, initialVehicleNumber]);
+  }, [open, reset, isEditMode, initialVehicleNumber, initialTransporterName]);
 
   // Populate form when vehicle data is fetched (edit mode)
   useEffect(() => {
@@ -259,6 +262,11 @@ export function CreateVehicleDialog({
               placeholder="Select transporter"
               label="Transporter"
               required
+              initialCreateValues={initialTransporterDetails}
+              onTransporterSelect={(transporter) => {
+                setSelectedTransporterId(transporter?.id ?? null);
+                setValue('transporter', transporter?.id ?? 0);
+              }}
             />
             {apiErrors.transporter && (
               <p className="text-sm text-destructive">{apiErrors.transporter}</p>

@@ -10,6 +10,24 @@ import type {
 
 const EP = API_ENDPOINTS.DISPATCH_PLANS;
 
+const NULLABLE_VALUE_FIELDS = new Set<keyof DispatchPlanUpdatePayload>([
+  'invoice_weight',
+  'invoice_amount',
+  'total_litres',
+  'effective_month',
+  'service_location_code',
+  'sac_entry',
+  'vehicle_id',
+  'transporter_id',
+  'driver_id',
+  'linked_vehicle_entry_id',
+  'dispatch_date',
+  'bilty_date',
+  'freight',
+  'total_freight',
+  'kanta_weight',
+]);
+
 export const dispatchPlansApi = {
   async getBills(filters: DispatchPlanFilters): Promise<DispatchPlansResponse> {
     const response = await apiClient.get<DispatchPlansResponse>(EP.BILLS, {
@@ -20,24 +38,53 @@ export const dispatchPlansApi = {
 
   async updatePlan(docEntry: number, payload: DispatchPlanUpdatePayload): Promise<DispatchPlan> {
     const requestBody = buildUpdateBody(payload);
-    const response = await apiClient.patch<DispatchPlan>(EP.PLAN(docEntry), requestBody);
+    const response = await apiClient.patch<DispatchPlan>(
+      EP.PLAN(docEntry),
+      requestBody,
+      isFormData(requestBody) ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined,
+    );
     return response.data;
   },
 };
 
 function buildUpdateBody(payload: DispatchPlanUpdatePayload): DispatchPlanUpdatePayload | FormData {
-  if (!payload.bilty_attachment) return payload;
+  const normalizedPayload = normalizeUpdatePayload(payload);
+  if (!isFile(normalizedPayload.bilty_attachment)) return normalizedPayload;
 
   const formData = new FormData();
-  Object.entries(payload).forEach(([key, value]) => {
-    if (value === undefined) return;
-    if (value === null) {
-      formData.append(key, '');
-      return;
-    }
-    formData.append(key, value instanceof File ? value : String(value));
+  Object.entries(normalizedPayload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    formData.append(key, isFile(value) ? value : String(value));
   });
   return formData;
+}
+
+function normalizeUpdatePayload(payload: DispatchPlanUpdatePayload): DispatchPlanUpdatePayload {
+  return Object.entries(payload).reduce<DispatchPlanUpdatePayload>((normalized, [key, value]) => {
+    const field = key as keyof DispatchPlanUpdatePayload;
+    if (value === undefined) return normalized;
+
+    if (field === 'bilty_attachment') {
+      if (isFile(value)) normalized.bilty_attachment = value;
+      return normalized;
+    }
+
+    if (value === '' && NULLABLE_VALUE_FIELDS.has(field)) {
+      normalized[field] = null;
+      return normalized;
+    }
+
+    normalized[field] = value as never;
+    return normalized;
+  }, {});
+}
+
+function isFile(value: unknown): value is File {
+  return typeof File !== 'undefined' && value instanceof File;
+}
+
+function isFormData(value: unknown): value is FormData {
+  return typeof FormData !== 'undefined' && value instanceof FormData;
 }
 
 function buildParams(filters: DispatchPlanFilters): Record<string, string> {

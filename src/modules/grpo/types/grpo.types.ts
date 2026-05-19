@@ -234,10 +234,25 @@ export interface ServiceGRPOPendingEntry {
   driver_name: string;
   transporter_name: string;
   transporter_gstin: string;
+  source_state?: string;
   bilty_no: string;
   bilty_date: string | null;
   freight: string | null;
   total_freight: string | null;
+  invoice_count?: number;
+  invoice_number?: string;
+  eway_bill?: string;
+  invoice_weight?: string | null;
+  invoice_amount?: string | null;
+  place_of_supply?: string;
+  product_variety?: string;
+  total_litres?: string | null;
+  effective_month?: string | null;
+  budget_delivery_point?: string;
+  service_location_code?: number | null;
+  service_location_name?: string;
+  sac_entry?: number | null;
+  sac_code?: string;
   created_at: string;
   updated_at: string;
 }
@@ -246,9 +261,46 @@ export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
   is_ready_for_grpo: boolean;
   default_amount: string;
   default_service_description: string;
+  default_place_of_supply: string;
+  default_effective_month: string | null;
+  default_budget_delivery_point: string;
+  default_location_code: number | null;
+  default_location_name: string;
+  default_sac_entry: number | null;
+  default_sac_code: string;
+  default_product_variety: string;
+  default_total_litres: string | null;
+  default_sub_account: string;
+  invoice_number: string;
+  eway_bill: string;
+  invoice_weight: string | null;
+  invoice_amount: string | null;
+  source_state: string;
+  source_city: string;
+  item_summary: string;
+  bilty_attachment: string | null;
+  bilty_attachment_name: string;
   grpo_status: GRPOStatus | null;
   sap_doc_num: number | null;
   total_amount: string | null;
+  invoice_lines: ServiceGRPOInvoiceLinePreview[];
+}
+
+export interface ServiceGRPOInvoiceLinePreview {
+  dispatch_plan_id: number;
+  sap_invoice_doc_entry: number;
+  sap_invoice_doc_num: string;
+  invoice_number: string;
+  customer_code: string;
+  customer_name: string;
+  source_state: string;
+  source_city: string;
+  service_description: string;
+  product_variety: string;
+  total_litres: string | null;
+  invoice_weight: string | null;
+  invoice_amount: string | null;
+  freight_amount: string | null;
 }
 
 export interface PostServiceGRPORequest {
@@ -259,10 +311,26 @@ export interface PostServiceGRPORequest {
   amount: number;
   tax_code?: string;
   gl_account?: string;
+  unit_price?: number;
+  place_of_supply?: string;
+  effective_month?: string | null;
+  budget_delivery_point?: string;
+  sub_account?: string;
+  location_code?: number | null;
+  location_name?: string;
+  sac_entry?: number | null;
+  sac_code?: string;
+  product_variety?: string;
+  total_litres?: number | null;
+  invoice_number?: string;
+  eway_bill?: string;
+  invoice_weight?: number | null;
+  invoice_amount?: number | null;
   comments?: string;
   vendor_ref?: string;
   extra_charges?: ExtraCharge[];
   attachments?: File[];
+  include_bilty_attachment?: boolean;
   doc_date?: string;
   doc_due_date?: string;
   tax_date?: string;
@@ -282,6 +350,7 @@ export interface PostServiceGRPOResponse {
 export interface ServiceGRPOBranchOption {
   branch_id: number;
   branch_name: string;
+  state?: string;
 }
 
 export interface ServiceGRPOTaxCodeOption {
@@ -295,18 +364,54 @@ export interface ServiceGRPOGLAccountOption {
   account_name: string;
 }
 
+export interface ServiceGRPOSACCodeOption {
+  sac_entry: number;
+  sac_code: string;
+  sac_name: string;
+}
+
+export interface ServiceGRPOLocationOption {
+  location_code: number;
+  location_name: string;
+  state: string;
+}
+
+export interface ServiceGRPOProjectOption {
+  project_code: string;
+  project_name: string;
+}
+
+export interface ServiceGRPOSubAccountOption {
+  sub_account_code: string;
+  sub_account_name: string;
+}
+
 export interface ServiceGRPOOptions {
   branches: ServiceGRPOBranchOption[];
   tax_codes: ServiceGRPOTaxCodeOption[];
   gl_accounts: ServiceGRPOGLAccountOption[];
+  sac_codes: ServiceGRPOSACCodeOption[];
+  locations: ServiceGRPOLocationOption[];
+  projects: ServiceGRPOProjectOption[];
+  sub_accounts: ServiceGRPOSubAccountOption[];
 }
 
 export interface ServiceGRPOHistoryLine {
   id: number;
+  dispatch_plan: number | null;
   service_description: string;
   amount: string;
+  unit_price: string | null;
   tax_code: string;
   gl_account: string;
+  sac_entry: number | null;
+  sac_code: string;
+  location_code: number | null;
+  location_name: string;
+  project_code: string;
+  sub_account: string;
+  product_variety: string;
+  total_litres: string | null;
 }
 
 export interface ServiceGRPOHistoryEntry {
@@ -322,6 +427,16 @@ export interface ServiceGRPOHistoryEntry {
   sap_doc_num: number | null;
   sap_doc_total: string | null;
   total_amount: string | null;
+  place_of_supply: string;
+  effective_month: string | null;
+  budget_delivery_point: string;
+  sub_account: string;
+  location_code: number | null;
+  location_name: string;
+  sac_entry: number | null;
+  sac_code: string;
+  product_variety: string;
+  total_litres: string | null;
   status: GRPOStatus;
   error_message: string | null;
   posted_at: string | null;

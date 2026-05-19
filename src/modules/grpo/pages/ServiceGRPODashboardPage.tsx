@@ -66,7 +66,7 @@ export default function ServiceGRPODashboardPage() {
             Post transport service receipts for booked dispatch vehicles
           </p>
         </div>
-        <Button onClick={() => navigate('/grpo/service/pending')} className="w-full sm:w-auto">
+        <Button onClick={() => navigate('/dispatch/bilty-grpo/pending')} className="w-full sm:w-auto">
           <List className="h-4 w-4 mr-2" />
           View Pending
         </Button>
@@ -110,7 +110,7 @@ export default function ServiceGRPODashboardPage() {
 
           <Card
             className="bg-primary/5 border-primary/20 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate('/grpo/service/pending')}
+            onClick={() => navigate('/dispatch/bilty-grpo/pending')}
           >
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -139,7 +139,7 @@ export default function ServiceGRPODashboardPage() {
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-medium text-muted-foreground">Booked Dispatch Plans</h3>
               <button
-                onClick={() => navigate('/grpo/service/pending')}
+                onClick={() => navigate('/dispatch/bilty-grpo/pending')}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
               >
                 Show more
@@ -157,7 +157,7 @@ export default function ServiceGRPODashboardPage() {
                   <div
                     key={entry.dispatch_plan_id}
                     className="flex items-center justify-between px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/grpo/service/preview/${entry.dispatch_plan_id}`)}
+                    onClick={() => navigate(`/dispatch/bilty-grpo/preview/${entry.dispatch_plan_id}`)}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="font-medium text-sm">
@@ -185,7 +185,7 @@ export default function ServiceGRPODashboardPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               <Card
                 className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 border cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate('/grpo/service/history?status=pending')}
+                onClick={() => navigate('/dispatch/bilty-grpo/history?status=pending')}
               >
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
@@ -201,7 +201,7 @@ export default function ServiceGRPODashboardPage() {
               </Card>
               <Card
                 className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 border cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate('/grpo/service/history?status=posted')}
+                onClick={() => navigate('/dispatch/bilty-grpo/history?status=posted')}
               >
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
@@ -217,7 +217,7 @@ export default function ServiceGRPODashboardPage() {
               </Card>
               <Card
                 className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 border cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate('/grpo/service/history?status=failed')}
+                onClick={() => navigate('/dispatch/bilty-grpo/history?status=failed')}
               >
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
@@ -238,7 +238,7 @@ export default function ServiceGRPODashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto py-3 flex flex-col items-center gap-1"
-                onClick={() => navigate('/grpo/service/pending')}
+                onClick={() => navigate('/dispatch/bilty-grpo/pending')}
               >
                 <List className="h-5 w-5" />
                 <span className="text-xs">Pending Bookings</span>
@@ -246,7 +246,7 @@ export default function ServiceGRPODashboardPage() {
               <Button
                 variant="outline"
                 className="h-auto py-3 flex flex-col items-center gap-1"
-                onClick={() => navigate('/grpo/service/history')}
+                onClick={() => navigate('/dispatch/bilty-grpo/history')}
               >
                 <History className="h-5 w-5" />
                 <span className="text-xs">Posting History</span>

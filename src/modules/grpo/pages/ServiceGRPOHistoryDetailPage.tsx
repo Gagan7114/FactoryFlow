@@ -1,8 +1,9 @@
-import { AlertCircle, ArrowLeft, FileText, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ExternalLink, FileText, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
 import { Button, Card, CardContent } from '@/shared/components/ui';
+import { resolveFileUrl } from '@/shared/utils';
 
 import { useServiceGRPODetail } from '../api';
 import { GRPO_STATUS, GRPO_STATUS_CONFIG } from '../constants';
@@ -60,7 +61,7 @@ export default function ServiceGRPOHistoryDetailPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service/history')}
+              onClick={() => navigate('/dispatch/bilty-grpo/history')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -110,6 +111,14 @@ export default function ServiceGRPOHistoryDetailPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">SAP Doc Number</p>
                   <p className="text-sm font-medium">{posting.sap_doc_num || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">SAP Doc Entry</p>
+                  <p className="text-sm font-medium">{posting.sap_doc_entry || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Dispatch Bill DocEntry</p>
+                  <p className="text-sm font-medium">{posting.sap_invoice_doc_entry || '-'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total</p>
@@ -187,20 +196,38 @@ export default function ServiceGRPOHistoryDetailPage() {
                 <p className="text-sm text-muted-foreground">No attachments recorded.</p>
               ) : (
                 <div className="space-y-2">
-                  {posting.attachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      className="flex items-center justify-between gap-3 rounded-md border p-2"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm truncate">{attachment.original_filename}</span>
+                  {posting.attachments.map((attachment) => {
+                    const fileUrl = resolveFileUrl(attachment.file);
+
+                    return (
+                      <div
+                        key={attachment.id}
+                        className="flex items-center justify-between gap-3 rounded-md border p-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          {fileUrl ? (
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex min-w-0 items-center gap-1 text-sm hover:underline"
+                            >
+                              <span className="truncate">{attachment.original_filename}</span>
+                              <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-sm truncate">
+                              {attachment.original_filename}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {attachment.sap_attachment_status}
+                        </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {attachment.sap_attachment_status}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

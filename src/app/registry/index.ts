@@ -6,6 +6,7 @@ import type { ModuleConfig, ModuleNavItem, ModuleRoute } from '@/core/types';
 import { authModuleConfig } from '@/modules/auth/module.config';
 import { dashboardModuleConfig } from '@/modules/dashboard/module.config';
 import { dashboardsModuleConfig } from '@/modules/dashboards/module.config';
+import { dispatchModuleConfig } from '@/modules/dispatch/module.config';
 import { gateModuleConfig } from '@/modules/gate/module.config';
 import { grpoModuleConfig } from '@/modules/grpo/module.config';
 import { notificationsModuleConfig } from '@/modules/notifications/module.config';
@@ -24,6 +25,7 @@ export const moduleRegistry: ModuleConfig[] = [
   authModuleConfig,
   dashboardModuleConfig,
   dashboardsModuleConfig,
+  dispatchModuleConfig,
   gateModuleConfig,
   vehicleManagementModuleConfig,
   qcModuleConfig,

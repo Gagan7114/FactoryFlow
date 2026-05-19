@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { SearchableSelect } from '@/shared/components';
 
@@ -25,6 +25,7 @@ interface TransporterSelectProps {
   defaultDisplayText?: string;
   /** Externally provided transporter details (e.g., from vehicle data) */
   externalDetails?: TransporterDetails | null;
+  initialCreateValues?: Partial<TransporterDetails>;
   onTransporterSelect?: (transporter: TransporterName | null) => void;
   onDetailsLoaded?: (details: TransporterDetails | null) => void;
 }
@@ -39,6 +40,7 @@ export function TransporterSelect({
   required = false,
   defaultDisplayText,
   externalDetails,
+  initialCreateValues,
   onTransporterSelect,
   onDetailsLoaded,
 }: TransporterSelectProps) {
@@ -51,6 +53,20 @@ export function TransporterSelect({
   const { data: transporterDetails } = useTransporterById(selectedId, selectedId !== null);
 
   const details = transporterDetails || externalDetails;
+  const createInitialValues = useMemo(
+    () => ({
+      name: initialCreateValues?.name ?? '',
+      contact_person: initialCreateValues?.contact_person ?? '',
+      mobile_no: initialCreateValues?.mobile_no ?? '',
+      gstin: initialCreateValues?.gstin ?? '',
+    }),
+    [
+      initialCreateValues?.contact_person,
+      initialCreateValues?.gstin,
+      initialCreateValues?.mobile_no,
+      initialCreateValues?.name,
+    ],
+  );
 
   useEffect(() => {
     if (!externalDetails && transporterDetails) {
@@ -130,6 +146,7 @@ export function TransporterSelect({
         <CreateTransporterDialog
           open={open}
           onOpenChange={onOpenChange}
+          initialValues={createInitialValues}
           onSuccess={(transporter) => {
             updateSelection(transporter.id, transporter.name);
             setSelectedId(transporter.id);

@@ -13,6 +13,19 @@ export interface DispatchPlan {
   id: number | null;
   sap_invoice_doc_entry: number;
   sap_invoice_doc_num: string;
+  invoice_number: string;
+  eway_bill: string;
+  invoice_weight: string | null;
+  invoice_amount: string | null;
+  place_of_supply: string;
+  product_variety: string;
+  total_litres: string | null;
+  effective_month: string | null;
+  budget_delivery_point: string;
+  service_location_code: number | null;
+  service_location_name: string;
+  sac_entry: number | null;
+  sac_code: string;
   vehicle_id: number | null;
   transporter_id: number | null;
   driver_id: number | null;
@@ -65,6 +78,7 @@ export interface DispatchBill {
   sap_vehicle_no: string;
   sap_transporter_invoice: string;
   sap_lr_number: string;
+  sap_eway_bill: string;
   gst_vehicle_no: string;
   gst_transport_date: string | null;
   gst_transport_reason: string;
@@ -100,6 +114,20 @@ export interface DispatchPlansResponse {
 
 export interface DispatchPlanUpdatePayload {
   sap_invoice_doc_num?: string;
+  linked_invoice_doc_entries?: number[];
+  invoice_number?: string;
+  eway_bill?: string;
+  invoice_weight?: string | null;
+  invoice_amount?: string | null;
+  place_of_supply?: string;
+  product_variety?: string;
+  total_litres?: string | null;
+  effective_month?: string | null;
+  budget_delivery_point?: string;
+  service_location_code?: number | null;
+  service_location_name?: string;
+  sac_entry?: number | null;
+  sac_code?: string;
   vehicle_id?: number | null;
   transporter_id?: number | null;
   driver_id?: number | null;

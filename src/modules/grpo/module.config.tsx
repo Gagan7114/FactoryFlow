@@ -1,8 +1,8 @@
 import { PackageCheck } from 'lucide-react';
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 
-import { GRPO_PERMISSIONS } from '@/config/permissions';
+import { DISPATCH_PERMISSIONS, GRPO_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
 // Lazy load GRPO pages
@@ -12,13 +12,24 @@ const AllEntriesPage = lazy(() => import('./pages/AllEntriesPage'));
 const GRPOPreviewPage = lazy(() => import('./pages/GRPOPreviewPage'));
 const GRPOHistoryPage = lazy(() => import('./pages/GRPOHistoryPage'));
 const GRPOHistoryDetailPage = lazy(() => import('./pages/GRPOHistoryDetailPage'));
-const ServiceGRPODashboardPage = lazy(() => import('./pages/ServiceGRPODashboardPage'));
-const ServicePendingEntriesPage = lazy(() => import('./pages/ServicePendingEntriesPage'));
-const ServiceGRPOPreviewPage = lazy(() => import('./pages/ServiceGRPOPreviewPage'));
-const ServiceGRPOHistoryPage = lazy(() => import('./pages/ServiceGRPOHistoryPage'));
-const ServiceGRPOHistoryDetailPage = lazy(
-  () => import('./pages/ServiceGRPOHistoryDetailPage'),
-);
+function ServicePreviewRedirect() {
+  const { dispatchPlanId } = useParams<{ dispatchPlanId: string }>();
+  return <Navigate to={`/dispatch/bilty-grpo/preview/${dispatchPlanId}`} replace />;
+}
+
+function ServiceHistoryDetailRedirect() {
+  const { postingId } = useParams<{ postingId: string }>();
+  return <Navigate to={`/dispatch/bilty-grpo/history/${postingId}`} replace />;
+}
+
+const serviceGRPORedirectPermissions = [
+  DISPATCH_PERMISSIONS.POST_BILTY_GRPO,
+  GRPO_PERMISSIONS.VIEW_PENDING,
+  GRPO_PERMISSIONS.PREVIEW,
+  GRPO_PERMISSIONS.POST,
+  GRPO_PERMISSIONS.VIEW_HISTORY,
+  GRPO_PERMISSIONS.VIEW_POSTING,
+] as const;
 
 /**
  * GRPO module configuration
@@ -111,34 +122,50 @@ export const grpoModuleConfig: ModuleConfig = {
     },
     {
       path: '/grpo/service',
-      element: <ServiceGRPODashboardPage />,
+      element: <Navigate to="/dispatch/bilty-grpo" replace />,
       layout: 'main',
-      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+      permissions: serviceGRPORedirectPermissions,
       breadcrumb: { label: 'Service GRPO' },
     },
     {
       path: '/grpo/service/pending',
-      element: <ServicePendingEntriesPage />,
+      element: <Navigate to="/dispatch/bilty-grpo/pending" replace />,
       layout: 'main',
-      permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
+      permissions: [
+        DISPATCH_PERMISSIONS.POST_BILTY_GRPO,
+        GRPO_PERMISSIONS.VIEW_PENDING,
+        GRPO_PERMISSIONS.POST,
+      ],
     },
     {
       path: '/grpo/service/preview/:dispatchPlanId',
-      element: <ServiceGRPOPreviewPage />,
+      element: <ServicePreviewRedirect />,
       layout: 'main',
-      permissions: [GRPO_PERMISSIONS.PREVIEW],
+      permissions: [
+        DISPATCH_PERMISSIONS.POST_BILTY_GRPO,
+        GRPO_PERMISSIONS.PREVIEW,
+        GRPO_PERMISSIONS.POST,
+      ],
     },
     {
       path: '/grpo/service/history',
-      element: <ServiceGRPOHistoryPage />,
+      element: <Navigate to="/dispatch/bilty-grpo/history" replace />,
       layout: 'main',
-      permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
+      permissions: [
+        DISPATCH_PERMISSIONS.POST_BILTY_GRPO,
+        GRPO_PERMISSIONS.VIEW_HISTORY,
+        GRPO_PERMISSIONS.VIEW_POSTING,
+      ],
     },
     {
       path: '/grpo/service/history/:postingId',
-      element: <ServiceGRPOHistoryDetailPage />,
+      element: <ServiceHistoryDetailRedirect />,
       layout: 'main',
-      permissions: [GRPO_PERMISSIONS.VIEW_POSTING],
+      permissions: [
+        DISPATCH_PERMISSIONS.POST_BILTY_GRPO,
+        GRPO_PERMISSIONS.VIEW_POSTING,
+        GRPO_PERMISSIONS.VIEW_HISTORY,
+      ],
     },
   ],
   navigation: [
@@ -168,21 +195,6 @@ export const grpoModuleConfig: ModuleConfig = {
         {
           path: '/grpo/material/history',
           title: 'Material History',
-          permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
-        },
-        {
-          path: '/grpo/service',
-          title: 'Service GRPO',
-          permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
-        },
-        {
-          path: '/grpo/service/pending',
-          title: 'Service Pending',
-          permissions: [GRPO_PERMISSIONS.VIEW_PENDING],
-        },
-        {
-          path: '/grpo/service/history',
-          title: 'Service History',
           permissions: [GRPO_PERMISSIONS.VIEW_HISTORY],
         },
       ],

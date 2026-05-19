@@ -2,6 +2,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Eye,
   FileText,
   Paperclip,
   RefreshCw,
@@ -32,6 +33,7 @@ import {
   SelectOption,
   Textarea,
 } from '@/shared/components/ui';
+import { resolveFileUrl } from '@/shared/utils';
 
 import { usePostServiceGRPO, useServiceGRPOOptions, useServiceGRPOPreview } from '../api';
 import { ExtraChargesSection } from '../components';
@@ -41,6 +43,10 @@ import type {
   PostServiceGRPOResponse,
   ServiceGRPOBranchOption,
   ServiceGRPOGLAccountOption,
+  ServiceGRPOLocationOption,
+  ServiceGRPOProjectOption,
+  ServiceGRPOSACCodeOption,
+  ServiceGRPOSubAccountOption,
   ServiceGRPOTaxCodeOption,
 } from '../types';
 
@@ -51,6 +57,20 @@ interface ServiceFormState {
   amount: number;
   taxCode: string;
   glAccount: string;
+  placeOfSupply: string;
+  effectiveMonth: string;
+  budgetDeliveryPoint: string;
+  subAccount: string;
+  locationCode: number | null;
+  locationName: string;
+  sacEntry: number | null;
+  sacCode: string;
+  productVariety: string;
+  totalLitres: number | null;
+  invoiceNumber: string;
+  ewayBill: string;
+  invoiceWeight: number | null;
+  invoiceAmount: number | null;
   vendorRef: string;
   comments: string;
   extraCharges: ExtraCharge[];
@@ -75,6 +95,8 @@ const FALLBACK_BRANCH_OPTIONS: ServiceGRPOBranchOption[] = [1, 2, 3, 4, 5].map((
 
 const FALLBACK_TAX_CODE_OPTIONS: ServiceGRPOTaxCodeOption[] = [
   { tax_code: 'GST0', tax_name: 'GST 0%', rate: 0 },
+  { tax_code: 'GST05R', tax_name: 'SGST @ 2.5 % + CGST @ 2.5 % RCM', rate: 5 },
+  { tax_code: 'RIGST@5', tax_name: 'RCM IGST @5%', rate: 5 },
   { tax_code: 'GST5', tax_name: 'GST 5%', rate: 5 },
   { tax_code: 'GST12', tax_name: 'GST 12%', rate: 12 },
   { tax_code: 'GST18', tax_name: 'GST 18%', rate: 18 },
@@ -88,8 +110,26 @@ const parseAmount = (value?: string | number | null) => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
+const parseNullableAmount = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(amount) ? amount : null;
+};
+
+const monthInputValue = (dateStr?: string | null) => (dateStr ? dateStr.slice(0, 7) : '');
+
+const monthPayloadValue = (month: string) => (month ? month : null);
+
 const formatCurrency = (amount: number) =>
   amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
+
+const formatQuantity = (value?: string | number | null, fractionDigits = 2) => {
+  const amount = parseAmount(value);
+  if (!amount) return '-';
+  return amount.toLocaleString('en-IN', {
+    maximumFractionDigits: fractionDigits,
+  });
+};
 
 const formatDate = (dateStr?: string | null) => {
   if (!dateStr) return '-';
@@ -106,9 +146,122 @@ const formatDate = (dateStr?: string | null) => {
 
 const parseTaxPercent = (taxCode?: string | null): number => {
   if (!taxCode) return 0;
-  const match = taxCode.match(/@(\d+(?:\.\d+)?)$/);
+  const match = taxCode.match(/@(\d+(?:\.\d+)?)/) || taxCode.match(/(\d+(?:\.\d+)?)/);
   return match ? parseFloat(match[1]) : 0;
 };
+
+const STATE_NAME_CODES: Record<string, string> = {
+  HARYANA: 'HR',
+  DELHI: 'DL',
+  'NEW DELHI': 'DL',
+  PUNJAB: 'PB',
+  'UTTAR PRADESH': 'UP',
+  RAJASTHAN: 'RJ',
+  'HIMACHAL PRADESH': 'HP',
+  UTTARAKHAND: 'UK',
+  CHANDIGARH: 'CH',
+};
+
+const normalizeState = (value?: string | null) => {
+  const state = (value || '').trim().toUpperCase();
+  if (!state) return '';
+  const match = state.match(/\(([A-Z]{2})\)/);
+  if (match) return match[1];
+  if (state.length === 2) return state;
+  return STATE_NAME_CODES[state] || state;
+};
+
+const findTaxCode = (options: ServiceGRPOTaxCodeOption[], candidates: string[]) => {
+  for (const candidate of candidates) {
+    const exact = options.find((tax) => tax.tax_code.toUpperCase() === candidate.toUpperCase());
+    if (exact) return exact.tax_code;
+  }
+  return '';
+};
+
+const isReverseChargeTaxCode = (
+  options: ServiceGRPOTaxCodeOption[],
+  taxCode?: string | null,
+) => {
+  const code = (taxCode || '').trim().toUpperCase();
+  if (!code) return false;
+  const option = options.find((tax) => tax.tax_code.toUpperCase() === code);
+  const details = `${code} ${option?.tax_name || ''}`.toUpperCase();
+  return (
+    details.includes('RCM') ||
+    code.startsWith('RIGST') ||
+    code.startsWith('RISGT') ||
+    code.startsWith('RCGSG') ||
+    code === 'GST05R'
+  );
+};
+
+const findDefaultTaxCode = (
+  options: ServiceGRPOTaxCodeOption[],
+  branchState?: string,
+  supplyState?: string,
+) => {
+  const normalizedBranchState = normalizeState(branchState);
+  const normalizedSupplyState = normalizeState(supplyState);
+  const isInterstate =
+    Boolean(normalizedBranchState && normalizedSupplyState) &&
+    normalizedBranchState !== normalizedSupplyState;
+
+  const preferredCode = isInterstate
+    ? findTaxCode(options, ['RIGST@5', 'RISGT@5', 'IGST@5'])
+    : findTaxCode(options, ['GST05R', 'RCGSG@5', 'CG+SG@5']);
+  if (preferredCode) return preferredCode;
+
+  return options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || '';
+};
+
+const findDefaultSac = (
+  options: ServiceGRPOSACCodeOption[],
+  productVariety: string,
+  defaultEntry?: number | null,
+  defaultCode?: string,
+) => {
+  const byEntry = options.find((sac) => sac.sac_entry === defaultEntry);
+  if (byEntry) return byEntry;
+
+  const byCode = options.find((sac) => sac.sac_code === defaultCode);
+  if (byCode) return byCode;
+
+  const preferredCodes = productVariety.toLowerCase().includes('beverage')
+    ? ['996812']
+    : ['9967', '9965'];
+  return options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null;
+};
+
+const findDefaultLocation = (
+  options: ServiceGRPOLocationOption[],
+  defaultCode?: number | null,
+  defaultName?: string,
+) => {
+  const byCode = options.find((location) => location.location_code === defaultCode);
+  if (byCode) return byCode;
+
+  const normalizedDefault = (defaultName || '').toLowerCase();
+  const byName = normalizedDefault
+    ? options.find((location) => location.location_name.toLowerCase() === normalizedDefault)
+    : null;
+  if (byName) return byName;
+
+  return (
+    options.find((location) => /haryana|hr/i.test(`${location.location_name} ${location.state}`)) ||
+    null
+  );
+};
+
+const projectLabel = (project: ServiceGRPOProjectOption) =>
+  project.project_code === project.project_name
+    ? project.project_code
+    : `${project.project_code} - ${project.project_name}`;
+
+const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
+  subAccount.sub_account_code === subAccount.sub_account_name
+    ? subAccount.sub_account_code
+    : `${subAccount.sub_account_code} - ${subAccount.sub_account_name}`;
 
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
@@ -131,31 +284,6 @@ export default function ServiceGRPOPreviewPage() {
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
 
-  const defaultForm = useMemo<ServiceFormState | null>(() => {
-    if (!preview) return null;
-    const date = preview.dispatch_date || today();
-    return {
-      vendorCode: '',
-      branchId: DEFAULT_BRANCH_ID,
-      serviceDescription: preview.default_service_description,
-      amount: parseAmount(preview.default_amount),
-      taxCode: '',
-      glAccount: '',
-      vendorRef: preview.bilty_no || preview.sap_invoice_doc_num || '',
-      comments: '',
-      extraCharges: [],
-      attachments: [],
-      docDate: date,
-      docDueDate: date,
-      taxDate: date,
-      shouldRoundoff: true,
-    };
-  }, [preview]);
-
-  const currentPlanId = preview?.dispatch_plan_id ?? null;
-  const form =
-    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
-
   const branchOptions =
     serviceOptions?.branches && serviceOptions.branches.length > 0
       ? serviceOptions.branches
@@ -165,6 +293,83 @@ export default function ServiceGRPOPreviewPage() {
       ? serviceOptions.tax_codes
       : FALLBACK_TAX_CODE_OPTIONS;
   const glAccountOptions = serviceOptions?.gl_accounts ?? [];
+  const sacOptions = serviceOptions?.sac_codes ?? [];
+  const locationOptions = serviceOptions?.locations ?? [];
+  const sapProjectOptions = serviceOptions?.projects ?? [];
+  const subAccountOptions = serviceOptions?.sub_accounts ?? [];
+  const projectOptions = useMemo<ServiceGRPOProjectOption[]>(() => {
+    const deliveryPoint = (preview?.default_budget_delivery_point || '').trim();
+    if (!deliveryPoint) return sapProjectOptions;
+    const hasDeliveryPoint = sapProjectOptions.some(
+      (project) => project.project_code.toLowerCase() === deliveryPoint.toLowerCase(),
+    );
+    if (hasDeliveryPoint) return sapProjectOptions;
+    return [
+      {
+        project_code: deliveryPoint,
+        project_name: deliveryPoint,
+      },
+      ...sapProjectOptions,
+    ];
+  }, [preview?.default_budget_delivery_point, sapProjectOptions]);
+
+  const defaultForm = useMemo<ServiceFormState | null>(() => {
+    if (!preview) return null;
+    const date = preview.dispatch_date || today();
+    const isMultiInvoice = (preview.invoice_count || 1) > 1;
+    const productVariety = preview.default_product_variety || '';
+    const defaultSac = findDefaultSac(
+      sacOptions,
+      productVariety,
+      preview.default_sac_entry,
+      preview.default_sac_code,
+    );
+    const defaultLocation = findDefaultLocation(
+      locationOptions,
+      preview.default_location_code,
+      preview.default_location_name,
+    );
+    const defaultBranch = branchOptions.find((branch) => branch.branch_id === DEFAULT_BRANCH_ID);
+    const amount = parseAmount(preview.default_amount);
+    return {
+      vendorCode: '',
+      branchId: DEFAULT_BRANCH_ID,
+      serviceDescription: preview.default_service_description,
+      amount,
+      taxCode: findDefaultTaxCode(
+        taxCodeOptions,
+        defaultBranch?.state,
+        isMultiInvoice ? '' : preview.default_place_of_supply || preview.source_state,
+      ),
+      glAccount: '',
+      placeOfSupply: isMultiInvoice ? '' : preview.default_place_of_supply || 'HR',
+      effectiveMonth: monthInputValue(preview.default_effective_month),
+      budgetDeliveryPoint: preview.default_budget_delivery_point || '',
+      subAccount: preview.default_sub_account || '',
+      locationCode: defaultLocation?.location_code ?? null,
+      locationName: defaultLocation?.location_name || preview.default_location_name || '',
+      sacEntry: defaultSac?.sac_entry ?? preview.default_sac_entry ?? null,
+      sacCode: defaultSac?.sac_code || preview.default_sac_code || '',
+      productVariety,
+      totalLitres: parseNullableAmount(preview.default_total_litres),
+      invoiceNumber: preview.invoice_number || preview.sap_invoice_doc_num || '',
+      ewayBill: preview.eway_bill || '',
+      invoiceWeight: parseNullableAmount(preview.invoice_weight),
+      invoiceAmount: parseNullableAmount(preview.invoice_amount),
+      vendorRef: preview.bilty_no || preview.sap_invoice_doc_num || '',
+      comments: '',
+      extraCharges: [],
+      attachments: [],
+      docDate: date,
+      docDueDate: date,
+      taxDate: date,
+      shouldRoundoff: true,
+    };
+  }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions]);
+
+  const currentPlanId = preview?.dispatch_plan_id ?? null;
+  const form =
+    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
 
   const updateCurrentForm = useCallback(
     (updater: (current: ServiceFormState) => ServiceFormState) => {
@@ -193,6 +398,38 @@ export default function ServiceGRPOPreviewPage() {
     [updateCurrentForm],
   );
 
+  const updateSac = (sac: ServiceGRPOSACCodeOption | null) => {
+    updateCurrentForm((current) => ({
+      ...current,
+      sacEntry: sac?.sac_entry ?? null,
+      sacCode: sac?.sac_code || '',
+    }));
+    setApiErrors((prev) => {
+      if (!prev.sacEntry) return prev;
+      const next = { ...prev };
+      delete next.sacEntry;
+      return next;
+    });
+  };
+
+  const updateLocation = (location: ServiceGRPOLocationOption | null) => {
+    updateCurrentForm((current) => ({
+      ...current,
+      locationCode: location?.location_code ?? null,
+      locationName: location?.location_name || '',
+    }));
+    setApiErrors((prev) => {
+      if (!prev.locationCode) return prev;
+      const next = { ...prev };
+      delete next.locationCode;
+      return next;
+    });
+  };
+
+  const updateProject = (project: ServiceGRPOProjectOption | null) => {
+    updateFormField('budgetDeliveryPoint', project?.project_code || '');
+  };
+
   const addAttachments = (files: FileList) => {
     updateCurrentForm((current) => ({
       ...current,
@@ -215,13 +452,18 @@ export default function ServiceGRPOPreviewPage() {
 
   const calcTotal = useCallback(() => {
     if (!form) return 0;
-    const lineTax = (form.amount * parseTaxPercent(form.taxCode)) / 100;
+    const lineTax = isReverseChargeTaxCode(taxCodeOptions, form.taxCode)
+      ? 0
+      : (form.amount * parseTaxPercent(form.taxCode)) / 100;
     const chargesTotal = form.extraCharges.reduce((sum, charge) => {
       const amount = charge.amount || 0;
-      return sum + amount + (amount * parseTaxPercent(charge.tax_code)) / 100;
+      const taxAmount = isReverseChargeTaxCode(taxCodeOptions, charge.tax_code)
+        ? 0
+        : (amount * parseTaxPercent(charge.tax_code)) / 100;
+      return sum + amount + taxAmount;
     }, 0);
     return form.amount + lineTax + chargesTotal;
-  }, [form]);
+  }, [form, taxCodeOptions]);
 
   const validatePost = () => {
     if (!form || !preview) return false;
@@ -245,10 +487,29 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.glAccount.trim()) {
       errors.glAccount = 'G/L account is required for service GRPO';
     }
+    const isMultiInvoice = (preview.invoice_count || 1) > 1;
+    if (!isMultiInvoice && !form.placeOfSupply.trim()) {
+      errors.placeOfSupply = 'Place of supply is required';
+    }
+    if (!form.effectiveMonth) {
+      errors.effectiveMonth = 'Effective month is required';
+    }
+    if (!form.subAccount.trim()) {
+      errors.subAccount = 'Sub account is required';
+    }
+    if (!form.locationCode) {
+      errors.locationCode = 'Location is required';
+    }
+    if (!form.sacEntry) {
+      errors.sacEntry = 'SAC is required';
+    }
+    if (!form.productVariety.trim()) {
+      errors.productVariety = 'Variety is required';
+    }
     if (!form.vendorRef.trim()) {
       errors.vendorRef = 'Vendor reference is required';
     }
-    if (form.attachments.length === 0) {
+    if (form.attachments.length === 0 && !preview.bilty_attachment) {
       errors.attachments = 'At least one attachment is required';
     }
 
@@ -273,12 +534,28 @@ export default function ServiceGRPOPreviewPage() {
         branch_id: form.branchId,
         service_description: form.serviceDescription,
         amount: form.amount,
+        unit_price: form.amount,
         tax_code: form.taxCode || undefined,
         gl_account: form.glAccount || undefined,
+        place_of_supply: form.placeOfSupply || undefined,
+        effective_month: monthPayloadValue(form.effectiveMonth),
+        budget_delivery_point: form.budgetDeliveryPoint || undefined,
+        sub_account: form.subAccount || undefined,
+        location_code: form.locationCode,
+        location_name: form.locationName || undefined,
+        sac_entry: form.sacEntry,
+        sac_code: form.sacCode || undefined,
+        product_variety: form.productVariety || undefined,
+        total_litres: form.totalLitres,
+        invoice_number: form.invoiceNumber || undefined,
+        eway_bill: form.ewayBill || undefined,
+        invoice_weight: form.invoiceWeight,
+        invoice_amount: form.invoiceAmount,
         comments: form.comments || undefined,
         vendor_ref: form.vendorRef || undefined,
         extra_charges: form.extraCharges.length > 0 ? form.extraCharges : undefined,
         attachments: form.attachments.length > 0 ? form.attachments : undefined,
+        include_bilty_attachment: Boolean(preview.bilty_attachment),
         doc_date: form.docDate || undefined,
         doc_due_date: form.docDueDate || undefined,
         tax_date: form.taxDate || undefined,
@@ -295,6 +572,10 @@ export default function ServiceGRPOPreviewPage() {
 
   const billNo = preview?.sap_invoice_doc_num || preview?.sap_invoice_doc_entry || '';
   const estimatedTotal = calcTotal();
+  const biltyAttachmentUrl = resolveFileUrl(preview?.bilty_attachment);
+  const biltyAttachmentName = preview?.bilty_attachment_name || 'Bilty attachment';
+  const attachmentCount = (form?.attachments.length ?? 0) + (preview?.bilty_attachment ? 1 : 0);
+  const isMultiInvoicePreview = (preview?.invoice_count || 1) > 1;
 
   return (
     <div className="space-y-6 pb-32">
@@ -305,7 +586,7 @@ export default function ServiceGRPOPreviewPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service/pending')}
+              onClick={() => navigate('/dispatch/bilty-grpo/pending')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -381,6 +662,12 @@ export default function ServiceGRPOPreviewPage() {
                   <p className="text-sm font-medium">{preview.transporter_name || '-'}</p>
                 </div>
                 <div>
+                  <p className="text-xs text-muted-foreground">Ship-To State</p>
+                  <p className="text-sm font-medium">
+                    {isMultiInvoicePreview ? 'Multiple invoices' : preview.source_state || '-'}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-muted-foreground">Driver</p>
                   <p className="text-sm font-medium">{preview.driver_name || '-'}</p>
                 </div>
@@ -402,6 +689,10 @@ export default function ServiceGRPOPreviewPage() {
                     {formatCurrency(parseAmount(preview.total_freight || preview.freight))}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Invoices</p>
+                  <p className="text-sm font-medium">{preview.invoice_count || 1}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -418,6 +709,80 @@ export default function ServiceGRPOPreviewPage() {
                 </p>
               </div>
             </div>
+          )}
+
+          {preview.invoice_lines.length > 0 && (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">GRPO Lines</h3>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {preview.invoice_lines.length} invoice
+                    {preview.invoice_lines.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full min-w-[980px] text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="p-3 text-left font-medium">SAP Invoice</th>
+                        <th className="p-3 text-left font-medium">Customer</th>
+                        <th className="p-3 text-left font-medium">State</th>
+                        <th className="p-3 text-left font-medium">Service</th>
+                        <th className="p-3 text-right font-medium">Litres</th>
+                        <th className="p-3 text-right font-medium">Weight</th>
+                        <th className="p-3 text-right font-medium">Freight</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.invoice_lines.map((line) => (
+                        <tr key={line.dispatch_plan_id} className="border-t">
+                          <td className="p-3 align-top">
+                            <div className="font-mono text-xs font-semibold">
+                              {line.sap_invoice_doc_num || line.invoice_number || '-'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              DocEntry {line.sap_invoice_doc_entry}
+                            </div>
+                          </td>
+                          <td className="p-3 align-top">
+                            <div className="max-w-[260px] truncate font-medium">
+                              {line.customer_name || '-'}
+                            </div>
+                            <div className="font-mono text-xs text-muted-foreground">
+                              {line.customer_code || '-'}
+                            </div>
+                          </td>
+                          <td className="p-3 align-top whitespace-nowrap">
+                            {line.source_state || '-'}
+                          </td>
+                          <td className="p-3 align-top">
+                            <div className="max-w-[280px] truncate">
+                              {line.service_description || '-'}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {line.product_variety || '-'}
+                            </div>
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatQuantity(line.total_litres, 3)}
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatQuantity(line.invoice_weight, 3)}
+                          </td>
+                          <td className="p-3 text-right align-top tabular-nums">
+                            {formatCurrency(parseAmount(line.freight_amount))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {form && (
@@ -538,6 +903,35 @@ export default function ServiceGRPOPreviewPage() {
                     onItemSelect={(tax) => updateFormField('taxCode', tax.tax_code)}
                     onClear={() => updateFormField('taxCode', '')}
                   />
+                  <SearchableSelect<ServiceGRPOSACCodeOption>
+                    value={form.sacEntry ? String(form.sacEntry) : ''}
+                    items={sacOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && sacOptions.length === 0}
+                    error={apiErrors.sacEntry}
+                    label="SAC"
+                    required
+                    placeholder="Search SAC"
+                    inputId="service-grpo-sac"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(sac) => sac.sac_entry}
+                    getItemLabel={(sac) => `${sac.sac_code} - ${sac.sac_name}`}
+                    filterFn={(sac, search) =>
+                      sac.sac_code.toLowerCase().includes(search.toLowerCase()) ||
+                      sac.sac_name.toLowerCase().includes(search.toLowerCase())
+                    }
+                    renderItem={(sac) => (
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{sac.sac_code}</span>
+                        <span className="text-xs text-muted-foreground">{sac.sac_name}</span>
+                      </div>
+                    )}
+                    loadingText="Loading SAC codes..."
+                    emptyText="No SAC codes available"
+                    notFoundText="No SAC codes found"
+                    onItemSelect={updateSac}
+                    onClear={() => updateSac(null)}
+                  />
                   <SearchableSelect<ServiceGRPOGLAccountOption>
                     value={form.glAccount}
                     items={glAccountOptions}
@@ -573,6 +967,191 @@ export default function ServiceGRPOPreviewPage() {
                     }
                     onClear={() => updateFormField('glAccount', '')}
                   />
+                  <SearchableSelect<ServiceGRPOLocationOption>
+                    value={form.locationCode ? String(form.locationCode) : ''}
+                    items={locationOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && locationOptions.length === 0}
+                    error={apiErrors.locationCode}
+                    label="Location"
+                    required
+                    placeholder="Select location"
+                    inputId="service-grpo-location"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(location) => location.location_code}
+                    getItemLabel={(location) =>
+                      `${location.location_name}${location.state ? ` (${location.state})` : ''}`
+                    }
+                    filterFn={(location, search) =>
+                      `${location.location_name} ${location.state}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading locations..."
+                    emptyText="No locations available"
+                    notFoundText="No locations found"
+                    onItemSelect={updateLocation}
+                    onClear={() => updateLocation(null)}
+                  />
+                  <SearchableSelect<ServiceGRPOProjectOption>
+                    value={form.budgetDeliveryPoint}
+                    items={projectOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && projectOptions.length === 0}
+                    label="Budget / Delivery Point"
+                    placeholder="Select delivery point"
+                    inputId="service-grpo-project"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(project) => project.project_code}
+                    getItemLabel={projectLabel}
+                    filterFn={(project, search) =>
+                      `${project.project_code} ${project.project_name}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading delivery points..."
+                    emptyText="No delivery points available"
+                    notFoundText="No delivery points found"
+                    onItemSelect={updateProject}
+                    onClear={() => updateProject(null)}
+                  />
+                  <SearchableSelect<ServiceGRPOSubAccountOption>
+                    value={form.subAccount}
+                    items={subAccountOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && subAccountOptions.length === 0}
+                    error={apiErrors.subAccount}
+                    label="Sub Account"
+                    required
+                    placeholder="Select sub account"
+                    inputId="service-grpo-sub-account"
+                    inputClassName="h-8 text-sm"
+                    getItemKey={(subAccount) => subAccount.sub_account_code}
+                    getItemLabel={subAccountLabel}
+                    filterFn={(subAccount, search) =>
+                      `${subAccount.sub_account_code} ${subAccount.sub_account_name}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    loadingText="Loading sub accounts..."
+                    emptyText="No sub accounts available"
+                    notFoundText="No sub accounts found"
+                    onItemSelect={(subAccount) =>
+                      updateFormField('subAccount', subAccount.sub_account_code)
+                    }
+                    onClear={() => updateFormField('subAccount', '')}
+                  />
+                  {!isMultiInvoicePreview && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        Place of Supply <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        value={form.placeOfSupply}
+                        onChange={(e) => updateFormField('placeOfSupply', e.target.value)}
+                        className={`h-8 text-sm${
+                          apiErrors.placeOfSupply ? ' border-destructive' : ''
+                        }`}
+                      />
+                      {apiErrors.placeOfSupply && (
+                        <p className="text-xs text-destructive">{apiErrors.placeOfSupply}</p>
+                      )}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Effective Month <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      type="month"
+                      value={form.effectiveMonth}
+                      onChange={(e) => updateFormField('effectiveMonth', e.target.value)}
+                      className={`h-8 text-sm${
+                        apiErrors.effectiveMonth ? ' border-destructive' : ''
+                      }`}
+                    />
+                    {apiErrors.effectiveMonth && (
+                      <p className="text-xs text-destructive">{apiErrors.effectiveMonth}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      Variety <span className="text-destructive">*</span>
+                    </Label>
+                    <NativeSelect
+                      value={form.productVariety}
+                      onChange={(e) => updateFormField('productVariety', e.target.value)}
+                      placeholder="Select variety"
+                      className={`h-8 text-sm${
+                        apiErrors.productVariety ? ' border-destructive' : ''
+                      }`}
+                    >
+                      <SelectOption value="Oil">Oil</SelectOption>
+                      <SelectOption value="Beverage">Beverage</SelectOption>
+                    </NativeSelect>
+                    {apiErrors.productVariety && (
+                      <p className="text-xs text-destructive">{apiErrors.productVariety}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Total Litre</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={form.totalLitres ?? ''}
+                      onChange={(e) =>
+                        updateFormField('totalLitres', parseNullableAmount(e.target.value))
+                      }
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  {!isMultiInvoicePreview && (
+                    <>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Number</Label>
+                        <Input
+                          value={form.invoiceNumber}
+                          onChange={(e) => updateFormField('invoiceNumber', e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">E-way Bill</Label>
+                        <Input
+                          value={form.ewayBill}
+                          onChange={(e) => updateFormField('ewayBill', e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Weight (Charged Kgs)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={form.invoiceWeight ?? ''}
+                          onChange={(e) =>
+                            updateFormField('invoiceWeight', parseNullableAmount(e.target.value))
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Invoice Amount</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={form.invoiceAmount ?? ''}
+                          onChange={(e) =>
+                            updateFormField('invoiceAmount', parseNullableAmount(e.target.value))
+                          }
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-1">
                     <Label className="text-xs">Posting Date</Label>
                     <Input
@@ -650,6 +1229,29 @@ export default function ServiceGRPOPreviewPage() {
                       PDF, PNG, JPG, DOC, XLS accepted
                     </span>
                   </div>
+                  {preview.bilty_attachment && (
+                    <div className="flex items-center gap-2 rounded border bg-muted/40 p-1.5 text-sm">
+                      <Paperclip className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+                      <a
+                        href={biltyAttachmentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate font-medium text-primary hover:underline"
+                        title={biltyAttachmentName}
+                      >
+                        {biltyAttachmentName}
+                      </a>
+                      <span className="hidden flex-shrink-0 text-xs text-muted-foreground sm:inline">
+                        From vehicle linking
+                      </span>
+                      <Button asChild variant="ghost" size="sm" className="h-7 px-2">
+                        <a href={biltyAttachmentUrl} target="_blank" rel="noreferrer">
+                          <Eye className="h-3.5 w-3.5" />
+                          Preview
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                   {form.attachments.length > 0 && (
                     <div className="space-y-1">
                       {form.attachments.map((file, index) => (
@@ -736,8 +1338,26 @@ export default function ServiceGRPOPreviewPage() {
                 <span className="font-medium">{form.glAccount}</span>
               </div>
               <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">SAC</span>
+                <span className="font-medium">{form.sacCode || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Location</span>
+                <span className="font-medium">{form.locationName || '-'}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Sub Account</span>
+                <span className="font-medium">{form.subAccount || '-'}</span>
+              </div>
+              {!isMultiInvoicePreview && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Place of Supply</span>
+                  <span className="font-medium">{form.placeOfSupply || '-'}</span>
+                </div>
+              )}
+              <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Attachments</span>
-                <span className="font-medium">{form.attachments.length} file(s)</span>
+                <span className="font-medium">{attachmentCount} file(s)</span>
               </div>
               <div className="border-t pt-3 flex justify-between gap-4">
                 <span className="font-semibold">Estimated Total</span>
@@ -772,6 +1392,10 @@ export default function ServiceGRPOPreviewPage() {
                 <span className="font-semibold">{successResult.sap_doc_num}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-muted-foreground">SAP DocEntry</span>
+                <span className="font-semibold">{successResult.sap_doc_entry}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-muted-foreground">Total Value</span>
                 <span className="font-semibold">
                   {formatCurrency(successResult.sap_doc_total || 0)}
@@ -791,7 +1415,7 @@ export default function ServiceGRPOPreviewPage() {
               className="w-full"
               onClick={() => {
                 setSuccessResult(null);
-                navigate('/grpo/service/history');
+                navigate('/dispatch/bilty-grpo/history');
               }}
             >
               View History

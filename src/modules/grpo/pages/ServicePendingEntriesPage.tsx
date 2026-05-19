@@ -41,7 +41,7 @@ export default function ServicePendingEntriesPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service')}
+              onClick={() => navigate('/dispatch/bilty-grpo')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -109,10 +109,12 @@ export default function ServicePendingEntriesPage() {
 
           <div className="rounded-md border overflow-hidden">
             <div className="overflow-x-auto max-w-full">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[1040px]">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="p-3 text-left text-sm font-medium">Dispatch Bill</th>
+                    <th className="p-3 text-left text-sm font-medium">Invoices</th>
+                    <th className="p-3 text-left text-sm font-medium">State</th>
                     <th className="p-3 text-left text-sm font-medium">Vehicle</th>
                     <th className="p-3 text-left text-sm font-medium">Transporter</th>
                     <th className="p-3 text-left text-sm font-medium">Driver</th>
@@ -127,11 +129,15 @@ export default function ServicePendingEntriesPage() {
                     <tr
                       key={entry.dispatch_plan_id}
                       className="border-t hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/grpo/service/preview/${entry.dispatch_plan_id}`)}
+                      onClick={() => navigate(`/dispatch/bilty-grpo/preview/${entry.dispatch_plan_id}`)}
                     >
                       <td className="p-3 text-sm font-medium whitespace-nowrap">
                         {entry.sap_invoice_doc_num || entry.sap_invoice_doc_entry}
                       </td>
+                      <td className="p-3 text-sm whitespace-nowrap">
+                        {entry.invoice_count || 1}
+                      </td>
+                      <td className="p-3 text-sm whitespace-nowrap">{entry.source_state || '-'}</td>
                       <td className="p-3 text-sm whitespace-nowrap">{entry.vehicle_no || '-'}</td>
                       <td className="p-3 text-sm">
                         <div className="flex flex-col">

@@ -98,7 +98,7 @@ export default function ServiceGRPOHistoryPage() {
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => navigate('/grpo/service')}
+              onClick={() => navigate('/dispatch/bilty-grpo')}
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -183,7 +183,7 @@ export default function ServiceGRPOHistoryPage() {
                 <div
                   key={entry.id}
                   className="flex items-center justify-between px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/grpo/service/history/${entry.id}`)}
+                  onClick={() => navigate(`/dispatch/bilty-grpo/history/${entry.id}`)}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <span className="font-medium text-sm">{entry.dispatch_bill_no}</span>
