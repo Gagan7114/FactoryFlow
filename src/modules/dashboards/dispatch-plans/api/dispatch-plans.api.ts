@@ -54,6 +54,12 @@ function buildUpdateBody(payload: DispatchPlanUpdatePayload): DispatchPlanUpdate
   const formData = new FormData();
   Object.entries(normalizedPayload).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) formData.append(key, String(item));
+      });
+      return;
+    }
     formData.append(key, isFile(value) ? value : String(value));
   });
   return formData;
