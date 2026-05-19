@@ -9,6 +9,7 @@ import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { useProcessScan } from '../api';
 import BarcodeScanner from '../components/BarcodeScanner';
 import type { ScanResponse } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 export default function ScanPage() {
   const navigate = useNavigate();
@@ -30,8 +31,8 @@ export default function ScanPage() {
       } else {
         toast.error(`Not found: ${barcode}`);
       }
-    } catch {
-      toast.error('Scan failed');
+    } catch (err: unknown) {
+      toastBarcodeError(err, 'Unable to process this scan. Please try again.');
     }
   };
 

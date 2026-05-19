@@ -11,6 +11,7 @@ import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { useMovePallet, usePallets } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
+import { getBarcodeErrorMessage } from '../utils/errors';
 
 export default function PalletTransferPage() {
   const [palletSearch, setPalletSearch] = useState('');
@@ -48,8 +49,14 @@ export default function PalletTransferPage() {
           },
         });
         successCount++;
-      } catch {
-        toast.error(`Failed to move ${pallet.pallet_id}`);
+      } catch (err: unknown) {
+        const status = (err as { status?: number; response?: { status?: number } })?.status;
+        const responseStatus = (err as { response?: { status?: number } })?.response?.status;
+        if (!status && !responseStatus) {
+          toast.error(
+            `${pallet.pallet_id}: ${getBarcodeErrorMessage(err, 'Unable to transfer pallet')}`,
+          );
+        }
       }
     }
     if (successCount > 0) {
@@ -90,7 +97,9 @@ export default function PalletTransferPage() {
               )}
               placeholder="Search and add pallets..."
               label="Add Pallets"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedPalletSearch}
               inputId="transfer-add-pallet"
               loadingText="Searching..."

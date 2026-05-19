@@ -16,6 +16,7 @@ import {
 } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { Box, DismantleReason, Pallet } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 const REASONS: { value: DismantleReason; label: string }[] = [
   { value: 'REPACK', label: 'Repack' },
@@ -76,9 +77,7 @@ export default function DismantlePage() {
       setSelectedBoxIds([]);
       setReasonNotes('');
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
-      );
+      toastBarcodeError(err, 'Unable to dismantle pallet.');
     }
   };
 
@@ -98,9 +97,7 @@ export default function DismantlePage() {
       setLooseQty('');
       setReasonNotes('');
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
-      );
+      toastBarcodeError(err, 'Unable to dismantle box.');
     }
   };
 
@@ -165,7 +162,9 @@ export default function DismantlePage() {
                   )}
                   placeholder="Search pallet by ID, item, or batch..."
                   label="Select Pallet"
-                  labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+                  labelAction={
+                    <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+                  }
                   scannedSearchValue={scannedPalletSearch}
                   required
                   inputId="dismantle-pallet"

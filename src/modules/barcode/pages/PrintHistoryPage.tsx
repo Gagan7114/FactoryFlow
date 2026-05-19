@@ -1,10 +1,11 @@
 import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { PaginationControls } from '@/shared/components/PaginationControls';
 import { Badge, Card, CardContent } from '@/shared/components/ui';
 
-import { usePrintHistory } from '../api';
+import { usePrintHistoryPage } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 
 const TYPE_COLORS = {
@@ -23,12 +24,21 @@ export default function PrintHistoryPage() {
   const [labelTypeFilter, setLabelTypeFilter] = useState('');
   const [printTypeFilter, setPrintTypeFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const { data: logs = [], isLoading } = usePrintHistory({
+  useEffect(() => {
+    setPage(1);
+  }, [labelTypeFilter, printTypeFilter, search, pageSize]);
+
+  const { data: printHistoryPage, isLoading } = usePrintHistoryPage({
     label_type: labelTypeFilter || undefined,
     print_type: printTypeFilter || undefined,
     search: search || undefined,
+    page,
+    page_size: pageSize,
   });
+  const logs = printHistoryPage?.results ?? [];
 
   return (
     <div className="space-y-6">
@@ -115,6 +125,15 @@ export default function PrintHistoryPage() {
                 </tbody>
               </table>
             </div>
+            <PaginationControls
+              page={printHistoryPage?.page ?? page}
+              pageSize={printHistoryPage?.page_size ?? pageSize}
+              total={printHistoryPage?.count ?? 0}
+              totalPages={printHistoryPage?.total_pages ?? 1}
+              isLoading={isLoading}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </CardContent>
         </Card>
       )}

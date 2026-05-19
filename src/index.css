@@ -56,6 +56,17 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    @apply bg-background text-foreground;
+    color-scheme: light dark;
+  }
+
+  option {
+    @apply bg-background text-foreground;
+  }
 }
 
 /* Print styles for Inspection Detail Page */
@@ -71,15 +82,15 @@
   header,
   .print-hide,
   button,
-  [role="navigation"] {
+  [role='navigation'] {
     display: none !important;
   }
 
   /* Hide Radix UI portals (dialogs, popovers, tooltips) from printing */
   [data-radix-portal],
   [data-radix-popper-content-wrapper],
-  [role="dialog"],
-  [role="tooltip"] {
+  [role='dialog'],
+  [role='tooltip'] {
     display: none !important;
   }
 
@@ -103,7 +114,7 @@
 
   /* Remove shadows and decorative borders */
   .border,
-  [class*="shadow"] {
+  [class*='shadow'] {
     box-shadow: none !important;
   }
 
@@ -137,7 +148,7 @@
   }
 
   /* Ensure text inputs show their values as plain text */
-  input:not([type="checkbox"]):not([type="radio"]),
+  input:not([type='checkbox']):not([type='radio']),
   textarea,
   select {
     border: none !important;
@@ -148,7 +159,7 @@
     opacity: 1 !important;
   }
 
-  input:disabled:not([type="checkbox"]):not([type="radio"]),
+  input:disabled:not([type='checkbox']):not([type='radio']),
   textarea:disabled,
   select:disabled {
     opacity: 1 !important;
@@ -156,8 +167,8 @@
   }
 
   /* Preserve checkbox native appearance in print */
-  input[type="checkbox"],
-  input[type="radio"] {
+  input[type='checkbox'],
+  input[type='radio'] {
     -webkit-appearance: checkbox !important;
     appearance: checkbox !important;
     opacity: 1 !important;

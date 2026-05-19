@@ -13,9 +13,11 @@ import type {
   GenerateBoxesPayload,
   LabelData,
   LabelPrintLog,
+  ListResponse,
   LookupResponse,
   LooseStock,
   LooseStockFilters,
+  PaginatedResponse,
   Pallet,
   PalletAddBoxesPayload,
   PalletClearPayload,
@@ -35,6 +37,31 @@ import type {
 
 const EP = API_ENDPOINTS.BARCODE;
 
+function isPaginatedResponse<T>(data: ListResponse<T>): data is PaginatedResponse<T> {
+  return !Array.isArray(data) && Array.isArray(data.results);
+}
+
+function unwrapList<T>(data: ListResponse<T>): T[] {
+  return isPaginatedResponse(data) ? data.results : data;
+}
+
+function normalizePage<T>(data: ListResponse<T>, params?: { page?: number; page_size?: number }) {
+  if (isPaginatedResponse(data)) {
+    return data;
+  }
+
+  const pageSize = params?.page_size ?? data.length;
+  return {
+    results: data,
+    count: data.length,
+    page: params?.page ?? 1,
+    page_size: pageSize,
+    total_pages: 1,
+    next: false,
+    previous: false,
+  };
+}
+
 export const barcodeApi = {
   // =========================================================================
   // Boxes
@@ -46,8 +73,13 @@ export const barcodeApi = {
   },
 
   async getBoxes(params?: BoxFilters): Promise<Box[]> {
-    const res = await apiClient.get<Box[]>(EP.BOXES, { params });
-    return res.data;
+    const res = await apiClient.get<ListResponse<Box>>(EP.BOXES, { params });
+    return unwrapList(res.data);
+  },
+
+  async getBoxesPage(params?: BoxFilters): Promise<PaginatedResponse<Box>> {
+    const res = await apiClient.get<ListResponse<Box>>(EP.BOXES, { params });
+    return normalizePage(res.data, params);
   },
 
   async getBoxDetail(boxId: number): Promise<BoxDetail> {
@@ -70,8 +102,13 @@ export const barcodeApi = {
   },
 
   async getPallets(params?: PalletFilters): Promise<Pallet[]> {
-    const res = await apiClient.get<Pallet[]>(EP.PALLETS, { params });
-    return res.data;
+    const res = await apiClient.get<ListResponse<Pallet>>(EP.PALLETS, { params });
+    return unwrapList(res.data);
+  },
+
+  async getPalletsPage(params?: PalletFilters): Promise<PaginatedResponse<Pallet>> {
+    const res = await apiClient.get<ListResponse<Pallet>>(EP.PALLETS, { params });
+    return normalizePage(res.data, params);
   },
 
   async getPalletDetail(palletId: number): Promise<PalletDetail> {
@@ -137,8 +174,15 @@ export const barcodeApi = {
   },
 
   async getPrintHistory(params?: PrintHistoryFilters): Promise<LabelPrintLog[]> {
-    const res = await apiClient.get<LabelPrintLog[]>(EP.PRINT_HISTORY, { params });
-    return res.data;
+    const res = await apiClient.get<ListResponse<LabelPrintLog>>(EP.PRINT_HISTORY, { params });
+    return unwrapList(res.data);
+  },
+
+  async getPrintHistoryPage(
+    params?: PrintHistoryFilters,
+  ): Promise<PaginatedResponse<LabelPrintLog>> {
+    const res = await apiClient.get<ListResponse<LabelPrintLog>>(EP.PRINT_HISTORY, { params });
+    return normalizePage(res.data, params);
   },
 
   async getProductionReleaseOil(params?: {
@@ -175,8 +219,13 @@ export const barcodeApi = {
   // =========================================================================
 
   async getLooseStock(params?: LooseStockFilters): Promise<LooseStock[]> {
-    const res = await apiClient.get<LooseStock[]>(EP.LOOSE, { params });
-    return res.data;
+    const res = await apiClient.get<ListResponse<LooseStock>>(EP.LOOSE, { params });
+    return unwrapList(res.data);
+  },
+
+  async getLooseStockPage(params?: LooseStockFilters): Promise<PaginatedResponse<LooseStock>> {
+    const res = await apiClient.get<ListResponse<LooseStock>>(EP.LOOSE, { params });
+    return normalizePage(res.data, params);
   },
 
   async getLooseStockDetail(looseId: number): Promise<LooseStock> {

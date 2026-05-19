@@ -24,6 +24,10 @@ import type {
 } from '../types';
 import { barcodeApi } from './barcode.api';
 
+interface BarcodeQueryOptions {
+  enabled?: boolean;
+}
+
 // ============================================================================
 // Query Keys
 // ============================================================================
@@ -31,15 +35,23 @@ import { barcodeApi } from './barcode.api';
 export const BARCODE_QUERY_KEYS = {
   all: ['barcode'] as const,
   boxes: (filters?: BoxFilters) => [...BARCODE_QUERY_KEYS.all, 'boxes', filters] as const,
+  boxesPage: (filters?: BoxFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'boxes-page', filters] as const,
   boxDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'box', id] as const,
   pallets: (filters?: PalletFilters) => [...BARCODE_QUERY_KEYS.all, 'pallets', filters] as const,
+  palletsPage: (filters?: PalletFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'pallets-page', filters] as const,
   palletDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'pallet', id] as const,
   printHistory: (filters?: PrintHistoryFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'print-history', filters] as const,
+  printHistoryPage: (filters?: PrintHistoryFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'print-history-page', filters] as const,
   productionReleaseOil: (search?: string) =>
     [...BARCODE_QUERY_KEYS.all, 'production-release-oil', search] as const,
   looseStock: (filters?: LooseStockFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'loose', filters] as const,
+  looseStockPage: (filters?: LooseStockFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'loose-page', filters] as const,
   looseStockDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'loose', id] as const,
 };
 
@@ -51,6 +63,13 @@ export function useBoxes(filters?: BoxFilters) {
   return useQuery({
     queryKey: BARCODE_QUERY_KEYS.boxes(filters),
     queryFn: () => barcodeApi.getBoxes(filters),
+  });
+}
+
+export function useBoxesPage(filters?: BoxFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.boxesPage(filters),
+    queryFn: () => barcodeApi.getBoxesPage(filters),
   });
 }
 
@@ -91,10 +110,18 @@ export function useVoidBox() {
 // Pallet Queries
 // ============================================================================
 
-export function usePallets(filters?: PalletFilters) {
+export function usePallets(filters?: PalletFilters, options?: BarcodeQueryOptions) {
   return useQuery({
     queryKey: BARCODE_QUERY_KEYS.pallets(filters),
     queryFn: () => barcodeApi.getPallets(filters),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function usePalletsPage(filters?: PalletFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.palletsPage(filters),
+    queryFn: () => barcodeApi.getPalletsPage(filters),
   });
 }
 
@@ -207,6 +234,13 @@ export function usePrintHistory(filters?: PrintHistoryFilters) {
   });
 }
 
+export function usePrintHistoryPage(filters?: PrintHistoryFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.printHistoryPage(filters),
+    queryFn: () => barcodeApi.getPrintHistoryPage(filters),
+  });
+}
+
 export function usePrintBoxLabel() {
   const qc = useQueryClient();
   return useMutation({
@@ -294,6 +328,13 @@ export function useLooseStock(filters?: LooseStockFilters) {
   return useQuery({
     queryKey: BARCODE_QUERY_KEYS.looseStock(filters),
     queryFn: () => barcodeApi.getLooseStock(filters),
+  });
+}
+
+export function useLooseStockPage(filters?: LooseStockFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.looseStockPage(filters),
+    queryFn: () => barcodeApi.getLooseStockPage(filters),
   });
 }
 

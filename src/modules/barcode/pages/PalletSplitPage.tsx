@@ -10,6 +10,7 @@ import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 import { usePalletDetail, usePallets, useSplitPallet } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { Pallet } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 export default function PalletSplitPage() {
   const navigate = useNavigate();
@@ -25,18 +26,30 @@ export default function PalletSplitPage() {
     palletSearch.length >= 2 ? { search: palletSearch, status: 'ACTIVE' } : undefined,
   );
   const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
-    targetPalletSearch.length >= 2
-      ? { search: targetPalletSearch, status: 'ACTIVE' }
-      : { status: 'ACTIVE' },
+    targetPalletSearch.length >= 2 ? { search: targetPalletSearch } : undefined,
   );
   const { data: palletDetail } = usePalletDetail(selectedPalletId);
   const splitMutation = useSplitPallet();
 
   const activeBoxes =
     palletDetail?.boxes?.filter((b) => b.status === 'ACTIVE' || b.status === 'PARTIAL') || [];
-  const emptyTargetPallets = targetPallets.filter(
-    (pallet) => pallet.box_count === 0 && pallet.id !== selectedPalletId,
-  );
+  const emptyTargetPallets = targetPallets.filter((pallet) => {
+    const hasNoContext = !pallet.item_code && !pallet.batch_number && !pallet.uom;
+    const matchesSourceContext =
+      palletDetail &&
+      pallet.item_code === palletDetail.item_code &&
+      pallet.batch_number === palletDetail.batch_number &&
+      pallet.uom === palletDetail.uom;
+    const hasCapacity = !pallet.max_box_count || selectedBoxIds.length <= pallet.max_box_count;
+
+    return (
+      (pallet.status === 'CLEARED' ||
+        (pallet.status === 'ACTIVE' && (hasNoContext || matchesSourceContext))) &&
+      hasCapacity &&
+      pallet.box_count === 0 &&
+      pallet.id !== selectedPalletId
+    );
+  });
   const targetPallet = targetPallets.find((pallet) => pallet.id === targetPalletId);
 
   const toggleBox = (id: number) => {
@@ -53,10 +66,7 @@ export default function PalletSplitPage() {
       toast.success(`Split into pallet: ${updatedTargetPallet.pallet_id}`);
       navigate(`/barcode/pallets/${updatedTargetPallet.id}`);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-          'Failed to split',
-      );
+      toastBarcodeError(err, 'Unable to split pallet. Check the source, target, and boxes.');
     }
   };
 
@@ -93,7 +103,9 @@ export default function PalletSplitPage() {
               )}
               placeholder="Search pallet to split..."
               label="Source Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedSourcePalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedSourcePalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedSourcePalletSearch}
               required
               inputId="split-pallet"
@@ -132,7 +144,9 @@ export default function PalletSplitPage() {
               )}
               placeholder="Search empty target pallet..."
               label="Target Empty Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedTargetPalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedTargetPalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedTargetPalletSearch}
               required
               inputId="split-target-pallet"

@@ -20,6 +20,7 @@ import {
 import { useAddBoxesToPallet, useBoxDetail, usePallets, useVoidBox } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { BoxMovementType, Pallet } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 const MOVEMENT_COLORS: Record<BoxMovementType, string> = {
   CREATE: 'text-green-600',
@@ -43,11 +44,25 @@ export default function BoxDetailPage() {
   const [selectedPalletId, setSelectedPalletId] = useState<number | null>(null);
   const handlePalletSearch = useCallback((s: string) => setPalletSearch(s), []);
 
-  const { data: searchPallets = [], isLoading: loadingPallets } = usePallets(
-    linkDialogOpen && palletSearch.length >= 2
-      ? { search: palletSearch, status: 'ACTIVE' }
-      : undefined,
+  const palletSearchTerm = palletSearch.trim();
+  const { data: activeSearchPallets = [], isLoading: loadingActivePallets } = usePallets(
+    { status: 'ACTIVE', ...(palletSearchTerm ? { search: palletSearchTerm } : {}) },
+    { enabled: linkDialogOpen },
   );
+  const { data: clearedSearchPallets = [], isLoading: loadingClearedPallets } = usePallets(
+    { status: 'CLEARED', ...(palletSearchTerm ? { search: palletSearchTerm } : {}) },
+    { enabled: linkDialogOpen },
+  );
+  const searchPallets = [...activeSearchPallets, ...clearedSearchPallets];
+  const loadingPallets = loadingActivePallets || loadingClearedPallets;
+  const linkablePallets = searchPallets.filter((p) => {
+    const isEmptyPallet = p.box_count === 0 && !p.item_code && !p.batch_number;
+    const isCompatiblePallet =
+      p.item_code === box?.item_code && p.batch_number === box?.batch_number && p.uom === box?.uom;
+    const isReusableStatus = p.status === 'ACTIVE' || p.status === 'CLEARED';
+    const hasCapacity = !p.max_box_count || p.box_count < p.max_box_count;
+    return isReusableStatus && hasCapacity && (isEmptyPallet || isCompatiblePallet);
+  });
 
   const handleVoid = () => {
     if (!box || !confirm('Are you sure you want to void this box?')) return;
@@ -65,9 +80,7 @@ export default function BoxDetailPage() {
       setLinkDialogOpen(false);
       setSelectedPalletId(null);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed',
-      );
+      toastBarcodeError(err, 'Unable to add this box to the selected pallet.');
     }
   };
 
@@ -320,8 +333,8 @@ export default function BoxDetailPage() {
 
           <div className="space-y-4">
             <SearchableSelect<Pallet>
-              items={searchPallets}
-              isLoading={loadingPallets && palletSearch.length >= 2}
+              items={linkablePallets}
+              isLoading={loadingPallets}
               getItemKey={(p) => p.id}
               getItemLabel={(p) => `${p.pallet_id} — ${p.item_name || p.item_code}`}
               filterFn={() => true}
@@ -346,12 +359,14 @@ export default function BoxDetailPage() {
               }}
               placeholder="Search existing pallet..."
               label="Add to Existing Pallet"
-              labelAction={<ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />}
+              labelAction={
+                <ScanSearchButton onScan={setScannedPalletSearch} expectedType="PALLET" />
+              }
               scannedSearchValue={scannedPalletSearch}
               inputId="link-pallet-search"
               loadingText="Searching..."
-              emptyText="Type at least 2 characters"
-              notFoundText="No active pallets found"
+              emptyText="No reusable empty or compatible pallets found"
+              notFoundText="No compatible reusable pallets found"
               onSearchChange={handlePalletSearch}
               onItemSelect={(p) => setSelectedPalletId(p.id)}
               onClear={() => setSelectedPalletId(null)}
