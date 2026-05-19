@@ -4,7 +4,7 @@ export const APP_DESCRIPTION = 'Jivo Info - Management System for Jivo Wellness'
 
 export const APP_DEFAULTS = {
   language: 'en',
-  theme: 'system' as const,
+  theme: 'light' as const,
   dateFormat: 'DD/MM/YYYY',
   timeFormat: 'HH:mm',
   timezone: 'Asia/Kolkata',

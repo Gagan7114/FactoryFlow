@@ -13,6 +13,9 @@ vi.mock('../../utils/storage', () => ({
 
 // Mock constants
 vi.mock('@/config/constants/app.constants', () => ({
+  APP_DEFAULTS: {
+    theme: 'light',
+  },
   THEME_OPTIONS: {
     LIGHT: 'light',
     DARK: 'dark',
@@ -72,14 +75,15 @@ describe('ThemeProvider', () => {
     expect(typeof result.current.setTheme).toBe('function');
   });
 
-  it('defaults to system theme', () => {
+  it('defaults to light theme', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <ThemeProvider>{children}</ThemeProvider>
     );
 
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    expect(result.current.theme).toBe('system');
+    expect(result.current.theme).toBe('light');
+    expect(result.current.resolvedTheme).toBe('light');
   });
 
   it('uses stored theme from localStorage', () => {

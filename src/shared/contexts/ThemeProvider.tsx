@@ -9,7 +9,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import { type Theme, THEME_OPTIONS } from '@/config/constants/app.constants';
+import { APP_DEFAULTS, type Theme, THEME_OPTIONS } from '@/config/constants/app.constants';
 
 import { storage } from '../utils/storage';
 
@@ -58,7 +58,7 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Get theme from localStorage or default to 'system'
+    // Get theme from localStorage or use the app default.
     const stored = storage.get<string>(THEME_STORAGE_KEY);
     // Validate stored theme is one of the valid options
     if (
@@ -69,7 +69,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     ) {
       return stored as Theme;
     }
-    return THEME_OPTIONS.SYSTEM;
+    return APP_DEFAULTS.theme;
   });
 
   // Use useSyncExternalStore to track system theme changes

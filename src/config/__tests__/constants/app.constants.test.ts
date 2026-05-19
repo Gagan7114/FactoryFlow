@@ -56,8 +56,8 @@ describe('APP_DEFAULTS', () => {
     expect(APP_DEFAULTS.language).toBe('en');
   });
 
-  it('theme is "system"', () => {
-    expect(APP_DEFAULTS.theme).toBe('system');
+  it('theme is "light"', () => {
+    expect(APP_DEFAULTS.theme).toBe('light');
   });
 
   it('dateFormat is "DD/MM/YYYY"', () => {
