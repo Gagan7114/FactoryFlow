@@ -10,7 +10,6 @@ import { cn } from '@/shared/utils';
 
 import {
   useBSTGateInEntries,
-  useBSTGateOutEntries,
   useBSTGateReturnEntries,
   useEmptyVehicleEligibleEntries,
   useEmptyVehicleGateInEntries,
@@ -18,16 +17,15 @@ import {
   useJobWorkGateInEntries,
   usePersonGateInDashboard,
   useRejectedQCReturnEntries,
+  useSalesDispatchEntries,
   useVehicleEntriesCount,
 } from '../api';
 import { GATE_ENTRY_TYPES, type GateEntryTypeConfig } from '../constants/gateEntryTypes';
 import { getJobWorkDisplayStatus, hasLinkedJobWorkProductionOrder } from '../utils';
 import {
   CUSTOMER_RETURN_KEY,
-  getCustomerFlowValue,
   isCustomerReturnAwaitingFactoryHead,
   readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
 } from './customerSalesFlow/customerSalesFlow.storage';
 import { readRejectedQCReturnEntries } from './rejectedMaterialPages/rejectedQcReturn.storage';
 import {
@@ -271,7 +269,6 @@ function useGateDashboardStats(
   const emptyVehicleOutEntries = useEmptyVehicleGateOutEntries(undefined, {
     enabled: isVisible('empty-vehicle-out'),
   });
-  const bstOutEntries = useBSTGateOutEntries(undefined, { enabled: isVisible('bst-out') });
   const bstInEntries = useBSTGateInEntries(undefined, { enabled: isVisible('bst-in') });
   const bstReturnEntries = useBSTGateReturnEntries(undefined, {
     enabled: isVisible('bst-return'),
@@ -280,8 +277,23 @@ function useGateDashboardStats(
     enabled: isVisible('rejected-qc-return'),
   });
   const jobWorkEntries = useJobWorkGateInEntries(undefined, { enabled: isVisible('job-work') });
+  const salesDispatchOutEntries = useSalesDispatchEntries(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      document_type: 'INVOICE',
+    },
+    { enabled: isVisible('sales-dispatch') },
+  );
+  const bstOutDockingEntries = useSalesDispatchEntries(
+    {
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      document_type: 'STOCK_TRANSFER',
+    },
+    { enabled: isVisible('bst-out') },
+  );
 
-  const salesDispatchEntries = useMemo(() => readCustomerFlowEntries(SALES_DISPATCH_KEY), []);
   const customerReturnEntries = useMemo(() => readCustomerFlowEntries(CUSTOMER_RETURN_KEY), []);
   const repairPartsOutEntries = useMemo(
     () => readRepairMovementEntries(REPAIR_PARTS_OUT_COMPLETED_KEY),
@@ -416,16 +428,32 @@ function useGateDashboardStats(
       ],
     },
     'bst-out': {
-      isLoading: bstOutEntries.isLoading,
-      stats: buildEntryArrayStats(bstOutEntries.data || []),
-    },
-    'sales-dispatch': {
-      stats: buildEntryArrayStats(salesDispatchEntries, {
+      isLoading: bstOutDockingEntries.isLoading,
+      stats: buildEntryArrayStats(bstOutDockingEntries.data || [], {
+        openLabel: 'Pending',
+        isOpen: (entry) => entry.status === 'PRINT_COMMITTED',
+        isCompleted: (entry) => entry.status === 'DISPATCHED',
         extraStats: [
           {
-            label: 'PGI',
-            value: salesDispatchEntries.filter(
-              (entry) => getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes',
+            label: 'Docking',
+            value: (bstOutDockingEntries.data || []).filter(
+              (entry) => !['PRINT_COMMITTED', 'DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status),
+            ).length,
+            tone: 'info',
+          },
+        ],
+      }),
+    },
+    'sales-dispatch': {
+      isLoading: salesDispatchOutEntries.isLoading,
+      stats: buildEntryArrayStats(salesDispatchOutEntries.data || [], {
+        isOpen: (entry) => !['DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status),
+        isCompleted: (entry) => entry.status === 'DISPATCHED',
+        extraStats: [
+          {
+            label: 'Ready',
+            value: (salesDispatchOutEntries.data || []).filter(
+              (entry) => entry.status === 'PRINT_COMMITTED',
             ).length,
             tone: 'info',
           },

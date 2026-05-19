@@ -7,7 +7,9 @@ import {
   type SalesDispatchDocumentType,
   type SalesDispatchGatepassPrintRequest,
   type SalesDispatchListParams,
+  type SalesDispatchLockUpdateRequest,
   type SalesDispatchReasonRequest,
+  type SalesDispatchReportParams,
   type SalesDispatchUpdateRequest,
   salesDispatchApi,
 } from './salesDispatch.api';
@@ -20,6 +22,9 @@ export const SALES_DISPATCH_QUERY_KEYS = {
     [...SALES_DISPATCH_QUERY_KEYS.all, 'document', documentType, docEntry] as const,
   list: (params?: SalesDispatchListParams) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'list', params] as const,
+  reports: (params?: SalesDispatchReportParams) =>
+    [...SALES_DISPATCH_QUERY_KEYS.all, 'reports', params] as const,
+  lock: () => [...SALES_DISPATCH_QUERY_KEYS.all, 'lock'] as const,
   detail: (id?: number | null) => [...SALES_DISPATCH_QUERY_KEYS.all, 'detail', id] as const,
   byVehicleEntry: (vehicleEntryId?: number | null) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'byVehicleEntry', vehicleEntryId] as const,
@@ -69,6 +74,26 @@ export function useSalesDispatchEntries(
   });
 }
 
+export function useSalesDispatchReports(
+  params?: SalesDispatchReportParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: SALES_DISPATCH_QUERY_KEYS.reports(params),
+    queryFn: () => salesDispatchApi.reports(params),
+    staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useSalesDispatchLock() {
+  return useQuery({
+    queryKey: SALES_DISPATCH_QUERY_KEYS.lock(),
+    queryFn: () => salesDispatchApi.getLock(),
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useSalesDispatch(id?: number | null) {
   return useQuery({
     queryKey: SALES_DISPATCH_QUERY_KEYS.detail(id),
@@ -108,6 +133,15 @@ export function useUpdateSalesDispatch() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: SalesDispatchUpdateRequest }) =>
       salesDispatchApi.update(id, data),
+    onSuccess: () => invalidateSalesDispatch(queryClient),
+  });
+}
+
+export function useUpdateSalesDispatchLock() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: SalesDispatchLockUpdateRequest) => salesDispatchApi.updateLock(data),
     onSuccess: () => invalidateSalesDispatch(queryClient),
   });
 }

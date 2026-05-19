@@ -1,6 +1,6 @@
 import { Truck } from 'lucide-react';
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -127,15 +127,6 @@ const CustomerReturnDetailPage = lazy(
 const SalesDispatchDashboardPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
 );
-const SalesDispatchNewPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchNewPage'),
-);
-const SalesDispatchWeighmentPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchWeighmentPage'),
-);
-const SalesDispatchAttachmentsPage = lazy(
-  () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
-);
 const SalesDispatchGatepassPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchGatepassPage'),
 );
@@ -178,6 +169,11 @@ const GATE_DASHBOARD_ACCESS_PERMISSIONS = Array.from(
 const GATE_NAVIGATION_PERMISSIONS = Array.from(
   new Set([...GATE_DASHBOARD_ACCESS_PERMISSIONS, ...GATE_ENTRY_CREATE_PERMISSIONS]),
 );
+
+function RedirectWithSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
 
 /**
  * Gate module configuration
@@ -714,11 +710,18 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'BST Out' },
     },
     {
+      path: '/gate/bst-out/new/gatepass',
+      element: <SalesDispatchGatepassPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.VIEW],
+      breadcrumb: { label: 'BST Out' },
+    },
+    {
       path: '/gate/bst-out/new',
-      element: <BSTOutNewPage />,
+      element: <Navigate to="/dispatch/docking/new?documentType=STOCK_TRANSFER" replace />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.BST_OUT.CREATE],
-      breadcrumb: { label: 'New BST Out' },
+      breadcrumb: { label: 'New Docking' },
     },
     {
       path: '/gate/bst-out/new/step2',
@@ -844,25 +847,25 @@ export const gateModuleConfig: ModuleConfig = {
       element: <SalesDispatchDashboardPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
-      breadcrumb: { label: 'Docking' },
+      breadcrumb: { label: 'Sales Dispatch Out' },
     },
     {
       path: '/gate/sales-dispatch/new',
-      element: <SalesDispatchNewPage />,
+      element: <RedirectWithSearch to="/dispatch/docking/new" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
       breadcrumb: { label: 'New Docking' },
     },
     {
       path: '/gate/sales-dispatch/new/weighment',
-      element: <SalesDispatchWeighmentPage />,
+      element: <RedirectWithSearch to="/dispatch/docking/new/weighment" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
       breadcrumb: { label: 'Docking Weighment' },
     },
     {
       path: '/gate/sales-dispatch/new/attachments',
-      element: <SalesDispatchAttachmentsPage />,
+      element: <RedirectWithSearch to="/dispatch/docking/new/attachments" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
       breadcrumb: { label: 'Docking Attachments' },
@@ -871,8 +874,8 @@ export const gateModuleConfig: ModuleConfig = {
       path: '/gate/sales-dispatch/new/gatepass',
       element: <SalesDispatchGatepassPage />,
       layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Docking Gatepass' },
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Sales Dispatch Out' },
     },
     {
       path: '/gate/sales-dispatch/:entryId',

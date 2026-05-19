@@ -2,7 +2,7 @@ import { Truck } from 'lucide-react';
 import { lazy } from 'react';
 import { Navigate } from 'react-router-dom';
 
-import { DISPATCH_PERMISSIONS, GRPO_PERMISSIONS } from '@/config/permissions';
+import { DISPATCH_PERMISSIONS, GATE_PERMISSIONS, GRPO_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
 const DispatchPlansDashboardPage = lazy(
@@ -37,6 +37,24 @@ const TransporterInvoiceHistoryPage = lazy(
 const TransporterInvoiceDetailPage = lazy(
   () => import('./pages/TransporterInvoiceDetailPage'),
 );
+const DockingDashboardPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchDashboardPage'),
+);
+const DockingNewPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchNewPage'),
+);
+const DockingWeighmentPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchWeighmentPage'),
+);
+const DockingAttachmentsPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
+);
+const DockingGatepassPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchGatepassPage'),
+);
+const DockingDetailPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchDetailPage'),
+);
 
 const dispatchViewPermissions = [
   DISPATCH_PERMISSIONS.VIEW_PLANS,
@@ -50,6 +68,8 @@ const dispatchViewPermissions = [
   DISPATCH_PERMISSIONS.VIEW_OPEN_BILTIES,
   DISPATCH_PERMISSIONS.VIEW_TRANSPORTER_AP_INVOICE,
   DISPATCH_PERMISSIONS.POST_TRANSPORTER_AP_INVOICE,
+  GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
+  GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
 ] as const;
 
 const serviceGRPOViewPermissions = [
@@ -84,6 +104,48 @@ export const dispatchModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [DISPATCH_PERMISSIONS.LINK_VEHICLE],
       breadcrumb: { label: 'Vehicle Linking' },
+    },
+    {
+      path: '/dispatch/docking',
+      element: <DockingDashboardPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Docking' },
+    },
+    {
+      path: '/dispatch/docking/new',
+      element: <DockingNewPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'New Docking' },
+    },
+    {
+      path: '/dispatch/docking/new/weighment',
+      element: <DockingWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Docking Weighment' },
+    },
+    {
+      path: '/dispatch/docking/new/attachments',
+      element: <DockingAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Docking Attachments' },
+    },
+    {
+      path: '/dispatch/docking/new/gatepass',
+      element: <DockingGatepassPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Docking Gatepass' },
+    },
+    {
+      path: '/dispatch/docking/:entryId',
+      element: <DockingDetailPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+      breadcrumb: { label: 'Docking Entry' },
     },
     {
       path: '/dispatch/bilty-grpo',
@@ -193,6 +255,11 @@ export const dispatchModuleConfig: ModuleConfig = {
           path: '/dispatch/vehicle-linking',
           title: 'Vehicle Linking',
           permissions: [DISPATCH_PERMISSIONS.LINK_VEHICLE],
+        },
+        {
+          path: '/dispatch/docking',
+          title: 'Docking',
+          permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
         },
         {
           path: '/dispatch/bilty-grpo',

@@ -189,6 +189,43 @@ export interface SalesDispatchGateOut {
   updated_at: string;
 }
 
+export interface SalesDispatchLock {
+  id: number;
+  company: number;
+  is_locked: boolean;
+  reason: string;
+  changed_by?: number | null;
+  changed_by_name?: string;
+  changed_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SalesDispatchLockUpdateRequest {
+  is_locked: boolean;
+  reason?: string;
+}
+
+export interface SalesDispatchReportCounts {
+  total: number;
+  waiting_inside: number;
+  missing_photo: number;
+  gatepass_pending: number;
+  printed_not_committed: number;
+  ready_for_dispatch: number;
+  dispatched: number;
+  rejected_cancelled: number;
+}
+
+export interface SalesDispatchReport {
+  counts: SalesDispatchReportCounts;
+  waiting_inside: SalesDispatchGateOut[];
+  missing_photo: SalesDispatchGateOut[];
+  gatepass_pending: SalesDispatchGateOut[];
+  ready_for_dispatch: SalesDispatchGateOut[];
+  rejected_cancelled: SalesDispatchGateOut[];
+}
+
 export interface SalesDispatchDocumentParams {
   document_type?: SalesDispatchDocumentType | 'ALL';
   search?: string;
@@ -206,6 +243,8 @@ export interface SalesDispatchListParams {
   to_date?: string;
   search?: string;
 }
+
+export type SalesDispatchReportParams = SalesDispatchListParams;
 
 export interface SalesDispatchCreateRequest {
   document_type: SalesDispatchDocumentType;
@@ -297,6 +336,30 @@ export const salesDispatchApi = {
       ? `${API_ENDPOINTS.GATE_CORE.SALES_DISPATCHES}?${query}`
       : API_ENDPOINTS.GATE_CORE.SALES_DISPATCHES;
     const response = await apiClient.get<SalesDispatchGateOut[]>(url);
+    return response.data;
+  },
+
+  async getLock(): Promise<SalesDispatchLock> {
+    const response = await apiClient.get<SalesDispatchLock>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_LOCK,
+    );
+    return response.data;
+  },
+
+  async updateLock(data: SalesDispatchLockUpdateRequest): Promise<SalesDispatchLock> {
+    const response = await apiClient.patch<SalesDispatchLock>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_LOCK,
+      data,
+    );
+    return response.data;
+  },
+
+  async reports(params?: SalesDispatchReportParams): Promise<SalesDispatchReport> {
+    const query = buildQuery(params);
+    const url = query
+      ? `${API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_REPORTS}?${query}`
+      : API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_REPORTS;
+    const response = await apiClient.get<SalesDispatchReport>(url);
     return response.data;
   },
 

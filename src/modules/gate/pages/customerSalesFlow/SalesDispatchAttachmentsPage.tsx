@@ -1,4 +1,4 @@
-import { AlertCircle, ExternalLink, FileText, LocateFixed, Paperclip, Upload } from 'lucide-react';
+import { AlertCircle, ExternalLink, FileText, Loader2, LocateFixed, Paperclip, Upload } from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ import {
   DOCKING_TOTAL_STEPS,
   formatValue,
 } from './salesDispatchFlow.helpers';
+import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 interface UploadPanelConfig {
   type: SalesDispatchAttachmentType;
@@ -79,6 +80,8 @@ export default function SalesDispatchAttachmentsPage() {
   const { entryId, entryIdNumber } = useEntryId();
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [uploadingType, setUploadingType] = useState<SalesDispatchAttachmentType | null>(null);
+  const [uploadingMessage, setUploadingMessage] = useState('');
 
   const {
     data: entry,
@@ -111,9 +114,12 @@ export default function SalesDispatchAttachmentsPage() {
     }
 
     setError(null);
+    setUploadingType(type);
 
     try {
+      setUploadingMessage(type === 'TRUCK_PHOTO' ? 'Getting GPS location...' : 'Uploading document...');
       const location = type === 'TRUCK_PHOTO' ? await getBrowserPosition() : null;
+      setUploadingMessage(type === 'TRUCK_PHOTO' ? 'Uploading truck photo...' : 'Uploading document...');
       await uploadAttachment.mutateAsync({
         id: entry.id,
         data: {
@@ -128,6 +134,9 @@ export default function SalesDispatchAttachmentsPage() {
       await refetchEntry();
     } catch (uploadError) {
       setError(getErrorMessage(uploadError, 'Failed to upload attachment'));
+    } finally {
+      setUploadingType(null);
+      setUploadingMessage('');
     }
   };
 
@@ -144,7 +153,7 @@ export default function SalesDispatchAttachmentsPage() {
 
     try {
       await previewGatepass.mutateAsync(entry.id);
-      navigate(`/gate/sales-dispatch/new/gatepass?entryId=${entry.vehicle_entry}`);
+      navigate(DOCKING_ROUTES.gatepass(entry.vehicle_entry));
     } catch (previewError) {
       setError(getErrorMessage(previewError, 'Failed to prepare gatepass'));
     }
@@ -168,7 +177,7 @@ export default function SalesDispatchAttachmentsPage() {
             <AlertCircle className="h-5 w-5" />
             <span className="font-medium">Docking details not found</span>
           </div>
-          <Button variant="outline" onClick={() => navigate('/gate/sales-dispatch/new')}>
+          <Button variant="outline" onClick={() => navigate(DOCKING_ROUTES.newEntry)}>
             Fill Details
           </Button>
         </div>
@@ -198,7 +207,9 @@ export default function SalesDispatchAttachmentsPage() {
               <DocumentUploadPanel
                 key={panel.type}
                 panel={panel}
-                disabled={isReadOnly || uploadAttachment.isPending}
+                disabled={isReadOnly || uploadAttachment.isPending || Boolean(uploadingType)}
+                isUploading={uploadingType === panel.type}
+                uploadingMessage={uploadingMessage}
                 attachments={attachments.filter((attachment) => attachment.attachment_type === panel.type)}
                 onUpload={handleUpload}
               />
@@ -249,8 +260,8 @@ export default function SalesDispatchAttachmentsPage() {
       </Card>
 
       <StepFooter
-        onPrevious={() => navigate(`/gate/sales-dispatch/new/weighment?entryId=${entryId || entry.vehicle_entry}`)}
-        onCancel={() => navigate('/gate/sales-dispatch')}
+        onPrevious={() => navigate(DOCKING_ROUTES.weighment(entryId || entry.vehicle_entry))}
+        onCancel={() => navigate(DOCKING_ROUTES.dashboard)}
         onNext={handleNext}
         isSaving={previewGatepass.isPending}
         nextLabel={previewGatepass.isPending ? 'Preparing...' : 'Prepare Gatepass'}
@@ -262,11 +273,15 @@ export default function SalesDispatchAttachmentsPage() {
 function DocumentUploadPanel({
   panel,
   disabled,
+  isUploading,
+  uploadingMessage,
   attachments,
   onUpload,
 }: {
   panel: UploadPanelConfig;
   disabled: boolean;
+  isUploading: boolean;
+  uploadingMessage: string;
   attachments: SalesDispatchAttachment[];
   onUpload: (type: SalesDispatchAttachmentType, file: File) => Promise<void>;
 }) {
@@ -284,14 +299,21 @@ function DocumentUploadPanel({
       <button
         type="button"
         disabled={disabled}
+        aria-busy={isUploading}
         className="flex w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-6 text-center transition-colors hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-60"
         onClick={() => inputRef.current?.click()}
       >
-        <Upload className="h-8 w-8 text-muted-foreground" />
+        {isUploading ? (
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        ) : (
+          <Upload className="h-8 w-8 text-muted-foreground" />
+        )}
         <span className="text-sm font-medium">
-          {panel.label} {panel.required && <span className="text-destructive">*</span>}
+          {isUploading ? uploadingMessage : panel.label} {!isUploading && panel.required && <span className="text-destructive">*</span>}
         </span>
-        <span className="text-xs text-muted-foreground">{panel.description}</span>
+        <span className="text-xs text-muted-foreground">
+          {isUploading ? 'Please wait while this file is saved.' : panel.description}
+        </span>
       </button>
 
       <input

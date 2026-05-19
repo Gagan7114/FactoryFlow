@@ -11,7 +11,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
@@ -45,9 +45,13 @@ import {
   formatTimestamp,
   formatValue,
 } from './salesDispatchFlow.helpers';
+import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
 
 export default function SalesDispatchDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routes = getSalesDispatchRoutes(location.pathname);
+  const isGateOutMode = isSalesDispatchOutPath(location.pathname);
   const { entryId } = useParams();
   const id = Number(entryId || 0) || null;
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
@@ -98,7 +102,7 @@ export default function SalesDispatchDetailPage() {
   if (!entry) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" onClick={() => navigate('/gate/sales-dispatch')}>
+        <Button variant="ghost" onClick={() => navigate(routes.dashboard)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
@@ -111,12 +115,14 @@ export default function SalesDispatchDetailPage() {
     <div className="space-y-6 pb-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/gate/sales-dispatch')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(routes.dashboard)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">{entry.entry_no}</h2>
-            <p className="text-muted-foreground">Docking gate-out entry</p>
+            <p className="text-muted-foreground">
+              {isGateOutMode ? 'Invoice dispatch gate-out entry' : 'Docking gate-out entry'}
+            </p>
           </div>
         </div>
 
@@ -124,11 +130,15 @@ export default function SalesDispatchDetailPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate(`/gate/sales-dispatch/new?entryId=${entry.vehicle_entry}`)}
+            onClick={() => navigate(
+              isGateOutMode
+                ? routes.gatepass(entry.vehicle_entry)
+                : `${routes.newEntry}?entryId=${entry.vehicle_entry}`,
+            )}
           >
-            Resume Flow
+            {isGateOutMode ? 'Open Gate Out' : 'Resume Flow'}
           </Button>
-          {canCancel && (
+          {canCancel && !isGateOutMode && (
             <Button
               variant="outline"
               className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"

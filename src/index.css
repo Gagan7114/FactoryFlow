@@ -225,6 +225,12 @@
     display: none !important;
   }
 
+  .sales-dispatch-gatepass-page .sales-dispatch-gatepass-qr-code {
+    display: block !important;
+    height: 24mm !important;
+    width: 24mm !important;
+  }
+
   .sales-dispatch-gatepass-page label,
   .sales-dispatch-gatepass-page p,
   .sales-dispatch-gatepass-page input,
@@ -237,6 +243,12 @@
     height: 18px !important;
     min-height: 0 !important;
     padding: 0 !important;
+  }
+
+  .sales-dispatch-gatepass-page input::placeholder,
+  .sales-dispatch-gatepass-page textarea::placeholder {
+    color: transparent !important;
+    opacity: 0 !important;
   }
 
   .sales-dispatch-gatepass-page textarea {
@@ -252,6 +264,14 @@
 
   .sales-dispatch-gatepass-fields {
     grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .sales-dispatch-gatepass-reference {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .sales-dispatch-gatepass-qr {
+    padding: 4px !important;
   }
 
   .sales-dispatch-gatepass-page .rounded-lg,

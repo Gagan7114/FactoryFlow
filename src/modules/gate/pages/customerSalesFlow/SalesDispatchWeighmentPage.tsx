@@ -30,6 +30,7 @@ import {
   formatDateTime,
   formatValue,
 } from './salesDispatchFlow.helpers';
+import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 function buildValuesFromWeighment(
   weighment?: {
@@ -94,7 +95,7 @@ export default function SalesDispatchWeighmentPage() {
     }
 
     if (isReadOnly) {
-      navigate(`/gate/sales-dispatch/new/attachments?entryId=${entryIdNumber}`);
+      navigate(DOCKING_ROUTES.attachments(entryIdNumber));
       return;
     }
 
@@ -115,7 +116,7 @@ export default function SalesDispatchWeighmentPage() {
 
       await createWeighment.mutateAsync(payload);
       toast.success('Docking weighment saved');
-      navigate(`/gate/sales-dispatch/new/attachments?entryId=${entryIdNumber}`);
+      navigate(DOCKING_ROUTES.attachments(entryIdNumber));
     } catch (saveError) {
       setError(getErrorMessage(saveError, 'Failed to save Docking weighment'));
     }
@@ -139,7 +140,7 @@ export default function SalesDispatchWeighmentPage() {
             <AlertCircle className="h-5 w-5" />
             <span className="font-medium">Docking details not found</span>
           </div>
-          <Button variant="outline" onClick={() => navigate('/gate/sales-dispatch/new')}>
+          <Button variant="outline" onClick={() => navigate(DOCKING_ROUTES.newEntry)}>
             Fill Details
           </Button>
         </div>
@@ -180,8 +181,8 @@ export default function SalesDispatchWeighmentPage() {
       />
 
       <StepFooter
-        onPrevious={() => navigate(`/gate/sales-dispatch/new?entryId=${entryId || entry.vehicle_entry}`)}
-        onCancel={() => navigate('/gate/sales-dispatch')}
+        onPrevious={() => navigate(`${DOCKING_ROUTES.newEntry}?entryId=${entryId || entry.vehicle_entry}`)}
+        onCancel={() => navigate(DOCKING_ROUTES.dashboard)}
         onNext={handleNext}
         isSaving={createWeighment.isPending}
         nextLabel={createWeighment.isPending ? 'Saving...' : 'Save and Next'}

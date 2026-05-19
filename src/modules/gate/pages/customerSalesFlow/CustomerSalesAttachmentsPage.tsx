@@ -46,8 +46,8 @@ const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
   dispatch: {
     storageKey: SALES_DISPATCH_KEY,
     title: 'Sales Dispatch Out',
-    previousPath: '/gate/sales-dispatch/new/weighment',
-    dashboardPath: '/gate/sales-dispatch',
+    previousPath: '/dispatch/docking/new/weighment',
+    dashboardPath: '/dispatch/docking',
     completeStatus: 'COMPLETED',
     completeLabel: 'Complete Dispatch',
     successMessage: 'Sales dispatch gate-out completed',

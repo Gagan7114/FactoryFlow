@@ -198,23 +198,23 @@ export const ROUTES = {
       },
       SALES_DISPATCH: {
         path: '/gate/sales-dispatch',
-        title: 'Docking',
+        title: 'Sales Dispatch Out',
       },
       SALES_DISPATCH_NEW: {
         path: '/gate/sales-dispatch/new',
-        title: 'New Docking Entry',
+        title: 'New Sales Dispatch Out Entry',
       },
       SALES_DISPATCH_WEIGHMENT: {
         path: '/gate/sales-dispatch/new/weighment',
-        title: 'Docking Weighment',
+        title: 'Sales Dispatch Out Weighment',
       },
       SALES_DISPATCH_ATTACHMENTS: {
         path: '/gate/sales-dispatch/new/attachments',
-        title: 'Docking Attachments',
+        title: 'Sales Dispatch Out Attachments',
       },
       SALES_DISPATCH_GATEPASS: {
         path: '/gate/sales-dispatch/new/gatepass',
-        title: 'Docking Gatepass',
+        title: 'Sales Dispatch Out Gatepass',
       },
       REPAIR_MOVEMENT: {
         path: '/gate/repair-movement',

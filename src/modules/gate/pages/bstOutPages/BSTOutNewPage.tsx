@@ -94,10 +94,13 @@ export default function BSTOutNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const existingVehicleEntryId = Number(searchParams.get('entryId') || 0) || null;
+  const initialSapDocEntry = Number(searchParams.get('sapDocEntry') || 0) || null;
   useEntryStepTracker();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
-  const [selectedDocEntry, setSelectedDocEntry] = useState('');
+  const [selectedDocEntry, setSelectedDocEntry] = useState(() => (
+    initialSapDocEntry ? String(initialSapDocEntry) : ''
+  ));
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [gateOutDate, setGateOutDate] = useState(() => toDateInputValue());
   const [outTime, setOutTime] = useState(() => toTimeInputValue());
@@ -146,14 +149,14 @@ export default function BSTOutNewPage() {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset reused route form after leaving edit mode
     setSelectedVehicleId('');
-    setSelectedDocEntry('');
+    setSelectedDocEntry(initialSapDocEntry ? String(initialSapDocEntry) : '');
     setSubmittedSearch('');
     setGateOutDate(toDateInputValue());
     setOutTime(toTimeInputValue());
     setSecurityName('');
     setRemarks('');
     setFormError('');
-  }, [existingVehicleEntryId]);
+  }, [existingVehicleEntryId, initialSapDocEntry]);
 
   const selectedVehicle = useMemo(
     () => eligibleVehicles.find((entry) => String(entry.id) === selectedVehicleId),

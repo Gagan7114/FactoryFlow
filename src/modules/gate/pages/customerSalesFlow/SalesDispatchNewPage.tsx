@@ -47,6 +47,7 @@ import {
   toDateInputValue,
   toTimeInputValue,
 } from './salesDispatchFlow.helpers';
+import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 interface DispatchDraft {
   vehicle: VehicleSelection | null;
@@ -64,11 +65,11 @@ interface DispatchDraft {
 
 const showServerResults = () => true;
 
-function buildEmptyDraft(): DispatchDraft {
+function buildEmptyDraft(documentType: SalesDispatchDocumentType = 'INVOICE'): DispatchDraft {
   return {
     vehicle: null,
     driver: null,
-    documentType: 'INVOICE',
+    documentType,
     documentKey: '',
     gateOutDate: toDateInputValue(),
     outTime: toTimeInputValue(),
@@ -78,6 +79,10 @@ function buildEmptyDraft(): DispatchDraft {
     dockIncharge: '',
     remarks: '',
   };
+}
+
+function parseInitialDocumentType(value: string | null): SalesDispatchDocumentType {
+  return value === 'STOCK_TRANSFER' ? 'STOCK_TRANSFER' : 'INVOICE';
 }
 
 function buildVehicleSelection(entry: SalesDispatchGateOut): VehicleSelection {
@@ -131,8 +136,9 @@ export default function SalesDispatchNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const existingVehicleEntryId = Number(searchParams.get('entryId') || 0) || null;
+  const initialDocumentType = parseInitialDocumentType(searchParams.get('documentType'));
 
-  const [draft, setDraft] = useState<DispatchDraft>(() => buildEmptyDraft());
+  const [draft, setDraft] = useState<DispatchDraft>(() => buildEmptyDraft(initialDocumentType));
   const [selectedListDocument, setSelectedListDocument] = useState<SalesDispatchDocument | null>(null);
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [formError, setFormError] = useState('');
@@ -209,12 +215,12 @@ export default function SalesDispatchNewPage() {
 
   const handleSaveAndNext = async () => {
     if (existingEntry && isExistingReadOnly) {
-      navigate(`/gate/sales-dispatch/new/weighment?entryId=${existingEntry.vehicle_entry}`);
+      navigate(DOCKING_ROUTES.weighment(existingEntry.vehicle_entry));
       return;
     }
 
     if (!existingEntry && !selectedDocument) {
-      setFormError('Please select the SAP invoice or stock transfer');
+      setFormError(`Please select the SAP ${formatDocumentType(draft.documentType).toLowerCase()}`);
       return;
     }
 
@@ -262,7 +268,7 @@ export default function SalesDispatchNewPage() {
           });
 
       toast.success('Docking details saved');
-      navigate(`/gate/sales-dispatch/new/weighment?entryId=${entry.vehicle_entry}`);
+      navigate(DOCKING_ROUTES.weighment(entry.vehicle_entry));
     } catch (error) {
       setFormError(getErrorMessage(error, 'Failed to save Docking entry'));
     }
@@ -452,7 +458,7 @@ export default function SalesDispatchNewPage() {
       </div>
 
       <StepFooter
-        onCancel={() => navigate('/gate/sales-dispatch')}
+        onCancel={() => navigate(DOCKING_ROUTES.dashboard)}
         onNext={handleSaveAndNext}
         showPrevious={false}
         isSaving={isSaving}

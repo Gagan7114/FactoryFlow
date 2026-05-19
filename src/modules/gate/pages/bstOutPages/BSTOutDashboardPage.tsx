@@ -1,38 +1,16 @@
-import { CheckCircle2, Clock, FileText, Plus, RefreshCw, Search, Truck, User } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, RefreshCw, Search, Truck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
-import { type BSTGateOutEntry, useBSTGateOutEntries } from '@/modules/gate/api';
+import { type SalesDispatchGateOut, useSalesDispatchEntries } from '@/modules/gate/api';
 import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
-import { getLastStep } from '@/modules/gate/hooks';
 import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 
-function formatDateTime(date?: string, time?: string) {
-  if (!date && !time) return '-';
-  return [date, time].filter(Boolean).join(' ');
-}
+import { GATE_OUT_ROUTES } from '../customerSalesFlow/salesDispatchRoutes';
 
-function getBSTOutResumePath(entry: BSTGateOutEntry) {
-  const vehicleEntryId = entry.vehicle_entry;
-
-  if (entry.status === 'COMPLETED') {
-    return `/gate/bst-out/new/review?entryId=${vehicleEntryId}`;
-  }
-
-  const lastStep = getLastStep(vehicleEntryId);
-
-  switch (lastStep) {
-    case 'review':
-      return `/gate/bst-out/new/review?entryId=${vehicleEntryId}`;
-    case 'attachments':
-      return `/gate/bst-out/new/attachments?entryId=${vehicleEntryId}`;
-    case 'step2':
-      return `/gate/bst-out/new/step2?entryId=${vehicleEntryId}`;
-    default:
-      return `/gate/bst-out/new?entryId=${vehicleEntryId}`;
-  }
-}
+const PENDING_OUT_STATUS = 'PRINT_COMMITTED';
+const MARKED_OUT_STATUS = 'DISPATCHED';
 
 export default function BSTOutDashboardPage() {
   const navigate = useNavigate();
@@ -43,37 +21,34 @@ export default function BSTOutDashboardPage() {
     () => ({
       from_date: dateRange.from,
       to_date: dateRange.to,
+      document_type: 'STOCK_TRANSFER' as const,
     }),
     [dateRange.from, dateRange.to],
   );
 
   const {
-    data: entries = [],
+    data: dockingEntries = [],
     isLoading,
+    isFetching,
     refetch,
-  } = useBSTGateOutEntries(queryParams);
+  } = useSalesDispatchEntries(queryParams);
 
-  const inProgressCount = entries.filter((entry) => entry.status === 'IN_PROGRESS').length;
-  const completedCount = entries.filter((entry) => entry.status === 'COMPLETED').length;
-  const cancelledCount = entries.filter((entry) => entry.status === 'CANCELLED').length;
+  const gateOutEntries = useMemo(() => dockingEntries
+    .filter((entry) => [PENDING_OUT_STATUS, MARKED_OUT_STATUS].includes(entry.status))
+    .sort(sortBstOutEntries), [dockingEntries]);
+
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return entries;
+    if (!query) return gateOutEntries;
 
-    return entries.filter((entry) => (
-      [
-        entry.entry_no,
-        entry.vehicle_number,
-        entry.driver_name,
-        entry.sap_doc_num,
-        entry.sap_from_warehouse,
-        entry.sap_to_warehouse,
-        entry.gate_out_date,
-        entry.out_time,
-        entry.status,
-      ].some((value) => String(value || '').toLowerCase().includes(query))
-    ));
-  }, [entries, searchTerm]);
+    return gateOutEntries.filter((entry) => buildBstOutSearchText(entry).includes(query));
+  }, [gateOutEntries, searchTerm]);
+
+  const pendingCount = dockingEntries.filter((entry) => entry.status === PENDING_OUT_STATUS).length;
+  const markedOutCount = dockingEntries.filter((entry) => entry.status === MARKED_OUT_STATUS).length;
+  const awaitingDockingCount = dockingEntries.filter((entry) => (
+    ![PENDING_OUT_STATUS, MARKED_OUT_STATUS, 'CANCELLED', 'REJECTED'].includes(entry.status)
+  )).length;
 
   return (
     <div className="space-y-6">
@@ -81,7 +56,7 @@ export default function BSTOutDashboardPage() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">BST Out</h2>
           <p className="text-muted-foreground">
-            Link BST vehicles to posted SAP stock transfers and complete gate out
+            View Docking-created stock transfers and mark vehicles out
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
@@ -95,76 +70,40 @@ export default function BSTOutDashboardPage() {
               }
             }}
           />
-          <Button variant="outline" onClick={() => refetch()}>
+          <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button onClick={() => navigate('/gate/bst-out/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Entry
+            {isFetching ? 'Refreshing' : 'Refresh'}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <Clock className="h-5 w-5 text-blue-600" />
-              <span className="text-2xl font-bold">{inProgressCount}</span>
-            </div>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">In Progress</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <span className="text-2xl font-bold">{completedCount}</span>
-            </div>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">Completed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <FileText className="h-5 w-5 text-violet-600" />
-              <span className="text-2xl font-bold">{entries.length}</span>
-            </div>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">Total Entries</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <FileText className="h-5 w-5 text-red-600" />
-              <span className="text-2xl font-bold">{cancelledCount}</span>
-            </div>
-            <p className="mt-2 text-sm font-medium text-muted-foreground">Cancelled</p>
-          </CardContent>
-        </Card>
+        <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="Pending Out" value={pendingCount} />
+        <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Marked Out" value={markedOutCount} />
+        <StatCard icon={<Clock className="h-5 w-5 text-amber-600" />} label="Awaiting Docking" value={awaitingDockingCount} />
+        <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="Total BST Docking" value={dockingEntries.length} />
       </div>
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Truck className="h-4 w-4" />
-            BST Gate-Out Entries
+            BST Out Entries
           </h3>
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search entry, vehicle, driver, SAP BST"
+              placeholder="Search entry, BST, warehouse, vehicle"
               className="pl-9"
             />
           </div>
         </div>
         {isLoading ? (
           <EmptyState text="Loading BST out entries..." />
-        ) : entries.length === 0 ? (
-          <EmptyState text="No BST out entries in this date range" />
+        ) : gateOutEntries.length === 0 ? (
+          <EmptyState text="No pending or marked-out BST entries in this date range" />
         ) : filteredEntries.length === 0 ? (
           <EmptyState text="No BST out entries match this search" />
         ) : (
@@ -174,60 +113,49 @@ export default function BSTOutDashboardPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="p-3 text-left text-sm font-medium">Entry No.</th>
-                    <th className="p-3 text-left text-sm font-medium">Vehicle</th>
-                    <th className="p-3 text-left text-sm font-medium">Driver</th>
                     <th className="p-3 text-left text-sm font-medium">SAP BST</th>
                     <th className="p-3 text-left text-sm font-medium">From</th>
                     <th className="p-3 text-left text-sm font-medium">To</th>
+                    <th className="p-3 text-left text-sm font-medium">Items</th>
+                    <th className="p-3 text-left text-sm font-medium">Vehicle</th>
                     <th className="p-3 text-left text-sm font-medium">Gate Out</th>
+                    <th className="p-3 text-left text-sm font-medium">Gatepass</th>
                     <th className="p-3 text-left text-sm font-medium">Status</th>
-                    <th className="p-3 text-left text-sm font-medium">Lines</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEntries.map((entry) => {
-                    const isCancelled = entry.status === 'CANCELLED';
-                    return (
-                      <tr
-                        key={entry.id}
-                        className={
-                          isCancelled
-                            ? 'border-t opacity-70'
-                            : 'cursor-pointer border-t transition-colors hover:bg-muted/50'
-                        }
-                        onClick={() => {
-                          if (!isCancelled) {
-                            navigate(getBSTOutResumePath(entry));
-                          }
-                        }}
-                      >
-                        <td className="whitespace-nowrap p-3 text-sm font-medium">
-                          {entry.entry_no}
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_number}</td>
-                        <td className="whitespace-nowrap p-3 text-sm">
-                          <span className="inline-flex items-center gap-1">
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            {entry.driver_name}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">{entry.sap_doc_num}</td>
-                        <td className="whitespace-nowrap p-3 text-sm">
-                          {entry.sap_from_warehouse || '-'}
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">
-                          {entry.sap_to_warehouse || '-'}
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">
-                          {formatDateTime(entry.gate_out_date, entry.out_time)}
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">
-                          <GateStatusBadge status={entry.status} />
-                        </td>
-                        <td className="whitespace-nowrap p-3 text-sm">{entry.items.length}</td>
-                      </tr>
-                    );
-                  })}
+                  {filteredEntries.map((entry) => (
+                    <tr
+                      key={entry.id}
+                      className="cursor-pointer border-t transition-colors hover:bg-muted/50"
+                      onClick={() => navigate(GATE_OUT_ROUTES.bstOutGatepass(entry.vehicle_entry))}
+                    >
+                      <td className="whitespace-nowrap p-3 text-sm font-medium">
+                        {entry.entry_no}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">{entry.sap_doc_num}</td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {entry.from_warehouse || '-'}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {entry.to_warehouse || entry.warehouses || '-'}
+                      </td>
+                      <td className="p-3 text-sm">{entry.item_summary || summarizeItems(entry)}</td>
+                      <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {formatDateTime(entry.gate_out_date, entry.out_time)}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <GateStatusBadge
+                          status={entry.gatepass_no ? 'PRINTED' : 'PENDING'}
+                          label={entry.gatepass_no || 'Pending'}
+                        />
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        <GateStatusBadge status={entry.status} label={formatBstOutStatus(entry.status)} />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -235,6 +163,81 @@ export default function BSTOutDashboardPage() {
         )}
       </section>
     </div>
+  );
+}
+
+function sortBstOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGateOut) {
+  const firstPriority = first.status === PENDING_OUT_STATUS ? 0 : 1;
+  const secondPriority = second.status === PENDING_OUT_STATUS ? 0 : 1;
+
+  if (firstPriority !== secondPriority) {
+    return firstPriority - secondPriority;
+  }
+
+  return timestampValue(second.updated_at || second.created_at)
+    - timestampValue(first.updated_at || first.created_at);
+}
+
+function timestampValue(value?: string | null) {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function buildBstOutSearchText(entry: SalesDispatchGateOut) {
+  return [
+    entry.entry_no,
+    entry.sap_doc_num,
+    entry.sap_doc_entry,
+    entry.from_warehouse,
+    entry.to_warehouse,
+    entry.warehouses,
+    entry.vehicle_no,
+    entry.driver_name,
+    entry.transporter_name,
+    entry.gatepass_no,
+    entry.item_summary,
+    entry.status,
+  ].join(' ').toLowerCase();
+}
+
+function formatBstOutStatus(status: string) {
+  if (status === PENDING_OUT_STATUS) return 'PENDING OUT';
+  if (status === MARKED_OUT_STATUS) return 'MARKED OUT';
+  return status;
+}
+
+function formatDateTime(date?: string | null, time?: string | null) {
+  if (!date && !time) return '-';
+  return [date, time].filter(Boolean).join(' ');
+}
+
+function summarizeItems(entry: SalesDispatchGateOut) {
+  if (entry.items.length === 0) return '-';
+  const [firstItem] = entry.items;
+  const suffix = entry.items.length > 1 ? ` +${entry.items.length - 1}` : '';
+  return `${firstItem.item_name || firstItem.item_code}${suffix}`;
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          {icon}
+          <span className="text-2xl font-bold">{value}</span>
+        </div>
+        <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
 
