@@ -33,7 +33,11 @@ vi.mock('@/core/auth/services/indexedDb.service', () => ({
 }));
 
 vi.mock('lucide-react', () => ({
+  AlertTriangle: () => <span data-testid="alert-triangle-icon" />,
   Check: () => <span data-testid="check-icon" />,
+  CheckCircle2: () => <span data-testid="check-circle-icon" />,
+  Clock: () => <span data-testid="clock-icon" />,
+  XCircle: () => <span data-testid="x-circle-icon" />,
 }));
 
 // Mock UI components

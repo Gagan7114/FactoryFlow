@@ -50,7 +50,7 @@ describe('MobileSidebar', () => {
   it('imports getAllNavigation from @/app/modules', () => {
     const content = readSource();
     expect(content).toContain('getAllNavigation');
-    expect(content).toMatch(/from\s*['"]@\/app\/modules['"]/);
+    expect(content).toMatch(/from\s*['"]@\/app\/registry['"]/);
   });
 
   // ─── Props & Interface ───────────────────────────────────
@@ -107,8 +107,9 @@ describe('MobileSidebar', () => {
 
   it('renders logo in SheetHeader', () => {
     const content = readSource();
-    expect(content).toContain('src="/JivoWellnessLogo.png"');
+    expect(content).toContain('src="/factoryLogoNew.png"');
     expect(content).toContain('<SheetHeader');
+    expect(content).not.toContain('dark:invert');
   });
 
   it('NavLink items call onClose on click to close sidebar', () => {

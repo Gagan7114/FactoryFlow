@@ -11,11 +11,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       // Include the assets the generator actually created
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'logo.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'factoryLogoNew.png'],
       manifest: {
-        name: 'Sampooran',
-        short_name: 'Sampooran',
-        description: 'Sampooran - Complete management system for Jivo Wellness.',
+        name: 'JI',
+        short_name: 'JI',
+        description: 'JI - Complete management system for Jivo Wellness.',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',

@@ -54,6 +54,28 @@ describe('Error Utilities', () => {
       expect(getErrorMessage(error, 'Fallback')).toBe('Server detail message');
     });
 
+    it('extracts error from response.data.error', () => {
+      const error = makeError({
+        response: { data: { error: 'Box item does not match the pallet.' }, status: 400 },
+      });
+      expect(getErrorMessage(error, 'Fallback')).toBe('Box item does not match the pallet.');
+    });
+
+    it('formats flat validation field errors from response.data', () => {
+      const error = makeError({
+        response: {
+          data: {
+            box_ids: ['This list may not be empty.'],
+            target_pallet_id: ['This field is required.'],
+          },
+          status: 400,
+        },
+      });
+      expect(getErrorMessage(error, 'Fallback')).toBe(
+        'box ids: This list may not be empty. | target pallet id: This field is required.',
+      );
+    });
+
     it('extracts detail from error.detail', () => {
       const error = makeError({ detail: 'Direct detail' });
       expect(getErrorMessage(error, 'Fallback')).toBe('Direct detail');

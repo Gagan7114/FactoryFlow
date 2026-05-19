@@ -54,7 +54,7 @@ The table supports:
 | Warehouse | `warehouse` | Comma-separated warehouse codes. Selecting 2 or more warehouses switches the backend to grouped item rows. |
 | Status | `status` | Comma-separated values: `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. |
 | Movement | `movement_status` | Comma-separated values: `planned`, `recent`, `slow`. Omitted when none are selected. |
-| Sort | `sort_by`, `sort_dir` | Defaults to `health_ratio` ascending. |
+| Sort | `sort_by`, `sort_dir` | Defaults to `health_ratio` ascending. Planned Qty is sortable via `planned_qty`. |
 | Pagination | `page`, `page_size` | Page defaults are controlled by the backend serializer. |
 
 The Material Type dropdown includes `All`. Selecting it sends a blank material type, so the frontend omits `item_group` from the API request.
@@ -65,14 +65,15 @@ Stock status is calculated by the backend so table rows, filters, and counts use
 
 | Status | Rule |
 |--------|------|
-| Healthy | Not slow-moving, benchmark is set, and `OnHand >= Benchmark` |
-| Low | Not slow-moving, benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
-| Critical | Not slow-moving, benchmark is set, and `OnHand < Benchmark * 0.6` |
-| Critical | Benchmark is not set and the item has open production planning demand |
-| No Benchmark Set | Not slow-moving, benchmark is not set, and the item has no open production planning demand |
+| Healthy | Not slow-moving, required quantity is set, and `OnHand >= Benchmark + Planned Qty` |
+| Low | Not slow-moving, required quantity is set, `OnHand < Benchmark + Planned Qty`, and `OnHand >= (Benchmark + Planned Qty) * 0.6` |
+| Critical | Not slow-moving, required quantity is set, and `OnHand < (Benchmark + Planned Qty) * 0.6` |
+| No Benchmark Set | Not slow-moving, and benchmark plus planned quantity is zero |
 
-The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility. If an item is planned but has no benchmark, it is treated as Critical because it represents real demand without a configured benchmark.
+The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility.
 Slow-moving rows have no stock status. If Movement is changed to All while the Healthy/Low/Critical status filter remains selected, only benchmarked slow-moving rows remain visible; slow rows with no benchmark are excluded unless filters are changed.
+
+The table shows open production demand as `Planned Qty`. Difference includes that demand as `On Hand - Benchmark - Planned Qty`, and the status/health ratio use the same required quantity.
 
 ## Movement Rules
 
@@ -89,9 +90,9 @@ Stock and benchmark quantities still come from the selected warehouses, but move
 
 ## Grouped Rows
 
-When multiple warehouses are selected, the backend groups rows by item. The grouped row aggregates `OnHand` and the benchmark (`MinStock`) across the selected warehouses and returns `warehouse_count`.
+When multiple warehouses are selected, the backend groups rows by item. The grouped row aggregates `OnHand`, planned quantity, and the benchmark (`MinStock`) across the selected warehouses and returns `warehouse_count`.
 
-If any child warehouse is worse than the aggregate status, the row includes `has_warning=true`. The item detail panel fetches `GET /dashboards/stock/:itemCode/warehouses/` to show per-warehouse detail with the same stock and movement rules.
+If any child warehouse is worse than the aggregate status, the row includes `has_warning=true`. A grouped row can therefore be Healthy overall while showing a warning triangle for a Low or Critical child warehouse. The item detail panel fetches `GET /dashboards/stock/:itemCode/warehouses/` to show per-warehouse detail with the same stock and movement rules.
 
 ## Frontend Files
 

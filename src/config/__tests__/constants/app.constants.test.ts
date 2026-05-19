@@ -12,8 +12,8 @@ import {
 // ═══════════════════════════════════════════════════════════════
 
 describe('APP_NAME', () => {
-  it('is "Sampooran"', () => {
-    expect(APP_NAME).toBe('Sampooran');
+  it('is "Jivo Info"', () => {
+    expect(APP_NAME).toBe('Jivo Info');
   });
 
   it('is a non-empty string', () => {
