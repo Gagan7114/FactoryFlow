@@ -172,7 +172,11 @@ function numberToString(value: number | null | undefined): string {
 
 function inferProductVariety(itemSummary: string): string {
   const normalized = itemSummary.toLowerCase();
-  if (['water', 'drink', 'beverage', 'juice'].some((token) => normalized.includes(token))) {
+  if (
+    ['water', 'mineral', 'drink', 'beverage', 'juice'].some((token) =>
+      normalized.includes(token),
+    )
+  ) {
     return 'Beverage';
   }
   return itemSummary.trim() ? 'Oil' : '';
