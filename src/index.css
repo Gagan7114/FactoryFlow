@@ -177,4 +177,85 @@
     background: white !important;
     border: 1px solid black !important;
   }
+
+  /* Docking gatepass: keep the browser copy to one compact A4 page */
+  .sales-dispatch-gatepass-page {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+  }
+
+  .sales-dispatch-gatepass-page,
+  .sales-dispatch-gatepass-page * {
+    overflow: visible !important;
+  }
+
+  .sales-dispatch-gatepass-page.space-y-6 > :not([hidden]) ~ :not([hidden]),
+  .sales-dispatch-gatepass-page .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 6px !important;
+  }
+
+  .sales-dispatch-gatepass-grid {
+    display: block !important;
+  }
+
+  .sales-dispatch-gatepass-page .p-6 {
+    padding: 6px !important;
+  }
+
+  .sales-dispatch-gatepass-page .pt-0 {
+    padding-top: 0 !important;
+  }
+
+  .sales-dispatch-gatepass-page .gap-3,
+  .sales-dispatch-gatepass-page .gap-4 {
+    gap: 5px !important;
+  }
+
+  .sales-dispatch-gatepass-page h3 {
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+  }
+
+  .sales-dispatch-gatepass-page svg {
+    display: none !important;
+  }
+
+  .sales-dispatch-gatepass-page label,
+  .sales-dispatch-gatepass-page p,
+  .sales-dispatch-gatepass-page input,
+  .sales-dispatch-gatepass-page textarea {
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .sales-dispatch-gatepass-page input {
+    height: 18px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+
+  .sales-dispatch-gatepass-page textarea {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    resize: none !important;
+  }
+
+  .sales-dispatch-gatepass-summary .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .sales-dispatch-gatepass-fields {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+
+  .sales-dispatch-gatepass-page .rounded-lg,
+  .sales-dispatch-gatepass-page .rounded-md {
+    border-radius: 2px !important;
+  }
 }

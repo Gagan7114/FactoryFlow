@@ -61,6 +61,98 @@ The frontend already has sales-dispatch navigation and a mostly complete prototy
 
 The main frontend gap is not screen design. It is replacing prototype storage with a real backend contract and making the workflow match the legacy docking state machine.
 
+## `feature/dispatch-new-module` Branch Assessment
+
+Checked on 2026-05-18 using temporary isolated worktrees, which were removed after the rebase:
+
+- Frontend: `D:\Test_CompanyJivo\FactoryFlow_dispatch_inspect`
+- Backend: `D:\Test_CompanyJivo\factory_app_v2_dispatch_inspect`
+
+Both frontend and backend have a `feature/dispatch-new-module` branch. It is not a gate docking module yet. It is a dispatch/SAP document workflow centered on dispatch plans, vehicle linking, bilty freight service GRPO, open bilties, and transporter A/P invoice posting.
+
+Rebase status: `feature/docking` has been rebased on `feature/dispatch-new-module` in both repos. The docking module should now be built directly on top of the combined branch state.
+
+### What The Branch Adds
+
+Frontend additions:
+
+- New `src/modules/dispatch` module with routes under `/dispatch`.
+- Dispatch sidebar group for:
+  - Dispatch plans.
+  - Vehicle linking.
+  - Service GRPO.
+  - Open bilties.
+  - Transporter A/P invoice.
+- `DISPATCH_PERMISSIONS` mapped to `dispatch_plans` Django permissions.
+- Multi-invoice selection in dispatch vehicle linking.
+- Required bilty attachment handling in dispatch linking.
+- A reusable `resolveFileUrl` helper for media/file URLs.
+- Multipart attachment upload patterns for transporter invoice submission.
+
+Backend additions:
+
+- New `/api/v1/dispatch/` route group backed by `dispatch_plans.dispatch_urls`.
+- `DispatchPlan` fields for invoice number, e-way bill, invoice weight, invoice amount, place of supply, product variety, total litres, effective month, budget delivery point, service location, and SAC data.
+- `DispatchPlansService.update_linked_plans`, which can apply one vehicle/bilty booking across multiple SAP invoices and allocate freight across the selected invoices.
+- `HanaDispatchBillReader.list_bills_by_doc_entries` and SAP e-way bill extraction.
+- Permissions for dispatch vehicle linking, open bilties, bilty service GRPO, and transporter A/P invoice.
+- `TransporterAPInvoicePosting`, line, and attachment models.
+- Service-layer A/P invoice posting through SAP Service Layer, including attachment upload.
+- Local seed command and settings flags for dispatch invoice UI testing without live SAP posting.
+- GRPO changes that group dispatch plans by bilty/vehicle/transporter and create service GRPO lines across linked invoices.
+
+### Useful For Docking
+
+These pieces should be reused or rebased before building docking:
+
+| Branch feature | Docking value |
+|---|---|
+| Dedicated dispatch frontend module | Gives us a clean navigation home for dispatch operations instead of hiding everything under dashboards/vehicle management. |
+| Expanded `DispatchPlan` invoice fields | Covers several legacy `tbl_invoice_printing` snapshots: invoice number, e-way bill, amount, weight, delivery point, and product variety. |
+| Multi-invoice vehicle linking | Very close to legacy `dock_invoice.php`, where one truck/bilty can carry multiple invoices. |
+| Bilty attachment requirement | Useful for docking document readiness before gatepass. |
+| Vehicle/driver/transporter linking improvements | Reusable for dock capture and final gate-out. |
+| `list_bills_by_doc_entries` | Useful when docking selected invoices by SAP DocEntry instead of only searching by invoice number. |
+| SAP e-way bill extraction | Useful for `gate_invoice2.php` parity. |
+| Multipart upload pattern | Reusable for truck photos, invoice copies, delivery notes, and gatepass files. |
+| Dispatch permissions | Better permission boundary than mixing dispatch actions into dashboard permissions. |
+| Local seed/test toggles | Helpful for UI development without live SAP posting. |
+
+### Still Missing For Docking
+
+The branch does not replace the legacy docking app by itself. It still lacks:
+
+- Sales-dispatch/docking gate-out model.
+- `VehicleEntry` `SALES_DISPATCH` lifecycle integration.
+- Truck photo upload with latitude/longitude.
+- Gatepass number generation, QR/random code, and print commit.
+- Dispatch lock equivalent to legacy `tbl_lock`.
+- Gate-out state machine and security finalization.
+- Weighment enforcement for sales dispatch gate-out.
+- Legacy rejection/re-entry behavior.
+- Empty truck return linkage.
+- Truck-with-photo operational reports.
+- SAP stock transfer (`OWTR`/`WTR1`) support in the dispatch-plan reader. The branch still centers on `OINV`/`INV1` for dispatch bills.
+
+### Rebase Outcome And Considerations
+
+The branches had diverged before the rebase:
+
+| Repo | `feature/docking` only | `feature/dispatch-new-module` only | Main overlap |
+|---|---:|---:|---|
+| Frontend | 20 commits | 7 commits | `src/app/registry/index.ts`, `src/config/constants/api.constants.ts`, `src/config/permissions/index.ts` |
+| Backend | 12 commits | 7 commits | `config/settings.py`, `config/urls.py` |
+
+The rebase was worthwhile, but it had real conflict areas:
+
+- Frontend API constants and permission exports now include dispatch, AI, barcode, and vehicle-management additions together.
+- Frontend `LineManagementPage` conflict was resolved while keeping both production-execution and dispatch-era imports/hooks.
+- Backend settings and URL routing now include dispatch, warehouse, barcode, and AI assistant routes together.
+- Backend `stock_dashboard/hana_reader.py` conflict was resolved by keeping the richer dispatch stock-dashboard reader and applying the barcode branch on top.
+- Any future sales-dispatch API constants must coexist with the dispatch branch's `/dispatch/*` and `/dispatch-plans/*` split.
+
+Recommendation after rebase: build docking gate-out on top of the dispatch module foundations. Do not copy the old PHP docking concepts directly into the current `localStorage` sales-dispatch pages first; that would create duplicate dispatch abstractions.
+
 ## Legacy Docking Workflow To Preserve
 
 The core legacy PHP docking flow is:
@@ -122,7 +214,7 @@ Use an explicit status flow instead of legacy boolean columns:
 |---|---|
 | `DOCKED` | Invoice/transfer and truck details captured. |
 | `PHOTO_PENDING` | Dock record exists but truck photo is missing. |
-| `PHOTO_ATTACHED` | Photo and optional geolocation captured. |
+| `PHOTO_ATTACHED` | Photo and mandatory geolocation captured. |
 | `READY_FOR_GATEPASS` | Required checks, weighment, and documents are present. |
 | `GATEPASS_PRINTED` | Gate pass number and QR/random code assigned. |
 | `PRINT_COMMITTED` | Final print committed. |
@@ -156,6 +248,311 @@ Replace legacy `tbl_lock` with a model such as `DispatchLock`:
 - Optional email/notification audit.
 
 The backend should block gate-pass print and final commit while locked.
+
+## Delivery Build Plan
+
+### Working Assumptions
+
+Use these assumptions for the first build unless the business confirms otherwise:
+
+- User-facing module name: **Docking**.
+- First release supports SAP A/R invoices from `OINV`/`INV1` and SAP stock transfers from `OWTR`/`WTR1`.
+- Gatepass printing is required in the first release. The exact print layout still needs approval.
+- Truck-photo geolocation is mandatory.
+- Historical data from the previous PHP app is not required for go-live.
+- Gupta flow, Mart print, and JSAP mirror behavior remain unresolved and should not be assumed in MVP until confirmed.
+- Build in the existing `feature/docking` branch, now rebased on `feature/dispatch-new-module`.
+- Keep dispatch planning/vehicle linking in `dispatch_plans`; add gate-out/docking execution in `gate_core`.
+- Rework the existing frontend pages under `src/modules/gate/pages/customerSalesFlow/` instead of creating a parallel sales-dispatch UI.
+
+### Architecture Target
+
+The module should have three connected layers:
+
+| Layer | Responsibility | Main modules |
+|---|---|---|
+| Planning | SAP invoice search, vehicle/driver/transporter/bilty/freight booking, multi-invoice grouping. | `dispatch_plans`, `vehicle_management`, frontend `src/modules/dispatch` and `src/modules/vehicle-management`. |
+| Docking execution | Create gate-out, capture truck/photo/documents, enforce weighment, generate gatepass, commit final print, reject/cancel. | `gate_core`, `weighment`, `driver_management`, frontend sales-dispatch pages. |
+| Settlement/reporting | Service GRPO, open bilties, transporter A/P invoice, operational truck/photo reports. | Existing `/api/v1/dispatch/` plus new sales-dispatch reports. |
+
+### Phase 0: Scope Lock And Contract
+
+Goal: freeze the first release contract before writing migrations.
+
+Backend tasks:
+
+- Confirm exact `OWTR`/`WTR1` stock-transfer search and selection rules for Docking.
+- Confirm exact gatepass number format, QR/random-code content, and print layout.
+- Confirm whether dispatch lock is required for MVP or phase 2.
+- Confirm whether one gate-out can contain multiple invoices, or whether it creates one gate-out per invoice but shares the same vehicle/bilty group.
+- Confirm whether JSAP mirror updates are still used by downstream systems.
+- Confirm whether Gupta invoice flow belongs in Docking or remains out of scope.
+- Confirm which reports are required beyond the basic operational dashboard.
+
+Frontend tasks:
+
+- Confirm whether the main entry point is `/gate/sales-dispatch` or the new `/dispatch` group.
+- Confirm which existing pages stay in the gate sidebar and which actions should deep-link from dispatch vehicle linking.
+
+Acceptance gate:
+
+- A short API contract is agreed for create, photo upload, gatepass print, commit, reject, cancel, list, and detail.
+
+### Phase 1: Backend Foundation
+
+Goal: create the persistent docking domain and make it visible to the current gate/dispatch infrastructure.
+
+Files/modules to touch:
+
+- `driver_management/models/vehicle_entry.py`
+- `driver_management/migrations/`
+- `gate_core/models/`
+- `gate_core/models/__init__.py`
+- `gate_core/admin.py`
+- `gate_core/permissions.py`
+- `gate_core/migrations/`
+- `gate_core/services/`
+- `dispatch_plans/models.py`
+- `dispatch_plans/services.py`
+
+Tasks:
+
+1. Add `SALES_DISPATCH` to `VehicleEntry.ENTRY_TYPE_CHOICES`.
+2. Add `SalesDispatchGateOutStatus` choices.
+3. Add `SalesDispatchGateOut` with company, `VehicleEntry`, optional linked dispatch-plan group key, transport snapshots, SAP document snapshots, docking data, photo metadata, gatepass fields, print audit, rejection/cancel fields, and dispatch completion audit.
+4. Add `SalesDispatchGateOutItem` for invoice line snapshots.
+5. Add `SalesDispatchAttachment` or extend `GateAttachment` with typed attachment metadata. Prefer a new dispatch-specific attachment model if migration risk on shared attachments is high.
+6. Add `DispatchLock` if lock is in MVP.
+7. Add model permissions for view/create/edit/photo/upload/gatepass/commit/reject/cancel/reports/lock.
+8. Add indexes and constraints:
+   - company + status.
+   - company + created date.
+   - company + SAP document type + SAP doc entry.
+   - company + vehicle entry.
+   - company + gatepass number.
+   - unique active document per company/document type/doc entry.
+9. Add admin views for operational inspection, not primary workflow use.
+10. Add a service that can mark related `DispatchPlan` rows as dispatched after final commit.
+
+Acceptance gate:
+
+- Migrations run.
+- Django check passes.
+- A `VehicleEntry` can be created with `SALES_DISPATCH`.
+- Model constraints prevent duplicate active gate-outs for the same SAP document.
+
+### Phase 2: Backend APIs And State Machine
+
+Goal: expose the workflow as clear DRF endpoints with backend-enforced transitions.
+
+Files/modules to touch:
+
+- `gate_core/serializers.py`, or new `gate_core/serializers_sales_dispatch.py`.
+- `gate_core/views.py`, or preferably new `gate_core/views_sales_dispatch.py` imported by `gate_core/urls.py`.
+- `gate_core/urls.py`.
+- `gate_core/services/sales_dispatch_state.py`.
+- `gate_core/services/sales_dispatch_documents.py`.
+- `gate_core/services/sales_dispatch_gatepass.py`.
+- `gate_core/services/lock_manager.py` if reused.
+- `dispatch_plans/invoice_services.py`.
+- `dispatch_plans/services.py`.
+
+Endpoint plan:
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/v1/gate-core/sales-dispatch/documents/` | GET | Search SAP invoice or stock-transfer documents and return normalized document data. |
+| `/api/v1/gate-core/sales-dispatch/documents/<document_type>/<doc_entry>/` | GET | Fetch SAP invoice or stock-transfer detail and line snapshot. |
+| `/api/v1/gate-core/sales-dispatch/` | GET | Dashboard list with date, status, vehicle, invoice, customer, and gatepass filters. |
+| `/api/v1/gate-core/sales-dispatch/` | POST | Create docking gate-out from SAP document plus vehicle/driver/transporter/bilty data. |
+| `/api/v1/gate-core/sales-dispatch/<id>/` | GET/PATCH | Detail and editable docking fields. |
+| `/api/v1/gate-core/sales-dispatch/by-vehicle-entry/<vehicle_entry_id>/` | GET | Resume workflow from gate entry. |
+| `/api/v1/gate-core/sales-dispatch/<id>/attachments/` | GET/POST | Upload typed documents and truck photo. |
+| `/api/v1/gate-core/sales-dispatch/<id>/gatepass/preview/` | POST | Validate readiness and return printable gatepass data without committing. |
+| `/api/v1/gate-core/sales-dispatch/<id>/gatepass/print/` | POST | Assign gatepass number and QR/random code. |
+| `/api/v1/gate-core/sales-dispatch/<id>/commit-print/` | POST | Final print commit. |
+| `/api/v1/gate-core/sales-dispatch/<id>/dispatch/` | POST | Mark vehicle dispatched and linked dispatch plans dispatched. |
+| `/api/v1/gate-core/sales-dispatch/<id>/reject/` | POST | Reject before final dispatch. |
+| `/api/v1/gate-core/sales-dispatch/<id>/cancel/` | POST | Cancel with reason. |
+| `/api/v1/gate-core/sales-dispatch/lock/` | GET/PATCH | Read/update dispatch lock, if included in MVP. |
+
+State machine:
+
+| From | Allowed next states |
+|---|---|
+| `DOCKED` | `PHOTO_ATTACHED`, `CANCELLED`, `REJECTED` |
+| `PHOTO_ATTACHED` | `READY_FOR_GATEPASS`, `CANCELLED`, `REJECTED` |
+| `READY_FOR_GATEPASS` | `GATEPASS_PRINTED`, `CANCELLED`, `REJECTED` |
+| `GATEPASS_PRINTED` | `PRINT_COMMITTED`, `REJECTED` |
+| `PRINT_COMMITTED` | `DISPATCHED` |
+| `REJECTED` | terminal for that record; recovery creates a new linked record if allowed |
+| `CANCELLED` | terminal |
+| `DISPATCHED` | terminal |
+
+Validation rules:
+
+- Create requires company context, valid SAP invoice or stock transfer, vehicle, driver, and transporter.
+- Gatepass preview requires photo, geolocation, required documents, and completed weighment.
+- Gatepass print is blocked by dispatch lock.
+- Commit print is blocked unless gatepass was printed.
+- Dispatch is blocked unless print is committed.
+- Cancel is blocked after print commit unless a privileged correction flow is added.
+- Reject is blocked after dispatch.
+
+Acceptance gate:
+
+- API tests pass for create, duplicate prevention, photo upload, weighment enforcement, gatepass print, commit, reject, cancel, permissions, and dispatch-plan status update.
+
+### Phase 3: Frontend API Layer
+
+Goal: remove sales-dispatch dependence on `localStorage` and define stable client contracts.
+
+Files/modules to touch:
+
+- `src/config/constants/api.constants.ts`
+- `src/config/constants/index.ts`
+- `src/modules/gate/api/index.ts`
+- `src/modules/gate/api/salesDispatch/salesDispatch.api.ts`
+- `src/modules/gate/api/salesDispatch/salesDispatch.queries.ts`
+- `src/modules/gate/types/salesDispatch.types.ts`
+- `src/modules/gate/pages/customerSalesFlow/customerSalesFlow.storage.ts`
+
+Tasks:
+
+1. Add `ENTRY_TYPES.SALES_DISPATCH`.
+2. Add `API_ENDPOINTS.SALES_DISPATCH` entries matching the backend.
+3. Add DTO types for list row, detail, item lines, attachments, status, gatepass preview, and action payloads.
+4. Add React Query hooks:
+   - list.
+   - detail.
+   - by vehicle entry.
+   - document search/detail.
+   - create/update.
+   - upload attachment/photo.
+   - gatepass preview/print.
+   - commit print.
+   - mark dispatched.
+   - reject/cancel.
+   - lock read/update.
+5. Split customer-return prototype storage away from sales-dispatch storage. Customer return can keep `customerSalesFlow.storage.ts`; sales dispatch should use API hooks only.
+6. Invalidate dashboard/detail/dispatch-plan queries after mutating actions.
+
+Acceptance gate:
+
+- Frontend builds.
+- No sales-dispatch page imports `SAMPLE_DELIVERIES` or writes sales-dispatch entries to `localStorage`.
+
+### Phase 4: Frontend Workflow Pages
+
+Goal: make the current sales-dispatch UI operate against the backend workflow.
+
+Files/modules to touch:
+
+- `src/modules/gate/pages/customerSalesFlow/SalesDispatchDashboardPage.tsx`
+- `src/modules/gate/pages/customerSalesFlow/SalesDispatchNewPage.tsx`
+- `src/modules/gate/pages/customerSalesFlow/SalesDispatchWeighmentPage.tsx`
+- `src/modules/gate/pages/customerSalesFlow/SalesDispatchAttachmentsPage.tsx`
+- `src/modules/gate/pages/customerSalesFlow/SalesDispatchDetailPage.tsx`
+- `src/modules/gate/pages/customerSalesFlow/CustomerSalesAttachmentsPage.tsx`
+- `src/modules/vehicle-management/pages/DispatchVehicleLinkingPage.tsx`
+- `src/modules/dispatch/pages/OpenBiltiesPage.tsx` only if deep-links are needed.
+
+Page behavior:
+
+| Page | Build behavior |
+|---|---|
+| Dashboard | Query backend list, show real counts, status tabs, date/search filters, and inside/not-dispatched trucks. |
+| New | Search SAP invoices, prefill from dispatch plan if booked, create `VehicleEntry` + sales-dispatch gate-out, then route to weighment/photo. |
+| Weighment | Use existing weighment API against the sales-dispatch `VehicleEntry`; route back to detail if already complete. |
+| Attachments/photo | Upload actual files, capture truck photo and mandatory geolocation, show uploaded previews, route to gatepass preview. |
+| Detail | Show state timeline, SAP invoice lines, truck photo, documents, weighment, linked dispatch plans, gatepass preview/print, commit, dispatch, reject, cancel. |
+
+Deep links:
+
+- From dispatch vehicle linking, add an action to start or open docking for the selected invoice group.
+- From dispatch plan detail/dashboard, show docking status when a gate-out exists.
+
+Acceptance gate:
+
+- A user can create a sales-dispatch gate-out from a real or seeded invoice or stock transfer and complete photo, geolocation, weighment, gatepass, final print, and dispatch without refreshing into broken state.
+
+### Phase 5: Gatepass, Print, Lock, And Reports
+
+Goal: cover the legacy behaviors that operators need daily.
+
+Backend tasks:
+
+- Implement gatepass sequence model/service.
+- Generate QR/random code server-side.
+- Return printable payload with company, truck, customer, invoice, item, weighment, e-way, and audit data.
+- Add PDF/HTML print endpoint if browser print is insufficient.
+- Add dispatch lock API and enforce it if not done in phase 2.
+- Add reports:
+  - trucks waiting inside.
+  - truck vs invoice with photos.
+  - truck status with photos.
+  - rejected/cancelled dispatches.
+
+Frontend tasks:
+
+- Add print preview/action on detail page.
+- Add lock management page or compact admin control for authorized users.
+- Add reports page or filters within dashboard, depending on operational preference.
+- Ensure uploaded photo and printable gatepass render from backend media URLs using `resolveFileUrl`.
+
+Acceptance gate:
+
+- Printed gatepass matches approved layout and can be re-opened from the Docking record.
+- Lock prevents print/commit and shows a clear UI message.
+- Reports cover the legacy daily report use cases.
+
+### Phase 6: Legacy Cutover Without History Migration
+
+Goal: retire the PHP docking app safely.
+
+Tasks:
+
+1. Do not import old PHP docking history for the current go-live scope.
+2. Run parallel production validation:
+   - Same invoice/truck can be found in both systems.
+   - Gatepass totals match.
+   - Photo paths resolve.
+   - Dispatch status matches.
+3. Freeze PHP docking writes.
+4. Switch users to Factory URLs.
+5. Keep the PHP app read-only for a defined rollback window if operations still need lookup access.
+
+Acceptance gate:
+
+- Business signs off on live parallel-run entries.
+- No new writes are made in PHP after cutover.
+
+### Suggested Commit Order
+
+Keep commits small enough to review and rollback:
+
+1. Backend `SALES_DISPATCH` entry type and model migrations.
+2. Backend document lookup and create/detail/list APIs.
+3. Backend attachment/photo, gatepass, commit, reject/cancel APIs.
+4. Backend dispatch-plan status integration and reports.
+5. Frontend API constants/types/hooks.
+6. Frontend dashboard/new/weighment conversion.
+7. Frontend attachments/detail/gatepass conversion.
+8. Frontend dispatch-plan deep links and reports.
+9. Tests and polish.
+10. Cutover tooling and optional legacy lookup support.
+
+### First MVP Definition Of Done
+
+The MVP is done when:
+
+- Sales dispatch has real backend persistence.
+- The frontend no longer uses sample deliveries/localStorage for sales dispatch.
+- One SAP invoice and one SAP stock transfer can each be docked, weighed, photographed with geolocation, gatepass-printed, final-print committed, and dispatched.
+- Linked dispatch plans become `DISPATCHED`.
+- Required permissions are enforced.
+- Build/check/test commands pass.
+- Operations can see trucks waiting inside and completed gatepasses.
 
 ## Backend Build Checklist
 
@@ -206,6 +603,7 @@ Current `dispatch_plans` supports A/R invoices only. Legacy docking also searche
 - Generate QR/random code server-side.
 - Return printable HTML/PDF data from the API.
 - Store print audit and final commit timestamps.
+- Gatepass printing is required for MVP; the exact legacy layout still needs approval.
 - Decide whether the old JSAP mirror update is still required. If required, hide it behind a service with retries and audit logging.
 
 ### Business Rules
@@ -215,7 +613,7 @@ Backend validation should cover:
 - SAP document exists and belongs to the current company context.
 - Active duplicate documents cannot be docked twice.
 - Rejected documents can be re-entered only through the approved recovery flow.
-- Gate pass cannot be generated without photo, required documents, and weighment.
+- Gate pass cannot be generated without photo, geolocation, required documents, and weighment.
 - Dispatch lock blocks gate-pass/final-print actions.
 - Dispatch plan must move to `DISPATCHED` once the gate-out is completed.
 - Cancellation is blocked after final print/dispatch unless a privileged correction flow is added.
@@ -263,8 +661,8 @@ Existing dispatch-plan and vehicle-linking screens are valuable and should remai
 ### File And Photo UX
 
 - Use real upload progress and backend file URLs.
-- Capture latitude/longitude intentionally for truck photo if the business needs it.
-- Make geolocation optional or clearly required. The legacy app had a mismatch where the server required geolocation but the client code was commented out.
+- Capture latitude/longitude for truck photo as a mandatory step.
+- Show a clear blocking message if browser/device geolocation is unavailable, because geolocation is required for MVP.
 - Preview uploaded photos and documents.
 
 ### Permissions
@@ -294,9 +692,11 @@ Build only the reports needed to retire docking:
 
 Avoid rebuilding `pg_client.php` or `sql_client.php`. Those are admin database consoles, not product workflows.
 
-## Data Migration
+## Historical Data Migration
 
-If historical continuity matters, migrate the old data after the new schema is stable.
+Historical data from the previous PHP app is not required for go-live. Do not build migration tooling in the MVP.
+
+Keep this section only as an optional future reference if the business later asks for old docking history inside Factory.
 
 ### Source Tables
 
@@ -339,36 +739,38 @@ Frontend tests:
 
 ## Suggested Phases
 
-1. Confirm scope: invoice-only vs invoice plus stock transfer, exact gatepass format, geolocation rule, and historical migration requirement.
+1. Confirm remaining unknowns: stock-transfer selection rules, exact gatepass format, dispatch lock timing, JSAP mirror need, Gupta flow, and required reports.
 2. Build backend model/API/state machine for sales dispatch gate-out.
 3. Wire frontend sales-dispatch pages to real APIs and remove `localStorage` prototype behavior.
 4. Add photo/geolocation, gatepass generation, print commit, and dispatch lock.
 5. Add reports needed by operations.
-6. Migrate historical docking data and uploaded photos if required.
-7. Run parallel production validation against the legacy PHP app, then retire the PHP docking pages.
+6. Run parallel production validation against the legacy PHP app, then retire the PHP docking pages.
 
 ## MVP Scope
 
 The smallest useful Factory docking module should include:
 
 - SAP invoice lookup through existing `dispatch_plans`.
-- Create sales-dispatch gate-out from invoice plus vehicle/driver/transporter.
+- SAP stock-transfer lookup through existing stock-transfer services or a normalized `OWTR`/`WTR1` reader.
+- Create sales-dispatch gate-out from invoice or stock transfer plus vehicle/driver/transporter.
 - `VehicleEntry` with `SALES_DISPATCH`.
 - Weighment through existing weighment API.
-- Truck photo and required document upload.
+- Truck photo with geolocation and required document upload.
 - Gatepass generation and print commit.
 - Dashboard/detail pages using backend data.
 - Dispatch plan status update to `DISPATCHED`.
 
-Stock-transfer support, Gupta flow compatibility, Mart print, historical migration, dispatch lock, and advanced reports can follow after MVP if the business can run those through the legacy app temporarily.
+Gupta flow compatibility, Mart print, JSAP mirror update, historical migration, and advanced reports remain outside MVP until confirmed. Dispatch lock can be built in MVP or phase 2 depending on operational urgency.
 
 ## Open Decisions
 
-- Should the module name shown to users be "Docking" or "Sales Dispatch Out"?
-- Does docking need to support SAP stock transfers (`OWTR`) on day one, or only A/R invoices (`OINV`)?
-- Is exact legacy gatepass print layout required?
-- Is geolocation mandatory for truck photo?
-- Should old docking history be imported before go-live or kept read-only in the legacy app?
-- Is JSAP mirror update still used by downstream systems?
-- Should `gupta_invoice.php` become a special case inside the same model or a separate workflow?
-- Which legacy reports are truly operationally required?
+| Question | Current answer |
+|---|---|
+| Module name shown to users | Docking. |
+| SAP stock transfer support | Required on day one. Support `OWTR`/`WTR1` along with A/R invoices. |
+| Gatepass printing | Required on day one. Exact layout/format still needs approval. |
+| Truck-photo geolocation | Mandatory. |
+| Previous PHP app history | Not required for Factory go-live. |
+| JSAP mirror update | Unknown. Investigate before final print/dispatch service design. |
+| `gupta_invoice.php` compatibility | Unknown. Leave out of MVP until business confirms. |
+| Required legacy reports | Unknown. Start with operational dashboard/report basics, then confirm the final report list. |

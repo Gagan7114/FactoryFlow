@@ -136,6 +136,9 @@ const SalesDispatchWeighmentPage = lazy(
 const SalesDispatchAttachmentsPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
 );
+const SalesDispatchGatepassPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchGatepassPage'),
+);
 const SalesDispatchDetailPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
 );
@@ -841,35 +844,42 @@ export const gateModuleConfig: ModuleConfig = {
       element: <SalesDispatchDashboardPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
-      breadcrumb: { label: 'Sales Dispatch' },
+      breadcrumb: { label: 'Docking' },
     },
     {
       path: '/gate/sales-dispatch/new',
       element: <SalesDispatchNewPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'New Sales Dispatch' },
+      breadcrumb: { label: 'New Docking' },
     },
     {
       path: '/gate/sales-dispatch/new/weighment',
       element: <SalesDispatchWeighmentPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Sales Dispatch Weighment' },
+      breadcrumb: { label: 'Docking Weighment' },
     },
     {
       path: '/gate/sales-dispatch/new/attachments',
       element: <SalesDispatchAttachmentsPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Sales Dispatch Attachments' },
+      breadcrumb: { label: 'Docking Attachments' },
+    },
+    {
+      path: '/gate/sales-dispatch/new/gatepass',
+      element: <SalesDispatchGatepassPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Docking Gatepass' },
     },
     {
       path: '/gate/sales-dispatch/:entryId',
       element: <SalesDispatchDetailPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
-      breadcrumb: { label: 'Sales Dispatch Entry' },
+      breadcrumb: { label: 'Docking Entry' },
     },
     {
       path: '/gate/repair-movement',

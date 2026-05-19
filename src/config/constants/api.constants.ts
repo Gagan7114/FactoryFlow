@@ -94,6 +94,25 @@ export const API_ENDPOINTS = {
       `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/`,
     BST_OUT_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
       `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/complete/`,
+    SALES_DISPATCH_DOCUMENTS: '/gate-core/sales-dispatch/documents/',
+    SALES_DISPATCH_DOCUMENT_BY_DOC_ENTRY: (documentType: string, docEntry: number) =>
+      `/gate-core/sales-dispatch/documents/${documentType}/${docEntry}/`,
+    SALES_DISPATCHES: '/gate-core/sales-dispatch/',
+    SALES_DISPATCH_BY_ID: (id: number) => `/gate-core/sales-dispatch/${id}/`,
+    SALES_DISPATCH_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/sales-dispatch/by-vehicle-entry/${vehicleEntryId}/`,
+    SALES_DISPATCH_ATTACHMENTS: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/attachments/`,
+    SALES_DISPATCH_GATEPASS_PREVIEW: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/preview/`,
+    SALES_DISPATCH_GATEPASS_PRINT: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/print/`,
+    SALES_DISPATCH_COMMIT_PRINT: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/commit-print/`,
+    SALES_DISPATCH_MARK_DISPATCHED: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/dispatch/`,
+    SALES_DISPATCH_REJECT: (id: number) => `/gate-core/sales-dispatch/${id}/reject/`,
+    SALES_DISPATCH_CANCEL: (id: number) => `/gate-core/sales-dispatch/${id}/cancel/`,
     BST_IN_ELIGIBLE_OUTS: '/gate-core/bst-ins/eligible-outs/',
     BST_INS: '/gate-core/bst-ins/',
     BST_IN_BY_ID: (id: number) => `/gate-core/bst-ins/${id}/`,

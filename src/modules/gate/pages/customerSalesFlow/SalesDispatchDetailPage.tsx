@@ -1,9 +1,27 @@
-import { ArrowLeft, CalendarClock, FileText, PackageCheck, RotateCcw, Scale, ShieldCheck, Truck, XCircle } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  CalendarClock,
+  FileText,
+  PackageCheck,
+  Paperclip,
+  RotateCcw,
+  Scale,
+  ShieldCheck,
+  Truck,
+  XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { GateStatusBadge } from '@/modules/gate/components';
+import {
+  type SalesDispatchGateOut,
+  type SalesDispatchItem,
+  useCancelSalesDispatch,
+  useSalesDispatch,
+  useWeighment,
+} from '@/modules/gate/api';
+import { GateStatusBadge, StepLoadingSpinner } from '@/modules/gate/components';
 import {
   Button,
   Card,
@@ -19,35 +37,63 @@ import {
   Label,
   Textarea,
 } from '@/shared/components/ui';
+import { getErrorMessage, resolveFileUrl } from '@/shared/utils';
 
 import {
-  CUSTOMER_RETURN_KEY,
-  type CustomerFlowEntry,
-  findCustomerFlowEntry,
-  formatCustomerFlowDateTime,
-  formatCustomerFlowTimestamp,
-  getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
-  updateCustomerFlowEntry,
-} from './customerSalesFlow.storage';
+  buildEntryDocumentLabel,
+  formatDateTime,
+  formatTimestamp,
+  formatValue,
+} from './salesDispatchFlow.helpers';
 
 export default function SalesDispatchDetailPage() {
   const navigate = useNavigate();
   const { entryId } = useParams();
-  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() => (
-    entryId ? findCustomerFlowEntry(SALES_DISPATCH_KEY, entryId) : null
-  ));
+  const id = Number(entryId || 0) || null;
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
 
-  const linkedReturns = useMemo(() => {
-    if (!entry) return [];
-    return readCustomerFlowEntries(CUSTOMER_RETURN_KEY)
-      .filter((returnEntry) => returnEntry.status !== 'CANCELLED')
-      .filter((returnEntry) => getCustomerFlowValue(returnEntry, 'dispatchEntry') === entry.entryNo);
-  }, [entry]);
+  const {
+    data: entry,
+    isLoading,
+    error,
+    refetch,
+  } = useSalesDispatch(id);
+  const { data: weighment } = useWeighment(entry?.vehicle_entry || null);
+  const cancelSalesDispatch = useCancelSalesDispatch();
+
+  const canCancel = entry
+    ? !['PRINT_COMMITTED', 'DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status)
+    : false;
+
+  const handleCancel = async () => {
+    if (!entry) return;
+
+    const trimmedReason = cancelReason.trim();
+    if (!trimmedReason) {
+      setCancelError('Please enter a cancellation reason');
+      return;
+    }
+
+    try {
+      await cancelSalesDispatch.mutateAsync({
+        id: entry.id,
+        data: { reason: trimmedReason },
+      });
+      await refetch();
+      setCancelReason('');
+      setCancelError('');
+      setIsCancelDialogOpen(false);
+      toast.success('Docking entry cancelled');
+    } catch (cancelErrorValue) {
+      setCancelError(getErrorMessage(cancelErrorValue, 'Failed to cancel Docking entry'));
+    }
+  };
+
+  if (isLoading) {
+    return <StepLoadingSpinner />;
+  }
 
   if (!entry) {
     return (
@@ -56,51 +102,10 @@ export default function SalesDispatchDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <EmptyState text="Sales dispatch entry not found" />
+        <EmptyState text={error ? getErrorMessage(error, 'Docking entry not found') : 'Docking entry not found'} />
       </div>
     );
   }
-
-  const canCancel = entry.status !== 'CANCELLED' && linkedReturns.length === 0;
-  const cannotCancelReason = linkedReturns.length > 0
-    ? `Cannot cancel because goods return ${linkedReturns[0].entryNo} is linked`
-    : '';
-
-  const handleCancel = () => {
-    const trimmedReason = cancelReason.trim();
-    if (!trimmedReason) {
-      setCancelError('Please enter a cancellation reason');
-      return;
-    }
-
-    if (!canCancel) {
-      setCancelError(cannotCancelReason || 'This dispatch cannot be cancelled');
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const cancelledEntry = updateCustomerFlowEntry(SALES_DISPATCH_KEY, entry.id, (current) => ({
-      ...current,
-      status: 'CANCELLED',
-      values: {
-        ...current.values,
-        cancelReason: trimmedReason,
-        cancelledAt: now,
-      },
-      updatedAt: now,
-    }));
-
-    if (!cancelledEntry) {
-      setCancelError('Failed to cancel dispatch');
-      return;
-    }
-
-    setEntry(cancelledEntry);
-    setCancelReason('');
-    setCancelError('');
-    setIsCancelDialogOpen(false);
-    toast.success('Sales dispatch cancelled');
-  };
 
   return (
     <div className="space-y-6 pb-6">
@@ -110,17 +115,22 @@ export default function SalesDispatchDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">{entry.entryNo}</h2>
-            <p className="text-muted-foreground">Sales dispatch gate-out entry</p>
+            <h2 className="text-3xl font-bold tracking-tight">{entry.entry_no}</h2>
+            <p className="text-muted-foreground">Docking gate-out entry</p>
           </div>
         </div>
 
-        {entry.status !== 'CANCELLED' && (
-          <div className="flex flex-col items-start gap-2 lg:items-end">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(`/gate/sales-dispatch/new?entryId=${entry.vehicle_entry}`)}
+          >
+            Resume Flow
+          </Button>
+          {canCancel && (
             <Button
               variant="outline"
-              disabled={!canCancel}
-              title={cannotCancelReason}
               className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={() => {
                 setCancelError('');
@@ -130,9 +140,64 @@ export default function SalesDispatchDetailPage() {
               <XCircle className="mr-2 h-4 w-4" />
               Cancel Entry
             </Button>
-            {cannotCancelReason && <p className="text-sm text-muted-foreground">{cannotCancelReason}</p>}
-          </div>
-        )}
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Docking Summary
+          </CardTitle>
+          <GateStatusBadge status={entry.status} />
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <InfoItem label="Entry No." value={entry.entry_no} />
+          <InfoItem label="Vehicle Entry" value={entry.vehicle_entry_no} />
+          <InfoItem label="SAP Document" value={buildEntryDocumentLabel(entry)} />
+          <InfoItem label="Document Type" value={entry.document_type} />
+          <InfoItem label="Gate Out" value={formatDateTime(entry.gate_out_date, entry.out_time)} />
+          <InfoItem label="Gatepass No." value={entry.gatepass_no} />
+          <InfoItem label="Created" value={formatTimestamp(entry.created_at)} />
+          <InfoItem label="Updated" value={formatTimestamp(entry.updated_at)} />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Vehicle & Driver
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+            <InfoItem label="Vehicle" value={entry.vehicle_no} />
+            <InfoItem label="Transporter" value={entry.transporter_name} />
+            <InfoItem label="Driver" value={entry.driver_name} />
+            <InfoItem label="Driver Mobile" value={entry.driver_mobile_no} />
+            <InfoItem label="Bilty / LR" value={entry.bilty_no} />
+            <InfoItem label="Security" value={entry.security_name} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Customer & SAP
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+            <InfoItem label="Customer" value={entry.customer_name} />
+            <InfoItem label="Ship To" value={entry.ship_to_address || entry.warehouses} />
+            <InfoItem label="E-way Bill" value={entry.eway_bill} />
+            <InfoItem label="GSTIN" value={entry.bp_gstin} />
+            <InfoItem label="From Warehouse" value={entry.from_warehouse} />
+            <InfoItem label="To Warehouse" value={entry.to_warehouse} />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -143,74 +208,12 @@ export default function SalesDispatchDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Gross Weight" value={getCustomerFlowValue(entry, 'grossWeight')} />
-          <InfoItem label="Tare Weight" value={getCustomerFlowValue(entry, 'tareWeight')} />
-          <InfoItem label="Net Weight" value={getCustomerFlowValue(entry, 'netWeight')} />
-          <InfoItem label="Slip No." value={getCustomerFlowValue(entry, 'weighbridgeSlipNo')} />
+          <InfoItem label="Gross Weight" value={weighment?.gross_weight || entry.gross_weight} />
+          <InfoItem label="Tare Weight" value={weighment?.tare_weight || entry.tare_weight} />
+          <InfoItem label="Net Weight" value={weighment?.net_weight || entry.net_weight} />
+          <InfoItem label="Slip No." value={weighment?.weighbridge_slip_no} />
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Dispatch Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Entry No." value={entry.entryNo} />
-          <InfoItem label="Outbound Delivery" value={getCustomerFlowValue(entry, 'outboundDeliveryNo')} />
-          <InfoItem label="Sales Order" value={getCustomerFlowValue(entry, 'salesOrderNo')} />
-          <InfoBadge label="Status" value={entry.status} />
-          <InfoItem label="Gate Out" value={formatCustomerFlowDateTime(entry.values.gateOutDate, entry.values.outTime)} />
-          <InfoItem label="PGI Document" value={getCustomerFlowValue(entry, 'pgiDocumentNo')} />
-          <InfoBadge
-            label="Goods Issue"
-            value={getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes' ? 'POSTED' : 'PENDING'}
-          />
-          <InfoItem label="Created" value={formatCustomerFlowTimestamp(entry.createdAt)} />
-          {entry.status === 'CANCELLED' && (
-            <>
-              <InfoItem label="Cancel Reason" value={getCustomerFlowValue(entry, 'cancelReason')} />
-              <InfoItem label="Cancelled At" value={getCustomerFlowValue(entry, 'cancelledAt')} />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Vehicle
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Vehicle" value={getCustomerFlowValue(entry, 'vehicleNo')} />
-            <InfoItem label="Driver" value={getCustomerFlowValue(entry, 'driverName')} />
-            <InfoItem label="Driver Mobile" value={getCustomerFlowValue(entry, 'driverMobile')} />
-            <InfoItem label="Seal No." value={getCustomerFlowValue(entry, 'sealNo')} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              Customer & Documents
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Customer" value={getCustomerFlowValue(entry, 'customerName')} />
-            <InfoItem label="Ship To" value={getCustomerFlowValue(entry, 'shipTo')} />
-            <InfoItem label="Invoice" value={getCustomerFlowValue(entry, 'invoiceNo')} />
-            <InfoItem label="Delivery Note" value={getCustomerFlowValue(entry, 'deliveryNoteNo')} />
-            <InfoItem label="E-way Bill" value={getCustomerFlowValue(entry, 'ewayBillNo')} />
-            <InfoItem label="LR No." value={getCustomerFlowValue(entry, 'lrNo')} />
-          </CardContent>
-        </Card>
-      </div>
 
       <Card>
         <CardHeader>
@@ -220,7 +223,36 @@ export default function SalesDispatchDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ItemsTable entry={entry} />
+          <ItemsTable items={entry.items} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5" />
+            Attachments
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {entry.attachments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No attachments uploaded</p>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {entry.attachments.map((attachment) => (
+                <a
+                  key={attachment.id}
+                  href={resolveFileUrl(attachment.file)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md border p-3 text-sm hover:bg-muted/50"
+                >
+                  <div className="font-medium">{attachment.original_filename || 'Attachment'}</div>
+                  <div className="text-xs text-muted-foreground">{attachment.attachment_type}</div>
+                </a>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -228,23 +260,35 @@ export default function SalesDispatchDetailPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5" />
-            Linked Returns
+            Finalization
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Return Count" value={linkedReturns.length} />
-          <InfoItem label="Latest Return" value={linkedReturns[0]?.entryNo || ''} />
-          <InfoItem label="Remarks" value={getCustomerFlowValue(entry, 'remarks')} />
-          <InfoItem label="Attachment Notes" value={getCustomerFlowValue(entry, 'attachmentNotes')} />
+          <InfoItem label="Printed At" value={formatTimestamp(entry.printed_at)} />
+          <InfoItem label="Print Committed At" value={formatTimestamp(entry.print_committed_at)} />
+          <InfoItem label="Dispatched At" value={formatTimestamp(entry.dispatched_at)} />
+          <InfoItem label="Remarks" value={entry.remarks} />
+          {entry.status === 'CANCELLED' && (
+            <>
+              <InfoItem label="Cancel Reason" value={entry.cancel_reason} />
+              <InfoItem label="Cancelled At" value={formatTimestamp(entry.cancelled_at)} />
+            </>
+          )}
+          {entry.status === 'REJECTED' && (
+            <>
+              <InfoItem label="Reject Reason" value={entry.reject_reason} />
+              <InfoItem label="Rejected At" value={formatTimestamp(entry.rejected_at)} />
+            </>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel Sales Dispatch</DialogTitle>
+            <DialogTitle>Cancel Docking Entry</DialogTitle>
             <DialogDescription>
-              This keeps the dispatch in history and preserves any linked goods return history.
+              This cancels the Docking entry and releases the SAP document for a fresh entry.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -258,7 +302,7 @@ export default function SalesDispatchDetailPage() {
                 setCancelReason(event.target.value);
                 setCancelError('');
               }}
-              placeholder="Why is this dispatch being cancelled?"
+              placeholder="Why is this Docking entry being cancelled?"
             />
             {cancelError && <p className="text-sm text-destructive">{cancelError}</p>}
           </div>
@@ -266,9 +310,14 @@ export default function SalesDispatchDetailPage() {
             <Button type="button" variant="outline" onClick={() => setIsCancelDialogOpen(false)}>
               Keep Entry
             </Button>
-            <Button type="button" variant="destructive" onClick={handleCancel}>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={cancelSalesDispatch.isPending}
+            >
               <RotateCcw className="mr-2 h-4 w-4" />
-              Cancel Entry
+              {cancelSalesDispatch.isPending ? 'Cancelling...' : 'Cancel Entry'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -277,30 +326,40 @@ export default function SalesDispatchDetailPage() {
   );
 }
 
-function ItemsTable({ entry }: { entry: CustomerFlowEntry }) {
+function ItemsTable({ items }: { items: SalesDispatchItem[] }) {
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px]">
+        <table className="w-full min-w-[820px]">
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Item Code</th>
               <th className="p-3 text-left text-sm font-medium">Item</th>
-              <th className="p-3 text-left text-sm font-medium">Order Qty</th>
-              <th className="p-3 text-left text-sm font-medium">Dispatch Qty</th>
+              <th className="p-3 text-left text-sm font-medium">Quantity</th>
               <th className="p-3 text-left text-sm font-medium">UOM</th>
+              <th className="p-3 text-left text-sm font-medium">Warehouse</th>
             </tr>
           </thead>
           <tbody>
-            {entry.items.map((item) => (
-              <tr key={item.id} className="border-t">
-                <td className="whitespace-nowrap p-3 text-sm">{item.itemCode}</td>
-                <td className="p-3 text-sm font-medium">{item.itemName}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{item.orderQty}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{item.dispatchedQty}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="h-20 p-3 text-center text-sm text-muted-foreground">
+                  No document lines found
+                </td>
               </tr>
-            ))}
+            ) : (
+              items.map((item) => (
+                <tr key={item.id} className="border-t">
+                  <td className="whitespace-nowrap p-3 text-sm">{item.item_code}</td>
+                  <td className="p-3 text-sm font-medium">{item.item_name}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">{item.quantity}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    {item.warehouse_code || item.from_warehouse || item.to_warehouse || '-'}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -312,22 +371,7 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium">{value && value !== '-' ? value : '-'}</p>
-    </div>
-  );
-}
-
-function InfoBadge({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <GateStatusBadge status={value} className="mt-1" />
+      <p className="mt-1 font-medium">{formatValue(value)}</p>
     </div>
   );
 }
