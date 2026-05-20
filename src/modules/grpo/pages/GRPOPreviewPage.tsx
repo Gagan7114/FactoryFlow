@@ -366,6 +366,11 @@ export default function GRPOPreviewPage() {
     if (mergedForm.attachments.length === 0) {
       errors.attachments = 'At least one attachment is required';
     }
+    if (mergedForm.extraCharges.some((charge) => (charge.expense_code || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge needs a valid SAP expense code.';
+    } else if (mergedForm.extraCharges.some((charge) => (charge.amount || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge amount must be greater than zero.';
+    }
 
     setApiErrors(errors);
     return Object.keys(errors).length === 0;
@@ -924,8 +929,20 @@ export default function GRPOPreviewPage() {
             <div className="border-t pt-4">
               <ExtraChargesSection
                 charges={mergedForm.extraCharges}
-                onChange={(charges) => updateFormField('extraCharges', charges)}
+                onChange={(charges) => {
+                  updateFormField('extraCharges', charges);
+                  if (apiErrors.extraCharges) {
+                    setApiErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.extraCharges;
+                      return next;
+                    });
+                  }
+                }}
               />
+              {apiErrors.extraCharges && (
+                <p className="mt-2 text-xs text-destructive">{apiErrors.extraCharges}</p>
+              )}
             </div>
 
             {/* Attachments */}

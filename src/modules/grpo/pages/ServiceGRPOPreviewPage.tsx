@@ -42,6 +42,7 @@ import type {
   ExtraCharge,
   PostServiceGRPOResponse,
   ServiceGRPOBranchOption,
+  ServiceGRPOExpenseCodeOption,
   ServiceGRPOGLAccountOption,
   ServiceGRPOLocationOption,
   ServiceGRPOProjectOption,
@@ -263,6 +264,11 @@ const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
     ? subAccount.sub_account_code
     : `${subAccount.sub_account_code} - ${subAccount.sub_account_name}`;
 
+const sortExpenseCodeOptions = (
+  options: ServiceGRPOExpenseCodeOption[],
+): ServiceGRPOExpenseCodeOption[] =>
+  [...options].sort((a, b) => a.expense_code - b.expense_code);
+
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
   const { dispatchPlanId } = useParams<{ dispatchPlanId: string }>();
@@ -297,6 +303,10 @@ export default function ServiceGRPOPreviewPage() {
   const locationOptions = serviceOptions?.locations ?? [];
   const sapProjectOptions = serviceOptions?.projects ?? [];
   const subAccountOptions = serviceOptions?.sub_accounts ?? [];
+  const expenseCodeOptions = useMemo(
+    () => sortExpenseCodeOptions(serviceOptions?.expense_codes ?? []),
+    [serviceOptions?.expense_codes],
+  );
   const projectOptions = useMemo<ServiceGRPOProjectOption[]>(() => {
     const deliveryPoint = (preview?.default_budget_delivery_point || '').trim();
     if (!deliveryPoint) return sapProjectOptions;
@@ -511,6 +521,11 @@ export default function ServiceGRPOPreviewPage() {
     }
     if (form.attachments.length === 0 && !preview.bilty_attachment) {
       errors.attachments = 'At least one attachment is required';
+    }
+    if (form.extraCharges.some((charge) => (charge.expense_code || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge needs a valid SAP expense code.';
+    } else if (form.extraCharges.some((charge) => (charge.amount || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge amount must be greater than zero.';
     }
 
     setApiErrors(errors);
@@ -1194,8 +1209,21 @@ export default function ServiceGRPOPreviewPage() {
                 <div className="border-t pt-4">
                   <ExtraChargesSection
                     charges={form.extraCharges}
-                    onChange={(charges) => updateFormField('extraCharges', charges)}
+                    expenseCodeOptions={expenseCodeOptions}
+                    onChange={(charges) => {
+                      updateFormField('extraCharges', charges);
+                      if (apiErrors.extraCharges) {
+                        setApiErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.extraCharges;
+                          return next;
+                        });
+                      }
+                    }}
                   />
+                  {apiErrors.extraCharges && (
+                    <p className="mt-2 text-xs text-destructive">{apiErrors.extraCharges}</p>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">

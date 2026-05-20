@@ -386,6 +386,14 @@ export interface ServiceGRPOSubAccountOption {
   sub_account_name: string;
 }
 
+export interface ServiceGRPOExpenseCodeOption {
+  expense_code: number;
+  expense_name: string;
+  expense_account: string;
+  revenue_account: string;
+  sac_code: string;
+}
+
 export interface ServiceGRPOOptions {
   branches: ServiceGRPOBranchOption[];
   tax_codes: ServiceGRPOTaxCodeOption[];
@@ -394,6 +402,7 @@ export interface ServiceGRPOOptions {
   locations: ServiceGRPOLocationOption[];
   projects: ServiceGRPOProjectOption[];
   sub_accounts: ServiceGRPOSubAccountOption[];
+  expense_codes: ServiceGRPOExpenseCodeOption[];
 }
 
 export interface ServiceGRPOHistoryLine {

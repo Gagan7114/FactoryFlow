@@ -21,6 +21,7 @@ export type {
   PreviewPOReceipt,
   QCStatus,
   ServiceGRPOBranchOption,
+  ServiceGRPOExpenseCodeOption,
   ServiceGRPOGLAccountOption,
   ServiceGRPOHistoryEntry,
   ServiceGRPOHistoryLine,
