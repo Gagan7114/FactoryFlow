@@ -25,6 +25,7 @@ interface StockLevelTableProps {
   sortCol: StockSortCol;
   sortDir: 'asc' | 'desc';
   onSortChange: (col: StockSortCol, dir: 'asc' | 'desc') => void;
+  onSearchSelect?: (term: string) => void;
 }
 
 function rowStatusClasses(status: StockItem['stock_status']): string {
@@ -90,11 +91,12 @@ export function StockLevelTable({
   sortCol,
   sortDir,
   onSortChange,
+  onSearchSelect,
 }: StockLevelTableProps) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = isGrouped ? 12 : 11;
+  const colCount = 11;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -102,6 +104,11 @@ export function StockLevelTable({
     } else {
       onSortChange(col, 'asc');
     }
+  }
+
+  function toggleExpandedItem(itemCode: string, canExpand: boolean) {
+    if (!canExpand) return;
+    setExpandedItem((current) => (current === itemCode ? null : itemCode));
   }
 
   if (isLoading) {
@@ -186,7 +193,6 @@ export function StockLevelTable({
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Movement</th>
-                {isGrouped && <th className="w-10 px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -202,12 +208,54 @@ export function StockLevelTable({
                       className={cn(
                         'border-b transition-colors',
                         rowStatusClasses(item.stock_status),
+                        canExpand && 'cursor-pointer',
                       )}
+                      onClick={() => toggleExpandedItem(item.item_code, canExpand)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleExpandedItem(item.item_code, canExpand);
+                        }
+                      }}
+                      tabIndex={canExpand ? 0 : undefined}
+                      aria-expanded={canExpand ? isExpanded : undefined}
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      <td
+                        className="cursor-pointer px-4 py-3 font-mono text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSearchSelect?.(item.item_code);
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSearchSelect?.(item.item_code);
+                          }
+                        }}
+                      >
                         {item.item_code}
                       </td>
-                      <td className="px-4 py-3 font-medium">{item.item_name}</td>
+                      <td
+                        className="cursor-pointer px-4 py-3 font-medium underline-offset-2 hover:text-primary hover:underline"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSearchSelect?.(item.item_name);
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSearchSelect?.(item.item_name);
+                          }
+                        }}
+                      >
+                        {item.item_name}
+                      </td>
                       <td className="px-4 py-3">{item.warehouse}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {item.on_hand.toLocaleString()}
@@ -241,23 +289,6 @@ export function StockLevelTable({
                       <td className="px-4 py-3">
                         <StockMovementBadge item={item} />
                       </td>
-                      {isGrouped && (
-                        <td className="px-4 py-3">
-                          {canExpand && (
-                            <button
-                              className="rounded p-1 hover:bg-muted"
-                              onClick={() => setExpandedItem(isExpanded ? null : item.item_code)}
-                              aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                          )}
-                        </td>
-                      )}
                     </tr>
                     {isExpanded && (
                       <tr className="bg-muted/20">

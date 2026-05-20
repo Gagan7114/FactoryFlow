@@ -39,6 +39,13 @@ export interface BranchSummary {
   total_quantity: number;
 }
 
+export interface WarehouseSummary {
+  warehouse: string;
+  item_count: number;
+  total_value: number;
+  total_quantity: number;
+}
+
 export interface ReportSummary {
   total_items: number;
   total_value: number;

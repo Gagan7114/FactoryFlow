@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api';
@@ -18,7 +18,7 @@ import {
   DEFAULT_STOCK_WAREHOUSE_FILTER,
   STOCK_BENCHMARK_STATS_STATUS_FILTER,
 } from '../constants';
-import type { StockDashboardFilters, StockSortCol } from '../types';
+import type { StockDashboardFilters, StockHealthStatus, StockSortCol } from '../types';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -28,10 +28,6 @@ function isSAPError(err: unknown): err is ApiError {
 function normalizeSearchParam(value: string | null): string | undefined {
   const search = value?.trim();
   return search ? search.toUpperCase() : undefined;
-}
-
-function sameStringArray(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
 export default function StockLevelDashboardPage() {
@@ -50,7 +46,7 @@ export default function StockLevelDashboardPage() {
   }); // Only read URL params on mount
 
   const [filters, setFilters] = useState<StockDashboardFilters>(initialFilters);
-  const [warehouseOptions, setWarehouseOptions] = useState<string[]>([]);
+  const [filterResetSignal, setFilterResetSignal] = useState(0);
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ col: StockSortCol; dir: 'asc' | 'desc' }>({
     col: 'health_ratio',
@@ -88,6 +84,24 @@ export default function StockLevelDashboardPage() {
     setPage(1);
   }, []);
 
+  const handleStatusCardSelect = useCallback((statuses: StockHealthStatus[]) => {
+    setFilters((current) => ({
+      ...current,
+      status: [...statuses],
+      movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
+    }));
+    setFilterResetSignal((current) => current + 1);
+    setPage(1);
+  }, []);
+
+  const handleItemSearchSelect = useCallback((term: string) => {
+    const search = term.trim().toUpperCase();
+    if (!search) return;
+    setFilters((current) => ({ ...current, search }));
+    setFilterResetSignal((current) => current + 1);
+    setPage(1);
+  }, []);
+
   const query = useStockLevels(
     { ...effectiveFilters, sort_by: sort.col, sort_dir: sort.dir, page },
     materialTypesResolved,
@@ -114,13 +128,6 @@ export default function StockLevelDashboardPage() {
   const sapError = query.error ?? statsQuery.error;
   const hasSAPError = sapError && isSAPError(sapError);
 
-  useEffect(() => {
-    if (!latestWarehouses) return;
-    setWarehouseOptions((current) =>
-      sameStringArray(current, latestWarehouses) ? current : latestWarehouses,
-    );
-  }, [latestWarehouses]);
-
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
@@ -132,9 +139,10 @@ export default function StockLevelDashboardPage() {
         onFiltersChange={handleFiltersChange}
         isFetching={itemGroupsQuery.isFetching || query.isFetching || statsQuery.isFetching}
         defaultValues={effectiveFilters}
-        warehouses={warehouseOptions}
+        warehouses={latestWarehouses ?? []}
         itemGroups={itemGroups}
         defaultItemGroup={defaultItemGroup}
+        externalResetSignal={filterResetSignal}
       />
 
       {hasSAPError && (
@@ -149,7 +157,11 @@ export default function StockLevelDashboardPage() {
 
       {!hasSAPError && (
         <>
-          <StockLevelMetaCards meta={statsMeta} />
+          <StockLevelMetaCards
+            meta={statsMeta}
+            activeStatuses={effectiveFilters.status}
+            onStatusSelect={handleStatusCardSelect}
+          />
           <StockLevelTable
             items={query.data?.data ?? []}
             isLoading={query.isLoading || query.isFetching}
@@ -161,6 +173,7 @@ export default function StockLevelDashboardPage() {
             sortCol={sort.col}
             sortDir={sort.dir}
             onSortChange={handleSortChange}
+            onSearchSelect={handleItemSearchSelect}
           />
         </>
       )}

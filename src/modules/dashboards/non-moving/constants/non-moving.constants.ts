@@ -3,6 +3,8 @@
 // ============================================================================
 
 export const NON_MOVING_AGE_OPTIONS = [
+  { value: 0, label: 'All Stock' },
+  { value: 30, label: '30 Days' },
   { value: 45, label: '45 Days' },
   { value: 90, label: '90 Days' },
   { value: 180, label: '180 Days' },

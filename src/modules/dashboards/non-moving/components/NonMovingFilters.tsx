@@ -30,6 +30,7 @@ interface NonMovingFiltersProps {
   isLoadingGroups?: boolean;
   warehouses?: string[];
   subGroups?: string[];
+  externalResetSignal?: number;
 }
 
 interface FiltersForm {
@@ -41,12 +42,24 @@ interface FiltersForm {
 }
 
 function buildFilters(values: Partial<FiltersForm>): NonMovingFiltersType {
+  const age = values.age !== undefined && values.age !== '' ? Number(values.age) : 45;
+
   return {
-    age: Number(values.age) || 45,
+    age: Number.isFinite(age) ? age : 45,
     item_group: Number(values.item_group) || 0,
     warehouse: values.warehouse?.length ? values.warehouse : undefined,
     sub_group: values.sub_group?.length ? values.sub_group : undefined,
     search: normalizeSearch(values.search),
+  };
+}
+
+function formDefaultsFromFilters(defaultValues: NonMovingFiltersType): FiltersForm {
+  return {
+    age: String(defaultValues.age),
+    item_group: String(defaultValues.item_group),
+    warehouse: defaultValues.warehouse ?? [],
+    sub_group: defaultValues.sub_group ?? [],
+    search: defaultValues.search ?? '',
   };
 }
 
@@ -58,16 +71,21 @@ export function NonMovingFilters({
   isLoadingGroups,
   warehouses = [],
   subGroups = [],
+  externalResetSignal = 0,
 }: NonMovingFiltersProps) {
   const { register, watch, reset, setValue, control } = useForm<FiltersForm>({
-    defaultValues: {
-      age: String(defaultValues.age),
-      item_group: String(defaultValues.item_group),
-      warehouse: defaultValues.warehouse ?? [],
-      sub_group: defaultValues.sub_group ?? [],
-      search: defaultValues.search ?? '',
-    },
+    defaultValues: formDefaultsFromFilters(defaultValues),
   });
+  const latestFormDefaultsRef = useRef<FiltersForm>(formDefaultsFromFilters(defaultValues));
+
+  useEffect(() => {
+    latestFormDefaultsRef.current = formDefaultsFromFilters(defaultValues);
+  }, [defaultValues]);
+
+  useEffect(() => {
+    if (externalResetSignal === 0) return;
+    reset(latestFormDefaultsRef.current);
+  }, [externalResetSignal, reset]);
 
   // Sync form when parent resolves the default item group
   useEffect(() => {

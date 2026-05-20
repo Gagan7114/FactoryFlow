@@ -7,16 +7,18 @@ import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBa
 import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
 import { useItemGroups, useNonMovingReport } from '../api';
 import {
-  NonMovingBranchSummary,
   NonMovingFilters,
   NonMovingMetaCards,
   NonMovingTable,
+  NonMovingWarehouseSummary,
 } from '../components';
 import type {
   BranchSummary,
   NonMovingFilters as NonMovingFiltersType,
   ReportSummary,
+  WarehouseSummary,
 } from '../types';
+import { groupNonMovingItemsBySku } from '../utils/nonMovingGrouping';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -30,6 +32,7 @@ export default function NonMovingDashboardPage() {
     age: 45,
     item_group: 0,
   });
+  const [filterResetSignal, setFilterResetSignal] = useState(0);
   const [hasSelectedMaterialType, setHasSelectedMaterialType] = useState(false);
 
   const materialTypesResolved = Boolean(itemGroupsQuery.data) || itemGroupsQuery.isError;
@@ -89,10 +92,32 @@ export default function NonMovingDashboardPage() {
     effectiveFilters.search,
   ]);
 
+  const groupedItems = useMemo(() => groupNonMovingItemsBySku(filteredItems), [filteredItems]);
+
+  const filteredWarehouseSummary = useMemo((): WarehouseSummary[] => {
+    const warehouseMap = new Map<string, WarehouseSummary>();
+    for (const item of filteredItems) {
+      const existing = warehouseMap.get(item.warehouse);
+      if (existing) {
+        existing.item_count += 1;
+        existing.total_value += item.value;
+        existing.total_quantity += item.quantity;
+      } else {
+        warehouseMap.set(item.warehouse, {
+          warehouse: item.warehouse,
+          item_count: 1,
+          total_value: item.value,
+          total_quantity: item.quantity,
+        });
+      }
+    }
+    return [...warehouseMap.values()].sort((a, b) => a.warehouse.localeCompare(b.warehouse));
+  }, [filteredItems]);
+
   const filteredSummary = useMemo((): ReportSummary | undefined => {
     if (!reportQuery.data) return undefined;
     const branchMap = new Map<string, BranchSummary>();
-    for (const item of filteredItems) {
+    for (const item of groupedItems) {
       const existing = branchMap.get(item.branch);
       if (existing) {
         existing.item_count += 1;
@@ -108,23 +133,30 @@ export default function NonMovingDashboardPage() {
       }
     }
     return {
-      total_items: filteredItems.length,
-      total_value: filteredItems.reduce((s, i) => s + i.value, 0),
-      total_quantity: filteredItems.reduce((s, i) => s + i.quantity, 0),
+      total_items: groupedItems.length,
+      total_value: groupedItems.reduce((s, i) => s + i.value, 0),
+      total_quantity: groupedItems.reduce((s, i) => s + i.quantity, 0),
       by_branch: [...branchMap.values()],
     };
-  }, [reportQuery.data, filteredItems]);
+  }, [reportQuery.data, groupedItems]);
 
   const handleFiltersChange = useCallback((f: NonMovingFiltersType) => {
     setHasSelectedMaterialType(true);
     setFilters(f);
   }, []);
 
+  const handleItemSearchSelect = useCallback((term: string) => {
+    const search = term.trim().toUpperCase();
+    if (!search) return;
+    setFilters((current) => ({ ...current, search }));
+    setFilterResetSignal((current) => current + 1);
+  }, []);
+
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Non-Moving"
-        description="Raw materials with no movement beyond the specified age threshold — identify dead stock and slow-moving inventory"
+        description="Raw materials by movement age - identify recently moved, slow-moving, and non-moving inventory"
       />
 
       <NonMovingFilters
@@ -135,6 +167,7 @@ export default function NonMovingDashboardPage() {
         isLoadingGroups={itemGroupsQuery.isLoading}
         warehouses={warehouses}
         subGroups={subGroups}
+        externalResetSignal={filterResetSignal}
       />
 
       {reportQuery.error && isSAPError(reportQuery.error) && (
@@ -144,10 +177,12 @@ export default function NonMovingDashboardPage() {
       {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
-          <NonMovingBranchSummary branches={filteredSummary?.by_branch ?? []} />
+          <NonMovingWarehouseSummary warehouses={filteredWarehouseSummary} />
           <NonMovingTable
-            items={filteredItems}
+            items={groupedItems}
+            detailItems={filteredItems}
             isLoading={reportQuery.isLoading || reportQuery.isFetching}
+            onSearchSelect={handleItemSearchSelect}
           />
         </>
       )}

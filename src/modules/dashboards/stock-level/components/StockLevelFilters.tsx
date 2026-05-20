@@ -35,6 +35,7 @@ interface StockLevelFiltersProps {
   warehouses?: string[];
   itemGroups?: string[];
   defaultItemGroup?: string;
+  externalResetSignal?: number;
 }
 
 interface FiltersForm {
@@ -57,6 +58,19 @@ function buildFilters(values: Partial<FiltersForm>): StockDashboardFilters {
   return filters;
 }
 
+function formDefaultsFromFilters(
+  defaultValues?: StockDashboardFilters,
+  defaultItemGroup?: string,
+): FiltersForm {
+  return {
+    search: defaultValues?.search ?? '',
+    item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+    warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
+    status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
+    movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
+  };
+}
+
 export function StockLevelFilters({
   onFiltersChange,
   isFetching,
@@ -64,18 +78,25 @@ export function StockLevelFilters({
   warehouses = [],
   itemGroups = [],
   defaultItemGroup,
+  externalResetSignal = 0,
 }: StockLevelFiltersProps) {
   const { register, watch, reset, control, setValue } = useForm<FiltersForm>({
-    defaultValues: {
-      search: defaultValues?.search ?? '',
-      item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
-      warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
-      status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
-      movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
-    },
+    defaultValues: formDefaultsFromFilters(defaultValues, defaultItemGroup),
   });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestFormDefaultsRef = useRef<FiltersForm>(
+    formDefaultsFromFilters(defaultValues, defaultItemGroup),
+  );
+
+  useEffect(() => {
+    latestFormDefaultsRef.current = formDefaultsFromFilters(defaultValues, defaultItemGroup);
+  }, [defaultItemGroup, defaultValues]);
+
+  useEffect(() => {
+    if (externalResetSignal === 0) return;
+    reset(latestFormDefaultsRef.current);
+  }, [externalResetSignal, reset]);
 
   useEffect(() => {
     setValue(
