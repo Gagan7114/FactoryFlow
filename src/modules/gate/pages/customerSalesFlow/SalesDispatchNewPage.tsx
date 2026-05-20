@@ -1,4 +1,13 @@
-import { FileText, PackageCheck, RefreshCw, ShieldCheck, Truck } from 'lucide-react';
+import {
+  AlertTriangle,
+  FileText,
+  PackageCheck,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Truck,
+  X,
+} from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,14 +32,7 @@ import {
   type VehicleSelection,
 } from '@/modules/gate/components';
 import { SearchableSelect } from '@/shared/components';
-import {
-  Button,
-  Input,
-  Label,
-  NativeSelect,
-  SelectOption,
-  Textarea,
-} from '@/shared/components/ui';
+import { Button, Input, Label, NativeSelect, SelectOption, Textarea } from '@/shared/components/ui';
 import { getErrorMessage } from '@/shared/utils';
 
 import {
@@ -119,9 +121,9 @@ function parseDocumentKey(value: string) {
   const docEntry = Number(docEntryText);
 
   if (
-    (documentType === 'INVOICE' || documentType === 'STOCK_TRANSFER')
-    && Number.isFinite(docEntry)
-    && docEntry > 0
+    (documentType === 'INVOICE' || documentType === 'STOCK_TRANSFER') &&
+    Number.isFinite(docEntry) &&
+    docEntry > 0
   ) {
     return {
       documentType,
@@ -132,6 +134,41 @@ function parseDocumentKey(value: string) {
   return null;
 }
 
+function getCreateDocuments(
+  documentType: SalesDispatchDocumentType,
+  selectedDocuments: SalesDispatchDocument[],
+  selectedDocument: SalesDispatchDocument | null,
+) {
+  const sourceDocuments =
+    documentType === 'INVOICE' && selectedDocuments.length > 0
+      ? selectedDocuments
+      : selectedDocument
+        ? [selectedDocument]
+        : [];
+  const seen = new Set<string>();
+
+  return sourceDocuments.filter((document) => {
+    const key = buildDocumentKey(document);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getUniqueDocumentValues(
+  documents: SalesDispatchDocument[],
+  getValue: (document: SalesDispatchDocument) => string,
+) {
+  const values: string[] = [];
+  documents.forEach((document) => {
+    const value = getValue(document).trim();
+    if (value && !values.includes(value)) {
+      values.push(value);
+    }
+  });
+  return values;
+}
+
 export default function SalesDispatchNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -139,14 +176,15 @@ export default function SalesDispatchNewPage() {
   const initialDocumentType = parseInitialDocumentType(searchParams.get('documentType'));
 
   const [draft, setDraft] = useState<DispatchDraft>(() => buildEmptyDraft(initialDocumentType));
-  const [selectedListDocument, setSelectedListDocument] = useState<SalesDispatchDocument | null>(null);
+  const [selectedListDocument, setSelectedListDocument] = useState<SalesDispatchDocument | null>(
+    null,
+  );
+  const [selectedDocuments, setSelectedDocuments] = useState<SalesDispatchDocument[]>([]);
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [formError, setFormError] = useState('');
 
-  const {
-    data: existingEntry,
-    isLoading: isExistingLoading,
-  } = useSalesDispatchByVehicleEntry(existingVehicleEntryId);
+  const { data: existingEntry, isLoading: isExistingLoading } =
+    useSalesDispatchByVehicleEntry(existingVehicleEntryId);
   const {
     data: documents = [],
     isLoading: isDocumentsLoading,
@@ -157,7 +195,10 @@ export default function SalesDispatchNewPage() {
     search: submittedSearch,
     limit: 50,
   });
-  const selectedDocumentKey = useMemo(() => parseDocumentKey(draft.documentKey), [draft.documentKey]);
+  const selectedDocumentKey = useMemo(
+    () => parseDocumentKey(draft.documentKey),
+    [draft.documentKey],
+  );
   const { data: selectedDocumentDetail } = useSalesDispatchDocument(
     existingEntry ? null : selectedDocumentKey?.documentType,
     existingEntry ? null : selectedDocumentKey?.docEntry,
@@ -188,6 +229,16 @@ export default function SalesDispatchNewPage() {
     [documents, draft.documentKey],
   );
   const selectedDocument = selectedDocumentDetail || selectedListDocument || documentFromList;
+  const documentsForDisplay =
+    selectedDocuments.length > 0 ? selectedDocuments : selectedDocument ? [selectedDocument] : [];
+  const customerNames = getUniqueDocumentValues(
+    documentsForDisplay,
+    (document) => document.card_name || document.card_code || '',
+  );
+  const ewayBills = getUniqueDocumentValues(
+    documentsForDisplay,
+    (document) => document.eway_bill || '',
+  );
 
   const documentDisplay = selectedDocument
     ? buildDocumentLabel(selectedDocument)
@@ -209,8 +260,31 @@ export default function SalesDispatchNewPage() {
       documentType,
       documentKey: '',
     }));
+    setSelectedDocuments([]);
     setSubmittedSearch('');
     setFormError('');
+  };
+
+  const handleAddSelectedDocument = () => {
+    if (!selectedDocument || draft.documentType !== 'INVOICE') return;
+    setSelectedDocuments((current) => {
+      if (
+        current.some(
+          (document) => buildDocumentKey(document) === buildDocumentKey(selectedDocument),
+        )
+      ) {
+        return current;
+      }
+      return [...current, selectedDocument];
+    });
+    setSelectedListDocument(null);
+    updateDraft('documentKey', '');
+  };
+
+  const handleRemoveSelectedDocument = (documentKey: string) => {
+    setSelectedDocuments((current) =>
+      current.filter((document) => buildDocumentKey(document) !== documentKey),
+    );
   };
 
   const handleSaveAndNext = async () => {
@@ -219,7 +293,13 @@ export default function SalesDispatchNewPage() {
       return;
     }
 
-    if (!existingEntry && !selectedDocument) {
+    const selectedPayloadDocuments = getCreateDocuments(
+      draft.documentType,
+      selectedDocuments,
+      selectedDocument,
+    );
+
+    if (!existingEntry && selectedPayloadDocuments.length === 0) {
       setFormError(`Please select the SAP ${formatDocumentType(draft.documentType).toLowerCase()}`);
       return;
     }
@@ -260,11 +340,16 @@ export default function SalesDispatchNewPage() {
         ? await updateSalesDispatch.mutateAsync({ id: existingEntry.id, data: payload })
         : await createSalesDispatch.mutateAsync({
             ...payload,
-            document_type: selectedDocument!.document_type,
-            sap_doc_entry: selectedDocument!.doc_entry,
+            document_type: selectedPayloadDocuments[0].document_type,
+            sap_doc_entry: selectedPayloadDocuments[0].doc_entry,
+            documents: selectedPayloadDocuments.map((document) => ({
+              document_type: document.document_type,
+              sap_doc_entry: document.doc_entry,
+              dispatch_plan_id: getDispatchPlanId(document),
+            })),
             vehicle_id: draft.vehicle.vehicleId,
             driver_id: draft.driver.driverId,
-            dispatch_plan_id: getDispatchPlanId(selectedDocument),
+            dispatch_plan_id: getDispatchPlanId(selectedPayloadDocuments[0]),
           });
 
       toast.success('Docking details saved');
@@ -321,7 +406,11 @@ export default function SalesDispatchNewPage() {
         <FormSection icon={<FileText className="h-5 w-5" />} title="SAP Document">
           <div className="grid gap-4 lg:grid-cols-2">
             {existingEntry ? (
-              <ReadOnlyTextField label="SAP Document" value={documentDisplay} className="lg:col-span-2" />
+              <ReadOnlyTextField
+                label="SAP Document"
+                value={documentDisplay}
+                className="lg:col-span-2"
+              />
             ) : (
               <>
                 <div className="space-y-2">
@@ -343,9 +432,15 @@ export default function SalesDispatchNewPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <Label>
-                      SAP {formatDocumentType(draft.documentType)} <span className="text-destructive">*</span>
+                      SAP {formatDocumentType(draft.documentType)}{' '}
+                      <span className="text-destructive">*</span>
                     </Label>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => refetchDocuments()}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refetchDocuments()}
+                    >
                       <RefreshCw className="mr-2 h-3.5 w-3.5" />
                       Refresh
                     </Button>
@@ -383,7 +478,9 @@ export default function SalesDispatchNewPage() {
                             document.doc_date,
                             document.card_name || document.to_warehouse || document.warehouses,
                             document.item_summary,
-                          ].filter(Boolean).join(' - ')}
+                          ]
+                            .filter(Boolean)
+                            .join(' - ')}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">
                           {document.total_quantity ? `Qty ${document.total_quantity}` : ''}
@@ -391,25 +488,74 @@ export default function SalesDispatchNewPage() {
                       </div>
                     )}
                   />
+                  {draft.documentType === 'INVOICE' ? (
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!selectedDocument}
+                        onClick={handleAddSelectedDocument}
+                      >
+                        <Plus className="mr-2 h-3.5 w-3.5" />
+                        Add Invoice
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </>
             )}
 
+            {!existingEntry && selectedDocuments.length > 0 ? (
+              <SelectedDocumentsTable
+                documents={selectedDocuments}
+                onRemove={handleRemoveSelectedDocument}
+              />
+            ) : null}
+
+            {!existingEntry && customerNames.length > 1 ? (
+              <WarningBanner text="Selected invoices belong to different customers." />
+            ) : null}
+
+            {!existingEntry && ewayBills.length > 1 ? (
+              <WarningBanner text="Selected invoices have different e-way bills." />
+            ) : null}
+
             <ReadOnlyTextField
               label="Customer / Destination"
-              value={selectedDocument?.card_name || existingEntry?.customer_name || existingEntry?.to_warehouse || ''}
+              value={
+                customerNames.join(', ') ||
+                existingEntry?.customer_name ||
+                existingEntry?.to_warehouse ||
+                ''
+              }
             />
             <ReadOnlyTextField
               label="Ship To / Warehouse"
-              value={selectedDocument?.ship_to_address || existingEntry?.ship_to_address || existingEntry?.warehouses || ''}
+              value={
+                getUniqueDocumentValues(
+                  documentsForDisplay,
+                  (document) => document.ship_to_address || document.warehouses || '',
+                ).join(', ') ||
+                existingEntry?.ship_to_address ||
+                existingEntry?.warehouses ||
+                ''
+              }
             />
             <ReadOnlyTextField
               label="E-way Bill"
-              value={selectedDocument?.eway_bill || existingEntry?.eway_bill || ''}
+              value={ewayBills.join(', ') || existingEntry?.eway_bill || ''}
             />
             <ReadOnlyTextField
               label="Transporter"
-              value={selectedDocument?.transporter_name || existingEntry?.transporter_name || ''}
+              value={
+                getUniqueDocumentValues(
+                  documentsForDisplay,
+                  (document) => document.transporter_name || '',
+                ).join(', ') ||
+                existingEntry?.transporter_name ||
+                ''
+              }
             />
           </div>
         </FormSection>
@@ -463,11 +609,7 @@ export default function SalesDispatchNewPage() {
         showPrevious={false}
         isSaving={isSaving}
         nextLabel={
-          isExistingReadOnly
-            ? 'Continue to Weighment'
-            : isSaving
-              ? 'Saving...'
-              : 'Save and Next'
+          isExistingReadOnly ? 'Continue to Weighment' : isSaving ? 'Saving...' : 'Save and Next'
         }
       />
     </div>
@@ -498,6 +640,61 @@ function FormSection({
       </h3>
       {children}
     </section>
+  );
+}
+
+function SelectedDocumentsTable({
+  documents,
+  onRemove,
+}: {
+  documents: SalesDispatchDocument[];
+  onRemove: (documentKey: string) => void;
+}) {
+  return (
+    <div className="lg:col-span-2 overflow-hidden rounded-md border">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px]">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="p-3 text-left text-sm font-medium">Invoice</th>
+              <th className="p-3 text-left text-sm font-medium">Customer</th>
+              <th className="p-3 text-left text-sm font-medium">E-way Bill</th>
+              <th className="p-3 text-left text-sm font-medium">Weight</th>
+              <th className="w-12 p-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {documents.map((document) => (
+              <tr key={buildDocumentKey(document)} className="border-t">
+                <td className="whitespace-nowrap p-3 text-sm font-medium">{document.doc_num}</td>
+                <td className="p-3 text-sm">{document.card_name || '-'}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{document.eway_bill || '-'}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{document.total_weight || '-'}</td>
+                <td className="p-2 text-right">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemove(buildDocumentKey(document))}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function WarningBanner({ text }: { text: string }) {
+  return (
+    <div className="lg:col-span-2 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+      <AlertTriangle className="h-4 w-4 shrink-0" />
+      <span>{text}</span>
+    </div>
   );
 }
 
@@ -584,7 +781,12 @@ function ReadOnlyTextField({
   return (
     <div className={`space-y-2 ${className || ''}`}>
       <Label>{label}</Label>
-      <Input value={formatValue(value)} readOnly disabled className={lockedDateTimeInputClassName} />
+      <Input
+        value={formatValue(value)}
+        readOnly
+        disabled
+        className={lockedDateTimeInputClassName}
+      />
     </div>
   );
 }
@@ -648,7 +850,12 @@ function DocumentLinesTable({
                     {getLineText(line, ['uom', 'UomCode', 'unitMsr']) || '-'}
                   </td>
                   <td className="whitespace-nowrap p-3 text-sm">
-                    {getLineText(line, ['warehouse_code', 'WhsCode', 'from_warehouse', 'to_warehouse']) || '-'}
+                    {getLineText(line, [
+                      'warehouse_code',
+                      'WhsCode',
+                      'from_warehouse',
+                      'to_warehouse',
+                    ]) || '-'}
                   </td>
                 </tr>
               ))

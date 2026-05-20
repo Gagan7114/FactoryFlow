@@ -65,6 +65,8 @@ export interface SalesDispatchGatepassReadiness {
 
 export interface SalesDispatchItem {
   id: number;
+  document?: number | null;
+  document_sap_doc_num?: string;
   line_num: number;
   item_code: string;
   item_name: string;
@@ -83,6 +85,39 @@ export interface SalesDispatchItem {
   total_litres?: string | null;
   total_boxes?: string | null;
   total_weight?: string | null;
+}
+
+export interface SalesDispatchGateOutDocument {
+  id: number;
+  dispatch_plan?: number | null;
+  document_type: SalesDispatchDocumentType;
+  sap_doc_entry: number;
+  sap_doc_num: string;
+  sap_doc_date?: string | null;
+  sap_doc_total?: string | null;
+  sap_branch_id?: number | null;
+  sap_branch_name?: string;
+  sap_reference?: string;
+  sap_comments?: string;
+  customer_code?: string;
+  customer_name?: string;
+  ship_to_code?: string;
+  ship_to_address?: string;
+  place_of_supply?: string;
+  bp_gstin?: string;
+  eway_bill?: string;
+  from_warehouse?: string;
+  to_warehouse?: string;
+  warehouses?: string;
+  item_summary?: string;
+  base_refs?: string;
+  total_quantity?: string | null;
+  total_litres?: string | null;
+  total_boxes?: string | null;
+  total_weight?: string | null;
+  items?: SalesDispatchItem[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface SalesDispatchAttachment {
@@ -109,6 +144,16 @@ export interface SalesDispatchGateOut {
   vehicle: number;
   transporter?: number | null;
   driver: number;
+  documents?: SalesDispatchGateOutDocument[];
+  document_count?: number;
+  document_numbers?: string[];
+  primary_document?:
+    | SalesDispatchGateOutDocument
+    | {
+        document_type: SalesDispatchDocumentType;
+        sap_doc_entry: number;
+        sap_doc_num: string;
+      };
   document_type: SalesDispatchDocumentType;
   sap_doc_entry: number;
   sap_doc_num: string;
@@ -247,8 +292,13 @@ export interface SalesDispatchListParams {
 export type SalesDispatchReportParams = SalesDispatchListParams;
 
 export interface SalesDispatchCreateRequest {
-  document_type: SalesDispatchDocumentType;
-  sap_doc_entry: number;
+  document_type?: SalesDispatchDocumentType;
+  sap_doc_entry?: number;
+  documents?: Array<{
+    document_type: SalesDispatchDocumentType;
+    sap_doc_entry: number;
+    dispatch_plan_id?: number | null;
+  }>;
   vehicle_id: number;
   driver_id: number;
   dispatch_plan_id?: number | null;
