@@ -66,6 +66,10 @@ function sortWarehouseDetails(a: NonMovingItem, b: NonMovingItem): number {
   return a.warehouse.localeCompare(b.warehouse);
 }
 
+function firstSearchWord(value: string): string {
+  return value.trim().split(/\s+/)[0] ?? '';
+}
+
 function SortIcon({ col, sort }: { col: SortCol; sort: SortState }) {
   if (sort.col !== col)
     return <ChevronsUpDown className="ml-1 inline h-3 w-3 text-muted-foreground/50" />;
@@ -345,13 +349,13 @@ export function NonMovingTable({
                         tabIndex={0}
                         onClick={(event) => {
                           event.stopPropagation();
-                          onSearchSelect?.(item.item_name);
+                          onSearchSelect?.(firstSearchWord(item.item_name));
                         }}
                         onKeyDown={(event) => {
                           event.stopPropagation();
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            onSearchSelect?.(item.item_name);
+                            onSearchSelect?.(firstSearchWord(item.item_name));
                           }
                         }}
                       >

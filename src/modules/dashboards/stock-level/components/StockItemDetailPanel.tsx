@@ -50,12 +50,8 @@ function formatStockDifference(difference: number): string {
   return formatted;
 }
 
-function plannedQty(item: StockItem): number {
-  return item.planned_qty ?? 0;
-}
-
 function stockDifference(item: StockItem): number {
-  return item.on_hand - item.min_stock - plannedQty(item);
+  return item.on_hand - item.min_stock;
 }
 
 export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPanelProps) {
@@ -94,7 +90,6 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
             <th className="pb-2 pr-3 text-left font-medium">Warehouse</th>
             <th className="pb-2 pr-3 text-right font-medium">On Hand</th>
             <th className="pb-2 pr-3 text-right font-medium">Benchmark</th>
-            <th className="pb-2 pr-3 text-right font-medium">Planned Qty</th>
             <th className="pb-2 pr-3 text-right font-medium">Difference</th>
             <th className="pb-2 pr-3 text-right font-medium">Health</th>
             <th className="pb-2 pr-3 text-left font-medium">UOM</th>
@@ -103,7 +98,6 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
         </thead>
         <tbody>
           {items.map((item) => {
-            const planned = plannedQty(item);
             const difference = stockDifference(item);
 
             return (
@@ -115,7 +109,6 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
                 <td className="py-2 pr-3 text-right tabular-nums">
                   {item.min_stock.toLocaleString()}
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums">{planned.toLocaleString()}</td>
                 <td
                   className={cn(
                     'py-2 pr-3 text-right tabular-nums',

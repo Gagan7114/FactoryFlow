@@ -54,12 +54,12 @@ function formatStockDifference(difference: number): string {
   return formatted;
 }
 
-function plannedQty(item: StockItem): number {
-  return item.planned_qty ?? 0;
+function stockDifference(item: StockItem): number {
+  return item.on_hand - item.min_stock;
 }
 
-function stockDifference(item: StockItem): number {
-  return item.on_hand - item.min_stock - plannedQty(item);
+function firstSearchWord(value: string): string {
+  return value.trim().split(/\s+/)[0] ?? '';
 }
 
 function SortIcon({
@@ -96,7 +96,7 @@ export function StockLevelTable({
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = 11;
+  const colCount = 10;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -175,12 +175,6 @@ export function StockLevelTable({
                 >
                   Benchmark <SortIcon col="min_stock" sortCol={sortCol} sortDir={sortDir} />
                 </th>
-                <th
-                  className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => toggleSort('planned_qty')}
-                >
-                  Planned Qty <SortIcon col="planned_qty" sortCol={sortCol} sortDir={sortDir} />
-                </th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">
                   Difference
                 </th>
@@ -199,7 +193,6 @@ export function StockLevelTable({
               {items.map((item) => {
                 const canExpand = isGrouped && (item.warehouse_count ?? 1) > 1;
                 const isExpanded = canExpand && expandedItem === item.item_code;
-                const planned = plannedQty(item);
                 const difference = stockDifference(item);
 
                 return (
@@ -244,13 +237,13 @@ export function StockLevelTable({
                         tabIndex={0}
                         onClick={(event) => {
                           event.stopPropagation();
-                          onSearchSelect?.(item.item_name);
+                          onSearchSelect?.(firstSearchWord(item.item_name));
                         }}
                         onKeyDown={(event) => {
                           event.stopPropagation();
                           if (event.key === 'Enter' || event.key === ' ') {
                             event.preventDefault();
-                            onSearchSelect?.(item.item_name);
+                            onSearchSelect?.(firstSearchWord(item.item_name));
                           }
                         }}
                       >
@@ -262,9 +255,6 @@ export function StockLevelTable({
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {item.min_stock.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {planned.toLocaleString()}
                       </td>
                       <td
                         className={cn(
@@ -339,10 +329,6 @@ export function StockLevelTable({
 
 function StockMovementBadge({ item }: { item: StockItem }) {
   const config = {
-    planned: {
-      label: 'Planned',
-      classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    },
     recent: {
       label: 'Recently Used',
       classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -364,8 +350,7 @@ function StockMovementBadge({ item }: { item: StockItem }) {
         {label}
       </span>
       {item.days_since_last_consumption !== null &&
-        item.days_since_last_consumption !== undefined &&
-        status !== 'planned' && (
+        item.days_since_last_consumption !== undefined && (
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {item.days_since_last_consumption}d since use
           </span>
