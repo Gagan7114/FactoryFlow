@@ -8,6 +8,7 @@ import type { WarehouseSummary } from '../types';
 
 interface NonMovingWarehouseSummaryProps {
   warehouses: WarehouseSummary[];
+  onWarehouseSelect?: (warehouse: string) => void;
 }
 
 type SortCol = 'warehouse' | 'item_count' | 'total_quantity' | 'total_value';
@@ -37,7 +38,10 @@ function SortIcon({ col, sort }: { col: SortCol; sort: SortState }) {
   );
 }
 
-export function NonMovingWarehouseSummary({ warehouses }: NonMovingWarehouseSummaryProps) {
+export function NonMovingWarehouseSummary({
+  warehouses,
+  onWarehouseSelect,
+}: NonMovingWarehouseSummaryProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [sort, setSort] = useState<SortState>({
     col: 'total_value',
@@ -128,7 +132,16 @@ export function NonMovingWarehouseSummary({ warehouses }: NonMovingWarehouseSumm
                 {sortedWarehouses.map((warehouse) => (
                   <tr
                     key={warehouse.warehouse}
-                    className="border-b transition-colors hover:bg-muted/30"
+                    className="cursor-pointer border-b transition-colors hover:bg-muted/30"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onWarehouseSelect?.(warehouse.warehouse)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onWarehouseSelect?.(warehouse.warehouse);
+                      }
+                    }}
                   >
                     <td className="px-4 py-2 font-medium">{warehouse.warehouse}</td>
                     <td className="px-4 py-2 text-right tabular-nums">

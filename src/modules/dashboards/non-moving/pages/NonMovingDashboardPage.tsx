@@ -62,14 +62,11 @@ export default function NonMovingDashboardPage() {
     return [...new Set(items.map((item) => item.sub_group).filter(Boolean))].sort();
   }, [reportQuery.data]);
 
-  const filteredItems = useMemo(() => {
+  const warehouseSummaryItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
     result = result.filter(
       (item) => item.days_since_last_movement >= effectiveFilters.age,
     );
-    if (effectiveFilters.warehouse?.length) {
-      result = result.filter((item) => effectiveFilters.warehouse!.includes(item.warehouse));
-    }
     if (effectiveFilters.sub_group?.length) {
       result = result.filter((item) => effectiveFilters.sub_group!.includes(item.sub_group));
     }
@@ -87,16 +84,22 @@ export default function NonMovingDashboardPage() {
   }, [
     reportQuery.data,
     effectiveFilters.age,
-    effectiveFilters.warehouse,
     effectiveFilters.sub_group,
     effectiveFilters.search,
   ]);
+
+  const filteredItems = useMemo(() => {
+    if (!effectiveFilters.warehouse?.length) return warehouseSummaryItems;
+    return warehouseSummaryItems.filter((item) =>
+      effectiveFilters.warehouse!.includes(item.warehouse),
+    );
+  }, [warehouseSummaryItems, effectiveFilters.warehouse]);
 
   const groupedItems = useMemo(() => groupNonMovingItemsBySku(filteredItems), [filteredItems]);
 
   const filteredWarehouseSummary = useMemo((): WarehouseSummary[] => {
     const warehouseMap = new Map<string, WarehouseSummary>();
-    for (const item of filteredItems) {
+    for (const item of warehouseSummaryItems) {
       const existing = warehouseMap.get(item.warehouse);
       if (existing) {
         existing.item_count += 1;
@@ -112,7 +115,7 @@ export default function NonMovingDashboardPage() {
       }
     }
     return [...warehouseMap.values()].sort((a, b) => a.warehouse.localeCompare(b.warehouse));
-  }, [filteredItems]);
+  }, [warehouseSummaryItems]);
 
   const filteredSummary = useMemo((): ReportSummary | undefined => {
     if (!reportQuery.data) return undefined;
@@ -152,6 +155,19 @@ export default function NonMovingDashboardPage() {
     setFilterResetSignal((current) => current + 1);
   }, []);
 
+  const handleWarehouseSelect = useCallback(
+    (warehouse: string) => {
+      setHasSelectedMaterialType(true);
+      setFilters((current) => ({
+        ...current,
+        item_group: effectiveFilters.item_group,
+        warehouse: [warehouse],
+      }));
+      setFilterResetSignal((current) => current + 1);
+    },
+    [effectiveFilters.item_group],
+  );
+
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
@@ -177,7 +193,10 @@ export default function NonMovingDashboardPage() {
       {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
-          <NonMovingWarehouseSummary warehouses={filteredWarehouseSummary} />
+          <NonMovingWarehouseSummary
+            warehouses={filteredWarehouseSummary}
+            onWarehouseSelect={handleWarehouseSelect}
+          />
           <NonMovingTable
             items={groupedItems}
             detailItems={filteredItems}
