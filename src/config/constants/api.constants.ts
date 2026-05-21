@@ -434,6 +434,9 @@ export const API_ENDPOINTS = {
     REPORTS_DOWNTIME_PARETO: '/production-execution/reports/analytics/downtime-pareto/',
     REPORTS_COST_ANALYSIS: '/production-execution/reports/analytics/cost-analysis/',
     REPORTS_WASTE_TREND: '/production-execution/reports/analytics/waste-trend/',
+    REPORTS_PRODUCTION_MOVEMENT: '/production-execution/reports/production-movement/',
+    REPORTS_PRODUCTION_MOVEMENT_FILTER_OPTIONS:
+      '/production-execution/reports/production-movement/filter-options/',
     // Timeline Actions
     START_PRODUCTION: (runId: number) =>
       `/production-execution/runs/${runId}/start-production/`,
