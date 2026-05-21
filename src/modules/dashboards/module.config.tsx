@@ -16,6 +16,9 @@ const InventoryAgeDashboardPage = lazy(
 const NonMovingDashboardPage = lazy(
   () => import('./non-moving/pages/NonMovingDashboardPage'),
 );
+const ProductionMovementDashboardPage = lazy(
+  () => import('./production-movement/pages/ProductionMovementDashboardPage'),
+);
 export const dashboardsModuleConfig: ModuleConfig = {
   name: 'dashboards',
   routes: [
@@ -28,6 +31,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
+        DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
       ],
     },
     {
@@ -59,6 +63,13 @@ export const dashboardsModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Non-Moving' },
     },
     {
+      path: '/dashboards/production-movement',
+      element: <ProductionMovementDashboardPage />,
+      layout: 'main',
+      permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT],
+      breadcrumb: { label: 'Production Movement' },
+    },
+    {
       path: '/dashboards/dispatch-plans',
       element: <Navigate to="/dispatch/plans" replace />,
       layout: 'main',
@@ -77,6 +88,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
+        DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
       ],
       hasSubmenu: true,
       children: [
@@ -99,6 +111,11 @@ export const dashboardsModuleConfig: ModuleConfig = {
           path: '/dashboards/non-moving',
           title: 'Non-Moving',
           permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
+        },
+        {
+          path: '/dashboards/production-movement',
+          title: 'Production Movement',
+          permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT],
         },
       ],
     },
