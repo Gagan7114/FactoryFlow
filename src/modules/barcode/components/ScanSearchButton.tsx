@@ -1,13 +1,7 @@
 import { Camera, CameraOff, ScanBarcode } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/components/ui';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui';
 
 import { useScanner } from '../hooks/useScanner';
 
@@ -51,8 +45,18 @@ const parseScannedValue = (rawValue: string, expectedType: ScanEntityType) => {
   }
 
   const upperValue = value.toUpperCase();
-  const isBox = upperValue.startsWith('BOX-') || upperValue.startsWith('BBOX');
-  const isPallet = upperValue.startsWith('PLT-') || upperValue.startsWith('PPLT');
+  const isBox =
+    upperValue.startsWith('BOX-') ||
+    upperValue.startsWith('BBOX') ||
+    upperValue.startsWith('BOX_ID:');
+  const isPallet =
+    upperValue.startsWith('PLT-') ||
+    upperValue.startsWith('PPLT') ||
+    upperValue.startsWith('PALLET_ID:');
+  const normalizedValue =
+    upperValue.startsWith('BOX_ID:') || upperValue.startsWith('PALLET_ID:')
+      ? value.split(':', 2)[1]?.trim() || value
+      : value;
 
   if (expectedType === 'BOX' && isPallet) {
     return { value: '', error: 'This is a pallet label. Please scan a box label.' };
@@ -70,7 +74,7 @@ const parseScannedValue = (rawValue: string, expectedType: ScanEntityType) => {
     return { value: '', error: 'Please scan a pallet label.' };
   }
 
-  return { value, error: '' };
+  return { value: normalizedValue, error: '' };
 };
 
 export default function ScanSearchButton({
@@ -83,18 +87,21 @@ export default function ScanSearchButton({
   const [scanError, setScanError] = useState('');
   const autoStartedRef = useRef(false);
 
-  const handleScan = useCallback((barcode: string) => {
-    const result = parseScannedValue(barcode, expectedType);
-    if (result.error) {
-      setScanError(result.error);
-      return;
-    }
-    if (!result.value) return;
-    onScan(result.value);
-    setManualInput('');
-    setScanError('');
-    setOpen(false);
-  }, [expectedType, onScan]);
+  const handleScan = useCallback(
+    (barcode: string) => {
+      const result = parseScannedValue(barcode, expectedType);
+      if (result.error) {
+        setScanError(result.error);
+        return;
+      }
+      if (!result.value) return;
+      onScan(result.value);
+      setManualInput('');
+      setScanError('');
+      setOpen(false);
+    },
+    [expectedType, onScan],
+  );
 
   const { isScanning, error, elementId, startScanning, stopScanning } = useScanner({
     onScan: handleScan,
@@ -155,7 +162,12 @@ export default function ScanSearchButton({
                   }}
                   placeholder={`Scan ${expectedLabel} or type manually...`}
                 />
-                <Button type="button" size="sm" disabled={!manualInput.trim()} onClick={submitManualScan}>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!manualInput.trim()}
+                  onClick={submitManualScan}
+                >
                   Use
                 </Button>
               </div>
