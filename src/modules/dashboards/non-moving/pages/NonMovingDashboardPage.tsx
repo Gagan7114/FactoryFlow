@@ -6,17 +6,11 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
 import { useItemGroups, useNonMovingReport } from '../api';
-import {
-  NonMovingFilters,
-  NonMovingMetaCards,
-  NonMovingTable,
-  NonMovingWarehouseSummary,
-} from '../components';
+import { NonMovingFilters, NonMovingMetaCards, NonMovingTable } from '../components';
 import type {
   BranchSummary,
   NonMovingFilters as NonMovingFiltersType,
   ReportSummary,
-  WarehouseSummary,
 } from '../types';
 import { groupNonMovingItemsBySku } from '../utils/nonMovingGrouping';
 
@@ -52,20 +46,16 @@ export default function NonMovingDashboardPage() {
 
   const reportQuery = useNonMovingReport(effectiveFilters, materialTypesResolved);
 
-  const warehouses = useMemo(() => {
-    const items = reportQuery.data?.data ?? [];
-    return [...new Set(items.map((item) => item.warehouse).filter(Boolean))].sort();
-  }, [reportQuery.data]);
-
   const subGroups = useMemo(() => {
     const items = reportQuery.data?.data ?? [];
     return [...new Set(items.map((item) => item.sub_group).filter(Boolean))].sort();
   }, [reportQuery.data]);
 
-  const warehouseSummaryItems = useMemo(() => {
+  const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
     result = result.filter(
-      (item) => item.days_since_last_movement >= effectiveFilters.age,
+      (item) =>
+        effectiveFilters.age <= 0 || item.days_since_last_movement > effectiveFilters.age,
     );
     if (effectiveFilters.sub_group?.length) {
       result = result.filter((item) => effectiveFilters.sub_group!.includes(item.sub_group));
@@ -76,8 +66,7 @@ export default function NonMovingDashboardPage() {
         (item) =>
           item.item_code.toLowerCase().includes(term) ||
           item.item_name.toLowerCase().includes(term) ||
-          item.branch.toLowerCase().includes(term) ||
-          item.warehouse.toLowerCase().includes(term),
+          item.branch.toLowerCase().includes(term),
       );
     }
     return result;
@@ -88,34 +77,7 @@ export default function NonMovingDashboardPage() {
     effectiveFilters.search,
   ]);
 
-  const filteredItems = useMemo(() => {
-    if (!effectiveFilters.warehouse?.length) return warehouseSummaryItems;
-    return warehouseSummaryItems.filter((item) =>
-      effectiveFilters.warehouse!.includes(item.warehouse),
-    );
-  }, [warehouseSummaryItems, effectiveFilters.warehouse]);
-
   const groupedItems = useMemo(() => groupNonMovingItemsBySku(filteredItems), [filteredItems]);
-
-  const filteredWarehouseSummary = useMemo((): WarehouseSummary[] => {
-    const warehouseMap = new Map<string, WarehouseSummary>();
-    for (const item of warehouseSummaryItems) {
-      const existing = warehouseMap.get(item.warehouse);
-      if (existing) {
-        existing.item_count += 1;
-        existing.total_value += item.value;
-        existing.total_quantity += item.quantity;
-      } else {
-        warehouseMap.set(item.warehouse, {
-          warehouse: item.warehouse,
-          item_count: 1,
-          total_value: item.value,
-          total_quantity: item.quantity,
-        });
-      }
-    }
-    return [...warehouseMap.values()].sort((a, b) => a.warehouse.localeCompare(b.warehouse));
-  }, [warehouseSummaryItems]);
 
   const filteredSummary = useMemo((): ReportSummary | undefined => {
     if (!reportQuery.data) return undefined;
@@ -155,19 +117,6 @@ export default function NonMovingDashboardPage() {
     setFilterResetSignal((current) => current + 1);
   }, []);
 
-  const handleWarehouseSelect = useCallback(
-    (warehouse: string) => {
-      setHasSelectedMaterialType(true);
-      setFilters((current) => ({
-        ...current,
-        item_group: effectiveFilters.item_group,
-        warehouse: [warehouse],
-      }));
-      setFilterResetSignal((current) => current + 1);
-    },
-    [effectiveFilters.item_group],
-  );
-
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
@@ -181,7 +130,6 @@ export default function NonMovingDashboardPage() {
         defaultValues={effectiveFilters}
         itemGroups={itemGroupsQuery.data?.data ?? []}
         isLoadingGroups={itemGroupsQuery.isLoading}
-        warehouses={warehouses}
         subGroups={subGroups}
         externalResetSignal={filterResetSignal}
       />
@@ -193,13 +141,8 @@ export default function NonMovingDashboardPage() {
       {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
-          <NonMovingWarehouseSummary
-            warehouses={filteredWarehouseSummary}
-            onWarehouseSelect={handleWarehouseSelect}
-          />
           <NonMovingTable
             items={groupedItems}
-            detailItems={filteredItems}
             isLoading={reportQuery.isLoading || reportQuery.isFetching}
             onSearchSelect={handleItemSearchSelect}
           />

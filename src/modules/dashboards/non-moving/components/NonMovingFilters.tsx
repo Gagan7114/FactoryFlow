@@ -28,7 +28,6 @@ interface NonMovingFiltersProps {
   defaultValues: NonMovingFiltersType;
   itemGroups: ItemGroup[];
   isLoadingGroups?: boolean;
-  warehouses?: string[];
   subGroups?: string[];
   externalResetSignal?: number;
 }
@@ -36,7 +35,6 @@ interface NonMovingFiltersProps {
 interface FiltersForm {
   age: string;
   item_group: string;
-  warehouse: string[];
   sub_group: string[];
   search: string;
 }
@@ -47,7 +45,6 @@ function buildFilters(values: Partial<FiltersForm>): NonMovingFiltersType {
   return {
     age: Number.isFinite(age) ? age : 45,
     item_group: Number(values.item_group) || 0,
-    warehouse: values.warehouse?.length ? values.warehouse : undefined,
     sub_group: values.sub_group?.length ? values.sub_group : undefined,
     search: normalizeSearch(values.search),
   };
@@ -57,7 +54,6 @@ function formDefaultsFromFilters(defaultValues: NonMovingFiltersType): FiltersFo
   return {
     age: String(defaultValues.age),
     item_group: String(defaultValues.item_group),
-    warehouse: defaultValues.warehouse ?? [],
     sub_group: defaultValues.sub_group ?? [],
     search: defaultValues.search ?? '',
   };
@@ -69,7 +65,6 @@ export function NonMovingFilters({
   defaultValues,
   itemGroups,
   isLoadingGroups,
-  warehouses = [],
   subGroups = [],
   externalResetSignal = 0,
 }: NonMovingFiltersProps) {
@@ -120,7 +115,6 @@ export function NonMovingFilters({
     reset({
       age: '45',
       item_group: String(defaultGroup),
-      warehouse: [],
       sub_group: [],
       search: '',
     });
@@ -167,27 +161,6 @@ export function NonMovingFilters({
             </>
           )}
         </Select>
-      </div>
-
-      {/* Warehouse */}
-      <div className="order-3 flex flex-col gap-1.5">
-        <Label htmlFor="nm-filter-warehouse" className="text-xs">
-          Warehouse
-        </Label>
-        <Controller
-          name="warehouse"
-          control={control}
-          render={({ field }) => (
-            <MultiSelect
-              id="nm-filter-warehouse"
-              options={warehouses.map((w) => ({ label: w, value: w }))}
-              selected={field.value}
-              onChange={field.onChange}
-              placeholder="All"
-              className="w-44"
-            />
-          )}
-        />
       </div>
 
       {/* Sub Group */}
