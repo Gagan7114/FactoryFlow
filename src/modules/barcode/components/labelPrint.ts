@@ -30,8 +30,9 @@ const TSC_DA310_100X40_PAGE_STYLE = `
 
     .barcode-print-sheet {
       width: 100mm;
-      margin: 0;
-      padding: 0;
+      max-width: 100mm;
+      margin: 0 !important;
+      padding: 0 !important;
       background: #fff;
       display: block;
     }
@@ -39,7 +40,10 @@ const TSC_DA310_100X40_PAGE_STYLE = `
     .barcode-label {
       width: 100mm;
       height: 40mm;
-      margin: 0;
+      max-width: 100mm;
+      max-height: 40mm;
+      margin: 0 !important;
+      padding: 0 !important;
       page-break-after: always;
       break-after: page;
       page-break-inside: avoid;
