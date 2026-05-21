@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ENTRY_TYPES } from '@/config/constants';
 import { usePermission } from '@/core/auth';
+import type { DateRange } from '@/core/store/filtersSlice';
 import { useGlobalDateRange } from '@/core/store/hooks';
 import { Badge, Card, CardContent, Input } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
@@ -20,6 +21,7 @@ import {
   useRejectedQCReturnEntries,
   useVehicleEntriesCount,
 } from '../api';
+import { DateRangePicker } from '../components';
 import { GATE_ENTRY_TYPES, type GateEntryTypeConfig } from '../constants/gateEntryTypes';
 import { getJobWorkDisplayStatus, hasLinkedJobWorkProductionOrder } from '../utils';
 import {
@@ -76,13 +78,14 @@ const FINAL_STATUSES = new Set(['COMPLETED', 'CANCELLED', 'REJECTED', 'FINAL_REJ
 export default function GateDashboardPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermission();
+  const { dateRange, dateRangeAsDateObjects, setDateRange, resetDateRange } = useGlobalDateRange();
   const [searchTerm, setSearchTerm] = useState('');
 
   const visibleEntryTypes = useMemo(
     () => GATE_ENTRY_TYPES.filter((entryType) => hasAnyPermission(entryType.viewPermissions)),
     [hasAnyPermission],
   );
-  const statsByEntryType = useGateDashboardStats(visibleEntryTypes);
+  const statsByEntryType = useGateDashboardStats(visibleEntryTypes, dateRange);
 
   const filteredEntryTypes = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -110,14 +113,27 @@ export default function GateDashboardPage() {
           <h2 className="text-3xl font-bold tracking-tight">Gate Management</h2>
           <p className="text-muted-foreground">Complete gate control for all movements</p>
         </div>
-        <div className="relative w-full lg:max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search type, document, vehicle, reason"
-            className="pl-9"
+        <div className="flex w-full flex-col gap-3 lg:w-auto lg:flex-row lg:items-center">
+          <DateRangePicker
+            date={dateRangeAsDateObjects}
+            className="w-full lg:w-[340px]"
+            onDateChange={(date) => {
+              if (date && 'from' in date) {
+                setDateRange(date);
+              } else {
+                resetDateRange();
+              }
+            }}
           />
+          <div className="relative w-full lg:w-[420px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search type, document, vehicle, reason"
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 
@@ -221,8 +237,15 @@ function EntryTypeStatsPills({ stats }: { stats?: EntryTypeStats }) {
 
 function useGateDashboardStats(
   visibleEntryTypes: GateEntryTypeConfig[],
+  dateRange: DateRange,
 ): Record<string, EntryTypeStats> {
-  const { dateRange } = useGlobalDateRange();
+  const dateParams = useMemo(
+    () => ({
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+    }),
+    [dateRange.from, dateRange.to],
+  );
   const visibleEntryIds = useMemo(
     () => new Set(visibleEntryTypes.map((entryType) => entryType.id)),
     [visibleEntryTypes],
@@ -231,67 +254,94 @@ function useGateDashboardStats(
 
   const rawMaterialCounts = useVehicleEntriesCount(
     {
-      from_date: dateRange.from,
-      to_date: dateRange.to,
+      ...dateParams,
       entry_type: ENTRY_TYPES.RAW_MATERIAL,
     },
     { enabled: isVisible('raw-materials') },
   );
   const dailyNeedsCounts = useVehicleEntriesCount(
     {
-      from_date: dateRange.from,
-      to_date: dateRange.to,
+      ...dateParams,
       entry_type: ENTRY_TYPES.DAILY_NEED,
     },
     { enabled: isVisible('daily-needs') },
   );
   const maintenanceCounts = useVehicleEntriesCount(
     {
-      from_date: dateRange.from,
-      to_date: dateRange.to,
+      ...dateParams,
       entry_type: ENTRY_TYPES.MAINTENANCE,
     },
     { enabled: isVisible('maintenance') },
   );
   const constructionCounts = useVehicleEntriesCount(
     {
-      from_date: dateRange.from,
-      to_date: dateRange.to,
+      ...dateParams,
       entry_type: ENTRY_TYPES.CONSTRUCTION,
     },
     { enabled: isVisible('construction') },
   );
-  const personDashboard = usePersonGateInDashboard(isVisible('visitor-labour'));
-  const emptyVehicleInEntries = useEmptyVehicleGateInEntries(undefined, {
+  const personDashboard = usePersonGateInDashboard(dateParams, {
+    enabled: isVisible('visitor-labour'),
+  });
+  const emptyVehicleInEntries = useEmptyVehicleGateInEntries(dateParams, {
     enabled: isVisible('empty-vehicle-in'),
   });
-  const emptyVehicleEligibleEntries = useEmptyVehicleEligibleEntries(undefined, {
+  const emptyVehicleEligibleEntries = useEmptyVehicleEligibleEntries(dateParams, {
     enabled: isVisible('empty-vehicle-out'),
   });
-  const emptyVehicleOutEntries = useEmptyVehicleGateOutEntries(undefined, {
+  const emptyVehicleOutEntries = useEmptyVehicleGateOutEntries(dateParams, {
     enabled: isVisible('empty-vehicle-out'),
   });
-  const bstOutEntries = useBSTGateOutEntries(undefined, { enabled: isVisible('bst-out') });
-  const bstInEntries = useBSTGateInEntries(undefined, { enabled: isVisible('bst-in') });
-  const bstReturnEntries = useBSTGateReturnEntries(undefined, {
+  const bstOutEntries = useBSTGateOutEntries(dateParams, { enabled: isVisible('bst-out') });
+  const bstInEntries = useBSTGateInEntries(dateParams, { enabled: isVisible('bst-in') });
+  const bstReturnEntries = useBSTGateReturnEntries(dateParams, {
     enabled: isVisible('bst-return'),
   });
-  const rejectedQCReturnEntries = useRejectedQCReturnEntries({
+  const rejectedQCReturnEntries = useRejectedQCReturnEntries(dateParams, {
     enabled: isVisible('rejected-qc-return'),
   });
-  const jobWorkEntries = useJobWorkGateInEntries(undefined, { enabled: isVisible('job-work') });
+  const jobWorkEntries = useJobWorkGateInEntries(dateParams, { enabled: isVisible('job-work') });
 
-  const salesDispatchEntries = useMemo(() => readCustomerFlowEntries(SALES_DISPATCH_KEY), []);
-  const customerReturnEntries = useMemo(() => readCustomerFlowEntries(CUSTOMER_RETURN_KEY), []);
+  const salesDispatchEntries = useMemo(
+    () =>
+      filterCustomerFlowEntriesByDate(
+        readCustomerFlowEntries(SALES_DISPATCH_KEY),
+        dateRange,
+        'gateOutDate',
+      ),
+    [dateRange.from, dateRange.to],
+  );
+  const customerReturnEntries = useMemo(
+    () =>
+      filterCustomerFlowEntriesByDate(
+        readCustomerFlowEntries(CUSTOMER_RETURN_KEY),
+        dateRange,
+        'gateInDate',
+      ),
+    [dateRange.from, dateRange.to],
+  );
   const repairPartsOutEntries = useMemo(
-    () => readRepairMovementEntries(REPAIR_PARTS_OUT_COMPLETED_KEY),
-    [],
+    () =>
+      filterRepairMovementEntriesByDate(
+        readRepairMovementEntries(REPAIR_PARTS_OUT_COMPLETED_KEY),
+        dateRange,
+        'gateOutDate',
+      ),
+    [dateRange.from, dateRange.to],
   );
   const repairPartsInEntries = useMemo(
-    () => readRepairMovementEntries(REPAIR_PARTS_IN_COMPLETED_KEY),
-    [],
+    () =>
+      filterRepairMovementEntriesByDate(
+        readRepairMovementEntries(REPAIR_PARTS_IN_COMPLETED_KEY),
+        dateRange,
+        'gateInDate',
+      ),
+    [dateRange.from, dateRange.to],
   );
-  const localRejectedQCReturnEntries = useMemo(() => readRejectedQCReturnEntries(), []);
+  const localRejectedQCReturnEntries = useMemo(
+    () => filterRejectedQCReturnEntriesByDate(readRejectedQCReturnEntries(), dateRange),
+    [dateRange.from, dateRange.to],
+  );
 
   const rejectedEntries = rejectedQCReturnEntries.data?.length
     ? rejectedQCReturnEntries.data
@@ -335,8 +385,13 @@ function useGateDashboardStats(
           tone: 'open',
         },
         {
-          label: 'Today',
-          value: personDashboard.data?.today.total_entries ?? 0,
+          label: 'Done',
+          value: personDashboard.data?.range?.exits ?? 0,
+          tone: 'completed',
+        },
+        {
+          label: 'Total',
+          value: personDashboard.data?.range?.total_entries ?? 0,
           tone: 'total',
         },
       ],
@@ -474,6 +529,50 @@ function useGateDashboardStats(
       ],
     },
   };
+}
+
+function filterCustomerFlowEntriesByDate(
+  entries: ReturnType<typeof readCustomerFlowEntries>,
+  dateRange: DateRange,
+  dateField: string,
+) {
+  return entries.filter((entry) => {
+    const storedDate = getCustomerFlowValue(entry, dateField);
+    const comparableDate = storedDate !== '-' ? storedDate : entry.createdAt.slice(0, 10);
+    return isDateInRange(comparableDate, dateRange);
+  });
+}
+
+function filterRepairMovementEntriesByDate(
+  entries: ReturnType<typeof readRepairMovementEntries>,
+  dateRange: DateRange,
+  dateField: string,
+) {
+  return entries.filter((entry) => {
+    const storedDate = getRepairMovementValue(entry, dateField);
+    const comparableDate = storedDate !== '-' ? storedDate : entry.createdAt.slice(0, 10);
+    return isDateInRange(comparableDate, dateRange);
+  });
+}
+
+function filterRejectedQCReturnEntriesByDate(
+  entries: ReturnType<typeof readRejectedQCReturnEntries>,
+  dateRange: DateRange,
+) {
+  return entries.filter((entry) => {
+    const gateOutDate =
+      typeof entry.values.gateOutDate === 'string' ? entry.values.gateOutDate : '';
+    const comparableDate = gateOutDate || entry.createdAt.slice(0, 10);
+    return isDateInRange(comparableDate, dateRange);
+  });
+}
+
+function isDateInRange(value: string | undefined, dateRange: DateRange) {
+  if (!value) return false;
+  const date = value.slice(0, 10);
+  if (dateRange.from && date < dateRange.from) return false;
+  if (dateRange.to && date > dateRange.to) return false;
+  return true;
 }
 
 function buildVehicleCountStats(
