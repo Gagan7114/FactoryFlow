@@ -3,6 +3,8 @@ import {
   ArrowUpFromLine,
   IndianRupee,
   ListChecks,
+  PackageCheck,
+  PackageOpen,
   Scale,
 } from 'lucide-react';
 
@@ -32,6 +34,11 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
       icon: ListChecks,
     },
     {
+      label: 'Opening Qty',
+      value: numberFormatter.format(summary?.opening_qty ?? 0),
+      icon: PackageOpen,
+    },
+    {
       label: 'In Qty',
       value: numberFormatter.format(summary?.total_in_qty ?? 0),
       icon: ArrowDownToLine,
@@ -47,6 +54,11 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
       icon: Scale,
     },
     {
+      label: 'Closing Qty',
+      value: numberFormatter.format(summary?.closing_qty ?? 0),
+      icon: PackageCheck,
+    },
+    {
       label: 'Movement Value',
       value: currencyFormatter.format(summary?.total_value ?? 0),
       icon: IndianRupee,
@@ -54,7 +66,7 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -65,7 +77,9 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
               </div>
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">{card.label}</p>
-                <p className="truncate text-2xl font-semibold">{card.value}</p>
+                <p className="break-words text-xl font-semibold leading-tight tabular-nums">
+                  {card.value}
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,7 @@
 import type { ProductionMovementFilters } from '../types';
 
 export const PRODUCTION_MOVEMENT_STALE_TIME = 3 * 60 * 1000;
+export const DEFAULT_PRODUCTION_MOVEMENT_WAREHOUSE = 'BH-PC';
 
 export const DIRECTION_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -24,12 +25,11 @@ function toDateInput(date: Date): string {
 
 export function getDefaultProductionMovementFilters(): ProductionMovementFilters {
   const to = new Date();
-  const from = new Date(to);
-  from.setDate(from.getDate() - 30);
 
   return {
-    date_from: toDateInput(from),
+    date_from: toDateInput(to),
     date_to: toDateInput(to),
+    warehouse: DEFAULT_PRODUCTION_MOVEMENT_WAREHOUSE,
     direction: 'all',
     production_only: true,
     limit: 500,

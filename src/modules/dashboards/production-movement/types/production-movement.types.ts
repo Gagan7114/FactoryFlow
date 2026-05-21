@@ -44,9 +44,11 @@ export interface ProductionMovementSummary {
   total_entries: number;
   inward_entries: number;
   outward_entries: number;
+  opening_qty: number;
   total_in_qty: number;
   total_out_qty: number;
   net_qty: number;
+  closing_qty: number;
   total_value: number;
   net_value: number;
   warehouse_count: number;

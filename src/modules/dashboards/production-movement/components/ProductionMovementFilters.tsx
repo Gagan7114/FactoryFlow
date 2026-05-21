@@ -37,6 +37,11 @@ export function ProductionMovementFilters({
   isFetching,
   onFiltersChange,
 }: ProductionMovementFiltersProps) {
+  const warehouseOptions = filterOptions?.warehouses ?? [];
+  const selectedWarehouseMissing =
+    Boolean(filters.warehouse) &&
+    !warehouseOptions.some((warehouse) => warehouse.code === filters.warehouse);
+
   function updateFilters(patch: Partial<FiltersType>) {
     onFiltersChange({ ...filters, ...patch });
   }
@@ -75,7 +80,10 @@ export function ProductionMovementFilters({
           }
         >
           <SelectOption value="">All</SelectOption>
-          {(filterOptions?.warehouses ?? []).map((warehouse) => (
+          {selectedWarehouseMissing && (
+            <SelectOption value={filters.warehouse!}>{filters.warehouse}</SelectOption>
+          )}
+          {warehouseOptions.map((warehouse) => (
             <SelectOption key={warehouse.code} value={warehouse.code}>
               {warehouse.code}
             </SelectOption>
