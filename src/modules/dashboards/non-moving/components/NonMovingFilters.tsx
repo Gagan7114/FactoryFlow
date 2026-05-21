@@ -72,6 +72,7 @@ export function NonMovingFilters({
     defaultValues: formDefaultsFromFilters(defaultValues),
   });
   const latestFormDefaultsRef = useRef<FiltersForm>(formDefaultsFromFilters(defaultValues));
+  const selectedAge = watch('age');
 
   useEffect(() => {
     latestFormDefaultsRef.current = formDefaultsFromFilters(defaultValues);
@@ -121,6 +122,12 @@ export function NonMovingFilters({
     onFiltersChange({ age: 45, item_group: defaultGroup });
   }
 
+  function handleAgeClick(age: number) {
+    const nextAge = String(age);
+    if (selectedAge === nextAge) return;
+    setValue('age', nextAge, { shouldDirty: true, shouldTouch: true });
+  }
+
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
       {/* Age (Days) */}
@@ -128,13 +135,26 @@ export function NonMovingFilters({
         <Label htmlFor="nm-filter-age" className="text-xs">
           Age (Days)
         </Label>
-        <Select id="nm-filter-age" className="w-40" {...register('age')}>
+        <input type="hidden" id="nm-filter-age" {...register('age')} />
+        <div
+          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+          role="group"
+          aria-label="Age filter"
+        >
           {NON_MOVING_AGE_OPTIONS.map((opt) => (
-            <SelectOption key={opt.value} value={String(opt.value)}>
+            <Button
+              key={opt.value}
+              type="button"
+              size="sm"
+              variant={selectedAge === String(opt.value) ? 'default' : 'ghost'}
+              className="h-8 px-3 text-xs"
+              aria-pressed={selectedAge === String(opt.value)}
+              onClick={() => handleAgeClick(opt.value)}
+            >
               {opt.label}
-            </SelectOption>
+            </Button>
           ))}
-        </Select>
+        </div>
       </div>
 
       {/* Material Type */}
