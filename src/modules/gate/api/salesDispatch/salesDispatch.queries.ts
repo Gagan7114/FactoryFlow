@@ -6,6 +6,7 @@ import {
   type SalesDispatchDocumentParams,
   type SalesDispatchDocumentType,
   type SalesDispatchGatepassPrintRequest,
+  type SalesDispatchGatepassReprintRequest,
   type SalesDispatchListParams,
   type SalesDispatchLockUpdateRequest,
   type SalesDispatchReasonRequest,
@@ -30,6 +31,8 @@ export const SALES_DISPATCH_QUERY_KEYS = {
     [...SALES_DISPATCH_QUERY_KEYS.all, 'byVehicleEntry', vehicleEntryId] as const,
   attachments: (id?: number | null) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'attachments', id] as const,
+  gatepassPrintHistory: (id?: number | null) =>
+    [...SALES_DISPATCH_QUERY_KEYS.all, 'gatepassPrintHistory', id] as const,
 };
 
 function invalidateSalesDispatch(queryClient: ReturnType<typeof useQueryClient>) {
@@ -172,6 +175,24 @@ export function usePrintSalesDispatchGatepass() {
     mutationFn: ({ id, data }: { id: number; data: SalesDispatchGatepassPrintRequest }) =>
       salesDispatchApi.printGatepass(id, data),
     onSuccess: () => invalidateSalesDispatch(queryClient),
+  });
+}
+
+export function useReprintSalesDispatchGatepass() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: SalesDispatchGatepassReprintRequest }) =>
+      salesDispatchApi.reprintGatepass(id, data),
+    onSuccess: () => invalidateSalesDispatch(queryClient),
+  });
+}
+
+export function useSalesDispatchGatepassPrintHistory(id?: number | null) {
+  return useQuery({
+    queryKey: SALES_DISPATCH_QUERY_KEYS.gatepassPrintHistory(id),
+    queryFn: () => salesDispatchApi.gatepassPrintHistory(id as number),
+    enabled: Boolean(id),
   });
 }
 

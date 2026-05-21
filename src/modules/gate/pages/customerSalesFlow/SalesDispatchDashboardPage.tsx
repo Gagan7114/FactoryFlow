@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  List,
   Lock,
   Plus,
   RefreshCw,
@@ -18,20 +19,37 @@ import { useGlobalDateRange } from '@/core/store/hooks';
 import {
   type SalesDispatchGateOut,
   type SalesDispatchLock,
-  type SalesDispatchReport,
   useSalesDispatchEntries,
   useSalesDispatchLock,
-  useSalesDispatchReports,
   useUpdateSalesDispatchLock,
 } from '@/modules/gate/api';
 import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import { Button, Card, CardContent, Input } from '@/shared/components/ui';
-import { getErrorMessage } from '@/shared/utils';
+import { cn, getErrorMessage } from '@/shared/utils';
 
 import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
 
 const GATE_OUT_PENDING_STATUS = 'PRINT_COMMITTED';
 const GATE_OUT_COMPLETED_STATUS = 'DISPATCHED';
+const ACTIVE_SALES_DISPATCH_STATUSES = [
+  'DOCKED',
+  'PHOTO_ATTACHED',
+  'READY_FOR_GATEPASS',
+  'GATEPASS_PRINTED',
+  'PRINT_COMMITTED',
+];
+const GATEPASS_PENDING_STATUSES = ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'];
+
+type DashboardFilter =
+  | 'ALL'
+  | 'PENDING_OUT'
+  | 'AWAITING_GATEPASS'
+  | 'PRINT_NOT_COMMITTED'
+  | 'MARKED_OUT'
+  | 'WAITING_INSIDE'
+  | 'MISSING_PHOTO_GPS'
+  | 'GATEPASS_PENDING'
+  | 'DISPATCHED';
 
 export default function SalesDispatchDashboardPage() {
   const navigate = useNavigate();
@@ -40,53 +58,132 @@ export default function SalesDispatchDashboardPage() {
   const isGateOutMode = isSalesDispatchOutPath(location.pathname);
   const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
   const [searchTerm, setSearchTerm] = useState('');
-  const listParams = useMemo(() => ({
-    from_date: dateRange.from,
-    to_date: dateRange.to,
-    search: searchTerm.trim() || undefined,
-    document_type: isGateOutMode ? 'INVOICE' as const : undefined,
-  }), [dateRange.from, dateRange.to, searchTerm, isGateOutMode]);
+  const [selectedFilterState, setSelectedFilterState] = useState<{
+    isGateOutMode: boolean;
+    filter: DashboardFilter;
+  }>({ isGateOutMode, filter: 'ALL' });
+  const selectedFilter =
+    selectedFilterState.isGateOutMode === isGateOutMode ? selectedFilterState.filter : 'ALL';
+  const listParams = useMemo(
+    () => ({
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      search: searchTerm.trim() || undefined,
+      document_type: isGateOutMode ? ('INVOICE' as const) : undefined,
+    }),
+    [dateRange.from, dateRange.to, searchTerm, isGateOutMode],
+  );
 
   const { data: entries = [], isFetching, refetch } = useSalesDispatchEntries(listParams);
-  const { data: report, isFetching: isReportFetching } = useSalesDispatchReports(listParams);
   const { data: dispatchLock } = useSalesDispatchLock();
   const updateLock = useUpdateSalesDispatchLock();
 
-  const gateOutPendingEntries = useMemo(() => entries.filter(
-    (entry) => entry.status === GATE_OUT_PENDING_STATUS,
-  ), [entries]);
-  const gateOutDispatchedEntries = useMemo(() => entries.filter(
-    (entry) => entry.status === GATE_OUT_COMPLETED_STATUS,
-  ), [entries]);
   const displayEntries = useMemo(() => {
     if (!isGateOutMode) return entries;
 
-    return entries
-      .filter((entry) => [GATE_OUT_PENDING_STATUS, GATE_OUT_COMPLETED_STATUS].includes(entry.status))
-      .sort(sortSalesDispatchOutEntries);
+    return entries.slice().sort(sortSalesDispatchOutEntries);
   }, [entries, isGateOutMode]);
+
+  const cardFilteredEntries = useMemo(
+    () =>
+      displayEntries.filter((entry) =>
+        matchesSalesDispatchDashboardFilter(entry, selectedFilter),
+      ),
+    [displayEntries, selectedFilter],
+  );
 
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return displayEntries;
-    return displayEntries.filter((entry) => buildSalesDispatchSearchText(entry).includes(query));
-  }, [displayEntries, searchTerm]);
+    if (!query) return cardFilteredEntries;
+    return cardFilteredEntries.filter((entry) =>
+      buildSalesDispatchSearchText(entry).includes(query),
+    );
+  }, [cardFilteredEntries, searchTerm]);
 
-  const counts = report?.counts;
-  const pendingOutCount = counts?.ready_for_dispatch ?? gateOutPendingEntries.length;
-  const completedCount = counts?.dispatched ?? entries.filter((entry) => entry.status === 'DISPATCHED').length;
-  const waitingInsideCount = counts?.waiting_inside ?? entries.filter((entry) => (
-    !['DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status)
-  )).length;
-  const missingPhotoCount = counts?.missing_photo ?? entries.filter((entry) => (
-    !entry.truck_photo || !entry.photo_latitude || !entry.photo_longitude
-  )).length;
-  const gatepassPendingCount = counts?.gatepass_pending ?? entries.filter(
-    (entry) => ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'].includes(entry.status),
-  ).length;
-  const printedNotCommittedCount = counts?.printed_not_committed ?? entries.filter(
-    (entry) => entry.status === 'GATEPASS_PRINTED',
-  ).length;
+  const allCount = countSalesDispatchDashboardEntries(displayEntries, 'ALL');
+  const pendingOutCount = countSalesDispatchDashboardEntries(displayEntries, 'PENDING_OUT');
+  const awaitingGatepassCount = countSalesDispatchDashboardEntries(
+    displayEntries,
+    'AWAITING_GATEPASS',
+  );
+  const printedNotCommittedCount = countSalesDispatchDashboardEntries(
+    displayEntries,
+    'PRINT_NOT_COMMITTED',
+  );
+  const markedOutCount = countSalesDispatchDashboardEntries(displayEntries, 'MARKED_OUT');
+  const waitingInsideCount = countSalesDispatchDashboardEntries(displayEntries, 'WAITING_INSIDE');
+  const missingPhotoCount = countSalesDispatchDashboardEntries(displayEntries, 'MISSING_PHOTO_GPS');
+  const gatepassPendingCount = countSalesDispatchDashboardEntries(
+    displayEntries,
+    'GATEPASS_PENDING',
+  );
+  const dispatchedCount = countSalesDispatchDashboardEntries(displayEntries, 'DISPATCHED');
+
+  const statCards = isGateOutMode
+    ? [
+        {
+          filter: 'ALL' as const,
+          icon: <List className="h-5 w-5 text-slate-600" />,
+          label: 'All',
+          value: allCount,
+        },
+        {
+          filter: 'PENDING_OUT' as const,
+          icon: <Truck className="h-5 w-5 text-blue-600" />,
+          label: 'Pending Out',
+          value: pendingOutCount,
+        },
+        {
+          filter: 'AWAITING_GATEPASS' as const,
+          icon: <FileText className="h-5 w-5 text-violet-600" />,
+          label: 'Awaiting Gatepass',
+          value: awaitingGatepassCount,
+        },
+        {
+          filter: 'PRINT_NOT_COMMITTED' as const,
+          icon: <Clock className="h-5 w-5 text-amber-600" />,
+          label: 'Print Not Committed',
+          value: printedNotCommittedCount,
+        },
+        {
+          filter: 'MARKED_OUT' as const,
+          icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+          label: 'Marked Out',
+          value: markedOutCount,
+        },
+      ]
+    : [
+        {
+          filter: 'ALL' as const,
+          icon: <List className="h-5 w-5 text-slate-600" />,
+          label: 'All',
+          value: allCount,
+        },
+        {
+          filter: 'WAITING_INSIDE' as const,
+          icon: <Truck className="h-5 w-5 text-blue-600" />,
+          label: 'Waiting Inside',
+          value: waitingInsideCount,
+        },
+        {
+          filter: 'MISSING_PHOTO_GPS' as const,
+          icon: <AlertTriangle className="h-5 w-5 text-amber-600" />,
+          label: 'Missing Photo / GPS',
+          value: missingPhotoCount,
+        },
+        {
+          filter: 'GATEPASS_PENDING' as const,
+          icon: <FileText className="h-5 w-5 text-violet-600" />,
+          label: 'Gatepass Pending',
+          value: gatepassPendingCount,
+        },
+        {
+          filter: 'DISPATCHED' as const,
+          icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+          label: 'Dispatched',
+          value: dispatchedCount,
+        },
+      ];
 
   const handleToggleLock = async () => {
     const isLocked = Boolean(dispatchLock?.is_locked);
@@ -156,29 +253,18 @@ export default function SalesDispatchDashboardPage() {
         />
       )}
 
-      {isGateOutMode ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="Pending Out" value={pendingOutCount} />
-          <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="Awaiting Gatepass" value={gatepassPendingCount} />
-          <StatCard icon={<Clock className="h-5 w-5 text-amber-600" />} label="Print Not Committed" value={printedNotCommittedCount} />
-          <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Marked Out" value={completedCount} />
-        </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="Waiting Inside" value={waitingInsideCount} />
-          <StatCard icon={<AlertTriangle className="h-5 w-5 text-amber-600" />} label="Missing Photo / GPS" value={missingPhotoCount} />
-          <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="Gatepass Pending" value={gatepassPendingCount} />
-          <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Dispatched" value={completedCount} />
-        </div>
-      )}
-
-      <ReportSnapshots
-        report={report}
-        isLoading={isReportFetching}
-        isGateOutMode={isGateOutMode}
-        gateOutPendingEntries={gateOutPendingEntries}
-        gateOutDispatchedEntries={gateOutDispatchedEntries}
-      />
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {statCards.map((card) => (
+          <StatCard
+            key={card.filter}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            isActive={selectedFilter === card.filter}
+            onClick={() => setSelectedFilterState({ isGateOutMode, filter: card.filter })}
+          />
+        ))}
+      </div>
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -198,11 +284,29 @@ export default function SalesDispatchDashboardPage() {
         </div>
 
         {isFetching && displayEntries.length === 0 ? (
-          <EmptyState text={isGateOutMode ? 'Loading sales dispatch out entries' : 'Loading docking entries'} />
+          <EmptyState
+            text={isGateOutMode ? 'Loading sales dispatch out entries' : 'Loading docking entries'}
+          />
         ) : displayEntries.length === 0 ? (
-          <EmptyState text={isGateOutMode ? 'No pending or completed sales dispatch out entries' : 'No docking entries yet'} />
+          <EmptyState
+            text={
+              isGateOutMode
+                ? 'No sales dispatch out entries yet'
+                : 'No docking entries yet'
+            }
+          />
         ) : filteredEntries.length === 0 ? (
-          <EmptyState text={isGateOutMode ? 'No sales dispatch out entries match this search' : 'No docking entries match this search'} />
+          <EmptyState
+            text={
+              searchTerm.trim()
+                ? isGateOutMode
+                  ? 'No sales dispatch out entries match this search'
+                  : 'No docking entries match this search'
+                : isGateOutMode
+                  ? 'No sales dispatch out entries match this filter'
+                  : 'No docking entries match this filter'
+            }
+          />
         ) : (
           <DispatchTable
             entries={filteredEntries}
@@ -232,58 +336,87 @@ function DispatchTable({
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[1100px]">
+        <table className="w-full min-w-[1580px] table-fixed">
+          <colgroup>
+            <col className="w-[180px]" />
+            <col className="w-[160px]" />
+            <col className="w-[230px]" />
+            <col className="w-[320px]" />
+            <col className="w-[130px]" />
+            <col className="w-[165px]" />
+            <col className="w-[260px]" />
+            <col className="w-[135px]" />
+          </colgroup>
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left text-sm font-medium">Entry No.</th>
-              <th className="p-3 text-left text-sm font-medium">SAP Document</th>
-              <th className="p-3 text-left text-sm font-medium">Customer</th>
-              <th className="p-3 text-left text-sm font-medium">Items</th>
-              <th className="p-3 text-left text-sm font-medium">Vehicle</th>
-              <th className="p-3 text-left text-sm font-medium">Gate Out</th>
-              <th className="p-3 text-left text-sm font-medium">Gatepass</th>
-              <th className="p-3 text-left text-sm font-medium">Status</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Entry No.</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">
+                SAP Document
+              </th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Customer</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Items</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Vehicle</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gate Out</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gatepass</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry) => (
-              <tr
-                key={entry.id}
-                className="cursor-pointer border-t transition-colors hover:bg-muted/50"
-                onClick={() => {
-                  navigate(getSalesDispatchDashboardEntryPath(entry, detailPath, gatepassPath, isGateOutMode));
-                }}
-              >
-                <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entry_no}</td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  <div>{entry.sap_doc_num || entry.sap_doc_entry}</div>
-                  <div className="text-xs text-muted-foreground">{formatDocumentType(entry.document_type)}</div>
-                </td>
-                <td className="p-3 text-sm">
-                  <div className="font-medium">{entry.customer_name || '-'}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {entry.customer_code || entry.place_of_supply || '-'}
-                  </div>
-                </td>
-                <td className="p-3 text-sm">{entry.item_summary || summarizeItems(entry.items)}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  {formatDateTime(entry.gate_out_date, entry.out_time)}
-                </td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  <GateStatusBadge
-                    status={entry.gatepass_no ? 'PRINTED' : 'PENDING'}
-                    label={entry.gatepass_no || 'Pending'}
-                  />
-                </td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  <GateStatusBadge
-                    status={entry.status}
-                    label={getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode)}
-                  />
-                </td>
-              </tr>
-            ))}
+            {entries.map((entry) => {
+              const itemSummary = entry.item_summary || summarizeItems(entry.items);
+
+              return (
+                <tr
+                  key={entry.id}
+                  className="cursor-pointer border-t align-top transition-colors hover:bg-muted/50"
+                  onClick={() => {
+                    navigate(
+                      getSalesDispatchDashboardEntryPath(
+                        entry,
+                        detailPath,
+                        gatepassPath,
+                        isGateOutMode,
+                      ),
+                    );
+                  }}
+                >
+                  <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entry_no}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    <div>{entry.sap_doc_num || entry.sap_doc_entry}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDocumentType(entry.document_type)}
+                    </div>
+                  </td>
+                  <td className="p-3 text-sm">
+                    <div className="truncate whitespace-nowrap font-medium">
+                      {entry.customer_name || '-'}
+                    </div>
+                    <div className="truncate whitespace-nowrap text-xs text-muted-foreground">
+                      {entry.customer_code || entry.place_of_supply || '-'}
+                    </div>
+                  </td>
+                  <td className="p-3 text-sm" title={itemSummary}>
+                    <div className="truncate whitespace-nowrap">{itemSummary}</div>
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    {formatDateTime(entry.gate_out_date, entry.out_time)}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    <GateStatusBadge
+                      status={entry.gatepass_no ? 'PRINTED' : 'PENDING'}
+                      label={entry.gatepass_no || 'Pending'}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    <GateStatusBadge
+                      status={entry.status}
+                      label={getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -316,7 +449,9 @@ function DockingLockPanel({
               {isLocked ? 'Docking printing is locked' : 'Docking printing is open'}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isLocked ? lock?.reason || 'No reason recorded' : 'Gatepass print and commit are available'}
+              {isLocked
+                ? lock?.reason || 'No reason recorded'
+                : 'Gatepass print and commit are available'}
             </p>
             {lock?.changed_at ? (
               <p className="mt-1 text-xs text-muted-foreground">
@@ -332,159 +467,9 @@ function DockingLockPanel({
           onClick={onToggle}
           disabled={isSaving}
         >
-          {isLocked ? (
-            <Unlock className="mr-2 h-4 w-4" />
-          ) : (
-            <Lock className="mr-2 h-4 w-4" />
-          )}
+          {isLocked ? <Unlock className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
           {isSaving ? 'Saving' : isLocked ? 'Unlock' : 'Lock Printing'}
         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ReportSnapshots({
-  report,
-  isLoading,
-  isGateOutMode,
-  gateOutPendingEntries,
-  gateOutDispatchedEntries,
-}: {
-  report?: SalesDispatchReport;
-  isLoading: boolean;
-  isGateOutMode: boolean;
-  gateOutPendingEntries: SalesDispatchGateOut[];
-  gateOutDispatchedEntries: SalesDispatchGateOut[];
-}) {
-  if (!report && isLoading && gateOutPendingEntries.length === 0) {
-    return <EmptyState text="Loading docking report snapshots" />;
-  }
-
-  if (isGateOutMode) {
-    const pendingEntries = report?.ready_for_dispatch ?? gateOutPendingEntries;
-    const dispatchedEntries = gateOutDispatchedEntries
-      .slice()
-      .sort((first, second) => timestampValue(second.dispatched_at || second.updated_at)
-        - timestampValue(first.dispatched_at || first.updated_at));
-
-    return (
-      <div className="grid gap-3 xl:grid-cols-3">
-        <ReportList
-          icon={<Truck className="h-4 w-4 text-blue-600" />}
-          title="Pending Out"
-          entries={pendingEntries}
-          emptyText="No pending gate out entries"
-          isGateOutMode={isGateOutMode}
-        />
-        <ReportList
-          icon={<CheckCircle2 className="h-4 w-4 text-green-600" />}
-          title="Recently Marked Out"
-          entries={dispatchedEntries}
-          emptyText="No marked out entries in this range"
-          isGateOutMode={isGateOutMode}
-        />
-        <ReportList
-          icon={<FileText className="h-4 w-4 text-red-600" />}
-          title="Rejected / Cancelled"
-          entries={report?.rejected_cancelled ?? []}
-          emptyText="No exceptions in this range"
-          isGateOutMode={isGateOutMode}
-        />
-      </div>
-    );
-  }
-
-  if (!report) return null;
-
-  return (
-    <div className="grid gap-3 xl:grid-cols-3">
-      <ReportList
-        icon={<Clock className="h-4 w-4 text-blue-600" />}
-        title="Waiting Inside"
-        entries={report.waiting_inside}
-        emptyText="No waiting vehicles"
-        isGateOutMode={isGateOutMode}
-      />
-      <ReportList
-        icon={<AlertTriangle className="h-4 w-4 text-amber-600" />}
-        title="Photo / GPS Missing"
-        entries={report.missing_photo}
-        emptyText="All active entries have location photos"
-        isGateOutMode={isGateOutMode}
-      />
-      <ReportList
-        icon={<FileText className="h-4 w-4 text-red-600" />}
-        title="Rejected / Cancelled"
-        entries={report.rejected_cancelled}
-        emptyText="No exceptions in this range"
-        isGateOutMode={isGateOutMode}
-      />
-    </div>
-  );
-}
-
-function ReportList({
-  icon,
-  title,
-  entries,
-  emptyText,
-  isGateOutMode,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  entries: SalesDispatchGateOut[];
-  emptyText: string;
-  isGateOutMode: boolean;
-}) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const routes = getSalesDispatchRoutes(location.pathname);
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-sm font-medium">
-            {icon}
-            {title}
-          </h3>
-          <span className="text-sm font-semibold">{entries.length}</span>
-        </div>
-        {entries.length === 0 ? (
-          <div className="flex h-20 items-center justify-center rounded-md border text-center text-sm text-muted-foreground">
-            {emptyText}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {entries.slice(0, 4).map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                className="w-full rounded-md border p-3 text-left transition-colors hover:bg-muted/50"
-                onClick={() => navigate(getSalesDispatchDashboardEntryPath(
-                  entry,
-                  routes.detail,
-                  routes.gatepass,
-                  isGateOutMode,
-                ))}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">{entry.entry_no}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.vehicle_no} - {entry.sap_doc_num || entry.sap_doc_entry}
-                    </p>
-                  </div>
-                  <GateStatusBadge
-                    status={entry.status}
-                    label={getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode)}
-                  />
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -503,7 +488,45 @@ function buildSalesDispatchSearchText(entry: SalesDispatchGateOut) {
     entry.gatepass_no,
     entry.item_summary,
     entry.status,
-  ].join(' ').toLowerCase();
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+function countSalesDispatchDashboardEntries(
+  entries: SalesDispatchGateOut[],
+  filter: DashboardFilter,
+) {
+  return entries.filter((entry) => matchesSalesDispatchDashboardFilter(entry, filter)).length;
+}
+
+function matchesSalesDispatchDashboardFilter(
+  entry: SalesDispatchGateOut,
+  filter: DashboardFilter,
+) {
+  switch (filter) {
+    case 'ALL':
+      return true;
+    case 'PENDING_OUT':
+      return entry.status === GATE_OUT_PENDING_STATUS;
+    case 'AWAITING_GATEPASS':
+    case 'GATEPASS_PENDING':
+      return GATEPASS_PENDING_STATUSES.includes(entry.status);
+    case 'PRINT_NOT_COMMITTED':
+      return entry.status === 'GATEPASS_PRINTED';
+    case 'MARKED_OUT':
+    case 'DISPATCHED':
+      return entry.status === GATE_OUT_COMPLETED_STATUS;
+    case 'WAITING_INSIDE':
+      return ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status);
+    case 'MISSING_PHOTO_GPS':
+      return (
+        ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status) &&
+        (!entry.truck_photo || !entry.photo_latitude || !entry.photo_longitude)
+      );
+    default:
+      return true;
+  }
 }
 
 function sortSalesDispatchOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGateOut) {
@@ -514,8 +537,10 @@ function sortSalesDispatchOutEntries(first: SalesDispatchGateOut, second: SalesD
     return firstPriority - secondPriority;
   }
 
-  return timestampValue(second.updated_at || second.created_at)
-    - timestampValue(first.updated_at || first.created_at);
+  return (
+    timestampValue(second.updated_at || second.created_at) -
+    timestampValue(first.updated_at || first.created_at)
+  );
 }
 
 function timestampValue(value?: string | null) {
@@ -569,21 +594,38 @@ function StatCard({
   icon,
   label,
   value,
+  isActive,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
+  isActive: boolean;
+  onClick: () => void;
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          {icon}
-          <span className="text-2xl font-bold">{value}</span>
-        </div>
-        <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      aria-pressed={isActive}
+      onClick={onClick}
+      className={cn(
+        'rounded-lg border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        isActive && 'border-primary/60 bg-primary/5 ring-1 ring-primary/30',
+      )}
+    >
+      <span className="flex items-center justify-between">
+        <span>{icon}</span>
+        <span className="text-2xl font-bold">{value}</span>
+      </span>
+      <span
+        className={cn(
+          'mt-2 block text-sm font-medium text-muted-foreground',
+          isActive && 'text-foreground',
+        )}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 

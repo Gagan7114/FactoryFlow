@@ -230,8 +230,25 @@ export interface SalesDispatchGateOut {
   gatepass_readiness: SalesDispatchGatepassReadiness;
   items: SalesDispatchItem[];
   attachments: SalesDispatchAttachment[];
+  gatepass_print_logs?: SalesDispatchGatepassPrintLog[];
   created_at: string;
   updated_at: string;
+}
+
+export interface SalesDispatchGatepassPrintLog {
+  id: number;
+  sales_dispatch: number;
+  gatepass_no: string;
+  entry_status: string;
+  copy_number: number;
+  print_type: 'ORIGINAL' | 'REPRINT';
+  reprint_reason?: string;
+  printed_by?: number | null;
+  printed_by_name?: string;
+  printed_at: string;
+  printer_name?: string;
+  ip_address?: string | null;
+  user_agent?: string;
 }
 
 export interface SalesDispatchLock {
@@ -342,6 +359,12 @@ export interface SalesDispatchGatepassPrintRequest {
   seal_number?: string;
   pgi_reference?: string;
   eway_bill?: string;
+  printer_name?: string;
+}
+
+export interface SalesDispatchGatepassReprintRequest {
+  reprint_reason: string;
+  printer_name?: string;
 }
 
 export interface SalesDispatchReasonRequest {
@@ -489,6 +512,24 @@ export const salesDispatchApi = {
     const response = await apiClient.post<SalesDispatchGateOut>(
       API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_GATEPASS_PRINT(id),
       data,
+    );
+    return response.data;
+  },
+
+  async reprintGatepass(
+    id: number,
+    data: SalesDispatchGatepassReprintRequest,
+  ): Promise<SalesDispatchGateOut> {
+    const response = await apiClient.post<SalesDispatchGateOut>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_GATEPASS_REPRINT(id),
+      data,
+    );
+    return response.data;
+  },
+
+  async gatepassPrintHistory(id: number): Promise<SalesDispatchGatepassPrintLog[]> {
+    const response = await apiClient.get<SalesDispatchGatepassPrintLog[]>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_GATEPASS_PRINTS(id),
     );
     return response.data;
   },

@@ -1,14 +1,24 @@
-import { AlertCircle, Boxes, CheckCircle2, FileText, Lock, Printer, QrCode, Send, Truck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  AlertCircle,
+  Boxes,
+  CheckCircle2,
+  FileText,
+  Lock,
+  Printer,
+  QrCode,
+  Send,
+  Truck,
+} from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
 
 import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchGateOut,
   type SalesDispatchItem,
-  type Weighment,
   useCommitSalesDispatchPrint,
   useMarkSalesDispatchDispatched,
   usePreviewSalesDispatchGatepass,
@@ -16,8 +26,14 @@ import {
   useSalesDispatchByVehicleEntry,
   useSalesDispatchLock,
   useWeighment,
+  type Weighment,
 } from '@/modules/gate/api';
-import { GateStatusBadge, StepFooter, StepHeader, StepLoadingSpinner } from '@/modules/gate/components';
+import {
+  GateStatusBadge,
+  StepFooter,
+  StepHeader,
+  StepLoadingSpinner,
+} from '@/modules/gate/components';
 import { useEntryId } from '@/modules/gate/hooks';
 import {
   Button,
@@ -28,7 +44,7 @@ import {
   Input,
   Label,
 } from '@/shared/components/ui';
-import { getErrorMessage } from '@/shared/utils';
+import { cn, getErrorMessage } from '@/shared/utils';
 
 import {
   DOCKING_TOTAL_STEPS,
@@ -70,6 +86,9 @@ export default function SalesDispatchGatepassPage() {
   const { entryId, entryIdNumber } = useEntryId();
   const [draft, setDraft] = useState<GatepassDraft>(() => buildDraft());
   const [error, setError] = useState('');
+  const [isPrintAuthorized, setIsPrintAuthorized] = useState(false);
+  const [pendingOriginalPrint, setPendingOriginalPrint] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const {
     data: entry,
@@ -84,22 +103,50 @@ export default function SalesDispatchGatepassPage() {
   const commitPrint = useCommitSalesDispatchPrint();
   const markDispatched = useMarkSalesDispatchDispatched();
 
+  const printBrowserCopy = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: buildGatepassDocumentTitle(entry),
+    onAfterPrint: () => setIsPrintAuthorized(false),
+    onPrintError: () => setIsPrintAuthorized(false),
+  });
+
   useEffect(() => {
     if (!entry) return;
 
-    setDraft(buildDraft(entry));
+    const timerId = window.setTimeout(() => {
+      setDraft(buildDraft(entry));
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, [entry]);
 
-  const isSaving = previewGatepass.isPending
-    || printGatepass.isPending
-    || commitPrint.isPending
-    || markDispatched.isPending;
+  useEffect(() => {
+    if (!pendingOriginalPrint || !entry?.gatepass_no) return;
+
+    const timerId = window.setTimeout(() => {
+      setPendingOriginalPrint(false);
+      setIsPrintAuthorized(true);
+      window.setTimeout(() => {
+        printBrowserCopy();
+      }, 100);
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [entry?.gatepass_no, pendingOriginalPrint, printBrowserCopy]);
+
+  const isSaving =
+    previewGatepass.isPending ||
+    printGatepass.isPending ||
+    commitPrint.isPending ||
+    markDispatched.isPending;
   const readiness = entry?.gatepass_readiness;
   const action = useMemo(() => getNextAction(entry, isGateOutMode), [entry, isGateOutMode]);
   const isGatepassPrintLocked = Boolean(dispatchLock?.is_locked);
-  const canEditGatepassDetails = Boolean(!isGateOutMode
-    && entry
-    && ['READY_FOR_GATEPASS', 'PHOTO_ATTACHED', 'DOCKED'].includes(entry.status));
+  const canEditGatepassDetails = Boolean(
+    !isGateOutMode &&
+    entry &&
+    ['READY_FOR_GATEPASS', 'PHOTO_ATTACHED', 'DOCKED'].includes(entry.status),
+  );
 
   const updateDraft = <K extends keyof GatepassDraft>(key: K, value: GatepassDraft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -142,9 +189,12 @@ export default function SalesDispatchGatepassPage() {
           eway_bill: draft.ewayBill,
         },
       });
+      setPendingOriginalPrint(true);
       await refetch();
-      toast.success('Gatepass printed');
+      toast.success('Gatepass created. Opening one-time print dialog...');
     } catch (printError) {
+      setPendingOriginalPrint(false);
+      setIsPrintAuthorized(false);
       setError(getErrorMessage(printError, 'Failed to print gatepass'));
     }
   };
@@ -215,7 +265,9 @@ export default function SalesDispatchGatepassPage() {
           currentStep={4}
           totalSteps={DOCKING_TOTAL_STEPS}
           title="Docking"
-          error={error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)}
+          error={
+            error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)
+          }
         />
         <div className="flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <div className="flex items-center gap-3">
@@ -230,212 +282,251 @@ export default function SalesDispatchGatepassPage() {
     );
   }
 
-  const companyName = currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
+  const companyName =
+    currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
   const qrValue = entry.qr_payload || entry.gatepass_no || entry.random_code || entry.entry_no;
-  const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft, weighment, companyName);
+  const gatepassReferenceFields = buildGatepassReferenceFields(
+    entry,
+    draft,
+    weighment,
+    companyName,
+  );
   const pageTitle = getGatepassPageTitle(entry, isGateOutMode);
 
   return (
-    <div className="sales-dispatch-gatepass-page space-y-6 pb-6">
-      <div className="print-hide">
-        <StepHeader
-          currentStep={4}
-          totalSteps={DOCKING_TOTAL_STEPS}
-          title={pageTitle}
-          error={error || null}
-        />
-      </div>
-
-      {!isGateOutMode && isGatepassPrintLocked ? (
-        <div className="print-hide flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-          <Lock className="mt-0.5 h-5 w-5" />
-          <div>
-            <p className="font-medium">Docking printing is locked</p>
-            <p className="mt-1">{dispatchLock?.reason || 'Gatepass print and commit are temporarily held.'}</p>
-          </div>
+    <>
+      <div
+        ref={printRef}
+        className={cn(
+          'sales-dispatch-gatepass-page space-y-6 pb-6',
+          isPrintAuthorized && 'sales-dispatch-gatepass-print-authorized',
+        )}
+      >
+        <div className="print-hide">
+          <StepHeader
+            currentStep={4}
+            totalSteps={DOCKING_TOTAL_STEPS}
+            title={pageTitle}
+            error={error || null}
+          />
         </div>
-      ) : null}
 
-      <Card className="sales-dispatch-gatepass-summary print-no-break">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Truck className="h-5 w-5" />
-            {pageTitle} Entry
-          </CardTitle>
-          <GateStatusBadge status={entry.status} />
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Entry No." value={entry.entry_no} />
-          <InfoItem label="Vehicle" value={entry.vehicle_no} />
-          <InfoItem label="Driver" value={entry.driver_name} />
-          <InfoItem label="SAP Document" value={entry.sap_doc_num} />
-          <InfoItem label="Customer / Destination" value={entry.customer_name || entry.to_warehouse} />
-          <InfoItem label="Item Lines" value={formatItemLineCount(entry.items)} />
-          <InfoItem label="Gate Out" value={formatDateTime(entry.gate_out_date, entry.out_time)} />
-          <InfoItem label="Printed At" value={formatTimestamp(entry.printed_at)} />
-        </CardContent>
-      </Card>
-
-      <GatepassItemsPanel items={entry.items} itemSummary={entry.item_summary} />
-
-      <div className="sales-dispatch-gatepass-grid grid gap-4 xl:grid-cols-[1fr_0.85fr]">
-        <Card className="sales-dispatch-gatepass-print-card print-no-break">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Printer className="h-5 w-5" />
-              Gatepass Print Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="sales-dispatch-gatepass-fields grid gap-4 md:grid-cols-2">
-              <TextField
-                id="sales-dispatch-uom"
-                label="UOM"
-                value={draft.uom}
-                disabled={!canEditGatepassDetails}
-                onChange={(value) => updateDraft('uom', value)}
-                placeholder="Example: BOX"
-              />
-              <TextField
-                id="sales-dispatch-physical-quantity"
-                label="Physical Quantity"
-                type="number"
-                value={draft.physicalQuantity}
-                disabled={!canEditGatepassDetails}
-                onChange={(value) => updateDraft('physicalQuantity', value)}
-              />
-              <TextField
-                id="sales-dispatch-seal"
-                label="Seal No."
-                value={draft.sealNumber}
-                disabled={!canEditGatepassDetails}
-                onChange={(value) => updateDraft('sealNumber', value)}
-              />
-              <TextField
-                id="sales-dispatch-pgi-reference"
-                label="PGI / Goods Issue Doc No."
-                value={draft.pgiReference}
-                disabled={!canEditGatepassDetails}
-                onChange={(value) => updateDraft('pgiReference', value)}
-              />
-              <TextField
-                id="sales-dispatch-eway-bill"
-                label="E-way Bill"
-                value={draft.ewayBill}
-                disabled={!canEditGatepassDetails}
-                onChange={(value) => updateDraft('ewayBill', value)}
-              />
+        {!isGateOutMode && isGatepassPrintLocked ? (
+          <div className="print-hide flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+            <Lock className="mt-0.5 h-5 w-5" />
+            <div>
+              <p className="font-medium">Docking printing is locked</p>
+              <p className="mt-1">
+                {dispatchLock?.reason || 'Gatepass print and commit are temporarily held.'}
+              </p>
             </div>
+          </div>
+        ) : null}
 
-            {entry.gatepass_no ? (
-              <div className="rounded-md border p-4">
-                <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-                  <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
-                    {gatepassReferenceFields.map((field) => (
-                      <InfoItem key={field.label} label={field.label} value={field.value} />
-                    ))}
-                  </div>
-                  <div className="sales-dispatch-gatepass-qr flex flex-col items-center justify-center rounded-md border bg-white p-3">
-                    <QRCodeSVG
-                      value={qrValue}
-                      size={128}
-                      level="M"
-                      includeMargin={false}
-                      className="sales-dispatch-gatepass-qr-code"
-                    />
-                    <p className="mt-2 text-center text-xs text-muted-foreground">Gatepass QR</p>
-                  </div>
-                </div>
-                <Button type="button" variant="outline" className="mt-4" onClick={() => window.print()}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print Browser Copy
-                </Button>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="print-hide">
+        <Card className="sales-dispatch-gatepass-summary print-no-break">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" />
-              Readiness
+              <Truck className="h-5 w-5" />
+              {pageTitle} Entry
             </CardTitle>
-            {!isGateOutMode && (
-              <Button type="button" variant="outline" size="sm" onClick={handlePreview} disabled={isSaving}>
-                Refresh
-              </Button>
-            )}
+            <GateStatusBadge status={entry.status} />
           </CardHeader>
-          <CardContent className="space-y-4">
-            <ReadinessItem
-              label="Truck Photo Location"
-              ready={Boolean(readiness?.has_truck_photo_geolocation)}
+          <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+            <InfoItem label="Entry No." value={entry.entry_no} />
+            <InfoItem label="Vehicle" value={entry.vehicle_no} />
+            <InfoItem label="Driver" value={entry.driver_name} />
+            <InfoItem label="SAP Document" value={entry.sap_doc_num} />
+            <InfoItem
+              label="Customer / Destination"
+              value={entry.customer_name || entry.to_warehouse}
             />
-            <ReadinessItem
-              label="Weighment"
-              ready={Boolean(readiness?.has_weighment)}
-              detail={weighment ? `${weighment.net_weight} net` : 'Pending'}
+            <InfoItem label="Item Lines" value={formatItemLineCount(entry.items)} />
+            <InfoItem
+              label="Gate Out"
+              value={formatDateTime(entry.gate_out_date, entry.out_time)}
             />
-            <ReadinessItem label="SAP Items" ready={Boolean(readiness?.has_items)} />
-
-            {readiness && !readiness.ready ? (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                Missing: {readiness.missing.join(', ')}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
-                <CheckCircle2 className="h-4 w-4" />
-                Ready for gatepass
-              </div>
-            )}
+            <InfoItem label="Printed At" value={formatTimestamp(entry.printed_at)} />
           </CardContent>
         </Card>
-      </div>
 
-      <div className="print-hide flex flex-wrap justify-end gap-3">
-        {!isGateOutMode && (
-          <>
+        <GatepassItemsPanel items={entry.items} itemSummary={entry.item_summary} />
+
+        <div className="sales-dispatch-gatepass-grid grid gap-4 xl:grid-cols-[1fr_0.85fr]">
+          <Card className="sales-dispatch-gatepass-print-card print-no-break">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Printer className="h-5 w-5" />
+                Gatepass Print Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="sales-dispatch-gatepass-fields grid gap-4 md:grid-cols-2">
+                <TextField
+                  id="sales-dispatch-uom"
+                  label="UOM"
+                  value={draft.uom}
+                  disabled={!canEditGatepassDetails}
+                  onChange={(value) => updateDraft('uom', value)}
+                  placeholder="Example: BOX"
+                />
+                <TextField
+                  id="sales-dispatch-physical-quantity"
+                  label="Physical Quantity"
+                  type="number"
+                  value={draft.physicalQuantity}
+                  disabled={!canEditGatepassDetails}
+                  onChange={(value) => updateDraft('physicalQuantity', value)}
+                />
+                <TextField
+                  id="sales-dispatch-seal"
+                  label="Seal No."
+                  value={draft.sealNumber}
+                  disabled={!canEditGatepassDetails}
+                  onChange={(value) => updateDraft('sealNumber', value)}
+                />
+                <TextField
+                  id="sales-dispatch-pgi-reference"
+                  label="PGI / Goods Issue Doc No."
+                  value={draft.pgiReference}
+                  disabled={!canEditGatepassDetails}
+                  onChange={(value) => updateDraft('pgiReference', value)}
+                />
+                <TextField
+                  id="sales-dispatch-eway-bill"
+                  label="E-way Bill"
+                  value={draft.ewayBill}
+                  disabled={!canEditGatepassDetails}
+                  onChange={(value) => updateDraft('ewayBill', value)}
+                />
+              </div>
+
+              {entry.gatepass_no ? (
+                <div className="rounded-md border p-4">
+                  <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+                    <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
+                      {gatepassReferenceFields.map((field) => (
+                        <InfoItem key={field.label} label={field.label} value={field.value} />
+                      ))}
+                    </div>
+                    <div className="sales-dispatch-gatepass-qr flex flex-col items-center justify-center rounded-md border bg-white p-3">
+                      <QRCodeSVG
+                        value={qrValue}
+                        size={128}
+                        level="M"
+                        includeMargin={false}
+                        className="sales-dispatch-gatepass-qr-code"
+                      />
+                      <p className="mt-2 text-center text-xs text-muted-foreground">Gatepass QR</p>
+                    </div>
+                  </div>
+                  <div className="print-hide mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Original gatepass print is already recorded. Reprints must use the audited
+                    reprint workflow.
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card className="print-hide">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="h-5 w-5" />
+                Readiness
+              </CardTitle>
+              {!isGateOutMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreview}
+                  disabled={isSaving}
+                >
+                  Refresh
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ReadinessItem
+                label="Truck Photo Location"
+                ready={Boolean(readiness?.has_truck_photo_geolocation)}
+              />
+              <ReadinessItem
+                label="Weighment"
+                ready={Boolean(readiness?.has_weighment)}
+                detail={weighment ? `${weighment.net_weight} net` : 'Pending'}
+              />
+              <ReadinessItem label="SAP Items" ready={Boolean(readiness?.has_items)} />
+
+              {readiness && !readiness.ready ? (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  Missing: {readiness.missing.join(', ')}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Ready for gatepass
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="print-hide flex flex-wrap justify-end gap-3">
+          {!isGateOutMode && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handlePrintGatepass}
+                disabled={isSaving || isGatepassPrintLocked || action !== 'print'}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print Gatepass
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCommitPrint}
+                disabled={isSaving || isGatepassPrintLocked || action !== 'commit'}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Commit Print
+              </Button>
+            </>
+          )}
+          {isGateOutMode && (
             <Button
               type="button"
-              variant="outline"
-              onClick={handlePrintGatepass}
-              disabled={isSaving || isGatepassPrintLocked || action !== 'print'}
+              onClick={handleMarkDispatched}
+              disabled={isSaving || action !== 'dispatch'}
             >
-              <Printer className="mr-2 h-4 w-4" />
-              Print Gatepass
+              <Send className="mr-2 h-4 w-4" />
+              Mark Dispatched
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCommitPrint}
-              disabled={isSaving || isGatepassPrintLocked || action !== 'commit'}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Commit Print
-            </Button>
-          </>
-        )}
-        {isGateOutMode && (
-          <Button type="button" onClick={handleMarkDispatched} disabled={isSaving || action !== 'dispatch'}>
-            <Send className="mr-2 h-4 w-4" />
-            Mark Dispatched
-          </Button>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="print-hide">
-        <StepFooter
-          onPrevious={() => navigate(routes.attachments(entryId || entry.vehicle_entry))}
-          onCancel={() => navigate(routes.dashboard)}
-          onNext={handleNextAction}
-          showPrevious={!isGateOutMode}
-          isSaving={isSaving}
-          isNextDisabled={isGateOutMode && action !== 'dispatch' && action !== 'done'}
-          nextLabel={isGateOutMode ? getGateOutActionLabel(entry, isSaving) : getNextActionLabel(entry, isSaving)}
-        />
+        <div className="print-hide">
+          <StepFooter
+            onPrevious={() => navigate(routes.attachments(entryId || entry.vehicle_entry))}
+            onCancel={() => navigate(routes.dashboard)}
+            onNext={handleNextAction}
+            showPrevious={!isGateOutMode}
+            isSaving={isSaving}
+            isNextDisabled={isGateOutMode && action !== 'dispatch' && action !== 'done'}
+            nextLabel={
+              isGateOutMode
+                ? getGateOutActionLabel(entry, isSaving)
+                : getNextActionLabel(entry, isSaving)
+            }
+          />
+        </div>
       </div>
-    </div>
+      <div className="sales-dispatch-gatepass-print-blocked">
+        Gatepass browser printing is blocked from this screen. Use the audited reprint workflow.
+      </div>
+    </>
   );
 }
 
@@ -476,9 +567,12 @@ function buildReadinessError(entry: SalesDispatchGateOut) {
 }
 
 function buildLockError(reason?: string) {
-  return reason
-    ? `Docking printing is locked. Reason: ${reason}`
-    : 'Docking printing is locked.';
+  return reason ? `Docking printing is locked. Reason: ${reason}` : 'Docking printing is locked.';
+}
+
+function buildGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
+  const reference = entry?.gatepass_no || entry?.sap_doc_num || entry?.entry_no || 'draft';
+  return `Gatepass ${reference}`;
 }
 
 function buildGatepassReferenceFields(
@@ -514,10 +608,9 @@ function buildGatepassReferenceFields(
 }
 
 function formatCustomer(entry: SalesDispatchGateOut) {
-  return [
-    entry.customer_code,
-    entry.customer_name || entry.to_warehouse || entry.warehouses,
-  ].filter(Boolean).join(' - ');
+  return [entry.customer_code, entry.customer_name || entry.to_warehouse || entry.warehouses]
+    .filter(Boolean)
+    .join(' - ');
 }
 
 function formatWeightValue(value?: string | number | null) {
@@ -545,9 +638,7 @@ function GatepassItemsPanel({
           <Boxes className="h-5 w-5" />
           SAP Items
         </CardTitle>
-        <div className="text-sm text-muted-foreground">
-          {formatItemLineCount(items)}
-        </div>
+        <div className="text-sm text-muted-foreground">{formatItemLineCount(items)}</div>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
@@ -582,7 +673,10 @@ function GatepassItemsPanel({
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr key={item.id || `${item.item_code}-${index}`} className="border-t align-top">
+                    <tr
+                      key={item.id || `${item.item_code}-${index}`}
+                      className="border-t align-top"
+                    >
                       <td className="whitespace-nowrap p-3 text-sm font-semibold">
                         {formatValue(item.item_code)}
                       </td>
@@ -599,12 +693,8 @@ function GatepassItemsPanel({
                       <td className="whitespace-nowrap p-3 text-right text-sm font-semibold tabular-nums">
                         {formatValue(item.quantity)}
                       </td>
-                      <td className="whitespace-nowrap p-3 text-sm">
-                        {formatValue(item.uom)}
-                      </td>
-                      <td className="whitespace-nowrap p-3 text-sm">
-                        {formatItemWarehouse(item)}
-                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">{formatValue(item.uom)}</td>
+                      <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
                       <td className="p-3 text-sm text-muted-foreground">
                         {formatItemMetrics(item)}
                       </td>
@@ -685,10 +775,14 @@ function ReadinessItem({
 }) {
   return (
     <div className="flex items-start gap-3 rounded-md border p-3">
-      <CheckCircle2 className={`mt-0.5 h-4 w-4 ${ready ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+      <CheckCircle2
+        className={`mt-0.5 h-4 w-4 ${ready ? 'text-emerald-600' : 'text-muted-foreground'}`}
+      />
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{ready ? detail || 'Complete' : detail || 'Pending'}</p>
+        <p className="text-xs text-muted-foreground">
+          {ready ? detail || 'Complete' : detail || 'Pending'}
+        </p>
       </div>
     </div>
   );

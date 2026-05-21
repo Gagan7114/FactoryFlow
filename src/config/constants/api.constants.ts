@@ -109,6 +109,10 @@ export const API_ENDPOINTS = {
       `/gate-core/sales-dispatch/${id}/gatepass/preview/`,
     SALES_DISPATCH_GATEPASS_PRINT: (id: number) =>
       `/gate-core/sales-dispatch/${id}/gatepass/print/`,
+    SALES_DISPATCH_GATEPASS_REPRINT: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/reprint/`,
+    SALES_DISPATCH_GATEPASS_PRINTS: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/prints/`,
     SALES_DISPATCH_COMMIT_PRINT: (id: number) =>
       `/gate-core/sales-dispatch/${id}/commit-print/`,
     SALES_DISPATCH_MARK_DISPATCHED: (id: number) =>
