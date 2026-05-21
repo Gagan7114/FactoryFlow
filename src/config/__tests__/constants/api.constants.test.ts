@@ -235,6 +235,27 @@ describe('API_ENDPOINTS.GRPO', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// API_ENDPOINTS - STOCK_DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+
+describe('API_ENDPOINTS.STOCK_DASHBOARD', () => {
+  it('has LIST, AS_OF, ITEM_DETAIL', () => {
+    expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('LIST');
+    expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('AS_OF');
+    expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('ITEM_DETAIL');
+  });
+
+  it('AS_OF points to the Stock Benchmark reconstruction endpoint', () => {
+    expect(API_ENDPOINTS.STOCK_DASHBOARD.AS_OF).toBe('/dashboards/stock/as-of/');
+  });
+
+  it('ITEM_DETAIL returns correct parameterized path', () => {
+    expect(API_ENDPOINTS.STOCK_DASHBOARD.ITEM_DETAIL('PM0001')).toBe(
+      '/dashboards/stock/PM0001/warehouses/',
+    );
+  });
+});
+
 // HTTP_STATUS
 // ═══════════════════════════════════════════════════════════════
 

@@ -23,6 +23,7 @@ export interface StockDashboardFilters {
   warehouse?: string[];
   status?: StockHealthStatus[];
   movement_status?: StockMovementStatus[];
+  as_of_date?: string;
   sort_by?: StockSortCol;
   sort_dir?: 'asc' | 'desc';
   page?: number;
@@ -62,6 +63,8 @@ export interface StockDashboardMeta {
   critical_stock_count: number;
   warehouses: string[];
   fetched_at: string;
+  as_of_date?: string;
+  reconstruction_note?: string;
   page: number;
   page_size: number;
   total_pages: number;

@@ -112,6 +112,7 @@ export default function StockLevelDashboardPage() {
       warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: [...STOCK_BENCHMARK_STATS_STATUS_FILTER],
       movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
+      ...(effectiveFilters.as_of_date ? { as_of_date: effectiveFilters.as_of_date } : {}),
       page: 1,
       page_size: 1,
     },

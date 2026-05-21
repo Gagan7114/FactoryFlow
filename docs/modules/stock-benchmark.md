@@ -56,10 +56,13 @@ The table supports:
 | Warehouse | `warehouse` | Comma-separated warehouse codes. Selecting 2 or more warehouses switches the backend to grouped item rows. |
 | Status | `status` | Comma-separated values: `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. |
 | Movement | `movement_status` | Comma-separated values: `planned`, `recent`, `slow`. Omitted when none are selected. |
+| As of Date | `as_of_date` | When set, the frontend calls `/dashboards/stock/as-of/` to reconstruct on-hand and movement age from SAP movement history for that posting date. |
 | Sort | `sort_by`, `sort_dir` | Defaults to `health_ratio` ascending. Planned Qty is sortable via `planned_qty`. |
 | Pagination | `page`, `page_size` | Page defaults are controlled by the backend serializer. |
 
 The Material Type dropdown includes `All`. Selecting it sends a blank material type, so the frontend omits `item_group` from the API request.
+
+The As of Date filter is for testing SAP historical reconstruction. It changes the data source but keeps the same table and summary UI. Historical reconstruction uses SAP `OINM` for on-hand and movement age, while benchmark and item master values still come from current SAP.
 
 ## Status Rules
 
