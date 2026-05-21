@@ -23,6 +23,54 @@ import { FillDataAlert, StepFooter, StepHeader, StepLoadingSpinner } from '../..
 import { WIZARD_CONFIG } from '../../constants';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
 
+interface WeighmentFormData {
+  grossWeight: string;
+  tareWeight: string;
+  weighbridgeTicketNo: string;
+  firstWeighmentTime: string;
+  secondWeighmentTime: string;
+}
+
+const REQUIRED_WEIGHMENT_MESSAGE = 'Weighment is required before this gate-in entry can continue.';
+
+function createEmptyWeighmentFormData(): WeighmentFormData {
+  return {
+    grossWeight: '',
+    tareWeight: '',
+    weighbridgeTicketNo: '',
+    firstWeighmentTime: '',
+    secondWeighmentTime: '',
+  };
+}
+
+function validateWeighmentDetails(values: WeighmentFormData) {
+  const grossWeight = parseFloat(values.grossWeight);
+  const tareWeight = parseFloat(values.tareWeight);
+  const errors: Record<string, string> = {};
+
+  if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+    errors.grossWeight = 'Gross weight is required.';
+  }
+
+  if (!Number.isFinite(tareWeight) || tareWeight < 0) {
+    errors.tareWeight = 'Tare weight is required.';
+  }
+
+  if (!errors.grossWeight && !errors.tareWeight && tareWeight > grossWeight) {
+    errors.tareWeight = 'Tare weight cannot be greater than gross weight.';
+  }
+
+  return errors;
+}
+
+const API_FIELD_TO_FORM_FIELD: Partial<Record<string, keyof WeighmentFormData>> = {
+  gross_weight: 'grossWeight',
+  tare_weight: 'tareWeight',
+  weighbridge_slip_no: 'weighbridgeTicketNo',
+  first_weighment_time: 'firstWeighmentTime',
+  second_weighment_time: 'secondWeighmentTime',
+};
+
 export default function Step4Page() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -40,13 +88,7 @@ export default function Step4Page() {
   );
 
   // Form state
-  const [formData, setFormData] = useState({
-    grossWeight: '0',
-    tareWeight: '0',
-    weighbridgeTicketNo: '',
-    firstWeighmentTime: '',
-    secondWeighmentTime: '',
-  });
+  const [formData, setFormData] = useState<WeighmentFormData>(createEmptyWeighmentFormData);
 
   // Calculate net weight as derived value (not stored in state)
   const netWeight = useMemo(() => {
@@ -120,13 +162,7 @@ export default function Step4Page() {
   const handleFillData = () => {
     setFillDataMode(true);
     // Clear form data to start fresh
-    setFormData({
-      grossWeight: '0',
-      tareWeight: '0',
-      weighbridgeTicketNo: '',
-      firstWeighmentTime: '',
-      secondWeighmentTime: '',
-    });
+    setFormData(createEmptyWeighmentFormData());
     setApiErrors({});
   };
 
@@ -144,18 +180,29 @@ export default function Step4Page() {
       return;
     }
 
+    setApiErrors({});
+
+    if (hasNoWeighmentData && !fillDataMode) {
+      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
+      return;
+    }
+
     // In edit mode (and not fillDataMode and not updateMode), just navigate without API call
     if (effectiveEditMode && !updateMode) {
       navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
       return;
     }
 
-    setApiErrors({});
-
     try {
+      const validationErrors = validateWeighmentDetails(formData);
+      if (Object.keys(validationErrors).length > 0) {
+        setApiErrors(validationErrors);
+        return;
+      }
+
       const requestData: CreateWeighmentRequest = {
-        gross_weight: parseFloat(formData.grossWeight) || 0,
-        tare_weight: parseFloat(formData.tareWeight) || 0,
+        gross_weight: parseFloat(formData.grossWeight),
+        tare_weight: parseFloat(formData.tareWeight),
         weighbridge_slip_no: formData.weighbridgeTicketNo || '',
         first_weighment_time: formData.firstWeighmentTime
           ? `${new Date().toISOString().slice(0, 10)}T${formData.firstWeighmentTime}:00`
@@ -180,7 +227,7 @@ export default function Step4Page() {
         const fieldErrors: Record<string, string> = {};
         Object.entries(apiError.errors).forEach(([field, messages]) => {
           if (Array.isArray(messages) && messages.length > 0) {
-            fieldErrors[field] = messages[0];
+            fieldErrors[API_FIELD_TO_FORM_FIELD[field] || field] = messages[0];
           }
         });
         setApiErrors(fieldErrors);
@@ -256,7 +303,7 @@ export default function Step4Page() {
               {/* First Row */}
               <div className="space-y-2">
                 <Label htmlFor="grossWeight">
-                  Gross Weight
+                  Gross Weight <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="grossWeight"
@@ -279,7 +326,7 @@ export default function Step4Page() {
 
               <div className="space-y-2">
                 <Label htmlFor="tareWeight">
-                  Tare Weight
+                  Tare Weight <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="tareWeight"
@@ -316,9 +363,7 @@ export default function Step4Page() {
 
               {/* Second Row */}
               <div className="space-y-2">
-                <Label htmlFor="weighbridgeTicketNo">
-                  Weighbridge Ticket No.
-                </Label>
+                <Label htmlFor="weighbridgeTicketNo">Weighbridge Ticket No.</Label>
                 <Input
                   id="weighbridgeTicketNo"
                   placeholder="WB-2026-001"
@@ -336,9 +381,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firstWeighmentTime">
-                  First Weighment Time
-                </Label>
+                <Label htmlFor="firstWeighmentTime">First Weighment Time</Label>
                 <Input
                   id="firstWeighmentTime"
                   type="time"
@@ -357,9 +400,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="secondWeighmentTime">
-                  Second Weighment Time
-                </Label>
+                <Label htmlFor="secondWeighmentTime">Second Weighment Time</Label>
                 <Input
                   id="secondWeighmentTime"
                   type="time"

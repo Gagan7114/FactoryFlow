@@ -36,6 +36,8 @@ import {
 import { securityCheckApi } from '../../api/securityCheck/securityCheck.api';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
 
+const REQUIRED_WEIGHMENT_MESSAGE = 'Weighment is required before completing this gate-in entry.';
+
 // Status badge component
 function StatusBadge({ status }: { status: string }) {
   return <GateStatusBadge status={status} />;
@@ -151,9 +153,28 @@ export default function ReviewPage() {
     }
   };
 
+  const handleFillWeighment = () => {
+    const targetEntryId = entryId || gateEntry?.gate_entry.id?.toString();
+    if (!targetEntryId) {
+      setApiErrors({ general: 'Entry ID is missing.' });
+      return;
+    }
+
+    if (isEditMode) {
+      navigate(`/gate/raw-materials/edit/${targetEntryId}/step5`);
+    } else {
+      navigate(`/gate/raw-materials/new/step5?entryId=${targetEntryId}`);
+    }
+  };
+
   const handleSubmitSecurity = async () => {
     if (!entryId) {
       setApiErrors({ general: 'Entry ID is missing.' });
+      return;
+    }
+
+    if (!gateEntry?.weighment) {
+      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
       return;
     }
 
@@ -192,6 +213,11 @@ export default function ReviewPage() {
   const handleComplete = async () => {
     if (!entryId) {
       setApiErrors({ general: 'Entry ID is missing.' });
+      return;
+    }
+
+    if (!gateEntry?.weighment) {
+      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
       return;
     }
 
@@ -273,6 +299,7 @@ export default function ReviewPage() {
   }
 
   const isAlreadyCompleted = gateEntry.gate_entry.status === ENTRY_STATUS.COMPLETED;
+  const isWeighmentMissing = !gateEntry.weighment;
 
   return (
     <div className="space-y-6 pb-6">
@@ -283,7 +310,9 @@ export default function ReviewPage() {
             <FileCheck className="h-8 w-8" />
             Final Review
           </h2>
-          <p className="text-muted-foreground">Review all details before completing the gate entry</p>
+          <p className="text-muted-foreground">
+            Review all details before completing the gate entry
+          </p>
         </div>
         <Button
           type="button"
@@ -434,32 +463,38 @@ export default function ReviewPage() {
         )}
 
         {/* Weighment */}
-        {gateEntry.weighment && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5" />
-                Weighment Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card className={isWeighmentMissing ? 'border-destructive/50' : undefined}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5" />
+              Weighment Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {gateEntry.weighment ? (
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
                   <Label className="text-muted-foreground text-xs">Gross Weight</Label>
                   <p className="font-medium text-lg">
-                    {gateEntry.weighment.gross_weight != null ? `${gateEntry.weighment.gross_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.gross_weight != null
+                      ? `${gateEntry.weighment.gross_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Tare Weight</Label>
                   <p className="font-medium text-lg">
-                    {gateEntry.weighment.tare_weight != null ? `${gateEntry.weighment.tare_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.tare_weight != null
+                      ? `${gateEntry.weighment.tare_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Net Weight</Label>
                   <p className="font-medium text-lg text-primary">
-                    {gateEntry.weighment.net_weight != null ? `${gateEntry.weighment.net_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.net_weight != null
+                      ? `${gateEntry.weighment.net_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
@@ -467,9 +502,18 @@ export default function ReviewPage() {
                   <p className="font-medium">{gateEntry.weighment.weighbridge_slip_no || '—'}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="flex flex-col gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-destructive">
+                  Weighment is required before completion.
+                </p>
+                <Button type="button" variant="outline" onClick={handleFillWeighment}>
+                  Fill Weighment
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* PO Receipts */}
         {gateEntry.po_receipts.length > 0 && (
@@ -579,9 +623,14 @@ export default function ReviewPage() {
         return (
           <EntryTimeSummary
             startedAt={gateEntry.gate_entry.created_at}
-            completedAt={gateEntry.weighment?.created_at || gateEntry.po_receipts[0]?.created_at || gateEntry.security_check?.created_at || gateEntry.gate_entry.created_at}
+            completedAt={
+              gateEntry.weighment?.created_at ||
+              gateEntry.po_receipts[0]?.created_at ||
+              gateEntry.security_check?.created_at ||
+              gateEntry.gate_entry.created_at
+            }
           />
-        )
+        );
       })()}
 
       {/* Footer Actions */}

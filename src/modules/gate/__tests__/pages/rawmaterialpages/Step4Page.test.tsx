@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // Step4Page — File Content Verification
@@ -30,5 +31,17 @@ describe('Step4Page', () => {
 
   it('has a return statement with JSX', () => {
     expect(content).toContain('return (');
+  });
+
+  it('requires valid weighment before moving to attachments', () => {
+    expect(content).toContain('validateWeighmentDetails(formData)');
+    expect(content).toContain('Gross weight is required.');
+    expect(content).toContain('Tare weight is required.');
+    expect(content).toContain('Tare weight cannot be greater than gross weight.');
+  });
+
+  it('marks gross and tare weight as required', () => {
+    expect(content).toContain('Gross Weight <span className="text-destructive">*</span>');
+    expect(content).toContain('Tare Weight <span className="text-destructive">*</span>');
   });
 });
