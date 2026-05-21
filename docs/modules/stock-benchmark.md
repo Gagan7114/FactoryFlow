@@ -2,6 +2,8 @@
 
 The Stock Benchmark dashboard monitors inventory against SAP benchmark levels. It is implemented in `src/modules/dashboards/stock-level/` and reads data from the backend stock dashboard API.
 
+Planned historical snapshot support is documented in [Stock Benchmark Snapshot Plan](./stock-benchmark-snapshot-plan.md).
+
 ## Route
 
 | Route | Page | Purpose |
