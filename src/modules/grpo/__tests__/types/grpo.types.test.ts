@@ -1,15 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import type {
-  Warehouse,
+  GRPOHistoryEntry,
+  GRPOHistoryLine,
   GRPOStatus,
-  QCStatus,
   PendingGRPOEntry,
-  PreviewItem,
-  PreviewPOReceipt,
   PostGRPORequest,
   PostGRPOResponse,
-  GRPOHistoryLine,
-  GRPOHistoryEntry,
+  PreviewItem,
+  PreviewPOReceipt,
+  QCStatus,
+  Warehouse,
 } from '../../types/grpo.types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -115,9 +116,10 @@ describe('GRPO Types', () => {
   it('PostGRPORequest interface accepts valid shape', () => {
     const request: PostGRPORequest = {
       vehicle_entry_id: 1,
-      po_receipt_id: 10,
+      po_receipt_ids: [10],
       items: [{ po_item_receipt_id: 1, accepted_qty: 50 }],
       branch_id: 2,
+      tare_weight: 2500,
     };
     expect(request.items).toHaveLength(1);
   });
@@ -125,9 +127,10 @@ describe('GRPO Types', () => {
   it('PostGRPORequest accepts optional fields', () => {
     const request: PostGRPORequest = {
       vehicle_entry_id: 1,
-      po_receipt_id: 10,
+      po_receipt_ids: [10],
       items: [{ po_item_receipt_id: 1, accepted_qty: 50 }],
       branch_id: 2,
+      tare_weight: 2500,
       warehouse_code: 'WH-001',
       comments: 'Test comment',
     };

@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 describe('Step4Page', () => {
   const content = readFileSync(
-    resolve(process.cwd(), 'src/modules/gate/pages/rawmaterialpages/Step4Page.tsx'),
+    resolve(process.cwd(), 'src/modules/gate/pages/rawMaterialPages/Step4Page.tsx'),
     'utf-8',
   );
 
@@ -33,15 +33,16 @@ describe('Step4Page', () => {
     expect(content).toContain('return (');
   });
 
-  it('requires valid weighment before moving to attachments', () => {
+  it('requires gross weighment before moving to attachments', () => {
     expect(content).toContain('validateWeighmentDetails(formData)');
     expect(content).toContain('Gross weight is required.');
-    expect(content).toContain('Tare weight is required.');
+    expect(content).toContain('Tare weight cannot be negative.');
     expect(content).toContain('Tare weight cannot be greater than gross weight.');
+    expect(content).toContain('formData.tareWeight.trim() ? parseFloat(formData.tareWeight) : 0');
   });
 
-  it('marks gross and tare weight as required', () => {
+  it('marks only gross weight as required', () => {
     expect(content).toContain('Gross Weight <span className="text-destructive">*</span>');
-    expect(content).toContain('Tare Weight <span className="text-destructive">*</span>');
+    expect(content).toContain('<Label htmlFor="tareWeight">Tare Weight</Label>');
   });
 });

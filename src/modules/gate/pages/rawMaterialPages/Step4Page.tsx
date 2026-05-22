@@ -46,17 +46,18 @@ function createEmptyWeighmentFormData(): WeighmentFormData {
 function validateWeighmentDetails(values: WeighmentFormData) {
   const grossWeight = parseFloat(values.grossWeight);
   const tareWeight = parseFloat(values.tareWeight);
+  const hasTareWeight = values.tareWeight.trim() !== '';
   const errors: Record<string, string> = {};
 
   if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
     errors.grossWeight = 'Gross weight is required.';
   }
 
-  if (!Number.isFinite(tareWeight) || tareWeight < 0) {
-    errors.tareWeight = 'Tare weight is required.';
+  if (hasTareWeight && (!Number.isFinite(tareWeight) || tareWeight < 0)) {
+    errors.tareWeight = 'Tare weight cannot be negative.';
   }
 
-  if (!errors.grossWeight && !errors.tareWeight && tareWeight > grossWeight) {
+  if (!errors.grossWeight && hasTareWeight && !errors.tareWeight && tareWeight > grossWeight) {
     errors.tareWeight = 'Tare weight cannot be greater than gross weight.';
   }
 
@@ -92,6 +93,9 @@ export default function Step4Page() {
 
   // Calculate net weight as derived value (not stored in state)
   const netWeight = useMemo(() => {
+    if (!formData.grossWeight.trim() || !formData.tareWeight.trim()) {
+      return '';
+    }
     const gross = parseFloat(formData.grossWeight) || 0;
     const tare = parseFloat(formData.tareWeight) || 0;
     return Math.max(0, gross - tare).toFixed(3);
@@ -202,7 +206,7 @@ export default function Step4Page() {
 
       const requestData: CreateWeighmentRequest = {
         gross_weight: parseFloat(formData.grossWeight),
-        tare_weight: parseFloat(formData.tareWeight),
+        tare_weight: formData.tareWeight.trim() ? parseFloat(formData.tareWeight) : 0,
         weighbridge_slip_no: formData.weighbridgeTicketNo || '',
         first_weighment_time: formData.firstWeighmentTime
           ? `${new Date().toISOString().slice(0, 10)}T${formData.firstWeighmentTime}:00`
@@ -325,9 +329,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tareWeight">
-                  Tare Weight <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="tareWeight">Tare Weight</Label>
                 <Input
                   id="tareWeight"
                   type="number"

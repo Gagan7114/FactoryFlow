@@ -112,6 +112,7 @@ export interface PostGRPORequest {
   warehouse_code?: string;
   comments?: string;
   vendor_ref?: string;
+  tare_weight: number;
   extra_charges?: ExtraCharge[];
   attachments?: File[];
   doc_date?: string;
