@@ -1,5 +1,5 @@
 import { ArrowRightLeft } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -36,11 +36,16 @@ export default function BoxTransferPage() {
   const [targetPalletId, setTargetPalletId] = useState<number | null>(null);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
 
+  const canSearchSource = sourceSearch.trim().length >= 2;
+  const canSearchTarget = targetSearch.trim().length >= 2;
+
   const { data: sourcePallets = [], isLoading: loadingSourcePallets } = usePallets(
-    sourceSearch.length >= 2 ? { search: sourceSearch, status: 'ACTIVE' } : undefined,
+    { search: sourceSearch, status: 'ACTIVE' },
+    { enabled: canSearchSource },
   );
   const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
-    targetSearch.length >= 2 ? { search: targetSearch } : undefined,
+    { search: targetSearch },
+    { enabled: canSearchTarget && selectedBoxIds.length > 0 && !!sourcePallet },
   );
   const { data: sourcePallet } = usePalletDetail(sourcePalletId);
   const transferMutation = useTransferBoxes();
@@ -57,6 +62,7 @@ export default function BoxTransferPage() {
 
     const isEmpty = pallet.box_count === 0;
     const hasNoContext = !pallet.item_code && !pallet.batch_number && !pallet.uom;
+    const isReusableClearedPallet = pallet.status === 'CLEARED' && isEmpty;
     const matchesSourceContext =
       pallet.item_code === sourcePallet.item_code &&
       pallet.batch_number === sourcePallet.batch_number &&
@@ -64,11 +70,40 @@ export default function BoxTransferPage() {
     const canReceiveByStatus =
       pallet.status === 'CLEARED' ||
       (pallet.status === 'ACTIVE' && (isEmpty || matchesSourceContext));
-    const canReceiveByContext = (isEmpty && hasNoContext) || matchesSourceContext;
+    const canReceiveByContext =
+      isReusableClearedPallet || (isEmpty && hasNoContext) || matchesSourceContext;
     const hasSpace = getRemainingSpace(pallet) >= selectedBoxIds.length;
 
     return canReceiveByStatus && canReceiveByContext && hasSpace;
   });
+
+  const handleSourceSearchChange = useCallback((search: string) => {
+    setSourceSearch(search);
+  }, []);
+
+  const handleTargetSearchChange = useCallback((search: string) => {
+    setTargetSearch(search);
+  }, []);
+
+  useEffect(() => {
+    if (!canSearchSource || sourcePallets.length !== 1) return;
+    const [pallet] = sourcePallets;
+    if (pallet.pallet_id.toLowerCase() !== sourceSearch.trim().toLowerCase()) return;
+    if (sourcePalletId === pallet.id) return;
+
+    setSourcePalletId(pallet.id);
+    setTargetPalletId(null);
+    setSelectedBoxIds([]);
+  }, [canSearchSource, sourcePalletId, sourcePallets, sourceSearch]);
+
+  useEffect(() => {
+    if (!canSearchTarget || eligibleTargetPallets.length !== 1) return;
+    const [pallet] = eligibleTargetPallets;
+    if (pallet.pallet_id.toLowerCase() !== targetSearch.trim().toLowerCase()) return;
+    if (targetPalletId === pallet.id) return;
+
+    setTargetPalletId(pallet.id);
+  }, [canSearchTarget, eligibleTargetPallets, targetPalletId, targetSearch]);
 
   const toggleBox = (id: number) => {
     setSelectedBoxIds((prev) =>
@@ -138,7 +173,7 @@ export default function BoxTransferPage() {
               loadingText="Searching..."
               emptyText="Type at least 2 characters"
               notFoundText="No active pallets found"
-              onSearchChange={useCallback((search: string) => setSourceSearch(search), [])}
+              onSearchChange={handleSourceSearchChange}
               onItemSelect={(pallet) => {
                 setSourcePalletId(pallet.id);
                 setTargetPalletId(null);
@@ -185,7 +220,7 @@ export default function BoxTransferPage() {
                   : 'Select boxes before choosing target'
               }
               notFoundText="No matching pallet with enough space"
-              onSearchChange={useCallback((search: string) => setTargetSearch(search), [])}
+              onSearchChange={handleTargetSearchChange}
               onItemSelect={(pallet) => setTargetPalletId(pallet.id)}
               onClear={() => setTargetPalletId(null)}
             />

@@ -10,12 +10,18 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const startingRef = useRef(false);
   const lastScanRef = useRef<string>('');
   const lastScanTimeRef = useRef<number>(0);
   const reactId = useId();
   const elementId = `barcode-scanner-viewport-${reactId.replace(/:/g, '')}`;
 
   const startScanning = useCallback(async () => {
+    if (startingRef.current || scannerRef.current?.isScanning) {
+      return;
+    }
+
+    startingRef.current = true;
     setError(null);
     setIsScanning(true);
 
@@ -23,6 +29,10 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
       await new Promise<void>((resolve) => {
         window.requestAnimationFrame(() => resolve());
       });
+
+      if (!document.getElementById(elementId)) {
+        throw new Error('Scanner viewport is not ready. Please try again.');
+      }
 
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(elementId);
@@ -54,10 +64,13 @@ export function useScanner({ onScan, debounceMs = 1500 }: UseScannerOptions) {
       const msg = err instanceof Error ? err.message : 'Failed to start camera';
       setError(msg);
       setIsScanning(false);
+    } finally {
+      startingRef.current = false;
     }
   }, [onScan, debounceMs, elementId]);
 
   const stopScanning = useCallback(async () => {
+    startingRef.current = false;
     try {
       if (scannerRef.current?.isScanning) {
         await scannerRef.current.stop();
