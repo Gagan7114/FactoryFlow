@@ -28,6 +28,11 @@ interface PalletLabelProps {
 }
 
 const EMPTY_VALUE = '-';
+const LABEL_BORDER = '0.2mm solid #111';
+const OUTER_BORDER = '0.3mm solid #000';
+const TEXT_WEIGHT = 600;
+const EMPHASIS_WEIGHT = 700;
+const HEADER_WEIGHT = 800;
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return EMPTY_VALUE;
@@ -74,7 +79,7 @@ const itemNameStyle = (name: string): CSSProperties => ({
   WebkitLineClamp: 2,
   wordBreak: 'break-word',
   fontSize: getItemNameFontSize(name),
-  fontWeight: 900,
+  fontWeight: EMPHASIS_WEIGHT,
   lineHeight: 1.08,
   letterSpacing: 0,
   textTransform: 'uppercase',
@@ -91,8 +96,8 @@ function InfoCell({ label, value, strong = false }: LabelField) {
     <div
       style={{
         minWidth: 0,
-        borderTop: '0.25mm solid #111',
-        borderRight: '0.25mm solid #111',
+        borderTop: LABEL_BORDER,
+        borderRight: LABEL_BORDER,
         padding: '0.45mm 0.8mm',
         overflow: 'hidden',
       }}
@@ -100,7 +105,7 @@ function InfoCell({ label, value, strong = false }: LabelField) {
       <div
         style={{
           fontSize: '5.4px',
-          fontWeight: 900,
+          fontWeight: TEXT_WEIGHT,
           lineHeight: 1,
           letterSpacing: 0,
           color: '#333',
@@ -116,7 +121,7 @@ function InfoCell({ label, value, strong = false }: LabelField) {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           fontSize: strong ? '9.8px' : '7.6px',
-          fontWeight: strong ? 900 : 800,
+          fontWeight: strong ? EMPHASIS_WEIGHT : TEXT_WEIGHT,
           lineHeight: 1.08,
           letterSpacing: 0,
           color: '#000',
@@ -163,7 +168,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
         display: 'grid',
         gridTemplateColumns: '66mm 34mm',
         alignItems: 'stretch',
-        border: '0.35mm solid #000',
+        border: OUTER_BORDER,
       }}
     >
       <div
@@ -191,9 +196,9 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRight: '0.25mm solid #fff',
+              borderRight: '0.2mm solid #fff',
               fontSize: '8.8px',
-              fontWeight: 900,
+              fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
             }}
@@ -208,7 +213,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               whiteSpace: 'nowrap',
               padding: '0 1mm',
               fontSize: '10.5px',
-              fontWeight: 900,
+              fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
               textTransform: 'uppercase',
@@ -222,9 +227,9 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderLeft: '0.25mm solid #fff',
+              borderLeft: '0.2mm solid #fff',
               fontSize: '7.6px',
-              fontWeight: 900,
+              fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
             }}
           >
@@ -237,7 +242,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
             display: 'flex',
             alignItems: 'center',
             minWidth: 0,
-            borderBottom: '0.25mm solid #111',
+            borderBottom: LABEL_BORDER,
             padding: '0.8mm 1mm',
             overflow: 'hidden',
           }}
@@ -265,7 +270,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
           minWidth: 0,
           display: 'grid',
           gridTemplateRows: '30.5mm 1fr',
-          borderLeft: '0.35mm solid #000',
+          borderLeft: OUTER_BORDER,
           overflow: 'hidden',
         }}
       >
@@ -289,7 +294,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
         <div
           style={{
             minWidth: 0,
-            borderTop: '0.35mm solid #000',
+            borderTop: OUTER_BORDER,
             padding: '0.55mm 0.8mm',
             display: 'flex',
             flexDirection: 'column',
@@ -303,7 +308,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
           <div
             style={{
               fontSize: '5.4px',
-              fontWeight: 900,
+              fontWeight: TEXT_WEIGHT,
               lineHeight: 1,
               color: '#333',
               textTransform: 'uppercase',
@@ -319,7 +324,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               whiteSpace: 'nowrap',
               fontFamily: 'Consolas, monospace',
               fontSize: '6.8px',
-              fontWeight: 900,
+              fontWeight: EMPHASIS_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
             }}
