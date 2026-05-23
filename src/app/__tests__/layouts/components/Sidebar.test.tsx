@@ -119,9 +119,9 @@ describe('Sidebar', () => {
 
   it('renders Jivo Info logo', () => {
     const content = readSource();
-    expect(content).toContain('src="/factoryLogoNew.png"');
-    expect(content).toContain('alt="Jivo Info Logo"');
-    expect(content).not.toContain('dark:invert');
+    expect(content).toContain('src="/JivoWellnessLogo.png"');
+    expect(content).toContain('alt="Jivo Wellness Logo"');
+    expect(content).toContain('dark:brightness-0 dark:invert');
   });
 
   it('contains <nav> element for navigation items', () => {
