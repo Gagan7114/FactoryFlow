@@ -17,10 +17,12 @@ import { toast } from 'sonner';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
 import {
+  type SalesDispatchDashboardEntry,
   type SalesDispatchGateOut,
   type SalesDispatchLock,
   useSalesDispatchEntries,
   useSalesDispatchLock,
+  useSalesDispatchPendingBookings,
   useUpdateSalesDispatchLock,
 } from '@/modules/gate/api';
 import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
@@ -46,6 +48,7 @@ type DashboardFilter =
   | 'AWAITING_GATEPASS'
   | 'PRINT_NOT_COMMITTED'
   | 'MARKED_OUT'
+  | 'PENDING_DOCKING'
   | 'WAITING_INSIDE'
   | 'MISSING_PHOTO_GPS'
   | 'GATEPASS_PENDING'
@@ -75,20 +78,24 @@ export default function SalesDispatchDashboardPage() {
   );
 
   const { data: entries = [], isFetching, refetch } = useSalesDispatchEntries(listParams);
+  const {
+    data: pendingBookings = [],
+    isFetching: isPendingBookingsFetching,
+    refetch: refetchPendingBookings,
+  } = useSalesDispatchPendingBookings(listParams, { enabled: !isGateOutMode });
   const { data: dispatchLock } = useSalesDispatchLock();
   const updateLock = useUpdateSalesDispatchLock();
+  const isDashboardFetching = isFetching || isPendingBookingsFetching;
 
   const displayEntries = useMemo(() => {
-    if (!isGateOutMode) return entries;
+    if (isGateOutMode) return entries.slice().sort(sortSalesDispatchOutEntries);
 
-    return entries.slice().sort(sortSalesDispatchOutEntries);
-  }, [entries, isGateOutMode]);
+    return [...pendingBookings, ...entries].sort(sortDockingDashboardEntries);
+  }, [entries, isGateOutMode, pendingBookings]);
 
   const cardFilteredEntries = useMemo(
     () =>
-      displayEntries.filter((entry) =>
-        matchesSalesDispatchDashboardFilter(entry, selectedFilter),
-      ),
+      displayEntries.filter((entry) => matchesSalesDispatchDashboardFilter(entry, selectedFilter)),
     [displayEntries, selectedFilter],
   );
 
@@ -111,6 +118,7 @@ export default function SalesDispatchDashboardPage() {
     'PRINT_NOT_COMMITTED',
   );
   const markedOutCount = countSalesDispatchDashboardEntries(displayEntries, 'MARKED_OUT');
+  const pendingDockingCount = countSalesDispatchDashboardEntries(displayEntries, 'PENDING_DOCKING');
   const waitingInsideCount = countSalesDispatchDashboardEntries(displayEntries, 'WAITING_INSIDE');
   const missingPhotoCount = countSalesDispatchDashboardEntries(displayEntries, 'MISSING_PHOTO_GPS');
   const gatepassPendingCount = countSalesDispatchDashboardEntries(
@@ -158,6 +166,12 @@ export default function SalesDispatchDashboardPage() {
           icon: <List className="h-5 w-5 text-slate-600" />,
           label: 'All',
           value: allCount,
+        },
+        {
+          filter: 'PENDING_DOCKING' as const,
+          icon: <Clock className="h-5 w-5 text-amber-600" />,
+          label: 'Pending',
+          value: pendingDockingCount,
         },
         {
           filter: 'WAITING_INSIDE' as const,
@@ -232,9 +246,16 @@ export default function SalesDispatchDashboardPage() {
               }
             }}
           />
-          <Button variant="outline" onClick={() => void refetch()} disabled={isFetching}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              void refetch();
+              if (!isGateOutMode) void refetchPendingBookings();
+            }}
+            disabled={isDashboardFetching}
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
-            {isFetching ? 'Refreshing' : 'Refresh'}
+            {isDashboardFetching ? 'Refreshing' : 'Refresh'}
           </Button>
           {!isGateOutMode && (
             <Button onClick={() => navigate(routes.newEntry)}>
@@ -253,7 +274,7 @@ export default function SalesDispatchDashboardPage() {
         />
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {statCards.map((card) => (
           <StatCard
             key={card.filter}
@@ -283,17 +304,13 @@ export default function SalesDispatchDashboardPage() {
           </div>
         </div>
 
-        {isFetching && displayEntries.length === 0 ? (
+        {isDashboardFetching && displayEntries.length === 0 ? (
           <EmptyState
             text={isGateOutMode ? 'Loading sales dispatch out entries' : 'Loading docking entries'}
           />
         ) : displayEntries.length === 0 ? (
           <EmptyState
-            text={
-              isGateOutMode
-                ? 'No sales dispatch out entries yet'
-                : 'No docking entries yet'
-            }
+            text={isGateOutMode ? 'No sales dispatch out entries yet' : 'No docking entries yet'}
           />
         ) : filteredEntries.length === 0 ? (
           <EmptyState
@@ -310,6 +327,7 @@ export default function SalesDispatchDashboardPage() {
         ) : (
           <DispatchTable
             entries={filteredEntries}
+            newEntryPath={routes.newEntry}
             detailPath={routes.detail}
             gatepassPath={routes.gatepass}
             isGateOutMode={isGateOutMode}
@@ -322,11 +340,13 @@ export default function SalesDispatchDashboardPage() {
 
 function DispatchTable({
   entries,
+  newEntryPath,
   detailPath,
   gatepassPath,
   isGateOutMode,
 }: {
-  entries: SalesDispatchGateOut[];
+  entries: SalesDispatchDashboardEntry[];
+  newEntryPath: string;
   detailPath: (entryId: string | number) => string;
   gatepassPath: (entryId: string | number) => string;
   isGateOutMode: boolean;
@@ -350,9 +370,7 @@ function DispatchTable({
           <thead className="bg-muted/50">
             <tr>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Entry No.</th>
-              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">
-                SAP Document
-              </th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">SAP Document</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Customer</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Items</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Vehicle</th>
@@ -363,7 +381,7 @@ function DispatchTable({
           </thead>
           <tbody>
             {entries.map((entry) => {
-              const itemSummary = entry.item_summary || summarizeItems(entry.items);
+              const itemSummary = entry.item_summary || summarizeItems(getEntryItems(entry));
 
               return (
                 <tr
@@ -373,6 +391,7 @@ function DispatchTable({
                     navigate(
                       getSalesDispatchDashboardEntryPath(
                         entry,
+                        newEntryPath,
                         detailPath,
                         gatepassPath,
                         isGateOutMode,
@@ -380,7 +399,9 @@ function DispatchTable({
                     );
                   }}
                 >
-                  <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entry_no}</td>
+                  <td className="whitespace-nowrap p-3 text-sm font-medium">
+                    {isPendingBookingEntry(entry) ? 'Pending' : entry.entry_no}
+                  </td>
                   <td className="whitespace-nowrap p-3 text-sm">
                     <div>{entry.sap_doc_num || entry.sap_doc_entry}</div>
                     <div className="text-xs text-muted-foreground">
@@ -475,9 +496,9 @@ function DockingLockPanel({
   );
 }
 
-function buildSalesDispatchSearchText(entry: SalesDispatchGateOut) {
+function buildSalesDispatchSearchText(entry: SalesDispatchDashboardEntry) {
   return [
-    entry.entry_no,
+    isPendingBookingEntry(entry) ? 'pending docking booked' : entry.entry_no,
     entry.sap_doc_num,
     entry.sap_doc_entry,
     entry.customer_name,
@@ -494,19 +515,21 @@ function buildSalesDispatchSearchText(entry: SalesDispatchGateOut) {
 }
 
 function countSalesDispatchDashboardEntries(
-  entries: SalesDispatchGateOut[],
+  entries: SalesDispatchDashboardEntry[],
   filter: DashboardFilter,
 ) {
   return entries.filter((entry) => matchesSalesDispatchDashboardFilter(entry, filter)).length;
 }
 
 function matchesSalesDispatchDashboardFilter(
-  entry: SalesDispatchGateOut,
+  entry: SalesDispatchDashboardEntry,
   filter: DashboardFilter,
 ) {
   switch (filter) {
     case 'ALL':
       return true;
+    case 'PENDING_DOCKING':
+      return isPendingBookingEntry(entry);
     case 'PENDING_OUT':
       return entry.status === GATE_OUT_PENDING_STATUS;
     case 'AWAITING_GATEPASS':
@@ -520,6 +543,7 @@ function matchesSalesDispatchDashboardFilter(
     case 'WAITING_INSIDE':
       return ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status);
     case 'MISSING_PHOTO_GPS':
+      if (isPendingBookingEntry(entry)) return false;
       return (
         ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status) &&
         (!entry.truck_photo || !entry.photo_latitude || !entry.photo_longitude)
@@ -527,6 +551,23 @@ function matchesSalesDispatchDashboardFilter(
     default:
       return true;
   }
+}
+
+function sortDockingDashboardEntries(
+  first: SalesDispatchDashboardEntry,
+  second: SalesDispatchDashboardEntry,
+) {
+  const firstPriority = isPendingBookingEntry(first) ? 0 : 1;
+  const secondPriority = isPendingBookingEntry(second) ? 0 : 1;
+
+  if (firstPriority !== secondPriority) {
+    return firstPriority - secondPriority;
+  }
+
+  return (
+    timestampValue(second.updated_at || second.created_at) -
+    timestampValue(first.updated_at || first.created_at)
+  );
 }
 
 function sortSalesDispatchOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGateOut) {
@@ -550,11 +591,15 @@ function timestampValue(value?: string | null) {
 }
 
 function getSalesDispatchDashboardEntryPath(
-  entry: SalesDispatchGateOut,
+  entry: SalesDispatchDashboardEntry,
+  newEntryPath: string,
   detailPath: (entryId: string | number) => string,
   gatepassPath: (entryId: string | number) => string,
   isGateOutMode: boolean,
 ) {
+  if (isPendingBookingEntry(entry)) {
+    return `${newEntryPath}?dispatchPlanIds=${entry.dispatch_plan_ids.join(',')}`;
+  }
   if (isGateOutMode && entry.status === GATE_OUT_PENDING_STATUS) {
     return gatepassPath(entry.vehicle_entry);
   }
@@ -562,6 +607,7 @@ function getSalesDispatchDashboardEntryPath(
 }
 
 function getSalesDispatchDashboardStatusLabel(status: string, isGateOutMode: boolean) {
+  if (status === 'PENDING_DOCKING') return 'PENDING';
   if (!isGateOutMode) return status;
   if (status === GATE_OUT_PENDING_STATUS) return 'PENDING OUT';
   if (status === GATE_OUT_COMPLETED_STATUS) return 'MARKED OUT';
@@ -588,6 +634,16 @@ function summarizeItems(items: SalesDispatchGateOut['items']) {
     .slice(0, 2)
     .map((item) => `${item.item_code} (${item.quantity} ${item.uom})`)
     .join(', ');
+}
+
+function isPendingBookingEntry(
+  entry: SalesDispatchDashboardEntry,
+): entry is Extract<SalesDispatchDashboardEntry, { row_type: 'PENDING_BOOKING' }> {
+  return 'row_type' in entry && entry.row_type === 'PENDING_BOOKING';
+}
+
+function getEntryItems(entry: SalesDispatchDashboardEntry) {
+  return isPendingBookingEntry(entry) ? [] : entry.items;
 }
 
 function StatCard({

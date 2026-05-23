@@ -9,6 +9,7 @@ export type SalesDispatchStatus =
   | 'READY_FOR_GATEPASS'
   | 'GATEPASS_PRINTED'
   | 'PRINT_COMMITTED'
+  | 'PENDING_DOCKING'
   | 'DISPATCHED'
   | 'REJECTED'
   | 'CANCELLED';
@@ -235,6 +236,55 @@ export interface SalesDispatchGateOut {
   updated_at: string;
 }
 
+export interface SalesDispatchPendingBooking {
+  row_type: 'PENDING_BOOKING';
+  id: string;
+  entry_no?: string;
+  dispatch_plan_ids: number[];
+  document_count: number;
+  document_numbers: string[];
+  documents: SalesDispatchDocument[];
+  document_type: 'INVOICE';
+  sap_doc_entry: number;
+  sap_doc_num: string;
+  sap_doc_date?: string | null;
+  sap_doc_total?: string | number | null;
+  customer_code?: string;
+  customer_name?: string;
+  place_of_supply?: string;
+  eway_bill?: string;
+  item_summary?: string;
+  total_litres?: string | number | null;
+  total_weight?: string | number | null;
+  vehicle?: number | null;
+  vehicle_entry?: number | null;
+  vehicle_entry_no?: string;
+  vehicle_no: string;
+  transporter?: number | null;
+  transporter_name?: string;
+  transporter_gstin?: string;
+  transporter_contact_person?: string;
+  transporter_mobile_no?: string;
+  driver?: number | null;
+  driver_name: string;
+  driver_mobile_no?: string;
+  driver_license_no?: string;
+  driver_id_proof_type?: string;
+  driver_id_proof_number?: string;
+  bilty_no?: string;
+  bilty_date?: string | null;
+  freight?: string | number | null;
+  total_freight?: string | number | null;
+  gate_out_date?: string | null;
+  out_time?: string | null;
+  gatepass_no?: null;
+  status: 'PENDING_DOCKING';
+  created_at: string;
+  updated_at: string;
+}
+
+export type SalesDispatchDashboardEntry = SalesDispatchGateOut | SalesDispatchPendingBooking;
+
 export interface SalesDispatchGatepassPrintLog {
   id: number;
   sales_dispatch: number;
@@ -304,6 +354,14 @@ export interface SalesDispatchListParams {
   from_date?: string;
   to_date?: string;
   search?: string;
+}
+
+export interface SalesDispatchPendingBookingParams {
+  from_date?: string;
+  to_date?: string;
+  search?: string;
+  dispatch_plan_ids?: string;
+  limit?: number;
 }
 
 export type SalesDispatchReportParams = SalesDispatchListParams;
@@ -409,6 +467,17 @@ export const salesDispatchApi = {
       ? `${API_ENDPOINTS.GATE_CORE.SALES_DISPATCHES}?${query}`
       : API_ENDPOINTS.GATE_CORE.SALES_DISPATCHES;
     const response = await apiClient.get<SalesDispatchGateOut[]>(url);
+    return response.data;
+  },
+
+  async pendingBookings(
+    params?: SalesDispatchPendingBookingParams,
+  ): Promise<SalesDispatchPendingBooking[]> {
+    const query = buildQuery(params);
+    const url = query
+      ? `${API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_PENDING_BOOKINGS}?${query}`
+      : API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_PENDING_BOOKINGS;
+    const response = await apiClient.get<SalesDispatchPendingBooking[]>(url);
     return response.data;
   },
 

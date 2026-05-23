@@ -16,10 +16,12 @@ import {
   type SalesDispatchDocument,
   type SalesDispatchDocumentType,
   type SalesDispatchGateOut,
+  type SalesDispatchPendingBooking,
   useCreateSalesDispatch,
   useSalesDispatchByVehicleEntry,
   useSalesDispatchDocument,
   useSalesDispatchDocuments,
+  useSalesDispatchPendingBookings,
   useUpdateSalesDispatch,
 } from '@/modules/gate/api';
 import {
@@ -112,6 +114,36 @@ function buildDriverSelection(entry: SalesDispatchGateOut): DriverSelection {
   };
 }
 
+function buildVehicleSelectionFromPendingBooking(
+  booking: SalesDispatchPendingBooking,
+): VehicleSelection {
+  return {
+    vehicleId: booking.vehicle || 0,
+    vehicleNumber: booking.vehicle_no,
+    vehicleType: '',
+    vehicleCapacity: '',
+    transporterId: booking.transporter || 0,
+    transporterName: booking.transporter_name || '',
+    transporterContactPerson: booking.transporter_contact_person || '',
+    transporterMobile: booking.transporter_mobile_no || '',
+    transporterGstin: booking.transporter_gstin || '',
+  };
+}
+
+function buildDriverSelectionFromPendingBooking(
+  booking: SalesDispatchPendingBooking,
+): DriverSelection {
+  return {
+    driverId: booking.driver || 0,
+    driverName: booking.driver_name,
+    mobileNumber: booking.driver_mobile_no || '',
+    drivingLicenseNumber: booking.driver_license_no || '',
+    idProofType: booking.driver_id_proof_type || '',
+    idProofNumber: booking.driver_id_proof_number || '',
+    driverPhoto: null,
+  };
+}
+
 function canEditEntry(entry?: SalesDispatchGateOut | null) {
   return !entry || ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'].includes(entry.status);
 }
@@ -173,6 +205,8 @@ export default function SalesDispatchNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const existingVehicleEntryId = Number(searchParams.get('entryId') || 0) || null;
+  const pendingDispatchPlanIds = searchParams.get('dispatchPlanIds') || '';
+  const isPendingBookingMode = !existingVehicleEntryId && Boolean(pendingDispatchPlanIds);
   const initialDocumentType = parseInitialDocumentType(searchParams.get('documentType'));
 
   const [draft, setDraft] = useState<DispatchDraft>(() => buildEmptyDraft(initialDocumentType));
@@ -185,16 +219,25 @@ export default function SalesDispatchNewPage() {
 
   const { data: existingEntry, isLoading: isExistingLoading } =
     useSalesDispatchByVehicleEntry(existingVehicleEntryId);
+  const { data: pendingBookings = [], isLoading: isPendingBookingLoading } =
+    useSalesDispatchPendingBookings(
+      { dispatch_plan_ids: pendingDispatchPlanIds },
+      { enabled: isPendingBookingMode },
+    );
   const {
     data: documents = [],
     isLoading: isDocumentsLoading,
     isError: isDocumentsError,
     refetch: refetchDocuments,
-  } = useSalesDispatchDocuments({
-    document_type: draft.documentType,
-    search: submittedSearch,
-    limit: 50,
-  });
+  } = useSalesDispatchDocuments(
+    {
+      document_type: draft.documentType,
+      search: submittedSearch,
+      limit: 50,
+    },
+    { enabled: !isPendingBookingMode },
+  );
+  const pendingBooking = pendingBookings[0] || null;
   const selectedDocumentKey = useMemo(
     () => parseDocumentKey(draft.documentKey),
     [draft.documentKey],
@@ -223,6 +266,27 @@ export default function SalesDispatchNewPage() {
       remarks: existingEntry.remarks || '',
     });
   }, [existingEntry]);
+
+  useEffect(() => {
+    if (!pendingBooking || existingEntry) return;
+
+    setDraft((current) => ({
+      ...current,
+      vehicle: buildVehicleSelectionFromPendingBooking(pendingBooking),
+      driver: buildDriverSelectionFromPendingBooking(pendingBooking),
+      documentType: 'INVOICE',
+      documentKey: '',
+      biltyNo: pendingBooking.bilty_no || '',
+      biltyDate: pendingBooking.bilty_date || '',
+      remarks: pendingBooking.document_numbers.length
+        ? `Booked invoices: ${pendingBooking.document_numbers.join(', ')}`
+        : current.remarks,
+    }));
+    setSelectedDocuments(pendingBooking.documents);
+    setSelectedListDocument(null);
+    setSubmittedSearch('');
+    setFormError('');
+  }, [existingEntry, pendingBooking]);
 
   const documentFromList = useMemo(
     () => documents.find((document) => buildDocumentKey(document) === draft.documentKey) || null,
@@ -359,7 +423,10 @@ export default function SalesDispatchNewPage() {
     }
   };
 
-  if (existingVehicleEntryId && isExistingLoading) {
+  if (
+    (existingVehicleEntryId && isExistingLoading) ||
+    (isPendingBookingMode && isPendingBookingLoading)
+  ) {
     return <StepLoadingSpinner />;
   }
 
@@ -380,6 +447,7 @@ export default function SalesDispatchNewPage() {
               required
               value={draft.vehicle?.vehicleNumber || ''}
               disabled={isExistingReadOnly || !!existingEntry}
+              defaultDisplayText={draft.vehicle?.vehicleNumber || ''}
               onChange={(vehicle) => updateDraft('vehicle', vehicle.vehicleId ? vehicle : null)}
               placeholder="Select vehicle"
             />
@@ -388,6 +456,7 @@ export default function SalesDispatchNewPage() {
               required
               value={draft.driver?.driverName || ''}
               disabled={isExistingReadOnly || !!existingEntry}
+              defaultDisplayText={draft.driver?.driverName || ''}
               onChange={(driver) => updateDraft('driver', driver.driverId ? driver : null)}
               placeholder="Select driver"
             />

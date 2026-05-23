@@ -9,6 +9,7 @@ import {
   type SalesDispatchGatepassReprintRequest,
   type SalesDispatchListParams,
   type SalesDispatchLockUpdateRequest,
+  type SalesDispatchPendingBookingParams,
   type SalesDispatchReasonRequest,
   type SalesDispatchReportParams,
   type SalesDispatchUpdateRequest,
@@ -23,6 +24,8 @@ export const SALES_DISPATCH_QUERY_KEYS = {
     [...SALES_DISPATCH_QUERY_KEYS.all, 'document', documentType, docEntry] as const,
   list: (params?: SalesDispatchListParams) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'list', params] as const,
+  pendingBookings: (params?: SalesDispatchPendingBookingParams) =>
+    [...SALES_DISPATCH_QUERY_KEYS.all, 'pendingBookings', params] as const,
   reports: (params?: SalesDispatchReportParams) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'reports', params] as const,
   lock: () => [...SALES_DISPATCH_QUERY_KEYS.all, 'lock'] as const,
@@ -72,6 +75,18 @@ export function useSalesDispatchEntries(
   return useQuery({
     queryKey: SALES_DISPATCH_QUERY_KEYS.list(params),
     queryFn: () => salesDispatchApi.list(params),
+    staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useSalesDispatchPendingBookings(
+  params?: SalesDispatchPendingBookingParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: SALES_DISPATCH_QUERY_KEYS.pendingBookings(params),
+    queryFn: () => salesDispatchApi.pendingBookings(params),
     staleTime: 30 * 1000,
     enabled: options?.enabled ?? true,
   });
