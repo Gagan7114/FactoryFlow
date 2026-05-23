@@ -70,6 +70,7 @@ export function NonMovingWarehouseSummary({
   }
 
   if (warehouses.length === 0) return null;
+  const isSelectable = Boolean(onWarehouseSelect);
 
   return (
     <Card>
@@ -132,23 +133,36 @@ export function NonMovingWarehouseSummary({
                 {sortedWarehouses.map((warehouse) => (
                   <tr
                     key={warehouse.warehouse}
-                    className="cursor-pointer border-b transition-colors hover:bg-muted/30"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => onWarehouseSelect?.(warehouse.warehouse)}
+                    className={cn(
+                      'border-b transition-colors',
+                      isSelectable && 'cursor-pointer hover:bg-muted/30',
+                    )}
+                    role={isSelectable ? 'button' : undefined}
+                    tabIndex={isSelectable ? 0 : undefined}
+                    onClick={() => {
+                      if (isSelectable) onWarehouseSelect?.(warehouse.warehouse);
+                    }}
                     onKeyDown={(event) => {
+                      if (!isSelectable) return;
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         onWarehouseSelect?.(warehouse.warehouse);
                       }
                     }}
                   >
-                    <td className="px-4 py-2 font-medium">{warehouse.warehouse}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {warehouse.item_count.toLocaleString()}
+                    <td className="px-4 py-2 font-medium">
+                      <div>{warehouse.warehouse}</div>
+                      {warehouse.warehouse_name && (
+                        <div className="text-xs font-normal text-muted-foreground">
+                          {warehouse.warehouse_name}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums">
-                      {warehouse.total_quantity.toLocaleString()}
+                      {warehouse.item_count.toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {warehouse.total_quantity.toLocaleString('en-IN')}
                     </td>
                     <td className="px-4 py-2 text-right tabular-nums">
                       {formatCurrency(warehouse.total_value)}

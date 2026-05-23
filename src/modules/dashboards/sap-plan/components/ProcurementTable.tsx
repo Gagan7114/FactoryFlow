@@ -132,14 +132,14 @@ export function ProcurementTable({ items, isLoading }: ProcurementTableProps) {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right">{item.total_required_qty.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">{item.net_available.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">{item.total_required_qty.toLocaleString('en-IN')}</td>
+                  <td className="px-4 py-3 text-right">{item.net_available.toLocaleString('en-IN')}</td>
                   <td className="px-4 py-3 text-right">
                     <ShortfallCell value={item.shortfall_qty} uom={item.uom} />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <span className="font-semibold">
-                      {item.suggested_purchase_qty.toLocaleString()}
+                      {item.suggested_purchase_qty.toLocaleString('en-IN')}
                     </span>
                     <div className="text-xs text-muted-foreground">{item.uom}</div>
                   </td>

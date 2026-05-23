@@ -79,10 +79,10 @@ export function SKUDetailPanel({ docEntry }: SKUDetailPanelProps) {
             <tr key={comp.component_line} className="border-b last:border-0">
               <td className="py-2 pr-3 font-mono text-muted-foreground">{comp.component_code}</td>
               <td className="py-2 pr-3">{comp.component_name}</td>
-              <td className="py-2 pr-3 text-right">{comp.component_planned_qty.toLocaleString()}</td>
-              <td className="py-2 pr-3 text-right">{comp.component_issued_qty.toLocaleString()}</td>
-              <td className="py-2 pr-3 text-right">{comp.component_remaining_qty.toLocaleString()}</td>
-              <td className="py-2 pr-3 text-right">{comp.net_available.toLocaleString()}</td>
+              <td className="py-2 pr-3 text-right">{comp.component_planned_qty.toLocaleString('en-IN')}</td>
+              <td className="py-2 pr-3 text-right">{comp.component_issued_qty.toLocaleString('en-IN')}</td>
+              <td className="py-2 pr-3 text-right">{comp.component_remaining_qty.toLocaleString('en-IN')}</td>
+              <td className="py-2 pr-3 text-right">{comp.net_available.toLocaleString('en-IN')}</td>
               <td className="py-2 pr-3 text-right">
                 <ShortfallCell value={comp.shortfall_qty} />
               </td>

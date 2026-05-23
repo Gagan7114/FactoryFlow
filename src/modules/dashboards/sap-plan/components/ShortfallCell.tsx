@@ -9,7 +9,7 @@ export function ShortfallCell({ value, uom }: ShortfallCellProps) {
   }
   return (
     <span className="font-semibold text-red-600">
-      {value.toLocaleString()}
+      {value.toLocaleString('en-IN')}
       {uom && <span className="ml-1 text-xs font-normal">{uom}</span>}
     </span>
   );

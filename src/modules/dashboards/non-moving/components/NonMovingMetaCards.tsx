@@ -20,12 +20,12 @@ export function NonMovingMetaCards({ summary }: NonMovingMetaCardsProps) {
   const cards = [
     {
       label: 'Total Items',
-      value: summary?.total_items?.toLocaleString() ?? '-',
+      value: summary?.total_items?.toLocaleString('en-IN') ?? '-',
       icon: Package,
     },
     {
       label: 'Total Quantity',
-      value: summary?.total_quantity?.toLocaleString() ?? '-',
+      value: summary?.total_quantity?.toLocaleString('en-IN') ?? '-',
       icon: Boxes,
     },
     {

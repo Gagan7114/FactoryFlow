@@ -44,7 +44,7 @@ function stockDifferenceClasses(difference: number): string {
 }
 
 function formatStockDifference(difference: number): string {
-  const formatted = Math.abs(difference).toLocaleString();
+  const formatted = Math.abs(difference).toLocaleString('en-IN');
   if (difference > 0) return `+${formatted}`;
   if (difference < 0) return `-${formatted}`;
   return formatted;
@@ -104,10 +104,10 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
               <tr key={item.warehouse} className="border-b last:border-0">
                 <td className="py-2 pr-3 font-medium">{item.warehouse}</td>
                 <td className="py-2 pr-3 text-right tabular-nums">
-                  {item.on_hand.toLocaleString()}
+                  {item.on_hand.toLocaleString('en-IN')}
                 </td>
                 <td className="py-2 pr-3 text-right tabular-nums">
-                  {item.min_stock.toLocaleString()}
+                  {item.min_stock.toLocaleString('en-IN')}
                 </td>
                 <td
                   className={cn(

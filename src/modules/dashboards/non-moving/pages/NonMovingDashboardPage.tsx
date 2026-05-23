@@ -6,7 +6,12 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
 import { useItemGroups, useNonMovingReport } from '../api';
-import { NonMovingFilters, NonMovingMetaCards, NonMovingTable } from '../components';
+import {
+  NonMovingFilters,
+  NonMovingMetaCards,
+  NonMovingTable,
+  NonMovingWarehouseSummary,
+} from '../components';
 import type {
   BranchSummary,
   NonMovingFilters as NonMovingFiltersType,
@@ -141,6 +146,7 @@ export default function NonMovingDashboardPage() {
       {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
+          <NonMovingWarehouseSummary warehouses={reportQuery.data?.warehouse_summary ?? []} />
           <NonMovingTable
             items={groupedItems}
             isLoading={reportQuery.isLoading || reportQuery.isFetching}

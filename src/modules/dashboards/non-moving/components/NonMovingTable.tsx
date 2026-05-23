@@ -258,13 +258,13 @@ export function NonMovingTable({ items, isLoading, onSearchSelect }: NonMovingTa
                   <td className="px-4 py-3">{item.branch}</td>
                   <td className="px-4 py-3 text-muted-foreground">{item.sub_group}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {item.quantity.toLocaleString()}
+                    {item.quantity.toLocaleString('en-IN')}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {formatCurrency(item.value)}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {item.days_since_last_movement.toLocaleString()}
+                    {item.days_since_last_movement.toLocaleString('en-IN')}
                   </td>
                   <td className="px-4 py-3">
                     <NonMovingStatusBadge days={item.days_since_last_movement} />

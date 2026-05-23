@@ -48,7 +48,7 @@ function stockDifferenceClasses(difference: number): string {
 }
 
 function formatStockDifference(difference: number): string {
-  const formatted = Math.abs(difference).toLocaleString();
+  const formatted = Math.abs(difference).toLocaleString('en-IN');
   if (difference > 0) return `+${formatted}`;
   if (difference < 0) return `-${formatted}`;
   return formatted;
@@ -251,10 +251,10 @@ export function StockLevelTable({
                       </td>
                       <td className="px-4 py-3">{item.warehouse}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {item.on_hand.toLocaleString()}
+                        {item.on_hand.toLocaleString('en-IN')}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {item.min_stock.toLocaleString()}
+                        {item.min_stock.toLocaleString('en-IN')}
                       </td>
                       <td
                         className={cn(
@@ -300,7 +300,7 @@ export function StockLevelTable({
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t px-4 py-3">
             <p className="text-sm text-muted-foreground">
-              {totalItems.toLocaleString()} items &mdash; page {page} of {totalPages}
+              {totalItems.toLocaleString('en-IN')} items &mdash; page {page} of {totalPages}
             </p>
             <div className="flex items-center gap-1">
               <button
