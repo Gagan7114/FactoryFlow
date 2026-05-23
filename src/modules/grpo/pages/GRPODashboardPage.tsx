@@ -14,11 +14,13 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
 import { usePendingGRPOEntries } from '../api';
 import { useGRPOHistory } from '../api';
 import { GRPO_STATUS } from '../constants';
+import { exportGRPODashboard } from '../utils/exportGRPODashboards';
 
 // Status configuration for overview grid
 const STATUS_CONFIG = {
@@ -98,6 +100,13 @@ export default function GRPODashboardPage() {
     ).length,
   };
 
+  const handleExport = () => {
+    exportGRPODashboard({
+      pendingEntries,
+      historyEntries,
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -108,10 +117,17 @@ export default function GRPODashboardPage() {
             Post goods receipts to SAP after gate entry completion
           </p>
         </div>
-        <Button onClick={() => navigate('/grpo/material/pending')} className="w-full sm:w-auto">
-          <List className="h-4 w-4 mr-2" />
-          View Pending
-        </Button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <ExcelExportButton
+            onExport={handleExport}
+            disabled={isPermissionError || isLoading || pendingEntries.length + historyEntries.length === 0}
+            disabledReason="No GRPO dashboard rows to export"
+          />
+          <Button onClick={() => navigate('/grpo/material/pending')} className="w-full sm:w-auto">
+            <List className="h-4 w-4 mr-2" />
+            View Pending
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

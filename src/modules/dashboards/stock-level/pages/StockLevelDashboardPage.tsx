@@ -1,16 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import type { ApiError } from '@/core/api';
 import { useWMSItemGroups } from '@/modules/warehouse/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import {
   DEFAULT_MATERIAL_TYPE_NAME,
   findDefaultMaterialGroup,
 } from '../../utils/itemGroupDefaults';
-import { useStockLevels } from '../api';
+import { stockLevelApi, useStockLevels } from '../api';
 import { StockLevelFilters, StockLevelMetaCards, StockLevelTable } from '../components';
 import {
   DEFAULT_STOCK_MOVEMENT_FILTER,
@@ -19,6 +21,7 @@ import {
   STOCK_BENCHMARK_STATS_STATUS_FILTER,
 } from '../constants';
 import type { StockDashboardFilters, StockHealthStatus, StockSortCol } from '../types';
+import { exportStockLevelDashboard } from '../utils/exportStockLevel';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -52,6 +55,7 @@ export default function StockLevelDashboardPage() {
     col: 'health_ratio',
     dir: 'asc',
   });
+  const [isExporting, setIsExporting] = useState(false);
   const itemGroupsQuery = useWMSItemGroups();
 
   const itemGroups = useMemo(
@@ -127,14 +131,50 @@ export default function StockLevelDashboardPage() {
         ? statsMeta.warehouses
         : undefined;
   const sapError = query.error ?? statsQuery.error;
-  const hasSAPError = sapError && isSAPError(sapError);
+  const sapApiError = isSAPError(sapError) ? sapError : null;
+  const hasSAPError = Boolean(sapApiError);
+  const stockItems = query.data?.data ?? [];
+
+  const handleExport = useCallback(async () => {
+    if (!query.data?.data.length) return;
+
+    setIsExporting(true);
+    try {
+      const pageSize = Math.max(query.data.meta.total_items, query.data.data.length, 1);
+      const exportFilters = {
+        ...effectiveFilters,
+        sort_by: sort.col,
+        sort_dir: sort.dir,
+        page: 1,
+        page_size: pageSize,
+      };
+      const exportData = await stockLevelApi.getStockLevels(exportFilters);
+
+      exportStockLevelDashboard({
+        items: exportData.data,
+        filters: exportFilters,
+        meta: exportData.meta,
+      });
+    } catch {
+      toast.error('Failed to export stock benchmark');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [effectiveFilters, query.data, sort.col, sort.dir]);
 
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Stock Benchmark"
         description="Inventory items with benchmark levels — monitor on-hand vs. benchmark requirements"
-      />
+      >
+        <ExcelExportButton
+          onExport={handleExport}
+          isLoading={isExporting}
+          disabled={Boolean(hasSAPError) || stockItems.length === 0 || !materialTypesResolved}
+          disabledReason="No stock rows to export"
+        />
+      </DashboardHeader>
 
       <StockLevelFilters
         onFiltersChange={handleFiltersChange}
@@ -146,9 +186,9 @@ export default function StockLevelDashboardPage() {
         externalResetSignal={filterResetSignal}
       />
 
-      {hasSAPError && (
+      {sapApiError && (
         <SAPUnavailableBanner
-          error={sapError as ApiError}
+          error={sapApiError}
           onRetry={() => {
             void query.refetch();
             void statsQuery.refetch();
@@ -164,7 +204,7 @@ export default function StockLevelDashboardPage() {
             onStatusSelect={handleStatusCardSelect}
           />
           <StockLevelTable
-            items={query.data?.data ?? []}
+            items={stockItems}
             isLoading={query.isLoading || query.isFetching}
             page={page}
             totalPages={meta?.total_pages ?? 1}

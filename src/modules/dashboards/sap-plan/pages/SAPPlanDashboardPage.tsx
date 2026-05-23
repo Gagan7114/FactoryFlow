@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import type { ApiError } from '@/core/api';
-import { Badge } from '@/shared/components/ui';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
+import { Badge } from '@/shared/components/ui';
 
 import { usePlanProcurement, usePlanSummary } from '../api';
 import {
@@ -13,6 +14,10 @@ import {
   SummaryMetaCards,
 } from '../components';
 import type { PlanDashboardFilters as Filters } from '../types';
+import {
+  exportSAPPlanProcurementDashboard,
+  exportSAPPlanSummaryDashboard,
+} from '../utils/exportSAPPlan';
 
 type ActiveTab = 'summary' | 'procurement';
 
@@ -36,15 +41,50 @@ export default function SAPPlanDashboardPage() {
   const procurementQuery = usePlanProcurement(filters, activeTab === 'procurement');
 
   const activeError = activeTab === 'summary' ? summaryQuery.error : procurementQuery.error;
+  const activeApiError = isSAPError(activeError) ? activeError : null;
   const isFetching =
     activeTab === 'summary' ? summaryQuery.isFetching : procurementQuery.isFetching;
+  const summaryRows = useMemo(
+    () =>
+      filters.status?.length
+        ? (summaryQuery.data?.data ?? []).filter((order) => filters.status!.includes(order.status))
+        : (summaryQuery.data?.data ?? []),
+    [filters.status, summaryQuery.data],
+  );
+  const procurementRows = useMemo(() => procurementQuery.data?.data ?? [], [procurementQuery.data]);
+  const activeRowCount = activeTab === 'summary' ? summaryRows.length : procurementRows.length;
+
+  const handleExport = useCallback(() => {
+    if (activeTab === 'summary') {
+      if (summaryRows.length === 0) return;
+      exportSAPPlanSummaryDashboard({
+        orders: summaryQuery.data?.data ?? [],
+        filters,
+        meta: summaryQuery.data?.meta,
+      });
+      return;
+    }
+
+    if (procurementRows.length === 0) return;
+    exportSAPPlanProcurementDashboard({
+      items: procurementRows,
+      filters,
+      meta: procurementQuery.data?.meta,
+    });
+  }, [activeTab, filters, procurementQuery.data?.meta, procurementRows, summaryQuery.data, summaryRows]);
 
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="SAP Material Plan"
         description="Production order shortfall, BOM component detail & procurement requirements"
-      />
+      >
+        <ExcelExportButton
+          onExport={handleExport}
+          disabled={Boolean(activeApiError) || activeRowCount === 0 || isFetching}
+          disabledReason="No SAP material plan rows to export"
+        />
+      </DashboardHeader>
 
       <PlanDashboardFilters onFiltersChange={handleFiltersChange} isFetching={isFetching} />
 
@@ -63,9 +103,9 @@ export default function SAPPlanDashboardPage() {
       </div>
 
       {/* SAP-level error banner (502/503) */}
-      {activeError && isSAPError(activeError) && (
+      {activeApiError && (
         <SAPUnavailableBanner
-          error={activeError as ApiError}
+          error={activeApiError}
           onRetry={
             activeTab === 'summary' ? summaryQuery.refetch : procurementQuery.refetch
           }
@@ -73,7 +113,7 @@ export default function SAPPlanDashboardPage() {
       )}
 
       {/* Tab content */}
-      {activeTab === 'summary' && !(activeError && isSAPError(activeError)) && (
+      {activeTab === 'summary' && !activeApiError && (
         <>
           <SummaryMetaCards meta={summaryQuery.data?.meta} />
           <SKUSummaryTable
@@ -84,7 +124,7 @@ export default function SAPPlanDashboardPage() {
         </>
       )}
 
-      {activeTab === 'procurement' && !(activeError && isSAPError(activeError)) && (
+      {activeTab === 'procurement' && !activeApiError && (
         <ProcurementTable
           items={procurementQuery.data?.data ?? []}
           isLoading={procurementQuery.isLoading || procurementQuery.isFetching}

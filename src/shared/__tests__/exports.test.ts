@@ -20,6 +20,9 @@ vi.mock(
 );
 
 vi.mock('@/config/constants', () => ({
+  API_CONFIG: {
+    baseUrl: 'http://localhost:8000/api',
+  },
   DEBOUNCE_DELAY: { search: 300, input: 150, resize: 100 },
   APP_DEFAULTS: { dateFormat: 'DD/MM/YYYY', timeFormat: 'HH:mm' },
 }));
@@ -60,6 +63,9 @@ vi.mock('@/shared/components/dashboard/DashboardLoading', () => ({
 vi.mock('@/shared/components/dashboard/DashboardError', () => ({
   DashboardError: () => null,
 }));
+vi.mock('@/shared/components/dashboard/ExcelExportButton', () => ({
+  ExcelExportButton: () => null,
+}));
 vi.mock('@/shared/components/dashboard/StatusOverviewGrid', () => ({
   StatusOverviewGrid: () => null,
 }));
@@ -89,6 +95,7 @@ describe('Dashboard Component Exports', () => {
     expect(mod.DashboardHeader).toBeDefined();
     expect(mod.DashboardLoading).toBeDefined();
     expect(mod.DashboardError).toBeDefined();
+    expect(mod.ExcelExportButton).toBeDefined();
     expect(mod.StatusOverviewGrid).toBeDefined();
     expect(mod.SummaryCard).toBeDefined();
   });

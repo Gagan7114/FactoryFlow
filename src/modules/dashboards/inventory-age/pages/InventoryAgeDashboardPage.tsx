@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ApiError } from '@/core/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import {
@@ -20,6 +21,7 @@ import type {
   InventoryAgeMeta,
   WarehouseSummary,
 } from '../types';
+import { exportInventoryAgeDashboard } from '../utils/exportInventoryAge';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -53,6 +55,7 @@ export default function InventoryAgeDashboardPage() {
   const reportQuery = useInventoryAgeReport(effectiveFilters, materialTypesResolved);
 
   const sapError = reportQuery.error ?? optionsQuery.error;
+  const sapApiError = isSAPError(sapError) ? sapError : null;
 
   const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
@@ -108,12 +111,29 @@ export default function InventoryAgeDashboardPage() {
     return [...map.values()];
   }, [filteredItems]);
 
+  const handleExport = useCallback(() => {
+    if (filteredItems.length === 0) return;
+
+    exportInventoryAgeDashboard({
+      items: filteredItems,
+      filters: effectiveFilters,
+      meta: filteredMeta,
+      warehouseSummary: filteredWarehouseSummary,
+    });
+  }, [effectiveFilters, filteredItems, filteredMeta, filteredWarehouseSummary]);
+
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Inventory"
         description="Stock present across warehouses — age, valuation, and group breakdown"
-      />
+      >
+        <ExcelExportButton
+          onExport={handleExport}
+          disabled={filteredItems.length === 0 || reportQuery.isLoading || reportQuery.isFetching}
+          disabledReason="No inventory rows to export"
+        />
+      </DashboardHeader>
 
       <InventoryAgeFilters
         onFiltersChange={handleFiltersChange}
@@ -123,8 +143,8 @@ export default function InventoryAgeDashboardPage() {
         defaultItemGroup={defaultItemGroup}
       />
 
-      {sapError && isSAPError(sapError) && (
-        <SAPUnavailableBanner error={sapError as ApiError} onRetry={reportQuery.refetch} />
+      {sapApiError && (
+        <SAPUnavailableBanner error={sapApiError} onRetry={reportQuery.refetch} />
       )}
 
       {!materialTypesResolved && !reportQuery.data && (
@@ -133,7 +153,7 @@ export default function InventoryAgeDashboardPage() {
         </div>
       )}
 
-      {materialTypesResolved && !(sapError && isSAPError(sapError)) && (
+      {materialTypesResolved && !sapApiError && (
         <>
           <InventoryAgeMetaCards meta={filteredMeta} />
           <InventoryAgeWarehouseSummary data={filteredWarehouseSummary} />

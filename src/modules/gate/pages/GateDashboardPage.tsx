@@ -6,6 +6,7 @@ import { ENTRY_TYPES } from '@/config/constants';
 import { usePermission } from '@/core/auth';
 import type { DateRange } from '@/core/store/filtersSlice';
 import { useGlobalDateRange } from '@/core/store/hooks';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 import { Badge, Card, CardContent, Input } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
 
@@ -23,7 +24,7 @@ import {
 } from '../api';
 import { DateRangePicker } from '../components';
 import { GATE_ENTRY_TYPES, type GateEntryTypeConfig } from '../constants/gateEntryTypes';
-import { getJobWorkDisplayStatus, hasLinkedJobWorkProductionOrder } from '../utils';
+import { exportGateDashboard, getJobWorkDisplayStatus, hasLinkedJobWorkProductionOrder } from '../utils';
 import {
   CUSTOMER_RETURN_KEY,
   getCustomerFlowValue,
@@ -106,6 +107,15 @@ export default function GateDashboardPage() {
     );
   }, [searchTerm, visibleEntryTypes]);
 
+  const handleExport = () => {
+    exportGateDashboard({
+      entryTypes: filteredEntryTypes,
+      statsByEntryType,
+      dateRange,
+      searchTerm,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -124,6 +134,11 @@ export default function GateDashboardPage() {
                 resetDateRange();
               }
             }}
+          />
+          <ExcelExportButton
+            onExport={handleExport}
+            disabled={filteredEntryTypes.length === 0}
+            disabledReason="No gate entry types to export"
           />
           <div className="relative w-full lg:w-[420px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -244,7 +259,7 @@ function useGateDashboardStats(
       from_date: dateRange.from,
       to_date: dateRange.to,
     }),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
   const visibleEntryIds = useMemo(
     () => new Set(visibleEntryTypes.map((entryType) => entryType.id)),
@@ -309,7 +324,7 @@ function useGateDashboardStats(
         dateRange,
         'gateOutDate',
       ),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
   const customerReturnEntries = useMemo(
     () =>
@@ -318,7 +333,7 @@ function useGateDashboardStats(
         dateRange,
         'gateInDate',
       ),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
   const repairPartsOutEntries = useMemo(
     () =>
@@ -327,7 +342,7 @@ function useGateDashboardStats(
         dateRange,
         'gateOutDate',
       ),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
   const repairPartsInEntries = useMemo(
     () =>
@@ -336,11 +351,11 @@ function useGateDashboardStats(
         dateRange,
         'gateInDate',
       ),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
   const localRejectedQCReturnEntries = useMemo(
     () => filterRejectedQCReturnEntriesByDate(readRejectedQCReturnEntries(), dateRange),
-    [dateRange.from, dateRange.to],
+    [dateRange],
   );
 
   const rejectedEntries = rejectedQCReturnEntries.data?.length

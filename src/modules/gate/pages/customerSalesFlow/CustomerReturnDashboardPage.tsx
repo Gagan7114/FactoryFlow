@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
 import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 import { Button, Card, CardContent, Input } from '@/shared/components/ui';
 
 import {
@@ -17,6 +18,7 @@ import {
   isCustomerReturnAwaitingFactoryHead,
   readCustomerFlowEntries,
 } from './customerSalesFlow.storage';
+import { exportCustomerFlowDashboard } from './exportCustomerFlowDashboards';
 
 export default function CustomerReturnDashboardPage() {
   const navigate = useNavigate();
@@ -55,6 +57,43 @@ export default function CustomerReturnDashboardPage() {
   )).length;
   const awaitingFactoryHeadCount = entries.filter(isCustomerReturnAwaitingFactoryHead).length;
 
+  const handleExport = () => {
+    exportCustomerFlowDashboard({
+      mode: 'customer-return',
+      entries: filteredEntries,
+      dateRange,
+      searchTerm,
+      summary: [
+        {
+          label: 'In Progress',
+          value: filteredEntries.filter((entry) => entry.status === 'IN_PROGRESS').length,
+        },
+        {
+          label: 'Pending QC',
+          value: filteredEntries.filter((entry) => entry.status === 'PENDING_QC').length,
+        },
+        {
+          label: 'Pending SAP GR',
+          value: filteredEntries.filter((entry) => entry.status === 'PENDING_SAP_GR').length,
+        },
+        {
+          label: 'Completed',
+          value: filteredEntries.filter((entry) => entry.status === 'COMPLETED').length,
+        },
+        {
+          label: 'Awaiting Factory Head',
+          value: filteredEntries.filter(isCustomerReturnAwaitingFactoryHead).length,
+        },
+        {
+          label: 'Final Rejected',
+          value: filteredEntries.filter(
+            (entry) => entry.status === 'QC_REJECTED' && !isCustomerReturnAwaitingFactoryHead(entry),
+          ).length,
+        },
+      ],
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -74,6 +113,11 @@ export default function CustomerReturnDashboardPage() {
                 setDateRange(undefined);
               }
             }}
+          />
+          <ExcelExportButton
+            onExport={handleExport}
+            disabled={filteredEntries.length === 0}
+            disabledReason="No goods return entries to export"
           />
           <Button variant="outline" onClick={() => setRefreshKey((key) => key + 1)}>
             <RefreshCw className="mr-2 h-4 w-4" />

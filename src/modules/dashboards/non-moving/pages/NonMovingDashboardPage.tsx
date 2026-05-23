@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import type { ApiError } from '@/core/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
@@ -17,6 +18,7 @@ import type {
   NonMovingFilters as NonMovingFiltersType,
   ReportSummary,
 } from '../types';
+import { exportNonMovingDashboard } from '../utils/exportNonMoving';
 import { groupNonMovingItemsBySku } from '../utils/nonMovingGrouping';
 
 function isSAPError(err: unknown): err is ApiError {
@@ -50,6 +52,7 @@ export default function NonMovingDashboardPage() {
   );
 
   const reportQuery = useNonMovingReport(effectiveFilters, materialTypesResolved);
+  const sapApiError = isSAPError(reportQuery.error) ? reportQuery.error : null;
 
   const subGroups = useMemo(() => {
     const items = reportQuery.data?.data ?? [];
@@ -122,12 +125,29 @@ export default function NonMovingDashboardPage() {
     setFilterResetSignal((current) => current + 1);
   }, []);
 
+  const handleExport = useCallback(() => {
+    if (groupedItems.length === 0) return;
+
+    exportNonMovingDashboard({
+      items: groupedItems,
+      filters: effectiveFilters,
+      summary: filteredSummary,
+      warehouseSummary: reportQuery.data?.warehouse_summary ?? [],
+    });
+  }, [effectiveFilters, filteredSummary, groupedItems, reportQuery.data?.warehouse_summary]);
+
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Non-Moving"
         description="Raw materials by movement age - identify recently moved, slow-moving, and non-moving inventory"
-      />
+      >
+        <ExcelExportButton
+          onExport={handleExport}
+          disabled={groupedItems.length === 0 || reportQuery.isLoading || reportQuery.isFetching}
+          disabledReason="No non-moving rows to export"
+        />
+      </DashboardHeader>
 
       <NonMovingFilters
         onFiltersChange={handleFiltersChange}
@@ -139,11 +159,11 @@ export default function NonMovingDashboardPage() {
         externalResetSignal={filterResetSignal}
       />
 
-      {reportQuery.error && isSAPError(reportQuery.error) && (
-        <SAPUnavailableBanner error={reportQuery.error as ApiError} onRetry={reportQuery.refetch} />
+      {sapApiError && (
+        <SAPUnavailableBanner error={sapApiError} onRetry={reportQuery.refetch} />
       )}
 
-      {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
+      {!sapApiError && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
           <NonMovingWarehouseSummary warehouses={reportQuery.data?.warehouse_summary ?? []} />

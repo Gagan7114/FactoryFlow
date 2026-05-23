@@ -13,10 +13,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
+import { ExcelExportButton } from '@/shared/components/dashboard/ExcelExportButton';
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
 import { usePendingServiceGRPOEntries, useServiceGRPOHistory } from '../api';
 import { GRPO_STATUS } from '../constants';
+import { exportServiceGRPODashboard } from '../utils/exportGRPODashboards';
 
 const formatDate = (dateStr?: string | null) => {
   if (!dateStr) return '-';
@@ -57,6 +59,13 @@ export default function ServiceGRPODashboardPage() {
     ).length,
   };
 
+  const handleExport = () => {
+    exportServiceGRPODashboard({
+      pendingEntries,
+      historyEntries,
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -66,10 +75,20 @@ export default function ServiceGRPODashboardPage() {
             Post transport service receipts for booked dispatch vehicles
           </p>
         </div>
-        <Button onClick={() => navigate('/dispatch/bilty-grpo/pending')} className="w-full sm:w-auto">
-          <List className="h-4 w-4 mr-2" />
-          View Pending
-        </Button>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <ExcelExportButton
+            onExport={handleExport}
+            disabled={isPermissionError || isLoading || pendingEntries.length + historyEntries.length === 0}
+            disabledReason="No service GRPO dashboard rows to export"
+          />
+          <Button
+            onClick={() => navigate('/dispatch/bilty-grpo/pending')}
+            className="w-full sm:w-auto"
+          >
+            <List className="h-4 w-4 mr-2" />
+            View Pending
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

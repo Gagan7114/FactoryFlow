@@ -25,6 +25,9 @@ vi.mock('@/shared/components/dashboard/DashboardLoading', () => ({
 vi.mock('@/shared/components/dashboard/DashboardError', () => ({
   DashboardError: () => null,
 }));
+vi.mock('@/shared/components/dashboard/ExcelExportButton', () => ({
+  ExcelExportButton: () => null,
+}));
 vi.mock('@/shared/components/dashboard/StatusOverviewGrid', () => ({
   StatusOverviewGrid: () => null,
 }));
@@ -39,6 +42,7 @@ describe('Dashboard Components Index Exports', () => {
     expect(mod.DashboardHeader).toBeDefined();
     expect(mod.DashboardLoading).toBeDefined();
     expect(mod.DashboardError).toBeDefined();
+    expect(mod.ExcelExportButton).toBeDefined();
     expect(mod.StatusOverviewGrid).toBeDefined();
     expect(mod.SummaryCard).toBeDefined();
   });
