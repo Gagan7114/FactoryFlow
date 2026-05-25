@@ -21,6 +21,11 @@ export interface StockDashboardFilters {
   search?: string;
   item_group?: string;
   warehouse?: string[];
+  sub_group?: string[];
+  variety?: string[];
+  sku?: string[];
+  unit?: string[];
+  uom?: string[];
   status?: StockHealthStatus[];
   movement_status?: StockMovementStatus[];
   as_of_date?: string;
@@ -73,6 +78,28 @@ export interface StockDashboardMeta {
 export interface StockDashboardResponse {
   data: StockItem[];
   meta: StockDashboardMeta;
+}
+
+// ============================================================================
+// Filter Options
+// ============================================================================
+
+export interface StockDashboardFilterOption {
+  value: string;
+  label: string;
+  count?: number;
+}
+
+export interface StockDashboardFilterOptions {
+  item_groups: StockDashboardFilterOption[];
+  warehouses: StockDashboardFilterOption[];
+  statuses: StockDashboardFilterOption[];
+  movements: StockDashboardFilterOption[];
+  sub_groups: StockDashboardFilterOption[];
+  varieties: StockDashboardFilterOption[];
+  skus: StockDashboardFilterOption[];
+  units: StockDashboardFilterOption[];
+  uoms: StockDashboardFilterOption[];
 }
 
 // ============================================================================

@@ -13,6 +13,9 @@ import { stockLevelApi } from './stock-level.api';
 export const STOCK_LEVEL_QUERY_KEYS = {
   all: ['stock-dashboard'] as const,
 
+  filterOptions: (filters?: StockDashboardFilters, companyId?: number | string) =>
+    [...STOCK_LEVEL_QUERY_KEYS.all, 'filter-options', companyId, filters ?? {}] as const,
+
   list: (filters?: StockDashboardFilters, companyId?: number | string) => {
     return [...STOCK_LEVEL_QUERY_KEYS.all, 'list', companyId, filters ?? {}] as const;
   },
@@ -42,6 +45,18 @@ export function useStockLevels(filters?: StockDashboardFilters, enabled = true) 
   return useQuery({
     queryKey: STOCK_LEVEL_QUERY_KEYS.list(filters, currentCompany?.company_id),
     queryFn: () => stockLevelApi.getStockLevels(filters),
+    staleTime: STOCK_LEVEL_STALE_TIME,
+    retry: sapRetry,
+    enabled,
+  });
+}
+
+export function useStockLevelFilterOptions(filters?: StockDashboardFilters, enabled = true) {
+  const { currentCompany } = useAuth();
+
+  return useQuery({
+    queryKey: STOCK_LEVEL_QUERY_KEYS.filterOptions(filters, currentCompany?.company_id),
+    queryFn: () => stockLevelApi.getFilterOptions(filters),
     staleTime: STOCK_LEVEL_STALE_TIME,
     retry: sapRetry,
     enabled,

@@ -247,6 +247,7 @@ Complete reference of all API endpoints used in the Factory Management System. A
 |--------|----------|-------------|---------------|
 | GET | `/dashboards/stock/` | Stock benchmark rows and meta counts | `STOCK_DASHBOARD.LIST` |
 | GET | `/dashboards/stock/as-of/` | Experimental SAP movement reconstruction for a prior posting date | `STOCK_DASHBOARD.AS_OF` |
+| GET | `/dashboards/stock/filter-options/` | SAP-backed contextual options for the guided click filter flow | `STOCK_DASHBOARD.FILTER_OPTIONS` |
 | GET | `/dashboards/stock/:itemCode/warehouses/` | Per-warehouse detail for an expanded item row | `STOCK_DASHBOARD.ITEM_DETAIL(itemCode)` |
 
 ### Stock Query Parameters
@@ -256,16 +257,22 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | `search` | string | Case-insensitive search across item code, item name, and warehouse. |
 | `item_group` | string | SAP item group name, for example `PACKAGING MATERIAL`. |
 | `warehouse` | comma-separated string | Warehouse codes. Two or more selected warehouses return grouped item rows. |
+| `sub_group` | comma-separated string | SAP item master sub-groups from `OITM.U_Sub_Group`. |
+| `variety` | comma-separated string | SAP item master oil/product varieties from `OITM.U_Variety`. |
+| `sku` | comma-separated string | SAP item master size/SKU values from `OITM.U_SKU`. |
+| `unit` | comma-separated string | SAP item master units from `OITM.U_Unit`. |
+| `uom` | comma-separated string | Inventory UOM values from `OITM.InvntryUom`. |
 | `status` | comma-separated string | `healthy`, `low`, `critical`, `unset`. The `unset` value is displayed as No Benchmark Set. With the default `healthy,low,critical` set, benchmarked slow rows can remain visible with no stock status unless the Movement filter excludes slow rows. |
-| `movement_status` | comma-separated string | `planned`, `recent`, `slow`. Omit to include all movement states. |
-| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `planned_qty`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
+| `movement_status` | comma-separated string | `recent`, `slow`. Omit to include all movement states. |
+| `sort_by` | string | `item_code`, `item_name`, `warehouse`, `on_hand`, `min_stock`, `health_ratio`. The `min_stock` sort is the Benchmark column. |
 | `sort_dir` | string | `asc` or `desc`. |
 | `page` | integer | Page number. |
 | `page_size` | integer | Page size, maximum 200. |
 | `as_of_date` | date | Required only for `/dashboards/stock/as-of/`. Reconstructs on-hand and movement age through this SAP posting date. |
 
-The Stock Benchmark page defaults to Packing Material, warehouses `BH-BS` and `BH-PM`, statuses `healthy,low,critical`, and movements `planned,recent`. Its top stats are intentionally pinned to those defaults and are not changed by table filtering.
-The frontend Total Items stat is rendered as `healthy_count + low_stock_count + critical_stock_count`; backend `total_items` still represents the filtered table row total for pagination.
+The Stock Benchmark page redirects to the guided filter flow unless the URL includes `show_results=1`. The flow asks for Material Type, Variety, PM Sub Group, Size, and Warehouse, then loads the results table with the selected filters. Status and movement are not silently applied by the guided flow.
+The `filter-options` endpoint accepts the same filter query parameters and returns contextual option counts for the current draft flow.
+The frontend Total Items stat is rendered from backend `total_items`, so it matches the filtered table row total for pagination.
 
 The experimental as-of endpoint reconstructs `on_hand`, last consumption, movement status, health ratio, and stock status from SAP `OINM` movement history. Benchmark (`MinStock`), item name, UOM, and item group still come from current SAP master data.
 
@@ -273,10 +280,10 @@ Backend status rules:
 
 | Status | Rule |
 |--------|------|
-| `healthy` | Not slow-moving, required quantity is set, and `OnHand >= Benchmark + Planned Qty` |
-| `low` | Not slow-moving, required quantity is set, `OnHand < Benchmark + Planned Qty`, and `OnHand >= (Benchmark + Planned Qty) * 0.6` |
-| `critical` | Not slow-moving, required quantity is set, and `OnHand < (Benchmark + Planned Qty) * 0.6` |
-| `unset` | Not slow-moving, and benchmark plus planned quantity is zero |
+| `healthy` | Not slow-moving, benchmark is set, and `OnHand >= Benchmark` |
+| `low` | Not slow-moving, benchmark is set, `OnHand < Benchmark`, and `OnHand >= Benchmark * 0.6` |
+| `critical` | Not slow-moving, benchmark is set, and `OnHand < Benchmark * 0.6` |
+| `unset` | Not slow-moving, and benchmark is zero |
 
 The SAP field behind Benchmark is `MinStock`; the API field remains `min_stock` for compatibility.
 Slow-moving rows have no stock status and do not contribute to Healthy, Low, Critical, or No Benchmark Set counts. In the default operational status filter, only benchmarked slow rows remain visible; slow rows with no benchmark are excluded.
@@ -285,11 +292,10 @@ Movement rules:
 
 | Movement | Rule |
 |----------|------|
-| `planned` | Open production plan exists with remaining planned quantity. |
-| `recent` | No open plan, and outbound consumption exists within 30 days. |
-| `slow` | No open plan, and no outbound consumption exists or last consumption is older than 30 days. |
+| `recent` | Outbound consumption exists within 30 days. |
+| `slow` | No outbound consumption exists or last consumption is older than 30 days. |
 
-Stock and benchmark quantities are scoped to selected warehouses, but movement age is item-level across SAP inventory movement. `planned_qty` is the remaining open production component demand. Difference, status, and health ratio all use `On Hand - Benchmark - Planned Qty`.
+Stock and benchmark quantities are scoped to selected warehouses, but movement age is item-level across SAP inventory movement. Difference, status, and health ratio use `On Hand - Benchmark`.
 
 **Types:** `StockDashboardFilters`, `StockItem`, `StockDashboardMeta` - see `src/modules/dashboards/stock-level/types/stock-level.types.ts`
 

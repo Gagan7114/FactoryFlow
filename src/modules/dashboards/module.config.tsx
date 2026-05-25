@@ -10,6 +10,9 @@ const SAPPlanDashboardPage = lazy(() => import('./sap-plan/pages/SAPPlanDashboar
 const StockLevelDashboardPage = lazy(
   () => import('./stock-level/pages/StockLevelDashboardPage'),
 );
+const StockLevelFilterPage = lazy(
+  () => import('./stock-level/pages/StockLevelFilterPage'),
+);
 const InventoryAgeDashboardPage = lazy(
   () => import('./inventory-age/pages/InventoryAgeDashboardPage'),
 );
@@ -47,6 +50,13 @@ export const dashboardsModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD],
       breadcrumb: { label: 'Stock Benchmark' },
+    },
+    {
+      path: '/dashboards/stock-levels/filters',
+      element: <StockLevelFilterPage />,
+      layout: 'main',
+      permissions: [DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD],
+      breadcrumb: { label: 'Filters' },
     },
     {
       path: '/dashboards/inventory-age',

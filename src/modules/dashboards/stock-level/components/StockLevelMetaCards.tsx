@@ -3,7 +3,6 @@ import { AlertTriangle, CheckCircle, Package, ShieldAlert } from 'lucide-react';
 import { Card, CardContent } from '@/shared/components/ui';
 import { cn } from '@/shared/utils';
 
-import { DEFAULT_STOCK_STATUS_FILTER } from '../constants';
 import type { StockDashboardMeta, StockHealthStatus } from '../types';
 
 interface StockLevelMetaCardsProps {
@@ -18,20 +17,15 @@ function sameStatusSet(a: StockHealthStatus[] = [], b: StockHealthStatus[] = [])
 
 export function StockLevelMetaCards({
   meta,
-  activeStatuses = DEFAULT_STOCK_STATUS_FILTER,
+  activeStatuses = [],
   onStatusSelect,
 }: StockLevelMetaCardsProps) {
-  const statusTotal =
-    meta === undefined
-      ? undefined
-      : meta.healthy_count + meta.low_stock_count + meta.critical_stock_count;
-
   const cards = [
     {
       label: 'Total Items',
-      value: statusTotal ?? '-',
+      value: meta?.total_items ?? '-',
       icon: Package,
-      statuses: DEFAULT_STOCK_STATUS_FILTER,
+      statuses: [],
     },
     {
       label: 'Healthy',

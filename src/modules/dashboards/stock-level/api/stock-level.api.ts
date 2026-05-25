@@ -2,6 +2,7 @@ import { API_ENDPOINTS } from '@/config/constants';
 import { apiClient } from '@/core/api';
 
 import type {
+  StockDashboardFilterOptions,
   StockDashboardFilters,
   StockDashboardResponse,
   StockItemDetailResponse,
@@ -18,6 +19,13 @@ export const stockLevelApi = {
   async getStockLevels(filters?: StockDashboardFilters): Promise<StockDashboardResponse> {
     const endpoint = filters?.as_of_date ? EP.AS_OF : EP.LIST;
     const response = await apiClient.get<StockDashboardResponse>(endpoint, {
+      params: buildParams(filters),
+    });
+    return response.data;
+  },
+
+  async getFilterOptions(filters?: StockDashboardFilters): Promise<StockDashboardFilterOptions> {
+    const response = await apiClient.get<StockDashboardFilterOptions>(EP.FILTER_OPTIONS, {
       params: buildParams(filters),
     });
     return response.data;
@@ -42,6 +50,11 @@ function buildParams(filters?: StockDashboardFilters): Record<string, string | n
   if (filters.sort_dir) p.sort_dir = filters.sort_dir;
   if (filters.page) p.page = filters.page;
   if (filters.page_size) p.page_size = filters.page_size;
+  if (filters.sub_group?.length) p.sub_group = filters.sub_group.join(',');
+  if (filters.variety?.length) p.variety = filters.variety.join(',');
+  if (filters.sku?.length) p.sku = filters.sku.join(',');
+  if (filters.unit?.length) p.unit = filters.unit.join(',');
+  if (filters.uom?.length) p.uom = filters.uom.join(',');
   if (filters.status?.length) p.status = filters.status.join(',');
   if (filters.movement_status?.length) p.movement_status = filters.movement_status.join(',');
   if (filters.as_of_date) p.as_of_date = filters.as_of_date;

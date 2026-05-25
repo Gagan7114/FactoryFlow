@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { API_CONFIG, API_ENDPOINTS, HTTP_STATUS } from '@/config/constants/api.constants';
 
 // ═══════════════════════════════════════════════════════════════
@@ -239,14 +240,21 @@ describe('API_ENDPOINTS.GRPO', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('API_ENDPOINTS.STOCK_DASHBOARD', () => {
-  it('has LIST, AS_OF, ITEM_DETAIL', () => {
+  it('has LIST, AS_OF, FILTER_OPTIONS, ITEM_DETAIL', () => {
     expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('LIST');
     expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('AS_OF');
+    expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('FILTER_OPTIONS');
     expect(API_ENDPOINTS.STOCK_DASHBOARD).toHaveProperty('ITEM_DETAIL');
   });
 
   it('AS_OF points to the Stock Benchmark reconstruction endpoint', () => {
     expect(API_ENDPOINTS.STOCK_DASHBOARD.AS_OF).toBe('/dashboards/stock/as-of/');
+  });
+
+  it('FILTER_OPTIONS points to the Stock Benchmark filter options endpoint', () => {
+    expect(API_ENDPOINTS.STOCK_DASHBOARD.FILTER_OPTIONS).toBe(
+      '/dashboards/stock/filter-options/',
+    );
   });
 
   it('ITEM_DETAIL returns correct parameterized path', () => {

@@ -113,7 +113,7 @@ export function StockLevelTable({
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
         <CardContent className="p-0">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex gap-4 border-b p-4">
@@ -130,7 +130,7 @@ export function StockLevelTable({
 
   if (items.length === 0) {
     return (
-      <Card>
+      <Card className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
         <CardContent className="p-12 text-center">
           <p className="text-sm text-muted-foreground">No matching items found.</p>
         </CardContent>
@@ -139,7 +139,7 @@ export function StockLevelTable({
   }
 
   return (
-    <Card>
+    <Card className="animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -190,7 +190,7 @@ export function StockLevelTable({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => {
+              {items.map((item, index) => {
                 const canExpand = isGrouped && (item.warehouse_count ?? 1) > 1;
                 const isExpanded = canExpand && expandedItem === item.item_code;
                 const difference = stockDifference(item);
@@ -199,10 +199,14 @@ export function StockLevelTable({
                   <Fragment key={`${item.item_code}-${item.warehouse}`}>
                     <tr
                       className={cn(
-                        'border-b transition-colors',
+                        'border-b transition-colors animate-in fade-in-0 slide-in-from-bottom-1',
                         rowStatusClasses(item.stock_status),
                         canExpand && 'cursor-pointer',
                       )}
+                      style={{
+                        animationDelay: `${Math.min(240, index * 24)}ms`,
+                        animationFillMode: 'both',
+                      }}
                       onClick={() => toggleExpandedItem(item.item_code, canExpand)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
