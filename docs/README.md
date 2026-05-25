@@ -56,6 +56,7 @@ The Factory Management System is a modern, enterprise-grade React application de
 - [Gate Module](./modules/gate.md) - Gate entry management
 - [GRPO Module](./modules/grpo.md) - Goods receipt posting
 - [QC Module](./modules/qc.md) - Quality control inspections
+- [Barcode Dispatch Design](./modules/barcode-dispatch-design.md) - SAP-backed dispatch scanning workflow
 - [Notifications Module](./modules/notifications.md) - Push notifications
 
 Each module also has local documentation at `src/modules/{name}/docs/README.md`.

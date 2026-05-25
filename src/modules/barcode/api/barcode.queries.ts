@@ -7,6 +7,13 @@ import type {
   CreatePalletPayload,
   DismantleBoxPayload,
   DismantlePalletPayload,
+  DispatchBillLookupPayload,
+  DispatchReportFilters,
+  DispatchScanSubmitPayload,
+  DispatchSessionCancelPayload,
+  DispatchSessionCreatePayload,
+  DispatchSessionFilters,
+  DispatchSettings,
   GenerateBoxesPayload,
   LooseStockFilters,
   PalletAddBoxesPayload,
@@ -35,8 +42,7 @@ interface BarcodeQueryOptions {
 export const BARCODE_QUERY_KEYS = {
   all: ['barcode'] as const,
   boxes: (filters?: BoxFilters) => [...BARCODE_QUERY_KEYS.all, 'boxes', filters] as const,
-  boxesPage: (filters?: BoxFilters) =>
-    [...BARCODE_QUERY_KEYS.all, 'boxes-page', filters] as const,
+  boxesPage: (filters?: BoxFilters) => [...BARCODE_QUERY_KEYS.all, 'boxes-page', filters] as const,
   boxDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'box', id] as const,
   pallets: (filters?: PalletFilters) => [...BARCODE_QUERY_KEYS.all, 'pallets', filters] as const,
   palletsPage: (filters?: PalletFilters) =>
@@ -53,6 +59,28 @@ export const BARCODE_QUERY_KEYS = {
   looseStockPage: (filters?: LooseStockFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'loose-page', filters] as const,
   looseStockDetail: (id: number) => [...BARCODE_QUERY_KEYS.all, 'loose', id] as const,
+  boxHistory: (id: number) => [...BARCODE_QUERY_KEYS.all, 'box', id, 'history'] as const,
+  palletHistory: (id: number) => [...BARCODE_QUERY_KEYS.all, 'pallet', id, 'history'] as const,
+  dispatchSessions: (filters?: DispatchSessionFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-sessions', filters] as const,
+  dispatchSessionsPage: (filters?: DispatchSessionFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-sessions-page', filters] as const,
+  dispatchSession: (id: number) => [...BARCODE_QUERY_KEYS.all, 'dispatch-session', id] as const,
+  dispatchScanLogs: (id: number) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-session', id, 'scan-logs'] as const,
+  dispatchSapSyncLogs: (id: number) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-session', id, 'sap-sync-logs'] as const,
+  dispatchSettings: () => [...BARCODE_QUERY_KEYS.all, 'dispatch-settings'] as const,
+  dispatchReport: (filters?: DispatchReportFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-report', filters] as const,
+  dispatchDetailReport: (id: number) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-report', id] as const,
+  dispatchPalletReport: (filters?: DispatchReportFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-pallet-report', filters] as const,
+  dispatchBoxReport: (filters?: DispatchReportFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-box-report', filters] as const,
+  dispatchRejectedScanReport: (filters?: DispatchReportFilters) =>
+    [...BARCODE_QUERY_KEYS.all, 'dispatch-rejected-scan-report', filters] as const,
 };
 
 // ============================================================================
@@ -77,6 +105,14 @@ export function useBoxDetail(boxId: number | null) {
   return useQuery({
     queryKey: BARCODE_QUERY_KEYS.boxDetail(boxId!),
     queryFn: () => barcodeApi.getBoxDetail(boxId!),
+    enabled: boxId !== null,
+  });
+}
+
+export function useBoxHistory(boxId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.boxHistory(boxId!),
+    queryFn: () => barcodeApi.getBoxHistory(boxId!),
     enabled: boxId !== null,
   });
 }
@@ -129,6 +165,14 @@ export function usePalletDetail(palletId: number | null) {
   return useQuery({
     queryKey: BARCODE_QUERY_KEYS.palletDetail(palletId!),
     queryFn: () => barcodeApi.getPalletDetail(palletId!),
+    enabled: palletId !== null,
+  });
+}
+
+export function usePalletHistory(palletId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.palletHistory(palletId!),
+    queryFn: () => barcodeApi.getPalletHistory(palletId!),
     enabled: palletId !== null,
   });
 }
@@ -361,5 +405,178 @@ export function useBarcodeLookup(barcode: string | null) {
     queryKey: [...BARCODE_QUERY_KEYS.all, 'lookup', barcode] as const,
     queryFn: () => barcodeApi.lookupBarcode(barcode!),
     enabled: !!barcode,
+  });
+}
+
+// ============================================================================
+// Dispatch
+// ============================================================================
+
+export function useLookupDispatchBill() {
+  return useMutation({
+    mutationFn: (data: DispatchBillLookupPayload) => barcodeApi.lookupDispatchBill(data),
+  });
+}
+
+export function useDispatchSessions(filters?: DispatchSessionFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchSessions(filters),
+    queryFn: () => barcodeApi.getDispatchSessions(filters),
+  });
+}
+
+export function useDispatchSettings() {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchSettings(),
+    queryFn: () => barcodeApi.getDispatchSettings(),
+  });
+}
+
+export function useUpdateDispatchSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<DispatchSettings>) => barcodeApi.updateDispatchSettings(data),
+    onSuccess: (settings) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSettings(), settings);
+    },
+  });
+}
+
+export function useDispatchSessionsPage(filters?: DispatchSessionFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchSessionsPage(filters),
+    queryFn: () => barcodeApi.getDispatchSessionsPage(filters),
+  });
+}
+
+export function useDispatchSession(sessionId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchSession(sessionId!),
+    queryFn: () => barcodeApi.getDispatchSession(sessionId!),
+    enabled: sessionId !== null,
+  });
+}
+
+export function useCreateDispatchSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: DispatchSessionCreatePayload) => barcodeApi.createDispatchSession(data),
+    onSuccess: (session) => {
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+    },
+  });
+}
+
+export function useSubmitDispatchScan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: DispatchScanSubmitPayload }) =>
+      barcodeApi.submitDispatchScan(sessionId, data),
+    onSuccess: ({ session }) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchScanLogs(session.id) });
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+    },
+  });
+}
+
+export function useDispatchSessionDispatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: number) => barcodeApi.dispatchSession(sessionId),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSapSyncLogs(session.id) });
+    },
+  });
+}
+
+export function useCloseDispatchSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: DispatchSessionCancelPayload }) =>
+      barcodeApi.closeDispatchSession(sessionId, data),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+    },
+  });
+}
+
+export function useCancelDispatchSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: number; data: DispatchSessionCancelPayload }) =>
+      barcodeApi.cancelDispatchSession(sessionId, data),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+    },
+  });
+}
+
+export function useDispatchScanLogs(sessionId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchScanLogs(sessionId!),
+    queryFn: () => barcodeApi.getDispatchScanLogs(sessionId!),
+    enabled: sessionId !== null,
+  });
+}
+
+export function useDispatchSapSyncLogs(sessionId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchSapSyncLogs(sessionId!),
+    queryFn: () => barcodeApi.getDispatchSapSyncLogs(sessionId!),
+    enabled: sessionId !== null,
+  });
+}
+
+export function useRetryDispatchSapSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: number) => barcodeApi.retryDispatchSapSync(sessionId),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSapSyncLogs(session.id) });
+    },
+  });
+}
+
+export function useDispatchReport(filters?: DispatchReportFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchReport(filters),
+    queryFn: () => barcodeApi.getDispatchReport(filters),
+  });
+}
+
+export function useDispatchDetailReport(sessionId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchDetailReport(sessionId!),
+    queryFn: () => barcodeApi.getDispatchDetailReport(sessionId!),
+    enabled: sessionId !== null,
+  });
+}
+
+export function useDispatchPalletReport(filters?: DispatchReportFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchPalletReport(filters),
+    queryFn: () => barcodeApi.getDispatchPalletReport(filters),
+  });
+}
+
+export function useDispatchBoxReport(filters?: DispatchReportFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchBoxReport(filters),
+    queryFn: () => barcodeApi.getDispatchBoxReport(filters),
+  });
+}
+
+export function useDispatchRejectedScanReport(filters?: DispatchReportFilters) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.dispatchRejectedScanReport(filters),
+    queryFn: () => barcodeApi.getDispatchRejectedScanReport(filters),
   });
 }

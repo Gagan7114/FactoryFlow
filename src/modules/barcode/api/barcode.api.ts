@@ -10,6 +10,23 @@ import type {
   CreatePalletPayload,
   DismantleBoxPayload,
   DismantlePalletPayload,
+  DispatchBillLookupPayload,
+  DispatchBillLookupResponse,
+  DispatchBoxReportRow,
+  DispatchDetailReport,
+  DispatchPalletReportRow,
+  DispatchRejectedScanReportRow,
+  DispatchReportFilters,
+  DispatchSapSyncLog,
+  DispatchScanLog,
+  DispatchScanResponse,
+  DispatchScanSubmitPayload,
+  DispatchSession,
+  DispatchSessionCancelPayload,
+  DispatchSessionCreatePayload,
+  DispatchSessionFilters,
+  DispatchSettings,
+  DispatchSummaryReportRow,
   GenerateBoxesPayload,
   LabelData,
   LabelPrintLog,
@@ -20,6 +37,7 @@ import type {
   PaginatedResponse,
   Pallet,
   PalletAddBoxesPayload,
+  PalletBoxHistory,
   PalletClearPayload,
   PalletDetail,
   PalletFilters,
@@ -62,6 +80,12 @@ function normalizePage<T>(data: ListResponse<T>, params?: { page?: number; page_
   };
 }
 
+function isDispatchScanResponse(data: unknown): data is DispatchScanResponse {
+  if (!data || typeof data !== 'object') return false;
+  const candidate = data as Partial<DispatchScanResponse>;
+  return Boolean(candidate.scan && candidate.session);
+}
+
 export const barcodeApi = {
   // =========================================================================
   // Boxes
@@ -92,6 +116,11 @@ export const barcodeApi = {
     return res.data;
   },
 
+  async getBoxHistory(boxId: number): Promise<PalletBoxHistory[]> {
+    const res = await apiClient.get<ListResponse<PalletBoxHistory>>(EP.BOX_HISTORY(boxId));
+    return unwrapList(res.data);
+  },
+
   // =========================================================================
   // Pallets
   // =========================================================================
@@ -119,6 +148,11 @@ export const barcodeApi = {
   async voidPallet(palletId: number, data?: VoidPayload): Promise<PalletDetail> {
     const res = await apiClient.post<PalletDetail>(EP.PALLET_VOID(palletId), data || {});
     return res.data;
+  },
+
+  async getPalletHistory(palletId: number): Promise<PalletBoxHistory[]> {
+    const res = await apiClient.get<ListResponse<PalletBoxHistory>>(EP.PALLET_HISTORY(palletId));
+    return unwrapList(res.data);
   },
 
   async movePallet(palletId: number, data: PalletMovePayload): Promise<PalletDetail> {
@@ -244,6 +278,149 @@ export const barcodeApi = {
 
   async lookupBarcode(barcode: string): Promise<LookupResponse> {
     const res = await apiClient.get<LookupResponse>(EP.LOOKUP(barcode));
+    return res.data;
+  },
+
+  // =========================================================================
+  // Dispatch
+  // =========================================================================
+
+  async lookupDispatchBill(data: DispatchBillLookupPayload): Promise<DispatchBillLookupResponse> {
+    const res = await apiClient.post<DispatchBillLookupResponse>(EP.DISPATCH_BILL_LOOKUP, data);
+    return res.data;
+  },
+
+  async createDispatchSession(data: DispatchSessionCreatePayload): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(EP.DISPATCH_SESSIONS_FROM_BILL, data);
+    return res.data;
+  },
+
+  async getDispatchSessions(params?: DispatchSessionFilters): Promise<DispatchSession[]> {
+    const res = await apiClient.get<ListResponse<DispatchSession>>(EP.DISPATCH_SESSIONS, {
+      params,
+    });
+    return unwrapList(res.data);
+  },
+
+  async getDispatchSessionsPage(
+    params?: DispatchSessionFilters,
+  ): Promise<PaginatedResponse<DispatchSession>> {
+    const res = await apiClient.get<ListResponse<DispatchSession>>(EP.DISPATCH_SESSIONS, {
+      params,
+    });
+    return normalizePage(res.data, params);
+  },
+
+  async getDispatchSession(sessionId: number): Promise<DispatchSession> {
+    const res = await apiClient.get<DispatchSession>(EP.DISPATCH_SESSION_DETAIL(sessionId));
+    return res.data;
+  },
+
+  async getDispatchSettings(): Promise<DispatchSettings> {
+    const res = await apiClient.get<DispatchSettings>(EP.DISPATCH_SETTINGS);
+    return res.data;
+  },
+
+  async updateDispatchSettings(data: Partial<DispatchSettings>): Promise<DispatchSettings> {
+    const res = await apiClient.patch<DispatchSettings>(EP.DISPATCH_SETTINGS, data);
+    return res.data;
+  },
+
+  async submitDispatchScan(
+    sessionId: number,
+    data: DispatchScanSubmitPayload,
+  ): Promise<DispatchScanResponse> {
+    const res = await apiClient.post<DispatchScanResponse | unknown>(
+      EP.DISPATCH_SESSION_SCANS(sessionId),
+      data,
+      {
+        validateStatus: (status) => (status >= 200 && status < 300) || status === 400,
+      },
+    );
+    if (isDispatchScanResponse(res.data)) {
+      return res.data;
+    }
+    throw new Error('Unable to submit dispatch scan.');
+  },
+
+  async dispatchSession(sessionId: number): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(EP.DISPATCH_SESSION_COMPLETE(sessionId), {});
+    return res.data;
+  },
+
+  async closeDispatchSession(
+    sessionId: number,
+    data: DispatchSessionCancelPayload,
+  ): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(EP.DISPATCH_SESSION_CLOSE(sessionId), data);
+    return res.data;
+  },
+
+  async cancelDispatchSession(
+    sessionId: number,
+    data: DispatchSessionCancelPayload,
+  ): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(EP.DISPATCH_SESSION_CANCEL(sessionId), data);
+    return res.data;
+  },
+
+  async getDispatchScanLogs(sessionId: number): Promise<DispatchScanLog[]> {
+    const res = await apiClient.get<ListResponse<DispatchScanLog>>(
+      EP.DISPATCH_SESSION_SCAN_LOGS(sessionId),
+    );
+    return unwrapList(res.data);
+  },
+
+  async getDispatchSapSyncLogs(sessionId: number): Promise<DispatchSapSyncLog[]> {
+    const res = await apiClient.get<ListResponse<DispatchSapSyncLog>>(
+      EP.DISPATCH_SESSION_SAP_SYNC_LOGS(sessionId),
+    );
+    return unwrapList(res.data);
+  },
+
+  async retryDispatchSapSync(sessionId: number): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(
+      EP.DISPATCH_SESSION_RETRY_SAP_SYNC(sessionId),
+      {},
+    );
+    return res.data;
+  },
+
+  async getDispatchReport(
+    params?: DispatchReportFilters,
+  ): Promise<DispatchSummaryReportRow[]> {
+    const res = await apiClient.get<DispatchSummaryReportRow[]>(EP.DISPATCH_REPORTS, { params });
+    return res.data;
+  },
+
+  async getDispatchDetailReport(sessionId: number): Promise<DispatchDetailReport> {
+    const res = await apiClient.get<DispatchDetailReport>(EP.DISPATCH_REPORT_DETAIL(sessionId));
+    return res.data;
+  },
+
+  async getDispatchPalletReport(
+    params?: DispatchReportFilters,
+  ): Promise<DispatchPalletReportRow[]> {
+    const res = await apiClient.get<DispatchPalletReportRow[]>(EP.DISPATCH_REPORT_PALLETS, {
+      params,
+    });
+    return res.data;
+  },
+
+  async getDispatchBoxReport(params?: DispatchReportFilters): Promise<DispatchBoxReportRow[]> {
+    const res = await apiClient.get<DispatchBoxReportRow[]>(EP.DISPATCH_REPORT_BOXES, {
+      params,
+    });
+    return res.data;
+  },
+
+  async getDispatchRejectedScanReport(
+    params?: DispatchReportFilters,
+  ): Promise<DispatchRejectedScanReportRow[]> {
+    const res = await apiClient.get<DispatchRejectedScanReportRow[]>(
+      EP.DISPATCH_REPORT_REJECTED_SCANS,
+      { params },
+    );
     return res.data;
   },
 };
