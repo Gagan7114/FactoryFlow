@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect,it } from 'vitest';
+
 import { API_CONFIG, API_ENDPOINTS, HTTP_STATUS } from '@/config/constants/api.constants';
 
 // ═══════════════════════════════════════════════════════════════
@@ -252,6 +253,44 @@ describe('API_ENDPOINTS.STOCK_DASHBOARD', () => {
   it('ITEM_DETAIL returns correct parameterized path', () => {
     expect(API_ENDPOINTS.STOCK_DASHBOARD.ITEM_DETAIL('PM0001')).toBe(
       '/dashboards/stock/PM0001/warehouses/',
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// API_ENDPOINTS — BARCODE DISPATCH
+// ═══════════════════════════════════════════════════════════════
+
+describe('API_ENDPOINTS.BARCODE dispatch', () => {
+  it('has bill lookup and dispatch session endpoints', () => {
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_BILL_LOOKUP).toBe('/barcode/dispatch/bills/lookup/');
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SETTINGS).toBe('/barcode/dispatch/settings/');
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSIONS).toBe('/barcode/dispatch/sessions/');
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSIONS_FROM_BILL).toBe(
+      '/barcode/dispatch/sessions/from-bill/',
+    );
+  });
+
+  it('returns correct dispatch session action paths', () => {
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_DETAIL(7)).toBe('/barcode/dispatch/sessions/7/');
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_SCANS(7)).toBe(
+      '/barcode/dispatch/sessions/7/scans/',
+    );
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_DISPATCH(7)).toBe(
+      '/barcode/dispatch/sessions/7/dispatch/',
+    );
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_COMPLETE(7)).toBe(
+      '/barcode/dispatch/sessions/7/complete/',
+    );
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_CLOSE(7)).toBe(
+      '/barcode/dispatch/sessions/7/close/',
+    );
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_SESSION_SCAN_LOGS(7)).toBe(
+      '/barcode/dispatch/sessions/7/scan-logs/',
+    );
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_REPORTS).toBe('/barcode/dispatch/reports/');
+    expect(API_ENDPOINTS.BARCODE.DISPATCH_REPORT_BOXES).toBe(
+      '/barcode/dispatch/reports/boxes/',
     );
   });
 });

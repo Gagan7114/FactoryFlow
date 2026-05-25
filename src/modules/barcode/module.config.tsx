@@ -17,6 +17,8 @@ const PrintHistoryPage = lazy(() => import('./pages/PrintHistoryPage'));
 
 // Scan
 const ScanPage = lazy(() => import('./pages/ScanPage'));
+const BarcodeDispatchPage = lazy(() => import('./pages/BarcodeDispatchPage'));
+const BarcodeDispatchReportsPage = lazy(() => import('./pages/BarcodeDispatchReportsPage'));
 
 // Pallet Operations
 const PalletMovePage = lazy(() => import('./pages/PalletMovePage'));
@@ -87,6 +89,18 @@ export const barcodeModuleConfig: ModuleConfig = {
       element: <ScanPage />,
       layout: 'main',
       permissions: [BARCODE_PERMISSIONS.VIEW_BOX],
+    },
+    {
+      path: '/barcode/dispatch',
+      element: <BarcodeDispatchPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+    },
+    {
+      path: '/barcode/dispatch/reports',
+      element: <BarcodeDispatchReportsPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
     },
     // Pallet Operations
     {
@@ -161,6 +175,16 @@ export const barcodeModuleConfig: ModuleConfig = {
           path: '/barcode/scan',
           title: 'Scan',
           permissions: [BARCODE_PERMISSIONS.VIEW_BOX],
+        },
+        {
+          path: '/barcode/dispatch',
+          title: 'Dispatch',
+          permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+        },
+        {
+          path: '/barcode/dispatch/reports',
+          title: 'Dispatch Reports',
+          permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
         },
         {
           path: '/barcode/generate',
