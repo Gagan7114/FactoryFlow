@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth';
 import {
   type CreateWeighmentRequest,
   useCreateWeighment,
@@ -25,11 +27,7 @@ import {
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
 import { getErrorMessage } from '@/shared/utils';
 
-import {
-  DOCKING_TOTAL_STEPS,
-  formatDateTime,
-  formatValue,
-} from './salesDispatchFlow.helpers';
+import { DOCKING_TOTAL_STEPS, formatDateTime, formatValue } from './salesDispatchFlow.helpers';
 import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 function buildValuesFromWeighment(
@@ -58,6 +56,7 @@ function buildValuesFromWeighment(
 
 export default function SalesDispatchWeighmentPage() {
   const navigate = useNavigate();
+  const { hasAnyPermission } = usePermission();
   const { entryId, entryIdNumber } = useEntryId();
   const [values, setValues] = useState<RequiredWeighmentValues>(EMPTY_REQUIRED_WEIGHMENT);
   const [error, setError] = useState('');
@@ -67,21 +66,26 @@ export default function SalesDispatchWeighmentPage() {
     isLoading: isEntryLoading,
     error: entryError,
   } = useSalesDispatchByVehicleEntry(entryIdNumber);
-  const {
-    data: weighment,
-    isLoading: isWeighmentLoading,
-  } = useWeighment(entryIdNumber);
+  const { data: weighment, isLoading: isWeighmentLoading } = useWeighment(entryIdNumber);
   const createWeighment = useCreateWeighment(entryIdNumber || 0);
 
   useEffect(() => {
     if (!weighment) return;
 
-    setValues(buildValuesFromWeighment(weighment));
+    const timerId = window.setTimeout(() => {
+      setValues(buildValuesFromWeighment(weighment));
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, [weighment]);
 
   const isReadOnly = entry
     ? ['PRINT_COMMITTED', 'DISPATCHED', 'REJECTED', 'CANCELLED'].includes(entry.status)
     : false;
+  const canEditDocking = hasAnyPermission([
+    GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
+    GATE_PERMISSIONS.SALES_DISPATCH.EDIT,
+  ]);
 
   const handleValueChange = (field: keyof RequiredWeighmentValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -96,6 +100,11 @@ export default function SalesDispatchWeighmentPage() {
 
     if (isReadOnly) {
       navigate(DOCKING_ROUTES.attachments(entryIdNumber));
+      return;
+    }
+
+    if (!canEditDocking) {
+      setError('You do not have permission to save Docking weighment.');
       return;
     }
 
@@ -133,7 +142,9 @@ export default function SalesDispatchWeighmentPage() {
           currentStep={2}
           totalSteps={DOCKING_TOTAL_STEPS}
           title="Docking"
-          error={error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)}
+          error={
+            error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)
+          }
         />
         <div className="flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <div className="flex items-center gap-3">
@@ -169,7 +180,10 @@ export default function SalesDispatchWeighmentPage() {
           <InfoItem label="Vehicle" value={entry.vehicle_no} />
           <InfoItem label="Driver" value={entry.driver_name} />
           <InfoItem label="SAP Document" value={entry.sap_doc_num} />
-          <InfoItem label="Customer / Destination" value={entry.customer_name || entry.to_warehouse} />
+          <InfoItem
+            label="Customer / Destination"
+            value={entry.customer_name || entry.to_warehouse}
+          />
           <InfoItem label="Gate Out" value={formatDateTime(entry.gate_out_date, entry.out_time)} />
         </CardContent>
       </Card>
@@ -177,11 +191,13 @@ export default function SalesDispatchWeighmentPage() {
       <RequiredWeighmentForm
         values={values}
         onChange={handleValueChange}
-        disabled={isReadOnly || createWeighment.isPending}
+        disabled={isReadOnly || !canEditDocking || createWeighment.isPending}
       />
 
       <StepFooter
-        onPrevious={() => navigate(`${DOCKING_ROUTES.newEntry}?entryId=${entryId || entry.vehicle_entry}`)}
+        onPrevious={() =>
+          navigate(`${DOCKING_ROUTES.newEntry}?entryId=${entryId || entry.vehicle_entry}`)
+        }
         onCancel={() => navigate(DOCKING_ROUTES.dashboard)}
         onNext={handleNext}
         isSaving={createWeighment.isPending}

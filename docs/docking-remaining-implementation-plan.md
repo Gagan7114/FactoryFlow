@@ -1,6 +1,6 @@
 # Docking Remaining Implementation Plan
 
-Updated: 2026-05-21
+Updated: 2026-05-25
 
 Frontend repo: `D:\Test_CompanyJivo\FactoryFlow`
 
@@ -28,7 +28,8 @@ Already implemented or mostly implemented:
 
 - Backend `SalesDispatchGateOut` persistence.
 - Backend `SalesDispatchGateOutDocument` child model for multi-document Docking.
-- Backend item, attachment, gatepass sequence, dispatch lock, print, print commit, reprint log, reject, cancel, dispatch, and reports endpoints.
+- Backend item, attachment, gatepass sequence, dispatch lock, print, print commit, audited reprint, print history, reject, cancel, dispatch, and report endpoints.
+- Backend action-level permissions are enforced on Docking APIs, with tests covering unauthorized access.
 - Frontend Docking routes under `/dispatch/docking`.
 - Frontend Docking create, weighment, attachment/photo, gatepass, detail, and dashboard pages.
 - SAP invoice and stock-transfer lookup.
@@ -37,42 +38,65 @@ Already implemented or mostly implemented:
 - Weighment readiness check.
 - Gatepass original print is limited to one recorded print.
 - Backend audited reprint endpoint and print history endpoint.
+- Frontend Dispatch reprint route/page at `/dispatch/docking/:entryId/reprint`.
+- Original gatepass page links to the audited Dispatch reprint workflow after the first print is recorded.
+- Docking detail page shows SAP documents separately and groups item lines by document/invoice.
 - Gate-side pending out flow for committed invoice dispatches.
+- Vehicle-linked `BOOKED` dispatch plans are exposed as pending Docking rows.
+- Docking dashboard merges pending vehicle-linked bookings with real Docking entries.
+- Starting Docking from a pending booked group carries forward vehicle, driver, transporter, bilty, and selected invoice documents.
+- Duplicate active Docking rows are blocked for already docked documents/plans.
+- BST Out dashboard reads Docking-created stock-transfer entries.
+- BST In eligibility now reads dispatched Docking stock-transfer entries and creates receiving entries linked back to the Docking source.
+
+## Phase Completion Tracker
+
+| Build phase                                               | Status      | Notes                                                                                                                                            |
+| --------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Dispatch-module reprint UI                                | Done        | Route, page, reason form, printer name, print history, backend audited reprint call, and original-gatepass handoff are implemented.              |
+| Frontend action permission hardening                      | Done        | Permission constants, route guards, and Docking action buttons now check permissions, including reject and report/export actions.                |
+| SAP-matched gatepass print layout                         | In progress | Redundant/internal fields, document table, per-document values, and grouped item lines are implemented; remaining work is final visual sign-off. |
+| Multi-invoice detail/gatepass polish                      | Done        | Multi-document backend, create flow, dashboard document display, detail grouping, and gatepass grouping are implemented.                         |
+| BST In eligibility from dispatched stock-transfer Docking | Done        | BST Out reads Docking stock-transfer entries; BST In eligibility and creation now use dispatched Docking stock-transfer sources.                 |
+| Reports and CSV/Excel export                              | Done        | Docking reports page, filtered report API lists, dashboard export, and report Excel export are implemented.                                      |
+| Vehicle-linking regression polish                         | Partial     | Core pending booking flow works; resume/open wording and regression pass remain.                                                                 |
+| SAP posting guardrails                                    | Deferred    | Explicitly later, after business sign-off.                                                                                                       |
 
 ## Remaining Work
 
-### 1. Permission Hardening
+### 1. Frontend Permission Hardening - Done
 
-Backend permission records exist, but sales-dispatch views still need action-level enforcement.
+Backend permission records and action-level API enforcement are implemented.
 
 Required permissions:
 
 - View Docking entries.
 - Create Docking entries.
-- Upload truck photo and documents.
-- Print original gatepass.
-- Commit print.
-- Reprint gatepass.
-- Mark dispatched.
-- Reject entry.
-- Cancel entry.
-- Manage Docking print lock.
-- View reports.
+- Upload truck photo and documents. Main action covered.
+- Print original gatepass. Main action covered.
+- Commit print. Main action covered.
+- Reprint gatepass. Main action covered.
+- Mark dispatched. Main action covered.
+- Reject entry. Main action covered.
+- Cancel entry. Main action covered.
+- Manage Docking print lock. Main action covered.
+- View reports. Dashboard/report export covered.
 
 Acceptance:
 
-- API tests prove unauthorized users cannot call protected actions.
+- Frontend exposes constants for every backend Docking permission.
 - Frontend hides or disables actions using the same permission model.
+- API tests remain green for unauthorized users.
 
-### 2. Dispatch Reprint Workflow
+### 2. Dispatch Reprint Workflow - Done
 
-Create the reprint UI inside the Dispatch module.
+The reprint UI exists inside the Dispatch module.
 
 Recommended route:
 
 - `/dispatch/docking/:entryId/reprint`
 
-Minimum behavior:
+Implemented behavior:
 
 - Show gatepass number, entry number, vehicle, driver, SAP documents, original printed user/time, and previous reprints.
 - Require reprint reason.
@@ -80,10 +104,11 @@ Minimum behavior:
 - Call the audited backend reprint endpoint.
 - Open the print dialog only after the backend logs the reprint.
 - Show print history after success.
+- Original gatepass screen links users to this audited workflow once the original print exists.
 
 Acceptance:
 
-- Users cannot reprint from the original gatepass screen.
+- Users cannot trigger a browser reprint from the original gatepass screen; it only hands off to the audited Dispatch reprint workflow.
 - Every reprint has a reason and an audit log row.
 - Reprint remains available only from Dispatch.
 
@@ -93,18 +118,18 @@ Use the SAP gatepass layout shared with the team as the target layout.
 
 Required layout content:
 
-- Company/header block.
-- Gatepass number and date.
-- Vehicle, driver, transporter, bilty/LR details.
-- Invoice/document table.
-- Per-invoice e-way bill details.
-- Customer/destination details.
-- Item summary or item lines grouped by invoice.
-- Weighbridge weight and SAP weight where available.
-- Physical quantity and UOM.
-- Seal/PGI/goods issue reference.
-- QR code/random code.
-- Printed/committed audit details where appropriate.
+- Company/header block. Implemented.
+- Gatepass number and date. Implemented.
+- Vehicle, driver, transporter, bilty/LR details. Implemented.
+- Invoice/document table. Implemented on gatepass print.
+- Per-invoice e-way bill details. Implemented when SAP e-way bill data exists.
+- Customer/destination details. Implemented.
+- Item summary or item lines grouped by invoice. Implemented on gatepass print.
+- Weighbridge weight and SAP weight where available. Implemented.
+- Physical quantity and UOM. Implemented when entered.
+- Seal/PGI/goods issue reference. Implemented when entered.
+- QR code/random code. Implemented.
+- Printed/committed audit details where appropriate. Original printed timestamp is implemented; committed audit display can be added if operations wants it on paper.
 
 Acceptance:
 
@@ -115,6 +140,19 @@ Acceptance:
 ### 4. Vehicle-Linking To Docking Dashboard
 
 Docking must be fed by Dispatch Vehicle Linking.
+
+Current code status:
+
+- Backend pending-bookings endpoint exists and groups booked `DispatchPlan` rows.
+- Backend filters pending bookings by date/search and excludes already docked active plans/documents.
+- Frontend dashboard calls pending bookings and merges them as `Pending` rows.
+- Frontend create page accepts `dispatchPlanIds` and pre-fills the Docking form.
+- Backend updates linked dispatch plans to `DISPATCHED` when Docking dispatch is completed.
+
+Remaining work:
+
+- Final UI polish and regression testing for resume/open edge cases.
+- Ensure operations accepts the pending-row wording and table columns.
 
 Target flow:
 
@@ -146,9 +184,9 @@ The backend supports child document rows. The frontend must make this obvious ev
 
 Required UI polish:
 
-- Dashboard shows document count and document numbers without hiding the gatepass number.
-- Detail page groups documents and items by invoice.
-- Gatepass page prints a document table before item details.
+- Dashboard shows document count and document numbers without hiding the gatepass number. Implemented.
+- Detail page groups documents and items by invoice. Implemented.
+- Gatepass page prints a document table before item details. Implemented.
 - Different customers/e-way bills remain warnings, not hard blocks, unless operations changes the rule.
 
 Acceptance:
@@ -184,21 +222,39 @@ Out of scope.
 
 Required.
 
+Current code status:
+
+- BST Out dashboard already reads Docking-created `STOCK_TRANSFER` entries.
+- BST In backend eligibility reads dispatched Docking stock-transfer rows.
+- BST In creation stores the Docking stock-transfer source on the receiving entry.
+- Existing legacy BST In rows remain readable.
+
 Target flow:
 
 - Stock-transfer Docking Out entries are created in Docking.
-- After print commit and dispatch, the stock-transfer Docking entry becomes eligible for BST In.
-- BST In should consume dispatched Docking stock-transfer entries instead of requiring a separate duplicate source.
+- After print commit and dispatch, the stock-transfer Docking entry becomes eligible for BST In. Implemented.
+- BST In consumes dispatched Docking stock-transfer entries instead of requiring a separate duplicate source. Implemented.
 
 Acceptance:
 
-- A dispatched stock-transfer Docking Out can be selected in BST In.
-- Only dispatched stock-transfer Docking entries appear as eligible BST In records.
-- Existing BST In screens keep their current behavior while switching source data behind the scenes.
+- A dispatched stock-transfer Docking Out can be selected in BST In. Implemented.
+- Only dispatched stock-transfer Docking entries appear as eligible BST In records. Implemented.
+- Existing BST In screens keep their current behavior while switching source data behind the scenes. Implemented.
 
 ### 9. Reports And Export
 
 All listed reports are required.
+
+Current code status:
+
+- Backend reports endpoint exists with counts and top entry lists for core Docking states.
+- Frontend report page exists at `/dispatch/docking/reports`.
+- Docking dashboard exposes filtered Excel export for the currently visible rows.
+- The dashboard export includes summary, entry, SAP document, and item-line sheets.
+- Dashboard and report exports are gated by `gate_core.can_view_sales_dispatch_reports`.
+- Backend reports endpoint now returns filtered report lists for all required Docking report categories.
+- Report list exports use a capped `limit=1000` request for operational downloads.
+- Some required reports are not complete yet, such as truck vs invoices with photo and truck status with photo.
 
 Reports to build or harden:
 
@@ -211,25 +267,25 @@ Reports to build or harden:
 - Truck vs invoices with photo.
 - Truck status with photo.
 - Rejected/cancelled entries.
-- CSV/Excel export for operations.
+- CSV/Excel export for operations. Implemented for dashboard and reports page.
 
 Acceptance:
 
 - Operations can replace the old daily Docking reports from FactoryFlow.
 - Date range and status filters work consistently.
-- Exports match the filtered report data.
+- Dashboard export matches the selected date range, search, and status card filter.
+- Report-page exports match their filtered report data.
 
 ## Suggested Build Order
 
-1. Permission hardening.
-2. Vehicle-linking pending rows on Docking dashboard.
-3. Start/resume Docking from booked vehicle-linked groups.
-4. Dispatch-module reprint UI.
-5. SAP-matched gatepass print layout.
-6. Multi-invoice detail/gatepass polish.
-7. BST In eligibility from dispatched stock-transfer Docking.
-8. Reports and CSV/Excel export.
-9. SAP posting guardrails later, after explicit sign-off.
+1. Dispatch-module reprint UI. Done.
+2. Frontend action permission hardening. Done.
+3. SAP-matched gatepass print layout. In progress; document table and grouped items implemented, awaiting visual sign-off.
+4. Multi-invoice detail/gatepass polish. Done; dashboard document display, detail grouping, and gatepass grouping are implemented.
+5. BST In eligibility from dispatched stock-transfer Docking. Partial.
+6. Reports and CSV/Excel export. Done.
+7. Vehicle-linking regression polish. Partial.
+8. SAP posting guardrails later, after explicit sign-off. Deferred.
 
 ## No Longer Unknown
 

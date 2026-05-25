@@ -15,9 +15,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'sonner';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
 import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchGateOut,
+  type SalesDispatchGateOutDocument,
   type SalesDispatchItem,
   useCommitSalesDispatchPrint,
   useMarkSalesDispatchDispatched,
@@ -49,6 +51,7 @@ import { cn, getErrorMessage } from '@/shared/utils';
 import {
   DOCKING_TOTAL_STEPS,
   formatDateTime,
+  formatDocumentType,
   formatTimestamp,
   formatValue,
 } from './salesDispatchFlow.helpers';
@@ -77,10 +80,15 @@ interface GatepassReferenceField {
   value?: string | number | null;
 }
 
+interface PrintableGatepassDocument extends SalesDispatchGateOutDocument {
+  key: string;
+  items: SalesDispatchItem[];
+}
+
 export default function SalesDispatchGatepassPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentCompany } = usePermission();
+  const { currentCompany, hasPermission } = usePermission();
   const routes = getSalesDispatchRoutes(location.pathname);
   const isGateOutMode = isSalesDispatchOutPath(location.pathname);
   const { entryId, entryIdNumber } = useEntryId();
@@ -142,6 +150,10 @@ export default function SalesDispatchGatepassPage() {
   const readiness = entry?.gatepass_readiness;
   const action = useMemo(() => getNextAction(entry, isGateOutMode), [entry, isGateOutMode]);
   const isGatepassPrintLocked = Boolean(dispatchLock?.is_locked);
+  const canPrintGatepass = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.PRINT_GATEPASS);
+  const canCommitGatepassPrint = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.COMMIT_PRINT);
+  const canDispatchGatepass = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.DISPATCH);
+  const canReprintGatepass = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS);
   const canEditGatepassDetails = Boolean(
     !isGateOutMode &&
     entry &&
@@ -170,6 +182,11 @@ export default function SalesDispatchGatepassPage() {
 
     if (isGatepassPrintLocked) {
       setError(buildLockError(dispatchLock?.reason));
+      return;
+    }
+
+    if (!canPrintGatepass) {
+      setError('You do not have permission to print Docking gatepasses.');
       return;
     }
 
@@ -207,6 +224,11 @@ export default function SalesDispatchGatepassPage() {
       return;
     }
 
+    if (!canCommitGatepassPrint) {
+      setError('You do not have permission to commit Docking gatepass prints.');
+      return;
+    }
+
     try {
       await commitPrint.mutateAsync(entry.id);
       await refetch();
@@ -220,6 +242,11 @@ export default function SalesDispatchGatepassPage() {
     if (!entry) return;
     if (!isGateOutMode) {
       setError('Dispatch can only be marked from the Gate module.');
+      return;
+    }
+
+    if (!canDispatchGatepass) {
+      setError('You do not have permission to mark this vehicle as dispatched.');
       return;
     }
 
@@ -285,12 +312,9 @@ export default function SalesDispatchGatepassPage() {
   const companyName =
     currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
   const qrValue = entry.qr_payload || entry.gatepass_no || entry.random_code || entry.entry_no;
-  const gatepassReferenceFields = buildGatepassReferenceFields(
-    entry,
-    draft,
-    weighment,
-    companyName,
-  );
+  const gatepassDocuments = getGatepassDocuments(entry);
+  const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft, weighment);
+  const gatepassSummaryFields = buildGatepassSummaryFields(entry);
   const pageTitle = getGatepassPageTitle(entry, isGateOutMode);
 
   return (
@@ -325,42 +349,38 @@ export default function SalesDispatchGatepassPage() {
 
         <Card className="sales-dispatch-gatepass-summary print-no-break">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              {pageTitle} Entry
-            </CardTitle>
-            <GateStatusBadge status={entry.status} />
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                {pageTitle} Gatepass
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">{companyName}</p>
+            </div>
+            <div className="print-hide">
+              <GateStatusBadge status={entry.status} />
+            </div>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-            <InfoItem label="Entry No." value={entry.entry_no} />
-            <InfoItem label="Vehicle" value={entry.vehicle_no} />
-            <InfoItem label="Driver" value={entry.driver_name} />
-            <InfoItem label="SAP Document" value={entry.sap_doc_num} />
-            <InfoItem
-              label="Customer / Destination"
-              value={entry.customer_name || entry.to_warehouse}
-            />
-            <InfoItem label="Item Lines" value={formatItemLineCount(entry.items)} />
-            <InfoItem
-              label="Gate Out"
-              value={formatDateTime(entry.gate_out_date, entry.out_time)}
-            />
-            <InfoItem label="Printed At" value={formatTimestamp(entry.printed_at)} />
+            {gatepassSummaryFields.map((field) => (
+              <InfoItem key={field.label} label={field.label} value={field.value} />
+            ))}
           </CardContent>
         </Card>
 
-        <GatepassItemsPanel items={entry.items} itemSummary={entry.item_summary} />
+        <GatepassDocumentsPanel documents={gatepassDocuments} />
+
+        <GatepassItemsPanel documents={gatepassDocuments} itemSummary={entry.item_summary} />
 
         <div className="sales-dispatch-gatepass-grid grid gap-4 xl:grid-cols-[1fr_0.85fr]">
           <Card className="sales-dispatch-gatepass-print-card print-no-break">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Printer className="h-5 w-5" />
-                Gatepass Print Details
+                Gatepass Details
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="sales-dispatch-gatepass-fields grid gap-4 md:grid-cols-2">
+              <div className="sales-dispatch-gatepass-fields print-hide grid gap-4 md:grid-cols-2">
                 <TextField
                   id="sales-dispatch-uom"
                   label="UOM"
@@ -402,12 +422,21 @@ export default function SalesDispatchGatepassPage() {
 
               {entry.gatepass_no ? (
                 <div className="rounded-md border p-4">
-                  <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-                    <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
-                      {gatepassReferenceFields.map((field) => (
-                        <InfoItem key={field.label} label={field.label} value={field.value} />
-                      ))}
-                    </div>
+                  <div
+                    className={cn(
+                      'grid gap-4',
+                      gatepassReferenceFields.length
+                        ? 'lg:grid-cols-[1fr_auto]'
+                        : 'justify-items-center',
+                    )}
+                  >
+                    {gatepassReferenceFields.length ? (
+                      <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
+                        {gatepassReferenceFields.map((field) => (
+                          <InfoItem key={field.label} label={field.label} value={field.value} />
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="sales-dispatch-gatepass-qr flex flex-col items-center justify-center rounded-md border bg-white p-3">
                       <QRCodeSVG
                         value={qrValue}
@@ -420,8 +449,24 @@ export default function SalesDispatchGatepassPage() {
                     </div>
                   </div>
                   <div className="print-hide mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    Original gatepass print is already recorded. Reprints must use the audited
-                    reprint workflow.
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-medium">Original gatepass print is already recorded</p>
+                        <p className="mt-1">
+                          Reprints must use the audited Dispatch reprint workflow.
+                        </p>
+                      </div>
+                      {!isGateOutMode && entry.printed_at && canReprintGatepass ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => navigate(routes.reprint(entry.id))}
+                        >
+                          <Printer className="mr-2 h-4 w-4" />
+                          Reprint Gatepass
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -479,7 +524,9 @@ export default function SalesDispatchGatepassPage() {
                 type="button"
                 variant="outline"
                 onClick={handlePrintGatepass}
-                disabled={isSaving || isGatepassPrintLocked || action !== 'print'}
+                disabled={
+                  isSaving || isGatepassPrintLocked || action !== 'print' || !canPrintGatepass
+                }
               >
                 <Printer className="mr-2 h-4 w-4" />
                 Print Gatepass
@@ -488,7 +535,12 @@ export default function SalesDispatchGatepassPage() {
                 type="button"
                 variant="outline"
                 onClick={handleCommitPrint}
-                disabled={isSaving || isGatepassPrintLocked || action !== 'commit'}
+                disabled={
+                  isSaving ||
+                  isGatepassPrintLocked ||
+                  action !== 'commit' ||
+                  !canCommitGatepassPrint
+                }
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Commit Print
@@ -499,7 +551,7 @@ export default function SalesDispatchGatepassPage() {
             <Button
               type="button"
               onClick={handleMarkDispatched}
-              disabled={isSaving || action !== 'dispatch'}
+              disabled={isSaving || action !== 'dispatch' || !canDispatchGatepass}
             >
               <Send className="mr-2 h-4 w-4" />
               Mark Dispatched
@@ -575,42 +627,63 @@ function buildGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
   return `Gatepass ${reference}`;
 }
 
+function buildGatepassSummaryFields(entry: SalesDispatchGateOut): GatepassReferenceField[] {
+  return [
+    { label: 'Gatepass No.', value: entry.gatepass_no },
+    {
+      label: entry.document_type === 'STOCK_TRANSFER' ? 'SAP Document' : 'Invoice No.',
+      value: entry.sap_doc_num,
+    },
+    { label: 'Customer / Destination', value: entry.customer_name || entry.to_warehouse },
+    { label: 'Vehicle', value: entry.vehicle_no },
+    { label: 'Driver', value: entry.driver_name },
+    { label: 'Driver Contact', value: entry.driver_mobile_no },
+    { label: 'Gate Out', value: formatDateTime(entry.gate_out_date, entry.out_time) },
+    { label: 'Printed At', value: formatTimestamp(entry.printed_at) },
+  ];
+}
+
 function buildGatepassReferenceFields(
   entry: SalesDispatchGateOut,
   draft: GatepassDraft,
   weighment: Weighment | null | undefined,
-  companyName: string,
 ): GatepassReferenceField[] {
   const ewayBill = draft.ewayBill || entry.eway_bill;
+  const sealNumber = draft.sealNumber || entry.seal_number;
+  const pgiReference = draft.pgiReference || entry.pgi_reference;
+  const weighbridgeWeight = formatWeightValue(weighment?.net_weight || entry.net_weight);
+  const physicalQuantity = formatPhysicalQuantity(entry, draft);
 
-  return [
-    { label: 'Invoice ID', value: entry.sap_doc_entry },
-    { label: 'Invoice Number', value: entry.sap_doc_num },
-    { label: 'Company', value: companyName },
-    { label: 'Customer', value: formatCustomer(entry) },
+  return filterVisibleFields([
     { label: 'Address', value: entry.ship_to_address || entry.place_of_supply },
     { label: 'Invoice Date', value: entry.sap_doc_date },
-    { label: 'Gatepass Date', value: formatTimestamp(entry.printed_at) },
     { label: 'Total Amount', value: entry.sap_doc_total },
-    { label: 'Gate Pass ID', value: entry.gatepass_no },
-    { label: 'SAP Weight', value: formatWeightValue(entry.total_weight) },
-    { label: 'WB Weight', value: formatWeightValue(weighment?.net_weight || entry.net_weight) },
-    { label: 'Builty Number', value: entry.bilty_no },
-    { label: 'Truck Number', value: entry.vehicle_no },
     { label: 'Transporter', value: entry.transporter_name },
-    { label: 'Driver Name', value: entry.driver_name },
-    { label: 'Driver Contact', value: entry.driver_mobile_no },
-    { label: 'E-way Bill Attached', value: ewayBill ? 'Yes' : 'No' },
-    { label: 'Unit of Measure', value: draft.uom || entry.uom },
-    { label: 'Physical Quantity', value: draft.physicalQuantity || entry.physical_quantity },
-    { label: 'Geotag Data', value: formatGeotag(entry) },
-  ];
+    { label: 'Weighbridge Weight', value: weighbridgeWeight },
+    { label: 'Bilty / LR', value: entry.bilty_no },
+    { label: 'E-way Bill', value: ewayBill },
+    { label: 'Seal No.', value: sealNumber },
+    { label: 'PGI / Goods Issue Doc No.', value: pgiReference },
+    { label: 'Physical Quantity', value: physicalQuantity },
+  ]);
 }
 
-function formatCustomer(entry: SalesDispatchGateOut) {
-  return [entry.customer_code, entry.customer_name || entry.to_warehouse || entry.warehouses]
-    .filter(Boolean)
-    .join(' - ');
+function filterVisibleFields(fields: GatepassReferenceField[]) {
+  return fields.filter((field) => hasDisplayValue(field.value));
+}
+
+function hasDisplayValue(value?: string | number | null) {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return text !== '' && text !== '-';
+}
+
+function formatPhysicalQuantity(entry: SalesDispatchGateOut, draft: GatepassDraft) {
+  const quantity = draft.physicalQuantity || entry.physical_quantity;
+  if (!hasDisplayValue(quantity)) return '';
+
+  const uom = draft.uom || entry.uom;
+  return [quantity, uom].filter(hasDisplayValue).join(' ');
 }
 
 function formatWeightValue(value?: string | number | null) {
@@ -619,18 +692,172 @@ function formatWeightValue(value?: string | number | null) {
   return /\b(kg|mt|ton|tons)\b/i.test(text) ? text : `${text} kg`;
 }
 
-function formatGeotag(entry: SalesDispatchGateOut) {
-  if (!entry.photo_latitude || !entry.photo_longitude) return '';
-  return `${entry.photo_latitude}, ${entry.photo_longitude}`;
+function getGatepassDocuments(entry: SalesDispatchGateOut): PrintableGatepassDocument[] {
+  if (entry.documents?.length) {
+    return entry.documents.map((document) => ({
+      ...document,
+      key: String(document.id),
+      items: getDocumentItems(entry, document),
+    }));
+  }
+
+  return [
+    {
+      id: entry.sap_doc_entry,
+      key: `${entry.document_type}:${entry.sap_doc_entry}`,
+      document_type: entry.document_type,
+      sap_doc_entry: entry.sap_doc_entry,
+      sap_doc_num: entry.sap_doc_num,
+      sap_doc_date: entry.sap_doc_date,
+      sap_doc_total: entry.sap_doc_total,
+      sap_branch_id: entry.sap_branch_id,
+      sap_branch_name: entry.sap_branch_name,
+      sap_reference: entry.sap_reference,
+      sap_comments: entry.sap_comments,
+      customer_code: entry.customer_code,
+      customer_name: entry.customer_name,
+      ship_to_code: entry.ship_to_code,
+      ship_to_address: entry.ship_to_address,
+      place_of_supply: entry.place_of_supply,
+      bp_gstin: entry.bp_gstin,
+      eway_bill: entry.eway_bill,
+      from_warehouse: entry.from_warehouse,
+      to_warehouse: entry.to_warehouse,
+      warehouses: entry.warehouses,
+      item_summary: entry.item_summary,
+      base_refs: entry.base_refs,
+      total_quantity: entry.total_quantity,
+      total_litres: entry.total_litres,
+      total_boxes: entry.total_boxes,
+      total_weight: entry.total_weight,
+      items: entry.items,
+    },
+  ];
+}
+
+function getDocumentItems(
+  entry: SalesDispatchGateOut,
+  document: SalesDispatchGateOutDocument,
+): SalesDispatchItem[] {
+  if (document.items?.length) return document.items;
+
+  const matchedItems = entry.items.filter(
+    (item) =>
+      (item.document && item.document === document.id) ||
+      (item.document_sap_doc_num && item.document_sap_doc_num === document.sap_doc_num),
+  );
+  if (matchedItems.length) return matchedItems;
+
+  return entry.documents?.length ? [] : entry.items;
+}
+
+function GatepassDocumentsPanel({ documents }: { documents: PrintableGatepassDocument[] }) {
+  const showEwayBill = documents.some((document) => hasDisplayValue(document.eway_bill));
+  const showAmount = documents.some((document) => hasDisplayValue(document.sap_doc_total));
+  const showWeight = documents.some((document) => hasDisplayValue(document.total_weight));
+
+  return (
+    <Card className="sales-dispatch-gatepass-documents print-no-break">
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          SAP Documents
+        </CardTitle>
+        <div className="text-sm text-muted-foreground">{formatDocumentLineCount(documents)}</div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="w-[180px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                    Document
+                  </th>
+                  <th className="w-[260px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                    Customer / Destination
+                  </th>
+                  <th className="p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                    Address / Warehouse
+                  </th>
+                  {showEwayBill ? (
+                    <th className="w-[150px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                      E-way Bill
+                    </th>
+                  ) : null}
+                  {showAmount ? (
+                    <th className="w-[120px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
+                      Amount
+                    </th>
+                  ) : null}
+                  {showWeight ? (
+                    <th className="w-[130px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
+                      SAP Weight
+                    </th>
+                  ) : null}
+                  <th className="w-[220px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                    Item Summary
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((document) => (
+                  <tr key={document.key} className="border-t align-top">
+                    <td className="p-3 text-sm">
+                      <div className="font-semibold">{formatValue(document.sap_doc_num)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDocumentType(document.document_type)}
+                        {document.sap_doc_date ? ` - ${document.sap_doc_date}` : ''}
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm">
+                      <div className="font-medium">{formatValue(document.customer_name)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatValue(document.customer_code || document.place_of_supply)}
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm">
+                      {formatValue(formatDocumentDestination(document))}
+                    </td>
+                    {showEwayBill ? (
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {formatValue(document.eway_bill)}
+                      </td>
+                    ) : null}
+                    {showAmount ? (
+                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                        {formatValue(document.sap_doc_total)}
+                      </td>
+                    ) : null}
+                    {showWeight ? (
+                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                        {formatValue(formatWeightValue(document.total_weight))}
+                      </td>
+                    ) : null}
+                    <td className="p-3 text-sm">
+                      {formatValue(document.item_summary || summarizeDocumentItems(document.items))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function GatepassItemsPanel({
-  items,
+  documents,
   itemSummary,
 }: {
-  items: SalesDispatchItem[];
+  documents: PrintableGatepassDocument[];
   itemSummary?: string;
 }) {
+  const itemGroups = documents.filter((document) => document.items.length > 0);
+  const totalItemCount = itemGroups.reduce((total, document) => total + document.items.length, 0);
+
   return (
     <Card className="sales-dispatch-gatepass-items print-no-break">
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -638,71 +865,18 @@ function GatepassItemsPanel({
           <Boxes className="h-5 w-5" />
           SAP Items
         </CardTitle>
-        <div className="text-sm text-muted-foreground">{formatItemLineCount(items)}</div>
+        <div className="text-sm text-muted-foreground">{formatItemLineCount(totalItemCount)}</div>
       </CardHeader>
       <CardContent>
-        {items.length === 0 ? (
+        {itemGroups.length === 0 ? (
           <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
             {itemSummary || 'No document lines found'}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-md border">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px]">
-                <thead className="bg-muted/60">
-                  <tr>
-                    <th className="w-[150px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                      Item Code
-                    </th>
-                    <th className="p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                      Item Name
-                    </th>
-                    <th className="w-[130px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
-                      Quantity
-                    </th>
-                    <th className="w-[100px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                      UOM
-                    </th>
-                    <th className="w-[160px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                      Warehouse
-                    </th>
-                    <th className="w-[180px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                      Metrics
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => (
-                    <tr
-                      key={item.id || `${item.item_code}-${index}`}
-                      className="border-t align-top"
-                    >
-                      <td className="whitespace-nowrap p-3 text-sm font-semibold">
-                        {formatValue(item.item_code)}
-                      </td>
-                      <td className="p-3">
-                        <div className="text-sm font-medium leading-5">
-                          {formatValue(item.item_name)}
-                        </div>
-                        {item.base_ref ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Base Ref: {item.base_ref}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="whitespace-nowrap p-3 text-right text-sm font-semibold tabular-nums">
-                        {formatValue(item.quantity)}
-                      </td>
-                      <td className="whitespace-nowrap p-3 text-sm">{formatValue(item.uom)}</td>
-                      <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
-                      <td className="p-3 text-sm text-muted-foreground">
-                        {formatItemMetrics(item)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="space-y-3">
+            {itemGroups.map((document) => (
+              <DocumentItemsTable key={document.key} document={document} />
+            ))}
           </div>
         )}
       </CardContent>
@@ -710,9 +884,92 @@ function GatepassItemsPanel({
   );
 }
 
-function formatItemLineCount(items: SalesDispatchItem[]) {
-  if (items.length === 0) return 'No item lines';
-  return items.length === 1 ? '1 item line' : `${items.length} item lines`;
+function DocumentItemsTable({ document }: { document: PrintableGatepassDocument }) {
+  return (
+    <div className="overflow-hidden rounded-md border">
+      <div className="flex flex-col gap-1 border-b bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold">
+          {formatDocumentType(document.document_type)} {formatValue(document.sap_doc_num)}
+        </div>
+        <div className="text-muted-foreground">
+          {document.customer_name || formatDocumentDestination(document)}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px]">
+          <thead className="bg-muted/60">
+            <tr>
+              <th className="w-[150px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                Item Code
+              </th>
+              <th className="p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                Item Name
+              </th>
+              <th className="w-[130px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
+                Quantity
+              </th>
+              <th className="w-[100px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                UOM
+              </th>
+              <th className="w-[160px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                Warehouse
+              </th>
+              <th className="w-[180px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
+                Metrics
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {document.items.map((item, index) => (
+              <tr key={item.id || `${item.item_code}-${index}`} className="border-t align-top">
+                <td className="whitespace-nowrap p-3 text-sm font-semibold">
+                  {formatValue(item.item_code)}
+                </td>
+                <td className="p-3">
+                  <div className="text-sm font-medium leading-5">{formatValue(item.item_name)}</div>
+                  {item.base_ref ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Base Ref: {item.base_ref}
+                    </div>
+                  ) : null}
+                </td>
+                <td className="whitespace-nowrap p-3 text-right text-sm font-semibold tabular-nums">
+                  {formatValue(item.quantity)}
+                </td>
+                <td className="whitespace-nowrap p-3 text-sm">{formatValue(item.uom)}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
+                <td className="p-3 text-sm text-muted-foreground">{formatItemMetrics(item)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function formatDocumentLineCount(documents: PrintableGatepassDocument[]) {
+  if (documents.length === 0) return 'No SAP documents';
+  return documents.length === 1 ? '1 SAP document' : `${documents.length} SAP documents`;
+}
+
+function formatItemLineCount(count: number) {
+  if (count === 0) return 'No item lines';
+  return count === 1 ? '1 item line' : `${count} item lines`;
+}
+
+function formatDocumentDestination(document: SalesDispatchGateOutDocument) {
+  const warehouses = [document.from_warehouse, document.to_warehouse]
+    .filter(hasDisplayValue)
+    .join(' -> ');
+  return document.ship_to_address || document.warehouses || warehouses || document.place_of_supply;
+}
+
+function summarizeDocumentItems(items: SalesDispatchItem[]) {
+  if (items.length === 0) return '';
+  const [firstItem] = items;
+  const suffix = items.length > 1 ? ` +${items.length - 1}` : '';
+  return `${firstItem.item_name || firstItem.item_code}${suffix}`;
 }
 
 function formatItemWarehouse(item: SalesDispatchItem) {

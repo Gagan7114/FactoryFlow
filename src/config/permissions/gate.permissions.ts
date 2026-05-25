@@ -109,6 +109,26 @@ export const GATE_PERMISSIONS = {
     VIEW: 'gate_core.can_view_sales_dispatch_out',
     /** Create customer dispatch gate-out entries */
     CREATE: 'gate_core.can_create_sales_dispatch_out',
+    /** Edit customer dispatch gate-out entries */
+    EDIT: 'gate_core.can_edit_sales_dispatch_out',
+    /** Upload sales dispatch truck photos and documents */
+    UPLOAD_PHOTO: 'gate_core.can_upload_sales_dispatch_photo',
+    /** Print the original sales dispatch gatepass */
+    PRINT_GATEPASS: 'gate_core.can_print_sales_dispatch_gatepass',
+    /** Reprint sales dispatch gatepasses through the audited workflow */
+    REPRINT_GATEPASS: 'gate_core.can_reprint_sales_dispatch_gatepass',
+    /** Commit a recorded gatepass print */
+    COMMIT_PRINT: 'gate_core.can_commit_sales_dispatch_print',
+    /** Reject sales dispatch gate-out entries */
+    REJECT: 'gate_core.can_reject_sales_dispatch_out',
+    /** Cancel sales dispatch gate-out entries */
+    CANCEL: 'gate_core.can_cancel_sales_dispatch_out',
+    /** Mark sales dispatch gate-out entries as dispatched */
+    DISPATCH: 'gate_core.can_dispatch_sales_dispatch_out',
+    /** View sales dispatch reports */
+    VIEW_REPORTS: 'gate_core.can_view_sales_dispatch_reports',
+    /** Manage sales dispatch print lock */
+    MANAGE_LOCK: 'gate_core.can_manage_sales_dispatch_lock',
   },
 
   CUSTOMER_RETURN: {

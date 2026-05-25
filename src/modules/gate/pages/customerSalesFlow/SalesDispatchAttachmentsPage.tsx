@@ -1,8 +1,18 @@
-import { AlertCircle, ExternalLink, FileText, Loader2, LocateFixed, Paperclip, Upload } from 'lucide-react';
+import {
+  AlertCircle,
+  ExternalLink,
+  FileText,
+  Loader2,
+  LocateFixed,
+  Paperclip,
+  Upload,
+} from 'lucide-react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchAttachment,
   type SalesDispatchAttachmentType,
@@ -24,10 +34,7 @@ import {
 } from '@/shared/components/ui';
 import { getErrorMessage, resolveFileUrl } from '@/shared/utils';
 
-import {
-  DOCKING_TOTAL_STEPS,
-  formatValue,
-} from './salesDispatchFlow.helpers';
+import { DOCKING_TOTAL_STEPS, formatValue } from './salesDispatchFlow.helpers';
 import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 interface UploadPanelConfig {
@@ -77,6 +84,7 @@ const UPLOAD_PANELS: UploadPanelConfig[] = [
 
 export default function SalesDispatchAttachmentsPage() {
   const navigate = useNavigate();
+  const { hasPermission } = usePermission();
   const { entryId, entryIdNumber } = useEntryId();
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -89,23 +97,24 @@ export default function SalesDispatchAttachmentsPage() {
     error: entryError,
     refetch: refetchEntry,
   } = useSalesDispatchByVehicleEntry(entryIdNumber);
-  const {
-    data: attachments = [],
-    isLoading: isAttachmentsLoading,
-  } = useSalesDispatchAttachments(entry?.id);
+  const { data: attachments = [], isLoading: isAttachmentsLoading } = useSalesDispatchAttachments(
+    entry?.id,
+  );
   const uploadAttachment = useUploadSalesDispatchAttachment();
   const previewGatepass = usePreviewSalesDispatchGatepass();
 
   const isReadOnly = entry
     ? ['PRINT_COMMITTED', 'DISPATCHED', 'REJECTED', 'CANCELLED'].includes(entry.status)
     : false;
+  const canUploadAttachments = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.UPLOAD_PHOTO);
   const isLoading = isEntryLoading || isAttachmentsLoading;
-  const hasTruckPhoto = attachments.some(
-    (attachment) =>
-      attachment.attachment_type === 'TRUCK_PHOTO'
-      && attachment.latitude !== null
-      && attachment.longitude !== null,
-  ) || Boolean(entry?.gatepass_readiness.has_truck_photo_geolocation);
+  const hasTruckPhoto =
+    attachments.some(
+      (attachment) =>
+        attachment.attachment_type === 'TRUCK_PHOTO' &&
+        attachment.latitude !== null &&
+        attachment.longitude !== null,
+    ) || Boolean(entry?.gatepass_readiness.has_truck_photo_geolocation);
 
   const handleUpload = async (type: SalesDispatchAttachmentType, file: File) => {
     if (!entry) {
@@ -113,13 +122,22 @@ export default function SalesDispatchAttachmentsPage() {
       return;
     }
 
+    if (!canUploadAttachments) {
+      setError('You do not have permission to upload Docking photos or documents.');
+      return;
+    }
+
     setError(null);
     setUploadingType(type);
 
     try {
-      setUploadingMessage(type === 'TRUCK_PHOTO' ? 'Getting GPS location...' : 'Uploading document...');
+      setUploadingMessage(
+        type === 'TRUCK_PHOTO' ? 'Getting GPS location...' : 'Uploading document...',
+      );
       const location = type === 'TRUCK_PHOTO' ? await getBrowserPosition() : null;
-      setUploadingMessage(type === 'TRUCK_PHOTO' ? 'Uploading truck photo...' : 'Uploading document...');
+      setUploadingMessage(
+        type === 'TRUCK_PHOTO' ? 'Uploading truck photo...' : 'Uploading document...',
+      );
       await uploadAttachment.mutateAsync({
         id: entry.id,
         data: {
@@ -130,7 +148,9 @@ export default function SalesDispatchAttachmentsPage() {
           longitude: location?.longitude ?? null,
         },
       });
-      toast.success(type === 'TRUCK_PHOTO' ? 'Truck photo uploaded with location' : 'Document uploaded');
+      toast.success(
+        type === 'TRUCK_PHOTO' ? 'Truck photo uploaded with location' : 'Document uploaded',
+      );
       await refetchEntry();
     } catch (uploadError) {
       setError(getErrorMessage(uploadError, 'Failed to upload attachment'));
@@ -170,7 +190,9 @@ export default function SalesDispatchAttachmentsPage() {
           currentStep={3}
           totalSteps={DOCKING_TOTAL_STEPS}
           title="Docking"
-          error={error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)}
+          error={
+            error || (entryError ? getErrorMessage(entryError, 'Docking details not found') : null)
+          }
         />
         <div className="flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <div className="flex items-center gap-3">
@@ -187,12 +209,7 @@ export default function SalesDispatchAttachmentsPage() {
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader
-        currentStep={3}
-        totalSteps={DOCKING_TOTAL_STEPS}
-        title="Docking"
-        error={error}
-      />
+      <StepHeader currentStep={3} totalSteps={DOCKING_TOTAL_STEPS} title="Docking" error={error} />
 
       <Card>
         <CardHeader>
@@ -207,10 +224,17 @@ export default function SalesDispatchAttachmentsPage() {
               <DocumentUploadPanel
                 key={panel.type}
                 panel={panel}
-                disabled={isReadOnly || uploadAttachment.isPending || Boolean(uploadingType)}
+                disabled={
+                  isReadOnly ||
+                  !canUploadAttachments ||
+                  uploadAttachment.isPending ||
+                  Boolean(uploadingType)
+                }
                 isUploading={uploadingType === panel.type}
                 uploadingMessage={uploadingMessage}
-                attachments={attachments.filter((attachment) => attachment.attachment_type === panel.type)}
+                attachments={attachments.filter(
+                  (attachment) => attachment.attachment_type === panel.type,
+                )}
                 onUpload={handleUpload}
               />
             ))}
@@ -244,10 +268,7 @@ export default function SalesDispatchAttachmentsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-3">
-          <InfoItem
-            label="Truck Photo Location"
-            value={hasTruckPhoto ? 'Captured' : 'Required'}
-          />
+          <InfoItem label="Truck Photo Location" value={hasTruckPhoto ? 'Captured' : 'Required'} />
           <InfoItem
             label="Weighment"
             value={entry.gatepass_readiness.has_weighment ? 'Recorded' : 'Pending'}
@@ -309,7 +330,8 @@ function DocumentUploadPanel({
           <Upload className="h-8 w-8 text-muted-foreground" />
         )}
         <span className="text-sm font-medium">
-          {isUploading ? uploadingMessage : panel.label} {!isUploading && panel.required && <span className="text-destructive">*</span>}
+          {isUploading ? uploadingMessage : panel.label}{' '}
+          {!isUploading && panel.required && <span className="text-destructive">*</span>}
         </span>
         <span className="text-xs text-muted-foreground">
           {isUploading ? 'Please wait while this file is saved.' : panel.description}

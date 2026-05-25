@@ -327,6 +327,7 @@ export interface SalesDispatchReportCounts {
   ready_for_dispatch: number;
   dispatched: number;
   rejected_cancelled: number;
+  truck_with_photo?: number;
 }
 
 export interface SalesDispatchReport {
@@ -334,8 +335,12 @@ export interface SalesDispatchReport {
   waiting_inside: SalesDispatchGateOut[];
   missing_photo: SalesDispatchGateOut[];
   gatepass_pending: SalesDispatchGateOut[];
+  printed_not_committed?: SalesDispatchGateOut[];
   ready_for_dispatch: SalesDispatchGateOut[];
+  dispatched?: SalesDispatchGateOut[];
   rejected_cancelled: SalesDispatchGateOut[];
+  truck_vs_invoices_with_photo?: SalesDispatchGateOut[];
+  truck_status_with_photo?: SalesDispatchGateOut[];
 }
 
 export interface SalesDispatchDocumentParams {
@@ -364,7 +369,9 @@ export interface SalesDispatchPendingBookingParams {
   limit?: number;
 }
 
-export type SalesDispatchReportParams = SalesDispatchListParams;
+export type SalesDispatchReportParams = SalesDispatchListParams & {
+  limit?: number;
+};
 
 export interface SalesDispatchCreateRequest {
   document_type?: SalesDispatchDocumentType;

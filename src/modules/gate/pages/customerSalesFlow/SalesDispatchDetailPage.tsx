@@ -4,6 +4,7 @@ import {
   FileText,
   PackageCheck,
   Paperclip,
+  Printer,
   RotateCcw,
   Scale,
   ShieldCheck,
@@ -14,10 +15,14 @@ import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchGateOut,
+  type SalesDispatchGateOutDocument,
   type SalesDispatchItem,
   useCancelSalesDispatch,
+  useRejectSalesDispatch,
   useSalesDispatch,
   useWeighment,
 } from '@/modules/gate/api';
@@ -40,36 +45,57 @@ import {
 import { getErrorMessage, resolveFileUrl } from '@/shared/utils';
 
 import {
-  buildEntryDocumentLabel,
   formatDateTime,
+  formatDocumentType,
   formatTimestamp,
   formatValue,
+  summarizeSalesDispatchItems,
 } from './salesDispatchFlow.helpers';
 import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
+
+interface DetailDocument extends SalesDispatchGateOutDocument {
+  key: string;
+  items: SalesDispatchItem[];
+}
 
 export default function SalesDispatchDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const routes = getSalesDispatchRoutes(location.pathname);
   const isGateOutMode = isSalesDispatchOutPath(location.pathname);
+  const { hasPermission } = usePermission();
   const { entryId } = useParams();
   const id = Number(entryId || 0) || null;
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelError, setCancelError] = useState('');
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
 
-  const {
-    data: entry,
-    isLoading,
-    error,
-    refetch,
-  } = useSalesDispatch(id);
+  const { data: entry, isLoading, error, refetch } = useSalesDispatch(id);
   const { data: weighment } = useWeighment(entry?.vehicle_entry || null);
   const cancelSalesDispatch = useCancelSalesDispatch();
+  const rejectSalesDispatch = useRejectSalesDispatch();
 
-  const canCancel = entry
-    ? !['PRINT_COMMITTED', 'DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status)
-    : false;
+  const canCancel = Boolean(
+    entry &&
+    !['PRINT_COMMITTED', 'DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status) &&
+    hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.CANCEL),
+  );
+  const canReject = Boolean(
+    entry &&
+    !['DISPATCHED', 'CANCELLED', 'REJECTED'].includes(entry.status) &&
+    hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.REJECT),
+  );
+  const canReprintGatepass = Boolean(
+    entry &&
+    !isGateOutMode &&
+    entry.gatepass_no &&
+    entry.printed_at &&
+    !['CANCELLED', 'REJECTED'].includes(entry.status) &&
+    hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS),
+  );
 
   const handleCancel = async () => {
     if (!entry) return;
@@ -95,6 +121,30 @@ export default function SalesDispatchDetailPage() {
     }
   };
 
+  const handleReject = async () => {
+    if (!entry) return;
+
+    const trimmedReason = rejectReason.trim();
+    if (!trimmedReason) {
+      setRejectError('Please enter a rejection reason');
+      return;
+    }
+
+    try {
+      await rejectSalesDispatch.mutateAsync({
+        id: entry.id,
+        data: { reason: trimmedReason },
+      });
+      await refetch();
+      setRejectReason('');
+      setRejectError('');
+      setIsRejectDialogOpen(false);
+      toast.success('Docking entry rejected');
+    } catch (rejectErrorValue) {
+      setRejectError(getErrorMessage(rejectErrorValue, 'Failed to reject Docking entry'));
+    }
+  };
+
   if (isLoading) {
     return <StepLoadingSpinner />;
   }
@@ -106,10 +156,16 @@ export default function SalesDispatchDetailPage() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <EmptyState text={error ? getErrorMessage(error, 'Docking entry not found') : 'Docking entry not found'} />
+        <EmptyState
+          text={
+            error ? getErrorMessage(error, 'Docking entry not found') : 'Docking entry not found'
+          }
+        />
       </div>
     );
   }
+
+  const detailDocuments = getDetailDocuments(entry);
 
   return (
     <div className="space-y-6 pb-6">
@@ -130,14 +186,26 @@ export default function SalesDispatchDetailPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate(
-              isGateOutMode
-                ? routes.gatepass(entry.vehicle_entry)
-                : `${routes.newEntry}?entryId=${entry.vehicle_entry}`,
-            )}
+            onClick={() =>
+              navigate(
+                isGateOutMode
+                  ? routes.gatepass(entry.vehicle_entry)
+                  : `${routes.newEntry}?entryId=${entry.vehicle_entry}`,
+              )
+            }
           >
             {isGateOutMode ? 'Open Gate Out' : 'Resume Flow'}
           </Button>
+          {canReprintGatepass && entry && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(routes.reprint(entry.id))}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Reprint Gatepass
+            </Button>
+          )}
           {canCancel && !isGateOutMode && (
             <Button
               variant="outline"
@@ -149,6 +217,18 @@ export default function SalesDispatchDetailPage() {
             >
               <XCircle className="mr-2 h-4 w-4" />
               Cancel Entry
+            </Button>
+          )}
+          {canReject && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setRejectError('');
+                setIsRejectDialogOpen(true);
+              }}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Reject Entry
             </Button>
           )}
         </div>
@@ -165,14 +245,16 @@ export default function SalesDispatchDetailPage() {
         <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
           <InfoItem label="Entry No." value={entry.entry_no} />
           <InfoItem label="Vehicle Entry" value={entry.vehicle_entry_no} />
-          <InfoItem label="SAP Document" value={buildEntryDocumentLabel(entry)} />
-          <InfoItem label="Document Type" value={entry.document_type} />
+          <InfoItem label="SAP Documents" value={formatDocumentNumbers(entry)} />
+          <InfoItem label="Document Count" value={formatDocumentCount(detailDocuments)} />
+          <InfoItem label="Document Type" value={formatDocumentType(entry.document_type)} />
           <InfoItem label="Gate Out" value={formatDateTime(entry.gate_out_date, entry.out_time)} />
           <InfoItem label="Gatepass No." value={entry.gatepass_no} />
-          <InfoItem label="Created" value={formatTimestamp(entry.created_at)} />
           <InfoItem label="Updated" value={formatTimestamp(entry.updated_at)} />
         </CardContent>
       </Card>
+
+      <DocumentsCard documents={detailDocuments} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -196,7 +278,7 @@ export default function SalesDispatchDetailPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
-              Customer & SAP
+              Primary Customer & SAP
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
@@ -233,7 +315,7 @@ export default function SalesDispatchDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ItemsTable items={entry.items} />
+          <DocumentItemsByDocument documents={detailDocuments} itemSummary={entry.item_summary} />
         </CardContent>
       </Card>
 
@@ -332,49 +414,324 @@ export default function SalesDispatchDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Docking Entry</DialogTitle>
+            <DialogDescription>
+              This marks the Docking entry as rejected and keeps the reason in the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="sales-dispatch-reject-reason">
+              Rejection Reason <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="sales-dispatch-reject-reason"
+              value={rejectReason}
+              onChange={(event) => {
+                setRejectReason(event.target.value);
+                setRejectError('');
+              }}
+              placeholder="Why is this Docking entry being rejected?"
+            />
+            {rejectError && <p className="text-sm text-destructive">{rejectError}</p>}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
+              Keep Entry
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleReject}
+              disabled={rejectSalesDispatch.isPending}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              {rejectSalesDispatch.isPending ? 'Rejecting...' : 'Reject Entry'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function ItemsTable({ items }: { items: SalesDispatchItem[] }) {
+function DocumentsCard({ documents }: { documents: DetailDocument[] }) {
+  const showEwayBill = documents.some((document) => hasDisplayValue(document.eway_bill));
+  const showAmount = documents.some((document) => hasDisplayValue(document.sap_doc_total));
+  const showWeight = documents.some((document) => hasDisplayValue(document.total_weight));
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          SAP Documents
+        </CardTitle>
+        <div className="text-sm text-muted-foreground">{formatDocumentCount(documents)}</div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px]">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="w-[190px] p-3 text-left text-sm font-medium">Document</th>
+                  <th className="w-[260px] p-3 text-left text-sm font-medium">
+                    Customer / Destination
+                  </th>
+                  <th className="p-3 text-left text-sm font-medium">Address / Warehouse</th>
+                  {showEwayBill ? (
+                    <th className="w-[150px] p-3 text-left text-sm font-medium">E-way Bill</th>
+                  ) : null}
+                  {showAmount ? (
+                    <th className="w-[120px] p-3 text-right text-sm font-medium">Amount</th>
+                  ) : null}
+                  {showWeight ? (
+                    <th className="w-[130px] p-3 text-right text-sm font-medium">SAP Weight</th>
+                  ) : null}
+                  <th className="w-[230px] p-3 text-left text-sm font-medium">Items</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((document) => (
+                  <tr key={document.key} className="border-t align-top">
+                    <td className="p-3 text-sm">
+                      <div className="font-semibold">{formatValue(document.sap_doc_num)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDocumentType(document.document_type)}
+                        {document.sap_doc_date ? ` - ${document.sap_doc_date}` : ''}
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm">
+                      <div className="font-medium">
+                        {formatValue(document.customer_name || document.to_warehouse)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatValue(document.customer_code || document.place_of_supply)}
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm">
+                      {formatValue(formatDocumentDestination(document))}
+                    </td>
+                    {showEwayBill ? (
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {formatValue(document.eway_bill)}
+                      </td>
+                    ) : null}
+                    {showAmount ? (
+                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                        {formatValue(document.sap_doc_total)}
+                      </td>
+                    ) : null}
+                    {showWeight ? (
+                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                        {formatValue(formatWeightValue(document.total_weight))}
+                      </td>
+                    ) : null}
+                    <td className="p-3 text-sm">
+                      {formatValue(
+                        document.item_summary || summarizeSalesDispatchItems(document.items),
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DocumentItemsByDocument({
+  documents,
+  itemSummary,
+}: {
+  documents: DetailDocument[];
+  itemSummary?: string;
+}) {
+  const itemGroups = documents.filter((document) => document.items.length > 0);
+
+  if (itemGroups.length === 0) {
+    return (
+      <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+        {itemSummary || 'No document lines found'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {itemGroups.map((document) => (
+        <DocumentItemsTable key={document.key} document={document} />
+      ))}
+    </div>
+  );
+}
+
+function DocumentItemsTable({ document }: { document: DetailDocument }) {
   return (
     <div className="overflow-hidden rounded-md border">
+      <div className="flex flex-col gap-1 border-b bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="font-semibold">
+          {formatDocumentType(document.document_type)} {formatValue(document.sap_doc_num)}
+        </div>
+        <div className="text-muted-foreground">
+          {document.customer_name || formatDocumentDestination(document)}
+        </div>
+      </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px]">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-muted/50">
             <tr>
               <th className="p-3 text-left text-sm font-medium">Item Code</th>
               <th className="p-3 text-left text-sm font-medium">Item</th>
-              <th className="p-3 text-left text-sm font-medium">Quantity</th>
+              <th className="p-3 text-right text-sm font-medium">Quantity</th>
               <th className="p-3 text-left text-sm font-medium">UOM</th>
               <th className="p-3 text-left text-sm font-medium">Warehouse</th>
+              <th className="p-3 text-left text-sm font-medium">Metrics</th>
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="h-20 p-3 text-center text-sm text-muted-foreground">
-                  No document lines found
+            {document.items.map((item, index) => (
+              <tr key={item.id || `${document.key}-${index}`} className="border-t align-top">
+                <td className="whitespace-nowrap p-3 text-sm font-semibold">
+                  {formatValue(item.item_code)}
                 </td>
+                <td className="p-3 text-sm">
+                  <div className="font-medium">{formatValue(item.item_name)}</div>
+                  {item.base_ref ? (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Base Ref: {item.base_ref}
+                    </div>
+                  ) : null}
+                </td>
+                <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                  {formatValue(item.quantity)}
+                </td>
+                <td className="whitespace-nowrap p-3 text-sm">{formatValue(item.uom)}</td>
+                <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
+                <td className="p-3 text-sm text-muted-foreground">{formatItemMetrics(item)}</td>
               </tr>
-            ) : (
-              items.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="whitespace-nowrap p-3 text-sm">{item.item_code}</td>
-                  <td className="p-3 text-sm font-medium">{item.item_name}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.quantity}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {item.warehouse_code || item.from_warehouse || item.to_warehouse || '-'}
-                  </td>
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
         </table>
       </div>
     </div>
   );
+}
+
+function getDetailDocuments(entry: SalesDispatchGateOut): DetailDocument[] {
+  if (entry.documents?.length) {
+    return entry.documents.map((document) => ({
+      ...document,
+      key: String(document.id),
+      items: getDocumentItems(entry, document),
+    }));
+  }
+
+  return [
+    {
+      id: entry.sap_doc_entry,
+      key: `${entry.document_type}:${entry.sap_doc_entry}`,
+      document_type: entry.document_type,
+      sap_doc_entry: entry.sap_doc_entry,
+      sap_doc_num: entry.sap_doc_num,
+      sap_doc_date: entry.sap_doc_date,
+      sap_doc_total: entry.sap_doc_total,
+      sap_branch_id: entry.sap_branch_id,
+      sap_branch_name: entry.sap_branch_name,
+      sap_reference: entry.sap_reference,
+      sap_comments: entry.sap_comments,
+      customer_code: entry.customer_code,
+      customer_name: entry.customer_name,
+      ship_to_code: entry.ship_to_code,
+      ship_to_address: entry.ship_to_address,
+      place_of_supply: entry.place_of_supply,
+      bp_gstin: entry.bp_gstin,
+      eway_bill: entry.eway_bill,
+      from_warehouse: entry.from_warehouse,
+      to_warehouse: entry.to_warehouse,
+      warehouses: entry.warehouses,
+      item_summary: entry.item_summary,
+      base_refs: entry.base_refs,
+      total_quantity: entry.total_quantity,
+      total_litres: entry.total_litres,
+      total_boxes: entry.total_boxes,
+      total_weight: entry.total_weight,
+      items: entry.items,
+    },
+  ];
+}
+
+function getDocumentItems(
+  entry: SalesDispatchGateOut,
+  document: SalesDispatchGateOutDocument,
+): SalesDispatchItem[] {
+  if (document.items?.length) return document.items;
+
+  const matchedItems = entry.items.filter(
+    (item) =>
+      (item.document && item.document === document.id) ||
+      (item.document_sap_doc_num && item.document_sap_doc_num === document.sap_doc_num),
+  );
+  if (matchedItems.length) return matchedItems;
+
+  return entry.documents?.length ? [] : entry.items;
+}
+
+function formatDocumentNumbers(entry: SalesDispatchGateOut) {
+  const numbers = entry.document_numbers?.length
+    ? entry.document_numbers
+    : entry.sap_doc_num
+      ? [entry.sap_doc_num]
+      : [];
+  return numbers.join(', ') || '-';
+}
+
+function formatDocumentCount(documents: DetailDocument[]) {
+  if (documents.length === 0) return 'No SAP documents';
+  return documents.length === 1 ? '1 SAP document' : `${documents.length} SAP documents`;
+}
+
+function formatDocumentDestination(document: SalesDispatchGateOutDocument) {
+  const warehouses = [document.from_warehouse, document.to_warehouse]
+    .filter(hasDisplayValue)
+    .join(' -> ');
+  return document.ship_to_address || document.warehouses || warehouses || document.place_of_supply;
+}
+
+function hasDisplayValue(value?: string | number | null) {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return text !== '' && text !== '-';
+}
+
+function formatWeightValue(value?: string | number | null) {
+  if (!hasDisplayValue(value)) return '';
+  const text = String(value);
+  return /\b(kg|mt|ton|tons)\b/i.test(text) ? text : `${text} kg`;
+}
+
+function formatItemWarehouse(item: SalesDispatchItem) {
+  const from = item.from_warehouse;
+  const to = item.to_warehouse;
+  if (from && to && from !== to) return `${from} -> ${to}`;
+  return item.warehouse_code || from || to || '-';
+}
+
+function formatItemMetrics(item: SalesDispatchItem) {
+  const metrics = [
+    item.total_boxes ? `${item.total_boxes} boxes` : '',
+    item.total_litres ? `${item.total_litres} litres` : '',
+    item.total_weight ? formatWeightValue(item.total_weight) : '',
+  ].filter(Boolean);
+
+  return metrics.length ? metrics.join(' / ') : '-';
 }
 
 function InfoItem({ label, value }: { label: string; value?: string | number | null }) {

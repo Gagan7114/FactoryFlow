@@ -17,26 +17,16 @@ const ServiceGRPODashboardPage = lazy(
 const ServicePendingEntriesPage = lazy(
   () => import('@/modules/grpo/pages/ServicePendingEntriesPage'),
 );
-const ServiceGRPOPreviewPage = lazy(
-  () => import('@/modules/grpo/pages/ServiceGRPOPreviewPage'),
-);
-const ServiceGRPOHistoryPage = lazy(
-  () => import('@/modules/grpo/pages/ServiceGRPOHistoryPage'),
-);
+const ServiceGRPOPreviewPage = lazy(() => import('@/modules/grpo/pages/ServiceGRPOPreviewPage'));
+const ServiceGRPOHistoryPage = lazy(() => import('@/modules/grpo/pages/ServiceGRPOHistoryPage'));
 const ServiceGRPOHistoryDetailPage = lazy(
   () => import('@/modules/grpo/pages/ServiceGRPOHistoryDetailPage'),
 );
 const OpenBiltiesPage = lazy(() => import('./pages/OpenBiltiesPage'));
 const TransporterInvoicesPage = lazy(() => import('./pages/TransporterInvoicesPage'));
-const TransporterInvoiceQueuePage = lazy(
-  () => import('./pages/TransporterInvoiceQueuePage'),
-);
-const TransporterInvoiceHistoryPage = lazy(
-  () => import('./pages/TransporterInvoiceHistoryPage'),
-);
-const TransporterInvoiceDetailPage = lazy(
-  () => import('./pages/TransporterInvoiceDetailPage'),
-);
+const TransporterInvoiceQueuePage = lazy(() => import('./pages/TransporterInvoiceQueuePage'));
+const TransporterInvoiceHistoryPage = lazy(() => import('./pages/TransporterInvoiceHistoryPage'));
+const TransporterInvoiceDetailPage = lazy(() => import('./pages/TransporterInvoiceDetailPage'));
 const DockingDashboardPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchDashboardPage'),
 );
@@ -51,6 +41,12 @@ const DockingAttachmentsPage = lazy(
 );
 const DockingGatepassPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchGatepassPage'),
+);
+const DockingReprintPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchReprintPage'),
+);
+const DockingReportsPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchReportsPage'),
 );
 const DockingDetailPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchDetailPage'),
@@ -70,6 +66,8 @@ const dispatchViewPermissions = [
   DISPATCH_PERMISSIONS.POST_TRANSPORTER_AP_INVOICE,
   GATE_PERMISSIONS.SALES_DISPATCH.VIEW,
   GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
+  GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS,
+  GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS,
 ] as const;
 
 const serviceGRPOViewPermissions = [
@@ -139,6 +137,20 @@ export const dispatchModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
       breadcrumb: { label: 'Docking Gatepass' },
+    },
+    {
+      path: '/dispatch/docking/:entryId/reprint',
+      element: <DockingReprintPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS],
+      breadcrumb: { label: 'Reprint Gatepass' },
+    },
+    {
+      path: '/dispatch/docking/reports',
+      element: <DockingReportsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS],
+      breadcrumb: { label: 'Docking Reports' },
     },
     {
       path: '/dispatch/docking/:entryId',
@@ -260,6 +272,11 @@ export const dispatchModuleConfig: ModuleConfig = {
           path: '/dispatch/docking',
           title: 'Docking',
           permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
+        },
+        {
+          path: '/dispatch/docking/reports',
+          title: 'Docking Reports',
+          permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS],
         },
         {
           path: '/dispatch/bilty-grpo',

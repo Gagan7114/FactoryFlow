@@ -1,7 +1,9 @@
 import {
   AlertTriangle,
+  BarChart3,
   CheckCircle2,
   Clock,
+  Download,
   FileText,
   List,
   Lock,
@@ -14,11 +16,16 @@ import {
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth';
 import { useGlobalDateRange } from '@/core/store/hooks';
 import {
   type SalesDispatchDashboardEntry,
+  type SalesDispatchDocument,
   type SalesDispatchGateOut,
+  type SalesDispatchGateOutDocument,
   type SalesDispatchLock,
   useSalesDispatchEntries,
   useSalesDispatchLock,
@@ -42,6 +49,10 @@ const ACTIVE_SALES_DISPATCH_STATUSES = [
 ];
 const GATEPASS_PENDING_STATUSES = ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'];
 
+type ExportCellValue = string | number;
+type ExportRow = Record<string, ExportCellValue>;
+type DashboardExportDocument = SalesDispatchDocument | SalesDispatchGateOutDocument;
+
 type DashboardFilter =
   | 'ALL'
   | 'PENDING_OUT'
@@ -59,6 +70,7 @@ export default function SalesDispatchDashboardPage() {
   const location = useLocation();
   const routes = getSalesDispatchRoutes(location.pathname);
   const isGateOutMode = isSalesDispatchOutPath(location.pathname);
+  const { hasPermission } = usePermission();
   const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilterState, setSelectedFilterState] = useState<{
@@ -86,6 +98,9 @@ export default function SalesDispatchDashboardPage() {
   const { data: dispatchLock } = useSalesDispatchLock();
   const updateLock = useUpdateSalesDispatchLock();
   const isDashboardFetching = isFetching || isPendingBookingsFetching;
+  const canCreateDocking = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.CREATE);
+  const canManageDockingLock = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.MANAGE_LOCK);
+  const canViewDockingReports = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS);
 
   const displayEntries = useMemo(() => {
     if (isGateOutMode) return entries.slice().sort(sortSalesDispatchOutEntries);
@@ -200,6 +215,11 @@ export default function SalesDispatchDashboardPage() {
       ];
 
   const handleToggleLock = async () => {
+    if (!canManageDockingLock) {
+      toast.error('You do not have permission to manage Docking printing lock');
+      return;
+    }
+
     const isLocked = Boolean(dispatchLock?.is_locked);
     try {
       if (isLocked) {
@@ -219,6 +239,20 @@ export default function SalesDispatchDashboardPage() {
       toast.success('Docking printing locked');
     } catch (lockError) {
       toast.error(getErrorMessage(lockError, 'Failed to update Docking lock'));
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const exportedRows = exportSalesDispatchDashboard(filteredEntries, {
+        dateRange,
+        isGateOutMode,
+        searchTerm,
+        selectedFilter,
+      });
+      toast.success(`${exportedRows} ${exportedRows === 1 ? 'row' : 'rows'} exported`);
+    } catch (exportError) {
+      toast.error(getErrorMessage(exportError, 'Failed to export dashboard'));
     }
   };
 
@@ -257,7 +291,24 @@ export default function SalesDispatchDashboardPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             {isDashboardFetching ? 'Refreshing' : 'Refresh'}
           </Button>
-          {!isGateOutMode && (
+          {!isGateOutMode && canViewDockingReports ? (
+            <Button type="button" variant="outline" onClick={() => navigate(routes.reports)}>
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Reports
+            </Button>
+          ) : null}
+          {canViewDockingReports ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExport}
+              disabled={isDashboardFetching || filteredEntries.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          ) : null}
+          {!isGateOutMode && canCreateDocking && (
             <Button onClick={() => navigate(routes.newEntry)}>
               <Plus className="mr-2 h-4 w-4" />
               New Entry
@@ -270,6 +321,7 @@ export default function SalesDispatchDashboardPage() {
         <DockingLockPanel
           lock={dispatchLock}
           isSaving={updateLock.isPending}
+          canManage={canManageDockingLock}
           onToggle={() => void handleToggleLock()}
         />
       )}
@@ -356,16 +408,16 @@ function DispatchTable({
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[1580px] table-fixed">
+        <table className="w-full min-w-[1740px] table-fixed">
           <colgroup>
             <col className="w-[180px]" />
-            <col className="w-[160px]" />
-            <col className="w-[230px]" />
+            <col className="w-[280px]" />
+            <col className="w-[240px]" />
             <col className="w-[320px]" />
             <col className="w-[130px]" />
             <col className="w-[165px]" />
-            <col className="w-[260px]" />
-            <col className="w-[135px]" />
+            <col className="w-[280px]" />
+            <col className="w-[145px]" />
           </colgroup>
           <thead className="bg-muted/50">
             <tr>
@@ -402,8 +454,15 @@ function DispatchTable({
                   <td className="whitespace-nowrap p-3 text-sm font-medium">
                     {isPendingBookingEntry(entry) ? 'Pending' : entry.entry_no}
                   </td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    <div>{entry.sap_doc_num || entry.sap_doc_entry}</div>
+                  <td className="p-3 text-sm" title={formatDocumentNumbers(entry)}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium leading-5">{formatDocumentNumbers(entry)}</span>
+                      {getDocumentCount(entry) > 1 ? (
+                        <span className="inline-flex whitespace-nowrap rounded-full border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {getDocumentCount(entry)} docs
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {formatDocumentType(entry.document_type)}
                     </div>
@@ -448,10 +507,12 @@ function DispatchTable({
 function DockingLockPanel({
   lock,
   isSaving,
+  canManage,
   onToggle,
 }: {
   lock?: SalesDispatchLock;
   isSaving: boolean;
+  canManage: boolean;
   onToggle: () => void;
 }) {
   const isLocked = Boolean(lock?.is_locked);
@@ -482,15 +543,17 @@ function DockingLockPanel({
             ) : null}
           </div>
         </div>
-        <Button
-          type="button"
-          variant={isLocked ? 'default' : 'destructive'}
-          onClick={onToggle}
-          disabled={isSaving}
-        >
-          {isLocked ? <Unlock className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
-          {isSaving ? 'Saving' : isLocked ? 'Unlock' : 'Lock Printing'}
-        </Button>
+        {canManage ? (
+          <Button
+            type="button"
+            variant={isLocked ? 'default' : 'destructive'}
+            onClick={onToggle}
+            disabled={isSaving}
+          >
+            {isLocked ? <Unlock className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
+            {isSaving ? 'Saving' : isLocked ? 'Unlock' : 'Lock Printing'}
+          </Button>
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -500,6 +563,8 @@ function buildSalesDispatchSearchText(entry: SalesDispatchDashboardEntry) {
   return [
     isPendingBookingEntry(entry) ? 'pending docking booked' : entry.entry_no,
     entry.sap_doc_num,
+    getDashboardDocumentNumbers(entry).join(' '),
+    entry.document_count,
     entry.sap_doc_entry,
     entry.customer_name,
     entry.customer_code,
@@ -551,6 +616,245 @@ function matchesSalesDispatchDashboardFilter(
     default:
       return true;
   }
+}
+
+function exportSalesDispatchDashboard(
+  entries: SalesDispatchDashboardEntry[],
+  context: {
+    dateRange: { from?: string; to?: string };
+    isGateOutMode: boolean;
+    searchTerm: string;
+    selectedFilter: DashboardFilter;
+  },
+) {
+  const workbook = XLSX.utils.book_new();
+  appendDashboardExportSheet(workbook, buildDashboardExportSummary(entries, context), 'Summary');
+  appendDashboardExportSheet(
+    workbook,
+    entries.map((entry) => buildDashboardEntryExportRow(entry, context.isGateOutMode)),
+    'Entries',
+  );
+
+  const documentRows = buildDashboardDocumentExportRows(entries);
+  if (documentRows.length) {
+    appendDashboardExportSheet(workbook, documentRows, 'Documents');
+  }
+
+  const itemRows = buildDashboardItemExportRows(entries);
+  if (itemRows.length) {
+    appendDashboardExportSheet(workbook, itemRows, 'Items');
+  }
+
+  XLSX.writeFile(workbook, buildDashboardExportFileName(context));
+  return entries.length;
+}
+
+function buildDashboardExportSummary(
+  entries: SalesDispatchDashboardEntry[],
+  context: {
+    dateRange: { from?: string; to?: string };
+    isGateOutMode: boolean;
+    searchTerm: string;
+    selectedFilter: DashboardFilter;
+  },
+): ExportRow[] {
+  return [
+    {
+      Field: 'Dashboard',
+      Value: context.isGateOutMode ? 'Sales Dispatch Out' : 'Docking',
+    },
+    {
+      Field: 'Date From',
+      Value: exportValue(context.dateRange.from),
+    },
+    {
+      Field: 'Date To',
+      Value: exportValue(context.dateRange.to),
+    },
+    {
+      Field: 'Filter',
+      Value: context.selectedFilter,
+    },
+    {
+      Field: 'Search',
+      Value: exportValue(context.searchTerm.trim()),
+    },
+    {
+      Field: 'Visible Rows',
+      Value: entries.length,
+    },
+    {
+      Field: 'Exported At',
+      Value: formatExportTimestamp(new Date().toISOString()),
+    },
+  ];
+}
+
+function buildDashboardEntryExportRow(
+  entry: SalesDispatchDashboardEntry,
+  isGateOutMode: boolean,
+): ExportRow {
+  const isPending = isPendingBookingEntry(entry);
+
+  return {
+    'Entry No.': isPending ? 'Pending' : exportValue(entry.entry_no),
+    'Pending Booking': isPending ? 'Yes' : 'No',
+    'Dispatch Plan IDs': isPending
+      ? entry.dispatch_plan_ids.join(', ')
+      : exportValue('dispatch_plan' in entry ? entry.dispatch_plan : undefined),
+    'SAP Documents': formatDocumentNumbers(entry),
+    'Document Count': getDocumentCount(entry),
+    'Document Type': formatDocumentType(entry.document_type),
+    Customer: exportValue(entry.customer_name),
+    'Customer Code / Place': exportValue(entry.customer_code || entry.place_of_supply),
+    Items: exportValue(entry.item_summary || summarizeItems(getEntryItems(entry))),
+    Vehicle: exportValue(entry.vehicle_no),
+    Driver: exportValue(entry.driver_name),
+    'Driver Mobile': exportValue(entry.driver_mobile_no),
+    Transporter: exportValue(entry.transporter_name),
+    'Bilty No.': exportValue(entry.bilty_no),
+    'Bilty Date': exportValue(entry.bilty_date),
+    'Gate Out': formatDateTime(entry.gate_out_date, entry.out_time),
+    Gatepass: exportValue(entry.gatepass_no || 'Pending'),
+    Status: getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode),
+    'Gross Weight': isPending ? '-' : exportValue(entry.gross_weight),
+    'Net Weight': isPending ? '-' : exportValue(entry.net_weight),
+    'Printed At': isPending ? '-' : formatExportTimestamp(entry.printed_at),
+    'Print Committed At': isPending ? '-' : formatExportTimestamp(entry.print_committed_at),
+    'Dispatched At': isPending ? '-' : formatExportTimestamp(entry.dispatched_at),
+    'Created At': formatExportTimestamp(entry.created_at),
+    'Updated At': formatExportTimestamp(entry.updated_at),
+  };
+}
+
+function buildDashboardDocumentExportRows(entries: SalesDispatchDashboardEntry[]): ExportRow[] {
+  return entries.flatMap((entry) => {
+    const documents = getDashboardDocuments(entry);
+    if (!documents.length) {
+      return [
+        {
+          'Entry No.': isPendingBookingEntry(entry) ? 'Pending' : exportValue(entry.entry_no),
+          'SAP Document': formatDocumentNumbers(entry),
+          'Document Type': formatDocumentType(entry.document_type),
+          Customer: exportValue(entry.customer_name),
+          'Customer Code': exportValue(entry.customer_code),
+          'Document Date': exportValue(entry.sap_doc_date),
+          'Document Total': exportValue(entry.sap_doc_total),
+          'E-way Bill': exportValue(entry.eway_bill),
+          Warehouses: exportValue(entry.warehouses),
+          'Item Summary': exportValue(entry.item_summary),
+        },
+      ];
+    }
+
+    return documents.map((document) => ({
+      'Entry No.': isPendingBookingEntry(entry) ? 'Pending' : exportValue(entry.entry_no),
+      'SAP Document': exportValue(getExportDocumentNumber(document)),
+      'Document Type': formatDocumentType(getExportDocumentType(document)),
+      Customer: exportValue(getExportDocumentCustomerName(document)),
+      'Customer Code': exportValue(getExportDocumentCustomerCode(document)),
+      'Document Date': exportValue(getExportDocumentDate(document)),
+      'Document Total': exportValue(getExportDocumentTotal(document)),
+      'E-way Bill': exportValue(document.eway_bill),
+      Warehouses: exportValue(document.warehouses),
+      'From Warehouse': exportValue(document.from_warehouse),
+      'To Warehouse': exportValue(document.to_warehouse),
+      'Total Quantity': exportValue(document.total_quantity),
+      'Total Boxes': exportValue(document.total_boxes),
+      'Total Litres': exportValue(document.total_litres),
+      'Total Weight': exportValue(document.total_weight),
+      'Item Summary': exportValue(document.item_summary),
+    }));
+  });
+}
+
+function buildDashboardItemExportRows(entries: SalesDispatchDashboardEntry[]): ExportRow[] {
+  return entries.flatMap((entry) =>
+    getEntryItems(entry).map((item) => ({
+      'Entry No.': exportValue(entry.entry_no),
+      'SAP Document': exportValue(item.document_sap_doc_num || entry.sap_doc_num),
+      'Line No.': item.line_num,
+      'Item Code': exportValue(item.item_code),
+      'Item Name': exportValue(item.item_name),
+      Quantity: exportValue(item.quantity),
+      UOM: exportValue(item.uom),
+      Warehouse: exportValue(item.warehouse_code),
+      'From Warehouse': exportValue(item.from_warehouse),
+      'To Warehouse': exportValue(item.to_warehouse),
+      'Base Ref': exportValue(item.base_ref),
+      'Total Boxes': exportValue(item.total_boxes),
+      'Total Litres': exportValue(item.total_litres),
+      'Total Weight': exportValue(item.total_weight),
+    })),
+  );
+}
+
+function appendDashboardExportSheet(workbook: XLSX.WorkBook, rows: ExportRow[], sheetName: string) {
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const columns = Object.keys(rows[0] || {});
+  worksheet['!cols'] = columns.map((column) => {
+    const contentWidth = Math.max(
+      column.length,
+      ...rows.map((row) => String(row[column] ?? '').length),
+    );
+    return { wch: Math.min(Math.max(contentWidth + 2, 12), 60) };
+  });
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+}
+
+function buildDashboardExportFileName(context: {
+  dateRange: { from?: string; to?: string };
+  isGateOutMode: boolean;
+  selectedFilter: DashboardFilter;
+}) {
+  const dashboardName = context.isGateOutMode ? 'Sales_Dispatch_Out' : 'Docking';
+  const fromDate = context.dateRange.from || 'all';
+  const toDate = context.dateRange.to || 'all';
+  return `${dashboardName}_${fromDate}_to_${toDate}_${slugExportPart(context.selectedFilter)}.xlsx`;
+}
+
+function getDashboardDocuments(entry: SalesDispatchDashboardEntry): DashboardExportDocument[] {
+  return (entry.documents || []) as DashboardExportDocument[];
+}
+
+function getExportDocumentNumber(document: DashboardExportDocument) {
+  return 'sap_doc_num' in document ? document.sap_doc_num : document.doc_num;
+}
+
+function getExportDocumentType(document: DashboardExportDocument) {
+  return document.document_type;
+}
+
+function getExportDocumentCustomerName(document: DashboardExportDocument) {
+  return 'customer_name' in document ? document.customer_name : document.card_name;
+}
+
+function getExportDocumentCustomerCode(document: DashboardExportDocument) {
+  return 'customer_code' in document ? document.customer_code : document.card_code;
+}
+
+function getExportDocumentDate(document: DashboardExportDocument) {
+  return 'sap_doc_date' in document ? document.sap_doc_date : document.doc_date;
+}
+
+function getExportDocumentTotal(document: DashboardExportDocument) {
+  return 'sap_doc_total' in document ? document.sap_doc_total : document.doc_total;
+}
+
+function exportValue(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
+}
+
+function formatExportTimestamp(value?: string | null) {
+  if (!value) return '-';
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return value;
+  return timestamp.toLocaleString();
+}
+
+function slugExportPart(value: string) {
+  return value.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'all';
 }
 
 function sortDockingDashboardEntries(
@@ -612,6 +916,26 @@ function getSalesDispatchDashboardStatusLabel(status: string, isGateOutMode: boo
   if (status === GATE_OUT_PENDING_STATUS) return 'PENDING OUT';
   if (status === GATE_OUT_COMPLETED_STATUS) return 'MARKED OUT';
   return status;
+}
+
+function getDashboardDocumentNumbers(entry: SalesDispatchDashboardEntry) {
+  if (entry.document_numbers?.length) return entry.document_numbers;
+  if (entry.sap_doc_num) return [entry.sap_doc_num];
+  if (entry.sap_doc_entry) return [String(entry.sap_doc_entry)];
+  return [];
+}
+
+function formatDocumentNumbers(entry: SalesDispatchDashboardEntry) {
+  return getDashboardDocumentNumbers(entry).join(', ') || '-';
+}
+
+function getDocumentCount(entry: SalesDispatchDashboardEntry) {
+  return (
+    entry.document_count ||
+    getDashboardDocumentNumbers(entry).length ||
+    entry.documents?.length ||
+    0
+  );
 }
 
 function formatDocumentType(value: string) {

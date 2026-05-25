@@ -5,6 +5,7 @@ const GATE_BST_OUT_BASE = '/gate/bst-out';
 function buildSalesDispatchRoutes(base: string) {
   return {
     dashboard: base,
+    reports: `${base}/reports`,
     newEntry: `${base}/new`,
     weighment: (entryId: string | number) =>
       `${base}/new/weighment?entryId=${encodeURIComponent(String(entryId))}`,
@@ -13,6 +14,7 @@ function buildSalesDispatchRoutes(base: string) {
     gatepass: (entryId: string | number) =>
       `${base}/new/gatepass?entryId=${encodeURIComponent(String(entryId))}`,
     detail: (entryId: string | number) => `${base}/${entryId}`,
+    reprint: (entryId: string | number) => `${base}/${entryId}/reprint`,
   };
 }
 
