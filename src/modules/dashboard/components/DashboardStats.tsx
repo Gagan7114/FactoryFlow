@@ -12,6 +12,7 @@ const descriptions: Record<string, string> = {
   '/qc': 'Inspections, approvals, and master data management',
   '/grpo': 'Goods receipt and purchase order posting',
   '/production': 'Production execution, line clearance, waste, and reports',
+  '/barcode': 'Pallets, boxes, labels, scanning, and dispatch barcode operations',
 };
 
 export function DashboardStats() {
