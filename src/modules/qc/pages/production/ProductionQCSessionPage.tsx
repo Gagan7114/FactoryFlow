@@ -1,6 +1,3 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -8,7 +5,12 @@ import {
   Send,
   XCircle,
 } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
+import { QC_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth/hooks/usePermission';
 import {
   Button,
   Card,
@@ -31,8 +33,8 @@ import { cn } from '@/shared/utils';
 
 import {
   useProductionQCSession,
-  useUpdateProductionQCResults,
   useSubmitProductionQCSession,
+  useUpdateProductionQCResults,
 } from '../../api/productionQC';
 import type {
   ProductionQCSession,
@@ -97,6 +99,9 @@ export default function ProductionQCSessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const numSessionId = Number(sessionId);
+  const { hasAnyPermission } = usePermission();
+  const canCreateProductionQC = hasAnyPermission([QC_PERMISSIONS.PRODUCTION_QC.CREATE]);
+  const canSubmitProductionQC = hasAnyPermission([QC_PERMISSIONS.PRODUCTION_QC.SUBMIT]);
 
   const { data: session, isLoading } = useProductionQCSession(numSessionId || null);
   const updateResults = useUpdateProductionQCResults(
@@ -128,7 +133,7 @@ export default function ProductionQCSessionPage() {
     }
   }, [session]);
 
-  const isEditable = session?.workflow_status === 'DRAFT';
+  const isEditable = session?.workflow_status === 'DRAFT' && canCreateProductionQC;
 
   // Same handler pattern as InspectionDetailPage
   const handleParameterChange = (
@@ -176,6 +181,10 @@ export default function ProductionQCSessionPage() {
 
   const handleSave = async () => {
     if (!session) return;
+    if (!canCreateProductionQC) {
+      toast.error('You do not have permission to update QC results');
+      return;
+    }
     setIsSaving(true);
     const results: UpdateProductionQCResultRequest[] = session.results.map((r) => {
       const state = parameterResults[r.parameter_master];
@@ -201,6 +210,10 @@ export default function ProductionQCSessionPage() {
 
   const handleSubmit = async () => {
     if (!session) return;
+    if (!canSubmitProductionQC) {
+      toast.error('You do not have permission to submit QC sessions');
+      return;
+    }
     if (hasChanges) await handleSave();
     try {
       await submitSession.mutateAsync({
@@ -296,9 +309,11 @@ export default function ProductionQCSessionPage() {
                 Select the parameter set from the run QC page before entering results.
               </p>
             </div>
-            <Button onClick={() => navigate(`/qc/production/runs/${session.production_run}`)}>
-              Select Parameters
-            </Button>
+            {canCreateProductionQC && (
+              <Button onClick={() => navigate(`/qc/production/runs/${session.production_run}`)}>
+                Select Parameters
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -479,7 +494,7 @@ export default function ProductionQCSessionPage() {
               {isSaving ? 'Saving...' : 'Save'}
             </Button>
           )}
-          {isEditable && (
+          {isEditable && canSubmitProductionQC && (
             <Button onClick={() => setShowSubmitDialog(true)}>
               <Send className="h-4 w-4 mr-2" />
               Submit

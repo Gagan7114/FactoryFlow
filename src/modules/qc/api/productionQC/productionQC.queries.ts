@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
   CreateProductionQCSessionRequest,
-  UpdateProductionQCResultRequest,
-  ProductionQCSubmitRequest,
   ProductionQCApprovalRequest,
-  ProductionQCRejectRequest,
   ProductionQCListParams,
+  ProductionQCRejectRequest,
+  ProductionQCSubmitRequest,
+  UpdateProductionQCResultRequest,
 } from '../../types';
 import { productionQCApi } from './productionQC.api';
 
@@ -39,10 +39,11 @@ export function useProductionQCList(params?: ProductionQCListParams) {
   });
 }
 
-export function useProductionQCCounts() {
+export function useProductionQCCounts(enabled = true) {
   return useQuery({
     queryKey: PRODUCTION_QC_QUERY_KEYS.counts(),
     queryFn: () => productionQCApi.counts(),
+    enabled,
     staleTime: 30_000,
   });
 }

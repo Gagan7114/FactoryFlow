@@ -143,10 +143,11 @@ export function useReturnToVendorInspections(params?: InspectionListParams) {
 
 // ── Counts hook (used by dashboard) ──────────────────────────────────
 
-export function useInspectionCounts(params?: InspectionListParams) {
+export function useInspectionCounts(params?: InspectionListParams, enabled = true) {
   return useQuery({
     queryKey: INSPECTION_QUERY_KEYS.counts(params),
     queryFn: () => inspectionApi.getCounts(params),
+    enabled,
     staleTime: 30 * 1000,
   });
 }
