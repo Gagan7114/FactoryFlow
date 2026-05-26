@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 
 import { useAuth } from '@/core/auth';
 
@@ -55,5 +55,70 @@ export function useProductionMovementReport(filters: ProductionMovementFilters) 
     queryFn: () => productionMovementApi.getReport(filters),
     staleTime: PRODUCTION_MOVEMENT_STALE_TIME,
     retry: sapRetry,
+  });
+}
+
+export function useProductionMovementWarehouseBalanceReports(
+  filters: ProductionMovementFilters,
+  warehouses: string[],
+) {
+  const { currentCompany } = useAuth();
+
+  return useQueries({
+    queries: warehouses.map((warehouse) => {
+      const warehouseFilters = { ...filters, warehouse };
+
+      return {
+        queryKey: PRODUCTION_MOVEMENT_QUERY_KEYS.report(
+          warehouseFilters,
+          currentCompany?.company_id,
+        ),
+        queryFn: () => productionMovementApi.getReport(warehouseFilters),
+        staleTime: PRODUCTION_MOVEMENT_STALE_TIME,
+        retry: sapRetry,
+      };
+    }),
+  });
+}
+
+interface ProductionMovementSkuBalanceRequest {
+  key: string;
+  skuKey: string;
+  warehouse: string;
+  search: string;
+}
+
+export function useProductionMovementSkuBalanceReports(
+  filters: ProductionMovementFilters,
+  requests: ProductionMovementSkuBalanceRequest[],
+  enabled = true,
+) {
+  const { currentCompany } = useAuth();
+
+  return useQueries({
+    queries: requests.map((request) => {
+      const skuFilters = {
+        ...filters,
+        warehouse: request.warehouse,
+        search: request.search,
+        direction: 'all' as const,
+        production_only: false,
+        limit: 1,
+      };
+
+      return {
+        queryKey: [
+          ...PRODUCTION_MOVEMENT_QUERY_KEYS.report(
+            skuFilters,
+            currentCompany?.company_id,
+          ),
+          request.key,
+        ],
+        queryFn: () => productionMovementApi.getReport(skuFilters),
+        enabled,
+        staleTime: PRODUCTION_MOVEMENT_STALE_TIME,
+        retry: sapRetry,
+      };
+    }),
   });
 }

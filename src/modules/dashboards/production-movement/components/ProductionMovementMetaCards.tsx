@@ -9,10 +9,13 @@ import {
 } from 'lucide-react';
 
 import { Card, CardContent } from '@/shared/components/ui';
+import { cn } from '@/shared/utils';
 
 import type { ProductionMovementSummary } from '../types';
 
 interface ProductionMovementMetaCardsProps {
+  isNetQtyDrilldownActive?: boolean;
+  onNetQtyClick?: () => void;
   summary?: ProductionMovementSummary;
 }
 
@@ -26,7 +29,11 @@ const currencyFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
 });
 
-export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaCardsProps) {
+export function ProductionMovementMetaCards({
+  isNetQtyDrilldownActive,
+  onNetQtyClick,
+  summary,
+}: ProductionMovementMetaCardsProps) {
   const cards = [
     {
       label: 'Total Entries',
@@ -49,6 +56,7 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
       icon: ArrowUpFromLine,
     },
     {
+      key: 'net_qty',
       label: 'Net Qty',
       value: numberFormatter.format(summary?.net_qty ?? 0),
       icon: Scale,
@@ -69,8 +77,31 @@ export function ProductionMovementMetaCards({ summary }: ProductionMovementMetaC
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
+        const isNetQty = card.key === 'net_qty';
+        const isClickable = isNetQty && Boolean(onNetQtyClick);
+
         return (
-          <Card key={card.label}>
+          <Card
+            key={card.label}
+            role={isClickable ? 'button' : undefined}
+            tabIndex={isClickable ? 0 : undefined}
+            onClick={isClickable ? onNetQtyClick : undefined}
+            onKeyDown={
+              isClickable
+                ? (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onNetQtyClick?.();
+                    }
+                  }
+                : undefined
+            }
+            className={cn(
+              isClickable &&
+                'cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/30',
+              isNetQty && isNetQtyDrilldownActive && 'border-primary/60 bg-muted/30',
+            )}
+          >
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Icon className="h-5 w-5 text-foreground" />
