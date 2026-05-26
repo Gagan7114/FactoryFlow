@@ -1,18 +1,23 @@
 import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  Camera,
+  CameraOff,
   CheckCircle2,
   ClipboardCheck,
-  Download,
   FileSearch,
   Loader2,
   Lock,
-  PackageCheck,
   Play,
   RefreshCw,
   ScanLine,
   Settings,
+  ShieldCheck,
+  TimerReset,
   XCircle,
 } from 'lucide-react';
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -20,12 +25,9 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Input,
   Label,
+  Separator,
   Switch,
   Tabs,
   TabsContent,
@@ -33,6 +35,7 @@ import {
   TabsTrigger,
   Textarea,
 } from '@/shared/components/ui';
+import { cn } from '@/shared/utils';
 
 import {
   useCancelDispatchSession,
@@ -48,7 +51,7 @@ import {
   useSubmitDispatchScan,
   useUpdateDispatchSettings,
 } from '../api';
-import BarcodeScanner from '../components/BarcodeScanner';
+import { useScanner } from '../hooks/useScanner';
 import type {
   DispatchBillLine,
   DispatchBillLookupResponse,
@@ -64,7 +67,6 @@ import {
   getDispatchActiveLine,
   getLineProgress,
   isLineComplete,
-  isLineLocked,
 } from '../utils/dispatchValidation';
 import { toastBarcodeError } from '../utils/errors';
 
@@ -73,12 +75,12 @@ type DispatchTab = 'active' | 'completed' | 'closed';
 const SESSION_STATUS_LABEL: Record<DispatchSessionStatus, string> = {
   DRAFT: 'Draft',
   ACTIVE: 'Active',
-  PARTIAL: 'Partial',
+  PARTIAL: 'In progress',
   READY_TO_DISPATCH: 'Ready',
   COMPLETED: 'Completed',
   CLOSED: 'Closed',
   CANCELLED: 'Cancelled',
-  SAP_SYNC_FAILED: 'SAP Sync Failed',
+  SAP_SYNC_FAILED: 'SAP failed',
 };
 
 const CLOSED_STATUSES = new Set<DispatchSessionStatus>([
@@ -90,24 +92,15 @@ const CLOSED_STATUSES = new Set<DispatchSessionStatus>([
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-';
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString('en-IN');
 }
 
 function formatQty(qty: string | number | null | undefined, uom?: string) {
   const numeric = Number(qty ?? 0);
-  const cleanQty = Number.isFinite(numeric) ? numeric.toLocaleString() : String(qty ?? '0');
+  const cleanQty = Number.isFinite(numeric)
+    ? numeric.toLocaleString('en-IN', { maximumFractionDigits: 3 })
+    : String(qty ?? '0');
   return `${cleanQty} ${uom ?? ''}`.trim();
-}
-
-function statusBadgeClass(status: DispatchSessionStatus) {
-  if (status === 'COMPLETED') return 'bg-green-100 text-green-800 border-green-200';
-  if (status === 'READY_TO_DISPATCH') return 'bg-sky-100 text-sky-800 border-sky-200';
-  if (status === 'SAP_SYNC_FAILED' || status === 'CANCELLED') {
-    return 'bg-red-100 text-red-800 border-red-200';
-  }
-  if (status === 'CLOSED') return 'bg-slate-100 text-slate-800 border-slate-200';
-  if (status === 'PARTIAL') return 'bg-amber-100 text-amber-800 border-amber-200';
-  return 'bg-blue-100 text-blue-800 border-blue-200';
 }
 
 function getRequestId() {
@@ -117,362 +110,548 @@ function getRequestId() {
   return undefined;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function getProgress(session: DispatchSession | null) {
+  if (!session) return 0;
+  const expected = Number(session.total_expected_qty || 0);
+  const scanned = Number(session.total_scanned_qty || 0);
+  if (!expected) return 0;
+  return Math.min(100, Math.round((scanned / expected) * 100));
+}
+
+function statusBadgeClass(status: DispatchSessionStatus) {
+  if (status === 'COMPLETED') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (status === 'READY_TO_DISPATCH') return 'border-cyan-200 bg-cyan-50 text-cyan-700';
+  if (status === 'SAP_SYNC_FAILED' || status === 'CANCELLED') {
+    return 'border-rose-200 bg-rose-50 text-rose-700';
+  }
+  if (status === 'CLOSED') return 'border-slate-200 bg-slate-50 text-slate-700';
+  if (status === 'PARTIAL') return 'border-amber-200 bg-amber-50 text-amber-700';
+  return 'border-indigo-200 bg-indigo-50 text-indigo-700';
+}
+
+function StatTile({
+  label,
+  value,
+  tone = 'slate',
+}: {
+  label: string;
+  value: string;
+  tone?: 'slate' | 'emerald' | 'amber' | 'rose' | 'cyan';
+}) {
+  const toneClass = {
+    slate: 'border-slate-200 bg-white',
+    emerald: 'border-emerald-200 bg-emerald-50/70',
+    amber: 'border-amber-200 bg-amber-50/70',
+    rose: 'border-rose-200 bg-rose-50/70',
+    cyan: 'border-cyan-200 bg-cyan-50/70',
+  }[tone];
+
   return (
-    <div className="rounded-md border bg-background p-3">
+    <div className={cn('min-w-0 rounded-md border p-3', toneClass)}>
       <p className="text-xs font-medium uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-sm font-semibold">{value}</p>
+      <p className="mt-1 truncate text-lg font-semibold leading-tight">{value}</p>
+    </div>
+  );
+}
+
+function ProgressBar({ value, className }: { value: number; className?: string }) {
+  return (
+    <div className={cn('h-2 overflow-hidden rounded-full bg-slate-200', className)}>
+      <div
+        className="h-full rounded-full bg-emerald-500 transition-all"
+        style={{ width: `${Math.max(0, Math.min(value, 100))}%` }}
+      />
     </div>
   );
 }
 
 function BillLookupSummary({ bill }: { bill: DispatchBillLookupResponse }) {
+  const totalQty = bill.lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">SAP Bill Preview</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <Metric label="Bill" value={bill.bill_number} />
-          <Metric label="Customer" value={bill.customer.name || bill.customer.code || '-'} />
-          <Metric label="Delivery Ref" value={bill.reference_delivery_number || '-'} />
-          <Metric label="Lines" value={bill.lines.length.toString()} />
+    <section className="rounded-md border bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="border-cyan-200 bg-cyan-50 text-cyan-700">SAP bill loaded</Badge>
+            {bill.already_dispatched && (
+              <Badge className="border-amber-200 bg-amber-50 text-amber-700">Already dispatched</Badge>
+            )}
+          </div>
+          <h2 className="mt-2 truncate text-xl font-semibold">{bill.bill_number}</h2>
+          <p className="truncate text-sm text-muted-foreground">
+            {bill.customer.name || bill.customer.code || '-'} · {bill.reference_delivery_number || 'No delivery ref'}
+          </p>
         </div>
-        <BillLinePreview lines={bill.lines} />
-      </CardContent>
-    </Card>
+        <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
+          <StatTile label="Lines" value={bill.lines.length.toString()} tone="cyan" />
+          <StatTile label="Qty" value={formatQty(totalQty)} tone="emerald" />
+          <StatTile label="Source" value={bill.source_system.replaceAll('_', ' ')} />
+        </div>
+      </div>
+
+      <BillLinePreview lines={bill.lines} />
+    </section>
   );
 }
 
 function BillLinePreview({ lines }: { lines: DispatchBillLine[] }) {
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <table className="w-full min-w-[720px] text-sm">
-        <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2 text-left font-medium">Seq</th>
-            <th className="px-3 py-2 text-left font-medium">Material</th>
-            <th className="px-3 py-2 text-left font-medium">Description</th>
-            <th className="px-3 py-2 text-right font-medium">Bill Qty</th>
-            <th className="px-3 py-2 text-left font-medium">Batch</th>
-            <th className="px-3 py-2 text-left font-medium">Warehouse</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((line) => (
-            <tr key={`${line.sap_line_no}-${line.sequence_no}`} className="border-t">
-              <td className="px-3 py-2 font-mono text-xs">{line.sequence_no}</td>
-              <td className="px-3 py-2 font-mono text-xs">{line.material_code}</td>
-              <td className="px-3 py-2">{line.material_description || '-'}</td>
-              <td className="px-3 py-2 text-right">{formatQty(line.quantity, line.uom)}</td>
-              <td className="px-3 py-2 font-mono text-xs">{line.batch_number || '-'}</td>
-              <td className="px-3 py-2 font-mono text-xs">{line.warehouse_code || '-'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="mt-4 grid gap-2">
+      {lines.map((line) => (
+        <div
+          key={`${line.sap_line_no}-${line.sequence_no}`}
+          className="grid gap-2 rounded-md border bg-slate-50/60 p-3 md:grid-cols-[72px_minmax(0,1fr)_140px_120px]"
+        >
+          <div>
+            <p className="text-xs text-muted-foreground">Seq</p>
+            <p className="font-mono text-sm font-semibold">{line.sequence_no}</p>
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-mono text-sm font-semibold">{line.material_code}</p>
+            <p className="truncate text-sm text-muted-foreground">{line.material_description || '-'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Qty</p>
+            <p className="text-sm font-semibold">{formatQty(line.quantity, line.uom)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Batch</p>
+            <p className="truncate font-mono text-sm">{line.batch_number || '-'}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function SessionSummary({ session }: { session: DispatchSession }) {
+function SessionHero({ session }: { session: DispatchSession | null }) {
+  if (!session) {
+    return (
+      <section className="rounded-md border bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <Badge className="border-slate-200 bg-slate-50 text-slate-700">No active bill selected</Badge>
+            <h2 className="mt-3 text-2xl font-semibold">Dispatch cockpit</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Select an active dispatch or create one from a SAP bill to begin warehouse scanning.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:min-w-[420px]">
+            <StatTile label="Expected" value="-" />
+            <StatTile label="Scanned" value="-" />
+            <StatTile label="Pending" value="-" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const progress = getProgress(session);
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="text-base">Dispatch Details</CardTitle>
-          <Badge className={statusBadgeClass(session.status)}>
-            {SESSION_STATUS_LABEL[session.status] ?? session.status}
-          </Badge>
+    <section className="rounded-md border bg-white p-5 shadow-sm">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={statusBadgeClass(session.status)}>
+              {SESSION_STATUS_LABEL[session.status] ?? session.status}
+            </Badge>
+            <Badge className="border-slate-200 bg-slate-50 text-slate-700">
+              {session.sap_sync_status || session.sap_update_status}
+            </Badge>
+          </div>
+          <h2 className="mt-3 truncate text-2xl font-semibold">{session.bill_number}</h2>
+          <p className="mt-1 truncate text-sm text-muted-foreground">
+            {session.customer_name || session.customer_code || '-'} ·{' '}
+            {session.delivery_number || session.reference_delivery_number || 'No delivery ref'}
+          </p>
+          <div className="mt-4 max-w-3xl">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="font-medium">Dispatch progress</span>
+              <span className="tabular-nums text-muted-foreground">{progress}%</span>
+            </div>
+            <ProgressBar value={progress} className="h-3" />
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-          <Metric label="Bill" value={session.bill_number} />
-          <Metric label="Customer" value={session.customer_name || session.customer_code || '-'} />
-          <Metric label="Expected" value={formatQty(session.total_expected_qty)} />
-          <Metric label="Scanned" value={formatQty(session.total_scanned_qty)} />
-          <Metric label="Pending" value={formatQty(session.pending_qty)} />
+
+        <div className="grid grid-cols-2 gap-2">
+          <StatTile label="Expected" value={formatQty(session.total_expected_qty)} tone="cyan" />
+          <StatTile label="Scanned" value={formatQty(session.total_scanned_qty)} tone="emerald" />
+          <StatTile label="Pending" value={formatQty(session.pending_qty)} tone="amber" />
+          <StatTile
+            label="Rejected"
+            value={session.rejected_scan_count.toLocaleString('en-IN')}
+            tone={session.rejected_scan_count ? 'rose' : 'slate'}
+          />
         </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <Metric label="Delivery Ref" value={session.delivery_number || session.reference_delivery_number || '-'} />
-          <Metric label="Pallet Scans" value={session.pallet_scan_count.toString()} />
-          <Metric label="Box Scans" value={session.box_scan_count.toString()} />
-          <Metric label="SAP Sync" value={(session.sap_sync_status || session.sap_update_status).replaceAll('_', ' ')} />
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
-function DispatchLines({ session }: { session: DispatchSession }) {
-  const activeLine = getDispatchActiveLine(session);
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Bill Lines</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full min-w-[900px] text-sm">
-            <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Seq</th>
-                <th className="px-3 py-2 text-left font-medium">Material</th>
-                <th className="px-3 py-2 text-left font-medium">Description</th>
-                <th className="px-3 py-2 text-right font-medium">Bill Qty</th>
-                <th className="px-3 py-2 text-right font-medium">Scanned</th>
-                <th className="px-3 py-2 text-right font-medium">Pending</th>
-                <th className="px-3 py-2 text-left font-medium">Progress</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {session.lines.map((line) => (
-                <DispatchLineRow
-                  key={line.id}
-                  line={line}
-                  activeLine={activeLine}
-                  session={session}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DispatchLineRow({
-  line,
-  activeLine,
-  session,
-}: {
-  line: DispatchSessionLine;
-  activeLine: DispatchSessionLine | null;
-  session: DispatchSession;
-}) {
-  const locked = isLineLocked(line, session);
-  const complete = isLineComplete(line);
-  const active = activeLine?.id === line.id;
-  const progress = getLineProgress(line);
-
-  return (
-    <tr className={active ? 'border-t bg-sky-50/70' : 'border-t'}>
-      <td className="px-3 py-3 font-mono text-xs">{line.sequence_no}</td>
-      <td className="px-3 py-3">
-        <div className="font-mono text-xs font-semibold">{line.material_code}</div>
-        <div className="text-xs text-muted-foreground">{line.batch_number || '-'}</div>
-      </td>
-      <td className="px-3 py-3">{line.material_description || '-'}</td>
-      <td className="px-3 py-3 text-right">{formatQty(line.bill_qty, line.uom)}</td>
-      <td className="px-3 py-3 text-right">{formatQty(line.scanned_qty, line.uom)}</td>
-      <td className="px-3 py-3 text-right">{formatQty(line.pending_qty || line.remaining_qty, line.uom)}</td>
-      <td className="px-3 py-3">
-        <div className="h-2 w-32 overflow-hidden rounded-full bg-muted">
-          <div className="h-full bg-green-500" style={{ width: `${progress}%` }} />
-        </div>
-      </td>
-      <td className="px-3 py-3">
-        {complete && (
-          <Badge className="bg-green-100 text-green-800 border-green-200">
-            <CheckCircle2 className="mr-1 h-3 w-3" />
-            Complete
-          </Badge>
-        )}
-        {active && !complete && (
-          <Badge className="bg-sky-100 text-sky-800 border-sky-200">
-            <ScanLine className="mr-1 h-3 w-3" />
-            Active
-          </Badge>
-        )}
-        {locked && (
-          <Badge className="bg-slate-100 text-slate-700 border-slate-200">
-            <Lock className="mr-1 h-3 w-3" />
-            Locked
-          </Badge>
-        )}
-      </td>
-    </tr>
-  );
-}
-
-function ActiveLinePanel({ session }: { session: DispatchSession }) {
+function ActiveLineFocus({ session }: { session: DispatchSession }) {
   const activeLine = getDispatchActiveLine(session);
 
   if (!activeLine) {
     return (
-      <div className="rounded-md border bg-green-50 p-4">
-        <div className="flex items-center gap-2 font-semibold text-green-800">
-          <CheckCircle2 className="h-4 w-4" />
-          Ready to dispatch
+      <section className="rounded-md border border-emerald-200 bg-emerald-50 p-5">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-6 w-6 text-emerald-700" />
+          <div>
+            <h3 className="text-lg font-semibold text-emerald-900">Ready for dispatch confirmation</h3>
+            <p className="text-sm text-emerald-800">All bill lines have reached the required scanned quantity.</p>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-green-700">All bill lines are scanned and waiting for final confirmation.</p>
-      </div>
+      </section>
     );
   }
 
+  const pending = activeLine.pending_qty || activeLine.remaining_qty;
+  const progress = getLineProgress(activeLine);
+
   return (
-    <div className="rounded-md border bg-background p-4">
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <ScanLine className="h-4 w-4 text-sky-700" />
-        Current Item {activeLine.sequence_no}
+    <section className="rounded-md border bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold text-cyan-700">
+            <ScanLine className="h-4 w-4" />
+            Active line {activeLine.sequence_no}
+          </div>
+          <h3 className="mt-2 truncate text-xl font-semibold">{activeLine.material_code}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{activeLine.material_description || '-'}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:min-w-[360px]">
+          <StatTile label="Pending" value={formatQty(pending, activeLine.uom)} tone="amber" />
+          <StatTile label="Scanned" value={formatQty(activeLine.scanned_qty, activeLine.uom)} tone="emerald" />
+          <StatTile label="Batch" value={activeLine.batch_number || '-'} />
+          <StatTile label="Warehouse" value={activeLine.warehouse_code || '-'} />
+        </div>
       </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Metric label="Material" value={activeLine.material_code} />
-        <Metric label="Pending" value={formatQty(activeLine.pending_qty || activeLine.remaining_qty, activeLine.uom)} />
-        <Metric label="Batch" value={activeLine.batch_number || '-'} />
-        <Metric label="Warehouse" value={activeLine.warehouse_code || '-'} />
+      <div className="mt-4">
+        <ProgressBar value={progress} />
       </div>
-      <p className="mt-3 text-sm font-medium">{activeLine.material_description || '-'}</p>
+    </section>
+  );
+}
+
+function ScannerDock({
+  disabled,
+  loading,
+  onScan,
+}: {
+  disabled: boolean;
+  loading: boolean;
+  onScan: (barcode: string) => void;
+}) {
+  const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { isScanning, error, elementId, startScanning, stopScanning } = useScanner({
+    onScan,
+    debounceMs: 2000,
+  });
+
+  const submit = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    const trimmed = value.trim();
+    if (!trimmed || disabled || loading) return;
+    onScan(trimmed);
+    setValue('');
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  return (
+    <section className="rounded-md border border-cyan-200 bg-cyan-50/70 p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-cyan-600 text-white">
+            <ScanLine className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-base font-semibold">Scanner</h3>
+            <p className="text-xs text-muted-foreground">Pallet, box, or item barcode</p>
+          </div>
+        </div>
+        {disabled ? (
+          <Badge className="border-slate-200 bg-white text-slate-700">Locked</Badge>
+        ) : (
+          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">Ready</Badge>
+        )}
+      </div>
+      <form onSubmit={submit} className="flex gap-2">
+        <Input
+          ref={inputRef}
+          value={value}
+          disabled={disabled || loading}
+          onChange={(event) => setValue(event.target.value)}
+          className="h-12 flex-1 bg-white font-mono text-base"
+          placeholder={disabled ? 'Scanner locked' : 'Scan barcode'}
+          autoFocus
+        />
+        <Button type="submit" className="h-12 px-4" disabled={!value.trim() || disabled || loading}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+        </Button>
+      </form>
+
+      <div
+        id={elementId}
+        className="mt-3 w-full overflow-hidden rounded-md bg-black"
+        style={{ minHeight: isScanning ? 280 : 0, display: isScanning ? 'block' : 'none' }}
+      />
+
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {!isScanning ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="bg-white"
+            onClick={startScanning}
+            disabled={disabled || loading}
+          >
+            <Camera className="h-4 w-4" />
+            Camera scan
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" className="bg-white" onClick={stopScanning}>
+            <CameraOff className="h-4 w-4" />
+            Stop camera
+          </Button>
+        )}
+        <div className="flex items-center rounded-md border bg-white px-3 text-xs text-muted-foreground">
+          {isScanning ? 'Point camera at QR or barcode' : 'Use handheld scanner, keyboard, or camera'}
+        </div>
+      </div>
+
+      {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
+    </section>
+  );
+}
+
+function ActionPanel({
+  session,
+  closeReason,
+  setCloseReason,
+  completeEnabled,
+  onComplete,
+  onClose,
+  onCancel,
+  onRetrySap,
+  loading,
+}: {
+  session: DispatchSession;
+  closeReason: string;
+  setCloseReason: (value: string) => void;
+  completeEnabled: boolean;
+  onComplete: () => void;
+  onClose: () => void;
+  onCancel: () => void;
+  onRetrySap: () => void;
+  loading: {
+    complete: boolean;
+    close: boolean;
+    cancel: boolean;
+    retry: boolean;
+  };
+}) {
+  const closed = CLOSED_STATUSES.has(session.status);
+
+  return (
+    <section className="rounded-md border bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="h-4 w-4 text-emerald-700" />
+        <h3 className="text-base font-semibold">Dispatch control</h3>
+      </div>
+
+      <div className="mt-4 grid gap-2">
+        <Button onClick={onComplete} disabled={!completeEnabled || loading.complete} className="h-11">
+          {loading.complete ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
+          Complete dispatch
+        </Button>
+        {session.status === 'SAP_SYNC_FAILED' && (
+          <Button variant="outline" onClick={onRetrySap} disabled={loading.retry} className="h-11">
+            {loading.retry ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Retry SAP
+          </Button>
+        )}
+      </div>
+
+      {!closed && (
+        <>
+          <Separator className="my-4" />
+          <div className="space-y-2">
+            <Label htmlFor="dispatch-close-reason">Close or cancel reason</Label>
+            <Textarea
+              id="dispatch-close-reason"
+              value={closeReason}
+              onChange={(event) => setCloseReason(event.target.value)}
+              placeholder="Required before close or cancel"
+              className="min-h-[92px]"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={onClose} disabled={loading.close || !closeReason.trim()}>
+                {loading.close ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                Close
+              </Button>
+              <Button variant="outline" onClick={onCancel} disabled={loading.cancel || !closeReason.trim()}>
+                {loading.cancel ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function LineBoard({ session }: { session: DispatchSession }) {
+  const activeLine = getDispatchActiveLine(session);
+
+  return (
+    <section className="rounded-md border bg-white shadow-sm">
+      <div className="border-b p-4">
+        <h3 className="text-base font-semibold">Bill lines</h3>
+      </div>
+      <div className="divide-y">
+        {session.lines.map((line) => (
+          <LineRow key={line.id} line={line} active={activeLine?.id === line.id} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LineRow({ line, active }: { line: DispatchSessionLine; active: boolean }) {
+  const complete = isLineComplete(line);
+  const progress = getLineProgress(line);
+
+  return (
+    <div className={cn('grid gap-3 p-4 lg:grid-cols-[80px_minmax(0,1fr)_260px]', active && 'bg-cyan-50/50')}>
+      <div>
+        <p className="text-xs text-muted-foreground">Seq</p>
+        <p className="font-mono text-lg font-semibold">{line.sequence_no}</p>
+      </div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate font-mono text-sm font-semibold">{line.material_code}</p>
+          {active && <Badge className="border-cyan-200 bg-cyan-50 text-cyan-700">Active</Badge>}
+          {complete && <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">Complete</Badge>}
+        </div>
+        <p className="mt-1 truncate text-sm text-muted-foreground">{line.material_description || '-'}</p>
+        <div className="mt-3">
+          <ProgressBar value={progress} />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <StatTile label="Bill" value={formatQty(line.bill_qty, line.uom)} />
+        <StatTile label="Scanned" value={formatQty(line.scanned_qty, line.uom)} tone="emerald" />
+        <StatTile label="Pending" value={formatQty(line.pending_qty || line.remaining_qty, line.uom)} tone="amber" />
+      </div>
     </div>
   );
 }
 
-function RecentScanLogs({ logs }: { logs: DispatchScanLog[] }) {
-  const recentLogs = useMemo(() => logs.slice(0, 10), [logs]);
+function RecentScanStream({ logs }: { logs: DispatchScanLog[] }) {
+  const recentLogs = useMemo(() => logs.slice(0, 8), [logs]);
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Scan Audit</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <section className="rounded-md border bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b p-4">
+        <h3 className="text-base font-semibold">Recent scans</h3>
+        <Badge className="border-slate-200 bg-slate-50 text-slate-700">{logs.length.toLocaleString('en-IN')}</Badge>
+      </div>
+      <div className="divide-y">
         {recentLogs.length === 0 && (
-          <p className="text-sm text-muted-foreground">No scans recorded for this session.</p>
+          <div className="p-5 text-sm text-muted-foreground">No scans recorded for this dispatch.</div>
         )}
-        {recentLogs.map((log) => (
-          <div
-            key={log.id}
-            className={
-              log.result === 'ACCEPTED'
-                ? 'rounded-md border border-green-200 bg-green-50 p-3'
-                : 'rounded-md border border-red-200 bg-red-50 p-3'
-            }
-          >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex min-w-0 items-center gap-2">
-                {log.result === 'ACCEPTED' ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-green-700" />
-                ) : (
-                  <XCircle className="h-4 w-4 shrink-0 text-red-700" />
-                )}
-                <span className="truncate font-mono text-xs">{log.raw_barcode}</span>
+        {recentLogs.map((log) => {
+          const accepted = log.result === 'ACCEPTED';
+          return (
+            <div key={log.id} className="grid gap-2 p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {accepted ? (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 text-rose-700" />
+                  )}
+                  <p className="truncate font-mono text-sm font-semibold">{log.raw_barcode}</p>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{formatDispatchScanMessage(log)}</p>
               </div>
-              <Badge
-                className={
-                  log.result === 'ACCEPTED'
-                    ? 'bg-green-100 text-green-800 border-green-200'
-                    : 'bg-red-100 text-red-800 border-red-200'
-                }
-              >
-                {log.result}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <Badge className={accepted ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'}>
+                  {log.result}
+                </Badge>
+                <span className="text-xs text-muted-foreground">{formatDateTime(log.scanned_at)}</span>
+              </div>
             </div>
-            <p className="mt-2 text-sm">{formatDispatchScanMessage(log)}</p>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {(log.scan_type || log.entity_type).replaceAll('_', ' ')} · {log.material_code || '-'} ·{' '}
-              {formatDateTime(log.scanned_at)}
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
-function SessionTable({
-  title,
+function SessionQueue({
   rows,
   selectedId,
   onOpen,
-  mode,
   loading,
+  empty,
 }: {
-  title: string;
   rows: DispatchSession[];
   selectedId: number | null;
   onOpen: (sessionId: number) => void;
-  mode: DispatchTab;
   loading: boolean;
+  empty: string;
 }) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full min-w-[980px] text-sm">
-            <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Bill</th>
-                <th className="px-3 py-2 text-left font-medium">Customer</th>
-                <th className="px-3 py-2 text-right font-medium">Items</th>
-                <th className="px-3 py-2 text-right font-medium">Scanned</th>
-                <th className="px-3 py-2 text-right font-medium">Pending</th>
-                <th className="px-3 py-2 text-left font-medium">User</th>
-                <th className="px-3 py-2 text-left font-medium">Time</th>
-                <th className="px-3 py-2 text-left font-medium">Status</th>
-                <th className="px-3 py-2 text-right font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={9}>
-                    Loading dispatches...
-                  </td>
-                </tr>
-              )}
-              {!loading && rows.length === 0 && (
-                <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={9}>
-                    No dispatches found.
-                  </td>
-                </tr>
-              )}
-              {!loading &&
-                rows.map((session) => (
-                  <tr
-                    key={session.id}
-                    className={selectedId === session.id ? 'border-t bg-sky-50/70' : 'border-t'}
-                  >
-                    <td className="px-3 py-3 font-mono text-xs">{session.bill_number}</td>
-                    <td className="px-3 py-3">{session.customer_name || session.customer_code || '-'}</td>
-                    <td className="px-3 py-3 text-right">
-                      {session.completed_line_count}/{session.line_count}
-                    </td>
-                    <td className="px-3 py-3 text-right">{formatQty(session.total_scanned_qty)}</td>
-                    <td className="px-3 py-3 text-right">{formatQty(session.pending_qty)}</td>
-                    <td className="px-3 py-3">{mode === 'completed' ? session.completed_by_name || '-' : session.created_by_name || '-'}</td>
-                    <td className="px-3 py-3">
-                      {mode === 'completed'
-                        ? formatDateTime(session.completed_at || session.dispatched_at)
-                        : mode === 'closed'
-                          ? formatDateTime(session.closed_at || session.cancelled_at)
-                          : formatDateTime(session.started_at || session.created_at)}
-                    </td>
-                    <td className="px-3 py-3">
+    <section className="rounded-md border bg-white shadow-sm">
+      {loading && <div className="p-5 text-sm text-muted-foreground">Loading dispatches...</div>}
+      {!loading && rows.length === 0 && <div className="p-5 text-sm text-muted-foreground">{empty}</div>}
+      {!loading && rows.length > 0 && (
+        <div className="divide-y">
+          {rows.map((session) => {
+            const progress = getProgress(session);
+            return (
+              <button
+                key={session.id}
+                type="button"
+                onClick={() => onOpen(session.id)}
+                className={cn(
+                  'block w-full p-4 text-left transition hover:bg-slate-50',
+                  selectedId === session.id && 'bg-cyan-50/70',
+                )}
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-mono text-sm font-semibold">{session.bill_number}</p>
                       <Badge className={statusBadgeClass(session.status)}>
                         {SESSION_STATUS_LABEL[session.status] ?? session.status}
                       </Badge>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <Button size="sm" variant="outline" onClick={() => onOpen(session.id)}>
-                        {mode === 'active' ? 'Continue' : 'View'}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                      {session.customer_name || session.customer_code || '-'}
+                    </p>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {session.completed_line_count}/{session.line_count} lines
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <StatTile label="Scanned" value={formatQty(session.total_scanned_qty)} tone="emerald" />
+                  <StatTile label="Pending" value={formatQty(session.pending_qty)} tone="amber" />
+                  <StatTile label="Updated" value={formatDateTime(session.updated_at)} />
+                </div>
+                <ProgressBar value={progress} className="mt-3" />
+              </button>
+            );
+          })}
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }
 
@@ -493,26 +672,24 @@ function DispatchSettingsPanel() {
   if (!settings) return null;
 
   const rows: Array<[keyof typeof settings, string]> = [
-    ['allow_partial_dispatch', 'Allow partial dispatch'],
-    ['allow_partial_pallet_dispatch', 'Allow partial pallet dispatch'],
-    ['allow_box_dispatch_from_pallet', 'Allow box dispatch from pallet'],
-    ['require_sequential_item_scanning', 'Require sequential item scanning'],
-    ['require_sap_sync_on_completion', 'Require SAP sync on completion'],
-    ['allow_manual_close', 'Allow manual close'],
-    ['allow_admin_override', 'Allow admin override'],
+    ['allow_partial_dispatch', 'Partial dispatch'],
+    ['allow_partial_pallet_dispatch', 'Partial pallet'],
+    ['allow_box_dispatch_from_pallet', 'Box from pallet'],
+    ['require_sequential_item_scanning', 'Sequential scan'],
+    ['require_sap_sync_on_completion', 'SAP sync required'],
+    ['allow_manual_close', 'Manual close'],
+    ['allow_admin_override', 'Admin override'],
   ];
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Settings className="h-4 w-4" />
-          Dispatch Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-2">
+    <section className="rounded-md border bg-white p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <Settings className="h-4 w-4 text-slate-700" />
+        <h3 className="text-base font-semibold">Controls</h3>
+      </div>
+      <div className="mt-4 grid gap-2">
         {rows.map(([key, label]) => (
-          <div key={key} className="flex items-center justify-between rounded-md border p-3">
+          <div key={key} className="flex items-center justify-between gap-3 rounded-md border bg-slate-50/60 p-3">
             <span className="text-sm font-medium">{label}</span>
             <Switch
               checked={Boolean(settings[key])}
@@ -521,8 +698,8 @@ function DispatchSettingsPanel() {
             />
           </div>
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 
@@ -562,7 +739,6 @@ export default function BarcodeDispatchPage() {
   };
 
   const trimmedBillNumber = billNumber.trim();
-  const isSessionClosed = Boolean(session && CLOSED_STATUSES.has(session.status));
   const scanEnabled = canSubmitDispatchScan(session);
   const completeEnabled = canMarkDispatchComplete(session);
 
@@ -576,7 +752,7 @@ export default function BarcodeDispatchPage() {
     try {
       const result = await lookupMutation.mutateAsync({ bill_number: trimmedBillNumber });
       setLookupBill(result);
-      toast.success(`Bill ${result.bill_number} loaded from SAP`);
+      toast.success(`Bill ${result.bill_number} loaded`);
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to fetch bill details from SAP.');
     }
@@ -593,7 +769,7 @@ export default function BarcodeDispatchPage() {
       setSelectedSessionId(result.id);
       setLookupBill(null);
       setTab('active');
-      toast.success(`Dispatch session created for bill ${result.bill_number}`);
+      toast.success(`Dispatch created for ${result.bill_number}`);
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to start dispatch session.');
     }
@@ -630,7 +806,7 @@ export default function BarcodeDispatchPage() {
 
     try {
       const result = await completeMutation.mutateAsync(session.id);
-      setTab(result.status === 'COMPLETED' ? 'completed' : 'completed');
+      setTab('completed');
       toast.success(`Bill ${result.bill_number} completed`);
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to complete dispatch.');
@@ -649,7 +825,7 @@ export default function BarcodeDispatchPage() {
       });
       setCloseReason('');
       setTab('closed');
-      toast.success('Dispatch session closed');
+      toast.success('Dispatch closed');
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to close dispatch session.');
     }
@@ -667,7 +843,7 @@ export default function BarcodeDispatchPage() {
       });
       setCloseReason('');
       setTab('closed');
-      toast.success('Dispatch session cancelled');
+      toast.success('Dispatch cancelled');
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to cancel dispatch session.');
     }
@@ -684,266 +860,169 @@ export default function BarcodeDispatchPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <DashboardHeader
         title="Barcode Dispatch"
-        description="Manage SAP bill dispatches by item, box, and pallet scans"
+        description="Scanner-first dispatch operations for SAP bills, pallets, and boxes"
       >
         <Button variant="outline" onClick={() => navigate('/barcode/dispatch/reports')}>
-          <Download className="h-4 w-4" />
+          <BarChart3 className="h-4 w-4" />
           Reports
         </Button>
       </DashboardHeader>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <form onSubmit={handleLookup} className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
-                <div className="space-y-2">
-                  <Label htmlFor="dispatch-bill-number">Bill Number</Label>
-                  <Input
-                    id="dispatch-bill-number"
-                    value={billNumber}
-                    onChange={(event) => setBillNumber(event.target.value)}
-                    placeholder="SAP billing document / invoice number"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="flex flex-col gap-2 self-end sm:flex-row lg:justify-end">
-                  <Button type="submit" variant="outline" disabled={lookupMutation.isPending}>
-                    {lookupMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileSearch className="h-4 w-4" />
-                    )}
-                    Lookup
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleStartSession}
-                    disabled={createSessionMutation.isPending}
-                  >
-                    {createSessionMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
-                    Create Dispatch
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+      <SessionHero session={session} />
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_390px]">
+        <main className="space-y-5">
+          <section className="rounded-md border bg-white p-4 shadow-sm">
+            <form onSubmit={handleLookup} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="space-y-2">
+                <Label htmlFor="dispatch-bill-number">SAP bill number</Label>
+                <Input
+                  id="dispatch-bill-number"
+                  value={billNumber}
+                  onChange={(event) => setBillNumber(event.target.value)}
+                  placeholder="Billing document or invoice number"
+                  autoComplete="off"
+                  className="h-11"
+                />
+              </div>
+              <div className="grid gap-2 self-end sm:grid-cols-2 lg:min-w-[320px]">
+                <Button type="submit" variant="outline" disabled={lookupMutation.isPending} className="h-11">
+                  {lookupMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
+                  Lookup
+                </Button>
+                <Button type="button" onClick={handleStartSession} disabled={createSessionMutation.isPending} className="h-11">
+                  {createSessionMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  Start
+                </Button>
+              </div>
+            </form>
+          </section>
 
           {lookupBill && <BillLookupSummary bill={lookupBill} />}
 
-          <Card>
-            <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="dispatch-filter-bill">Bill</Label>
-                <Input
-                  id="dispatch-filter-bill"
-                  value={filters.bill_number}
-                  onChange={(event) => setFilters((current) => ({ ...current, bill_number: event.target.value }))}
-                  placeholder="Search bill"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dispatch-filter-customer">Customer</Label>
-                <Input
-                  id="dispatch-filter-customer"
-                  value={filters.customer}
-                  onChange={(event) => setFilters((current) => ({ ...current, customer: event.target.value }))}
-                  placeholder="Search customer"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dispatch-filter-from">From</Label>
-                <Input
-                  id="dispatch-filter-from"
-                  type="date"
-                  value={filters.from_date}
-                  onChange={(event) => setFilters((current) => ({ ...current, from_date: event.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dispatch-filter-to">To</Label>
-                <Input
-                  id="dispatch-filter-to"
-                  type="date"
-                  value={filters.to_date}
-                  onChange={(event) => setFilters((current) => ({ ...current, to_date: event.target.value }))}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {sessionQuery.isLoading && selectedSessionId && (
+            <section className="rounded-md border bg-white p-5 text-sm text-muted-foreground shadow-sm">
+              Loading dispatch details...
+            </section>
+          )}
+
+          {session && (
+            <>
+              <ActiveLineFocus session={session} />
+              <LineBoard session={session} />
+              <RecentScanStream logs={scanLogs} />
+            </>
+          )}
+        </main>
+
+        <aside className="space-y-5 xl:sticky xl:top-4 xl:self-start">
+          {session && (
+            <>
+              <ScannerDock
+                disabled={!scanEnabled}
+                loading={submitScanMutation.isPending}
+                onScan={handleScan}
+              />
+              <ActionPanel
+                session={session}
+                closeReason={closeReason}
+                setCloseReason={setCloseReason}
+                completeEnabled={completeEnabled}
+                onComplete={handleComplete}
+                onClose={handleClose}
+                onCancel={handleCancel}
+                onRetrySap={handleRetrySap}
+                loading={{
+                  complete: completeMutation.isPending,
+                  close: closeMutation.isPending,
+                  cancel: cancelMutation.isPending,
+                  retry: retrySapMutation.isPending,
+                }}
+              />
+            </>
+          )}
+
+          <section className="rounded-md border bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <TimerReset className="h-4 w-4 text-slate-700" />
+              <h3 className="text-base font-semibold">Dispatch queue</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                value={filters.bill_number}
+                onChange={(event) => setFilters((current) => ({ ...current, bill_number: event.target.value }))}
+                placeholder="Bill"
+              />
+              <Input
+                value={filters.customer}
+                onChange={(event) => setFilters((current) => ({ ...current, customer: event.target.value }))}
+                placeholder="Customer"
+              />
+              <Input
+                type="date"
+                value={filters.from_date}
+                onChange={(event) => setFilters((current) => ({ ...current, from_date: event.target.value }))}
+              />
+              <Input
+                type="date"
+                value={filters.to_date}
+                onChange={(event) => setFilters((current) => ({ ...current, to_date: event.target.value }))}
+              />
+            </div>
+          </section>
 
           <Tabs value={tab} onValueChange={(value) => setTab(value as DispatchTab)}>
-            <TabsList className="grid h-auto w-full grid-cols-3">
-              <TabsTrigger value="active">Active Dispatch</TabsTrigger>
-              <TabsTrigger value="completed">Completed Dispatch</TabsTrigger>
-              <TabsTrigger value="closed">Closed Dispatch</TabsTrigger>
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-md">
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="completed">Done</TabsTrigger>
+              <TabsTrigger value="closed">Closed</TabsTrigger>
             </TabsList>
             <TabsContent value="active">
-              <SessionTable
-                title="Active Dispatch"
+              <SessionQueue
                 rows={rowsByTab.active}
                 selectedId={selectedSessionId}
                 onOpen={setSelectedSessionId}
-                mode="active"
                 loading={loadingByTab.active}
+                empty="No active dispatches."
               />
             </TabsContent>
             <TabsContent value="completed">
-              <SessionTable
-                title="Completed Dispatch"
+              <SessionQueue
                 rows={rowsByTab.completed}
                 selectedId={selectedSessionId}
                 onOpen={setSelectedSessionId}
-                mode="completed"
                 loading={loadingByTab.completed}
+                empty="No completed dispatches."
               />
             </TabsContent>
             <TabsContent value="closed">
-              <SessionTable
-                title="Closed Dispatch"
+              <SessionQueue
                 rows={rowsByTab.closed}
                 selectedId={selectedSessionId}
                 onOpen={setSelectedSessionId}
-                mode="closed"
                 loading={loadingByTab.closed}
+                empty="No closed dispatches."
               />
             </TabsContent>
           </Tabs>
-        </div>
 
-        <DispatchSettingsPanel />
+          <DispatchSettingsPanel />
+
+          {session && CLOSED_STATUSES.has(session.status) && (
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() => navigate(`/barcode/dispatch/reports?session=${session.id}`)}
+            >
+              <BarChart3 className="h-4 w-4" />
+              Open report
+            </Button>
+          )}
+        </aside>
       </div>
-
-      {sessionQuery.isLoading && selectedSessionId && (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">Loading dispatch details...</CardContent>
-        </Card>
-      )}
-
-      {session && (
-        <>
-          <SessionSummary session={session} />
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="space-y-4">
-              <DispatchLines session={session} />
-              <ActiveLinePanel session={session} />
-              <RecentScanLogs logs={scanLogs} />
-            </div>
-
-            <div className="space-y-4">
-              {scanEnabled ? (
-                <BarcodeScanner
-                  onScan={handleScan}
-                  placeholder="Scan item, box, or pallet barcode..."
-                  autoFocusInput
-                />
-              ) : (
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2 font-semibold">
-                      <PackageCheck className="h-4 w-4 text-green-700" />
-                      Scanner Locked
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {isSessionClosed ? 'This dispatch cannot accept more scans.' : 'All required quantities are scanned.'}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Card>
-                <CardContent className="space-y-3 p-4">
-                  <Button
-                    className="w-full"
-                    onClick={handleComplete}
-                    disabled={!completeEnabled || completeMutation.isPending}
-                  >
-                    {completeMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ClipboardCheck className="h-4 w-4" />
-                    )}
-                    Complete Dispatch
-                  </Button>
-
-                  {session.status === 'SAP_SYNC_FAILED' && (
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      onClick={handleRetrySap}
-                      disabled={retrySapMutation.isPending}
-                    >
-                      {retrySapMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                      Retry SAP Sync
-                    </Button>
-                  )}
-
-                  {!isSessionClosed && (
-                    <div className="space-y-2">
-                      <Label htmlFor="dispatch-close-reason">Close / Cancel Reason</Label>
-                      <Textarea
-                        id="dispatch-close-reason"
-                        value={closeReason}
-                        onChange={(event) => setCloseReason(event.target.value)}
-                        placeholder="Required before closing or cancelling"
-                      />
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <Button
-                          variant="outline"
-                          onClick={handleClose}
-                          disabled={closeMutation.isPending || !closeReason.trim()}
-                        >
-                          {closeMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Lock className="h-4 w-4" />
-                          )}
-                          Close
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={handleCancel}
-                          disabled={cancelMutation.isPending || !closeReason.trim()}
-                        >
-                          {cancelMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <XCircle className="h-4 w-4" />
-                          )}
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {isSessionClosed && (
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      onClick={() => navigate(`/barcode/dispatch/reports?session=${session.id}`)}
-                    >
-                      <Download className="h-4 w-4" />
-                      View Report
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }
