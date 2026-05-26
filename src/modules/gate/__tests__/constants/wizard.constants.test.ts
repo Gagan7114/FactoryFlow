@@ -31,8 +31,8 @@ describe('WIZARD_CONFIG', () => {
     expect(WIZARD_CONFIG.STEPS.ARRIVAL_SLIP).toBe(4);
   });
 
-  it('has STEPS.WEIGHMENT = 5', () => {
-    expect(WIZARD_CONFIG.STEPS.WEIGHMENT).toBe(5);
+  it('has STEPS.ATTACHMENTS = 5', () => {
+    expect(WIZARD_CONFIG.STEPS.ATTACHMENTS).toBe(5);
   });
 
   it('has STEP_TITLES for step 1', () => {
@@ -52,7 +52,7 @@ describe('WIZARD_CONFIG', () => {
   });
 
   it('has STEP_TITLES for step 5', () => {
-    expect(WIZARD_CONFIG.STEP_TITLES[5]).toBe('Weighment');
+    expect(WIZARD_CONFIG.STEP_TITLES[5]).toBe('Attachments');
   });
 });
 

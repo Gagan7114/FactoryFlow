@@ -15,7 +15,7 @@ export const RAW_MATERIAL_FLOW: EntryFlowConfig = {
   entryType: ENTRY_TYPES.RAW_MATERIAL,
   routePrefix: '/gate/raw-materials',
   headerTitle: 'Material Inward',
-  totalSteps: 6,
+  totalSteps: 5,
   dashboardTitle: 'Raw Materials (RM/PM/Assets)',
   dashboardDescription: 'Manage raw materials, packing materials, and assets gate entries',
   allPageTitle: 'Raw Materials (RM/PM/Assets)',

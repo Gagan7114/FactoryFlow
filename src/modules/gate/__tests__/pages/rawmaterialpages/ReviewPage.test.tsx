@@ -33,10 +33,10 @@ describe('ReviewPage', () => {
     expect(content).toContain('return (');
   });
 
-  it('blocks completion when weighment is missing', () => {
-    expect(content).toContain('REQUIRED_WEIGHMENT_MESSAGE');
-    expect(content).toContain('!gateEntry?.weighment');
-    expect(content).toContain('Weighment is required before completion.');
-    expect(content).toContain('Fill Weighment');
+  it('allows completion when weighment is missing', () => {
+    expect(content).not.toContain('REQUIRED_WEIGHMENT_MESSAGE');
+    expect(content).not.toContain('Weighment is required before completion.');
+    expect(content).not.toContain('Fill Weighment');
+    expect(content).toContain('No weighment recorded for this entry.');
   });
 });

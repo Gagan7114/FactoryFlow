@@ -36,8 +36,6 @@ import {
 import { securityCheckApi } from '../../api/securityCheck/securityCheck.api';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
 
-const REQUIRED_WEIGHMENT_MESSAGE = 'Weighment is required before completing this gate-in entry.';
-
 // Status badge component
 function StatusBadge({ status }: { status: string }) {
   return <GateStatusBadge status={status} />;
@@ -153,28 +151,9 @@ export default function ReviewPage() {
     }
   };
 
-  const handleFillWeighment = () => {
-    const targetEntryId = entryId || gateEntry?.gate_entry.id?.toString();
-    if (!targetEntryId) {
-      setApiErrors({ general: 'Entry ID is missing.' });
-      return;
-    }
-
-    if (isEditMode) {
-      navigate(`/gate/raw-materials/edit/${targetEntryId}/step5`);
-    } else {
-      navigate(`/gate/raw-materials/new/step5?entryId=${targetEntryId}`);
-    }
-  };
-
   const handleSubmitSecurity = async () => {
     if (!entryId) {
       setApiErrors({ general: 'Entry ID is missing.' });
-      return;
-    }
-
-    if (!gateEntry?.weighment) {
-      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
       return;
     }
 
@@ -213,11 +192,6 @@ export default function ReviewPage() {
   const handleComplete = async () => {
     if (!entryId) {
       setApiErrors({ general: 'Entry ID is missing.' });
-      return;
-    }
-
-    if (!gateEntry?.weighment) {
-      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
       return;
     }
 
@@ -299,7 +273,6 @@ export default function ReviewPage() {
   }
 
   const isAlreadyCompleted = gateEntry.gate_entry.status === ENTRY_STATUS.COMPLETED;
-  const isWeighmentMissing = !gateEntry.weighment;
 
   return (
     <div className="space-y-6 pb-6">
@@ -463,7 +436,7 @@ export default function ReviewPage() {
         )}
 
         {/* Weighment */}
-        <Card className={isWeighmentMissing ? 'border-destructive/50' : undefined}>
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Scale className="h-5 w-5" />
@@ -503,13 +476,10 @@ export default function ReviewPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 rounded-md border border-destructive/30 bg-destructive/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-medium text-destructive">
-                  Weighment is required before completion.
+              <div className="rounded-md border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">
+                  No weighment recorded for this entry.
                 </p>
-                <Button type="button" variant="outline" onClick={handleFillWeighment}>
-                  Fill Weighment
-                </Button>
               </div>
             )}
           </CardContent>

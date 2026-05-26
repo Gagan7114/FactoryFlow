@@ -8,7 +8,6 @@ import {
   Package,
   Paperclip,
   RefreshCw,
-  Scale,
   ShieldX,
   X,
 } from 'lucide-react';
@@ -17,7 +16,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { FINAL_STATUS } from '@/config/constants';
 import type { ApiError } from '@/core/api/types';
-import { useWeighment } from '@/modules/gate/api/weighment/weighment.queries';
 import {
   Badge,
   Button,
@@ -60,7 +58,6 @@ interface MergedFormState {
   docDueDate: string;
   taxDate: string;
   shouldRoundoff: boolean;
-  tareWeight: string;
 }
 
 // Group POs by supplier
@@ -76,7 +73,6 @@ export default function GRPOPreviewPage() {
   const entryId = vehicleEntryId ? parseInt(vehicleEntryId, 10) : null;
 
   const { data: previewData = [], isLoading, error, refetch } = useGRPOPreview(entryId);
-  const { data: weighmentData, isLoading: isWeighmentLoading } = useWeighment(entryId);
   const postGRPO = usePostGRPO();
 
   // Selected PO receipt IDs for merged posting
@@ -93,23 +89,6 @@ export default function GRPOPreviewPage() {
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
   const isPosting = postGRPO.isPending;
-
-  const gateGrossWeight = useMemo(() => {
-    const parsed = parseFloat(weighmentData?.gross_weight ?? '');
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [weighmentData?.gross_weight]);
-
-  const tareWeightInput = mergedForm?.tareWeight ?? '';
-  const calculatedNetWeight = (() => {
-    if (!tareWeightInput.trim() || gateGrossWeight <= 0) {
-      return '';
-    }
-    const tareWeight = parseFloat(tareWeightInput);
-    if (!Number.isFinite(tareWeight)) {
-      return '';
-    }
-    return Math.max(0, gateGrossWeight - tareWeight).toFixed(3);
-  })();
 
   // Separate posted and unposted POs
   const unpostedPOs = useMemo(
@@ -195,25 +174,9 @@ export default function GRPOPreviewPage() {
         docDueDate: prev?.docDueDate ?? entryDate,
         taxDate: prev?.taxDate ?? entryDate,
         shouldRoundoff: prev?.shouldRoundoff ?? true,
-        tareWeight: prev?.tareWeight ?? '',
       };
     });
   }, [selectedPOs]);
-
-  useEffect(() => {
-    const existingTareWeight = parseFloat(weighmentData?.tare_weight ?? '');
-    if (!Number.isFinite(existingTareWeight) || existingTareWeight <= 0) {
-      return;
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Fetched weighment data seeds the editable tare field once.
-    setMergedForm((prev) => {
-      if (!prev || prev.tareWeight.trim()) {
-        return prev;
-      }
-      return { ...prev, tareWeight: weighmentData?.tare_weight ?? '' };
-    });
-  }, [weighmentData?.tare_weight]);
 
   // Toggle PO selection
   const togglePOSelection = (poReceiptId: number) => {
@@ -397,16 +360,6 @@ export default function GRPOPreviewPage() {
       errors.general = 'At least one item must have accepted quantity greater than 0';
     }
 
-    const tareWeight = parseFloat(mergedForm.tareWeight);
-    if (!Number.isFinite(gateGrossWeight) || gateGrossWeight <= 0) {
-      errors.weighment = 'Gate gross weight is required before GRPO';
-    }
-    if (!mergedForm.tareWeight.trim() || !Number.isFinite(tareWeight) || tareWeight <= 0) {
-      errors.tareWeight = 'Tare weight is required';
-    } else if (gateGrossWeight > 0 && tareWeight > gateGrossWeight) {
-      errors.tareWeight = 'Tare weight cannot be greater than gross weight';
-    }
-
     if (!mergedForm.vendorRef.trim()) {
       errors.vendorRef = 'Vendor reference is required';
     }
@@ -460,7 +413,6 @@ export default function GRPOPreviewPage() {
         warehouse_code: mergedForm.warehouseCode || undefined,
         comments: mergedForm.comments || undefined,
         vendor_ref: mergedForm.vendorRef || undefined,
-        tare_weight: parseFloat(mergedForm.tareWeight),
         extra_charges: mergedForm.extraCharges.length > 0 ? mergedForm.extraCharges : undefined,
         attachments: mergedForm.attachments.length > 0 ? mergedForm.attachments : undefined,
         doc_date: mergedForm.docDate || undefined,
@@ -995,81 +947,6 @@ export default function GRPOPreviewPage() {
               )}
             </div>
 
-            {/* Weighment */}
-            <div className="border-t pt-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Scale className="h-4 w-4 text-muted-foreground" />
-                <Label className="text-sm font-medium">Weighment</Label>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <Label htmlFor="grpoGrossWeight" className="text-xs">
-                    Gross Weight
-                  </Label>
-                  <Input
-                    id="grpoGrossWeight"
-                    type="text"
-                    value={
-                      isWeighmentLoading
-                        ? 'Loading...'
-                        : gateGrossWeight > 0
-                          ? gateGrossWeight.toFixed(3)
-                          : ''
-                    }
-                    readOnly
-                    disabled
-                    className="h-8 bg-muted text-sm"
-                  />
-                  {apiErrors.weighment && (
-                    <p className="text-xs text-destructive">{apiErrors.weighment}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="grpoTareWeight" className="text-xs">
-                    Tare Weight <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="grpoTareWeight"
-                    type="number"
-                    min={0}
-                    step="0.001"
-                    value={mergedForm.tareWeight}
-                    onChange={(e) => {
-                      updateFormField('tareWeight', e.target.value);
-                      if (apiErrors.tareWeight || apiErrors.weighment) {
-                        setApiErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.tareWeight;
-                          delete next.weighment;
-                          return next;
-                        });
-                      }
-                    }}
-                    placeholder="0"
-                    disabled={isPosting}
-                    className={`h-8 text-sm${apiErrors.tareWeight ? ' border-destructive' : ''}`}
-                  />
-                  {apiErrors.tareWeight && (
-                    <p className="text-xs text-destructive">{apiErrors.tareWeight}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="grpoNetWeight" className="text-xs">
-                    Net Weight
-                  </Label>
-                  <Input
-                    id="grpoNetWeight"
-                    type="text"
-                    value={calculatedNetWeight}
-                    readOnly
-                    disabled
-                    placeholder="Auto-calculated"
-                    className="h-8 bg-muted text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Attachments */}
             <div className="border-t pt-4 space-y-2">
               <Label className="text-sm font-medium">
@@ -1226,12 +1103,6 @@ export default function GRPOPreviewPage() {
                 <div className="text-sm">
                   <span className="text-muted-foreground">Warehouse:</span>{' '}
                   <span className="font-medium">{mergedForm.warehouseCode}</span>
-                </div>
-              )}
-              {calculatedNetWeight && (
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Net Weight:</span>{' '}
-                  <span className="font-medium">{calculatedNetWeight}</span>
                 </div>
               )}
               {mergedForm.docDate && (

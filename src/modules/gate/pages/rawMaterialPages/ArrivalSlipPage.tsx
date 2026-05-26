@@ -257,7 +257,9 @@ export default function ArrivalSlipPage() {
   const objectUrlCache = useRef<Map<File, string>>(new Map());
   useEffect(() => {
     const cache = objectUrlCache.current;
-    return () => { cache.forEach((url) => URL.revokeObjectURL(url)); };
+    return () => {
+      cache.forEach((url) => URL.revokeObjectURL(url));
+    };
   }, []);
 
   const getObjectUrl = (file: File): string => {
@@ -347,16 +349,18 @@ export default function ArrivalSlipPage() {
       (a) => a.attachment_type.toLowerCase() === 'certificate_of_analysis',
     );
     if (!form.certificateOfAnalysisFile && !hasExistingCoa) {
-      errors[`${form.id}_certificateOfAnalysisFile`] =
-        'Certificate of Analysis (COA) is required';
+      errors[`${form.id}_certificateOfAnalysisFile`] = 'Certificate of Analysis (COA) is required';
     }
 
     const hasExistingCoq = form.existingSlip?.attachments?.some(
       (a) => a.attachment_type.toLowerCase() === 'certificate_of_quantity',
     );
-    if (form.formData.has_certificate_of_quantity && !form.certificateOfQuantityFile && !hasExistingCoq) {
-      errors[`${form.id}_certificateOfQuantityFile`] =
-        'Please upload Certificate of Quantity file';
+    if (
+      form.formData.has_certificate_of_quantity &&
+      !form.certificateOfQuantityFile &&
+      !hasExistingCoq
+    ) {
+      errors[`${form.id}_certificateOfQuantityFile`] = 'Please upload Certificate of Quantity file';
     }
 
     return errors;
@@ -370,7 +374,7 @@ export default function ArrivalSlipPage() {
 
     // In edit mode with all items already submitted, just navigate
     if (effectiveEditMode && itemForms.every((form) => form.isSubmitted)) {
-      navigate(`/gate/raw-materials/edit/${entryId}/step5`);
+      navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
       return;
     }
 
@@ -401,7 +405,7 @@ export default function ArrivalSlipPage() {
             const requestData: CreateArrivalSlipRequest = {
               particulars: form.formData.particulars,
               arrival_datetime: new Date(form.formData.arrival_datetime).toISOString(),
-              weighing_required: true, // Always true
+              weighing_required: false,
               party_name: form.formData.party_name,
               billing_qty: parseFloat(form.formData.billing_qty),
               billing_uom: form.formData.billing_uom,
@@ -433,9 +437,7 @@ export default function ArrivalSlipPage() {
             if (successfullySubmittedIds.length > 0) {
               setItemForms((prev) =>
                 prev.map((f) =>
-                  successfullySubmittedIds.includes(f.id)
-                    ? { ...f, isSubmitted: true }
-                    : f,
+                  successfullySubmittedIds.includes(f.id) ? { ...f, isSubmitted: true } : f,
                 ),
               );
             }
@@ -444,12 +446,12 @@ export default function ArrivalSlipPage() {
         }
       }
 
-      // Navigate to next step (Weighment)
+      // Navigate to attachments; weighment is optional for RM/PM material inward.
       setIsNavigating(true);
       if (isEditMode) {
-        navigate(`/gate/raw-materials/edit/${entryId}/step5`);
+        navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
       } else {
-        navigate(`/gate/raw-materials/new/step5?entryId=${entryId}`);
+        navigate(`/gate/raw-materials/new/attachments?entryId=${entryId}`);
       }
     } catch (error) {
       const apiError = error as ApiError;
@@ -477,7 +479,11 @@ export default function ArrivalSlipPage() {
 
   // Show loading state — covers 3 phases:
   // 1. PO receipts loading, 2. vehicle entry loading, 3. existing slips being fetched
-  if (isLoadingPOReceipts || isLoadingVehicleEntry || (effectiveEditMode && itemForms.length > 0 && !slipsFetched)) {
+  if (
+    isLoadingPOReceipts ||
+    isLoadingVehicleEntry ||
+    (effectiveEditMode && itemForms.length > 0 && !slipsFetched)
+  ) {
     return <StepLoadingSpinner />;
   }
 
@@ -514,24 +520,21 @@ export default function ArrivalSlipPage() {
 
       {/* Show error if arrival slips not found */}
       {arrivalSlipsNotFound && !fillDataMode && (
-        <FillDataAlert
-          message="Arrival slip not found"
-          onFillData={handleFillData}
-        />
+        <FillDataAlert message="Arrival slip not found" onFillData={handleFillData} />
       )}
 
       {/* Show info message if all slips are submitted */}
       {itemForms.length > 0 && itemForms.every((form) => form.isSubmitted) && (
         <div className="rounded-md bg-green-50 p-4 text-sm text-green-800 flex items-center gap-2">
           <Check className="h-5 w-5" />
-          All arrival slips have been submitted to QA. Click Next to proceed to Weighment.
+          All arrival slips have been submitted to QA. Click Next to proceed to attachments.
         </div>
       )}
 
       <div className="space-y-6">
         {/* Arrival Slip Forms for each PO Item Receipt */}
         {itemForms.map((form, index) => (
-          <Card key={form.id} className={(form.isSubmitted || isReadOnly) ? 'opacity-75' : ''}>
+          <Card key={form.id} className={form.isSubmitted || isReadOnly ? 'opacity-75' : ''}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -698,7 +701,9 @@ export default function ArrivalSlipPage() {
 
                 {/* Commercial Invoice No */}
                 <div className="space-y-2">
-                  <Label htmlFor={`commercial_invoice_no-${form.id}`}>Commercial Invoice No. <span className="text-destructive">*</span></Label>
+                  <Label htmlFor={`commercial_invoice_no-${form.id}`}>
+                    Commercial Invoice No. <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id={`commercial_invoice_no-${form.id}`}
                     placeholder="Invoice number (use - if not available)"
@@ -707,7 +712,9 @@ export default function ArrivalSlipPage() {
                       handleFormChange(form.id, 'commercial_invoice_no', e.target.value)
                     }
                     disabled={form.isSubmitted || isSaving || isReadOnly}
-                    className={(form.isSubmitted || isReadOnly) ? 'cursor-not-allowed opacity-50' : ''}
+                    className={
+                      form.isSubmitted || isReadOnly ? 'cursor-not-allowed opacity-50' : ''
+                    }
                   />
                 </div>
 
@@ -720,7 +727,9 @@ export default function ArrivalSlipPage() {
                     value={form.formData.eway_bill_no}
                     onChange={(e) => handleFormChange(form.id, 'eway_bill_no', e.target.value)}
                     disabled={form.isSubmitted || isSaving || isReadOnly}
-                    className={(form.isSubmitted || isReadOnly) ? 'cursor-not-allowed opacity-50' : ''}
+                    className={
+                      form.isSubmitted || isReadOnly ? 'cursor-not-allowed opacity-50' : ''
+                    }
                   />
                 </div>
 
@@ -733,7 +742,9 @@ export default function ArrivalSlipPage() {
                     value={form.formData.bilty_no}
                     onChange={(e) => handleFormChange(form.id, 'bilty_no', e.target.value)}
                     disabled={form.isSubmitted || isSaving || isReadOnly}
-                    className={(form.isSubmitted || isReadOnly) ? 'cursor-not-allowed opacity-50' : ''}
+                    className={
+                      form.isSubmitted || isReadOnly ? 'cursor-not-allowed opacity-50' : ''
+                    }
                   />
                 </div>
 
@@ -746,7 +757,9 @@ export default function ArrivalSlipPage() {
                     value={form.formData.remarks}
                     onChange={(e) => handleFormChange(form.id, 'remarks', e.target.value)}
                     disabled={form.isSubmitted || isSaving || isReadOnly}
-                    className={(form.isSubmitted || isReadOnly) ? 'cursor-not-allowed opacity-50' : ''}
+                    className={
+                      form.isSubmitted || isReadOnly ? 'cursor-not-allowed opacity-50' : ''
+                    }
                   />
                 </div>
 
@@ -754,7 +767,6 @@ export default function ArrivalSlipPage() {
                 <div className="space-y-3 md:col-span-2 lg:col-span-3">
                   <Label className="text-sm font-semibold">Certifications</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
                     {/* ── COA ── */}
                     <div className="rounded-md border p-4 space-y-3">
                       <div className="flex items-center space-x-2">
@@ -771,56 +783,60 @@ export default function ArrivalSlipPage() {
                         </Label>
                       </div>
 
-                        <div className="space-y-2">
-                          {form.certificateOfAnalysisFile ? (
-                            /* New file selected */
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                                <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                <span className="truncate flex-1">{form.certificateOfAnalysisFile.name}</span>
-                                {!form.isSubmitted && !isReadOnly && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 shrink-0"
-                                    onClick={() => {
-                                      handleFileChange(form.id, 'certificateOfAnalysisFile', null);
-                                      const ref = coaFileInputRefs.current[form.id];
-                                      if (ref) ref.value = '';
-                                    }}
-                                  >
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
-                                )}
-                              </div>
-                              {isImageFile(form.certificateOfAnalysisFile.name) && (
-                                <a
-                                  href={getObjectUrl(form.certificateOfAnalysisFile)}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="relative overflow-hidden rounded-md border block group"
+                      <div className="space-y-2">
+                        {form.certificateOfAnalysisFile ? (
+                          /* New file selected */
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                              <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="truncate flex-1">
+                                {form.certificateOfAnalysisFile.name}
+                              </span>
+                              {!form.isSubmitted && !isReadOnly && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 shrink-0"
+                                  onClick={() => {
+                                    handleFileChange(form.id, 'certificateOfAnalysisFile', null);
+                                    const ref = coaFileInputRefs.current[form.id];
+                                    if (ref) ref.value = '';
+                                  }}
                                 >
-                                  <img
-                                    src={getObjectUrl(form.certificateOfAnalysisFile)}
-                                    alt="COA preview"
-                                    className="w-full h-36 object-cover"
-                                  />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
-                                    <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                      Click to open
-                                    </span>
-                                  </div>
-                                </a>
+                                  <X className="h-3.5 w-3.5" />
+                                </Button>
                               )}
                             </div>
-                          ) : (() => {
+                            {isImageFile(form.certificateOfAnalysisFile.name) && (
+                              <a
+                                href={getObjectUrl(form.certificateOfAnalysisFile)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="relative overflow-hidden rounded-md border block group"
+                              >
+                                <img
+                                  src={getObjectUrl(form.certificateOfAnalysisFile)}
+                                  alt="COA preview"
+                                  className="w-full h-36 object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+                                  <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Click to open
+                                  </span>
+                                </div>
+                              </a>
+                            )}
+                          </div>
+                        ) : (
+                          (() => {
                             const att = form.existingSlip?.attachments?.find(
                               (a) => a.attachment_type.toLowerCase() === 'certificate_of_analysis',
                             );
                             if (att) {
                               const url = getAttachmentUrl(att.file);
-                              const displayName = att.file_name || att.file.split('/').pop() || 'COA uploaded';
+                              const displayName =
+                                att.file_name || att.file.split('/').pop() || 'COA uploaded';
                               const isImg = isImageFile(displayName);
                               return (
                                 /* Existing attachment */
@@ -870,7 +886,8 @@ export default function ArrivalSlipPage() {
                                   apiErrors[`${form.id}_certificateOfAnalysisFile`]
                                     ? 'border-destructive/50 hover:border-destructive'
                                     : 'border-muted-foreground/25 hover:border-primary/50',
-                                  (form.isSubmitted || isReadOnly) && 'cursor-not-allowed opacity-50',
+                                  (form.isSubmitted || isReadOnly) &&
+                                    'cursor-not-allowed opacity-50',
                                 )}
                                 onClick={() => {
                                   if (!form.isSubmitted && !isReadOnly) {
@@ -879,27 +896,32 @@ export default function ArrivalSlipPage() {
                                 }}
                               >
                                 <Upload className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">Click to upload COA file</span>
+                                <span className="text-sm text-muted-foreground">
+                                  Click to upload COA file
+                                </span>
                               </div>
                             );
-                          })()}
-                          <input
-                            ref={(el) => { coaFileInputRefs.current[form.id] = el; }}
-                            type="file"
-                            accept="image/*,.pdf"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              handleFileChange(form.id, 'certificateOfAnalysisFile', file);
-                            }}
-                            disabled={form.isSubmitted || isSaving || isReadOnly}
-                          />
-                          {apiErrors[`${form.id}_certificateOfAnalysisFile`] && (
-                            <p className="text-sm text-destructive">
-                              {apiErrors[`${form.id}_certificateOfAnalysisFile`]}
-                            </p>
-                          )}
-                        </div>
+                          })()
+                        )}
+                        <input
+                          ref={(el) => {
+                            coaFileInputRefs.current[form.id] = el;
+                          }}
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            handleFileChange(form.id, 'certificateOfAnalysisFile', file);
+                          }}
+                          disabled={form.isSubmitted || isSaving || isReadOnly}
+                        />
+                        {apiErrors[`${form.id}_certificateOfAnalysisFile`] && (
+                          <p className="text-sm text-destructive">
+                            {apiErrors[`${form.id}_certificateOfAnalysisFile`]}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* ── COQ ── */}
@@ -909,7 +931,11 @@ export default function ArrivalSlipPage() {
                           id={`has_certificate_of_quantity-${form.id}`}
                           checked={form.formData.has_certificate_of_quantity}
                           onCheckedChange={(checked) =>
-                            handleFormChange(form.id, 'has_certificate_of_quantity', checked === true)
+                            handleFormChange(
+                              form.id,
+                              'has_certificate_of_quantity',
+                              checked === true,
+                            )
                           }
                           disabled={form.isSubmitted || isSaving || isReadOnly}
                         />
@@ -928,7 +954,9 @@ export default function ArrivalSlipPage() {
                             <div className="space-y-2">
                               <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
                                 <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                <span className="truncate flex-1">{form.certificateOfQuantityFile.name}</span>
+                                <span className="truncate flex-1">
+                                  {form.certificateOfQuantityFile.name}
+                                </span>
                                 {!form.isSubmitted && !isReadOnly && (
                                   <Button
                                     type="button"
@@ -965,77 +993,86 @@ export default function ArrivalSlipPage() {
                                 </a>
                               )}
                             </div>
-                          ) : (() => {
-                            const att = form.existingSlip?.attachments?.find(
-                              (a) => a.attachment_type.toLowerCase() === 'certificate_of_quantity',
-                            );
-                            if (att) {
-                              const url = getAttachmentUrl(att.file);
-                              const displayName = att.file_name || att.file.split('/').pop() || 'COQ uploaded';
-                              const isImg = isImageFile(displayName);
-                              return (
-                                /* Existing attachment */
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
-                                    <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                    <span className="truncate flex-1">{displayName}</span>
-                                    {!form.isSubmitted && !isReadOnly && (
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 text-xs shrink-0"
-                                        onClick={() => coqFileInputRefs.current[form.id]?.click()}
+                          ) : (
+                            (() => {
+                              const att = form.existingSlip?.attachments?.find(
+                                (a) =>
+                                  a.attachment_type.toLowerCase() === 'certificate_of_quantity',
+                              );
+                              if (att) {
+                                const url = getAttachmentUrl(att.file);
+                                const displayName =
+                                  att.file_name || att.file.split('/').pop() || 'COQ uploaded';
+                                const isImg = isImageFile(displayName);
+                                return (
+                                  /* Existing attachment */
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 text-sm">
+                                      <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                      <span className="truncate flex-1">{displayName}</span>
+                                      {!form.isSubmitted && !isReadOnly && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-7 text-xs shrink-0"
+                                          onClick={() => coqFileInputRefs.current[form.id]?.click()}
+                                        >
+                                          Replace
+                                        </Button>
+                                      )}
+                                    </div>
+                                    {isImg && (
+                                      <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="relative overflow-hidden rounded-md border block group"
                                       >
-                                        Replace
-                                      </Button>
+                                        <img
+                                          src={url}
+                                          alt="COQ preview"
+                                          className="w-full h-36 object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+                                          <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Click to open
+                                          </span>
+                                        </div>
+                                      </a>
                                     )}
                                   </div>
-                                  {isImg && (
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="relative overflow-hidden rounded-md border block group"
-                                    >
-                                      <img
-                                        src={url}
-                                        alt="COQ preview"
-                                        className="w-full h-36 object-cover"
-                                      />
-                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
-                                        <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                          Click to open
-                                        </span>
-                                      </div>
-                                    </a>
+                                );
+                              }
+                              return (
+                                /* Upload drop zone */
+                                <div
+                                  className={cn(
+                                    'flex items-center gap-3 rounded-md border-2 border-dashed px-3 py-3 cursor-pointer transition-colors',
+                                    apiErrors[`${form.id}_certificateOfQuantityFile`]
+                                      ? 'border-destructive/50 hover:border-destructive'
+                                      : 'border-muted-foreground/25 hover:border-primary/50',
+                                    (form.isSubmitted || isReadOnly) &&
+                                      'cursor-not-allowed opacity-50',
                                   )}
+                                  onClick={() => {
+                                    if (!form.isSubmitted && !isReadOnly) {
+                                      coqFileInputRefs.current[form.id]?.click();
+                                    }
+                                  }}
+                                >
+                                  <Upload className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">
+                                    Click to upload COQ file
+                                  </span>
                                 </div>
                               );
-                            }
-                            return (
-                              /* Upload drop zone */
-                              <div
-                                className={cn(
-                                  'flex items-center gap-3 rounded-md border-2 border-dashed px-3 py-3 cursor-pointer transition-colors',
-                                  apiErrors[`${form.id}_certificateOfQuantityFile`]
-                                    ? 'border-destructive/50 hover:border-destructive'
-                                    : 'border-muted-foreground/25 hover:border-primary/50',
-                                  (form.isSubmitted || isReadOnly) && 'cursor-not-allowed opacity-50',
-                                )}
-                                onClick={() => {
-                                  if (!form.isSubmitted && !isReadOnly) {
-                                    coqFileInputRefs.current[form.id]?.click();
-                                  }
-                                }}
-                              >
-                                <Upload className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">Click to upload COQ file</span>
-                              </div>
-                            );
-                          })()}
+                            })()
+                          )}
                           <input
-                            ref={(el) => { coqFileInputRefs.current[form.id] = el; }}
+                            ref={(el) => {
+                              coqFileInputRefs.current[form.id] = el;
+                            }}
                             type="file"
                             accept="image/*,.pdf"
                             className="hidden"
@@ -1053,7 +1090,6 @@ export default function ArrivalSlipPage() {
                         </div>
                       )}
                     </div>
-
                   </div>
                 </div>
               </div>

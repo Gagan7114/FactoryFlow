@@ -47,7 +47,7 @@ export interface ArrivalSlip {
 export interface CreateArrivalSlipRequest {
   particulars: string;
   arrival_datetime: string;
-  weighing_required: true; // Always true
+  weighing_required: boolean;
   party_name: string;
   billing_qty: number;
   billing_uom: string;

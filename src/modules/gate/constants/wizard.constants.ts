@@ -4,7 +4,7 @@
 
 export const WIZARD_CONFIG = {
   /** Total number of steps in the wizard (excluding review) */
-  TOTAL_STEPS: 6,
+  TOTAL_STEPS: 5,
 
   /** Step numbers */
   STEPS: {
@@ -12,8 +12,7 @@ export const WIZARD_CONFIG = {
     SECURITY_CHECK: 2,
     PO_RECEIPT: 3,
     ARRIVAL_SLIP: 4,
-    WEIGHMENT: 5,
-    ATTACHMENTS: 6,
+    ATTACHMENTS: 5,
   },
 
   /** Step titles */
@@ -22,8 +21,7 @@ export const WIZARD_CONFIG = {
     2: 'Security Check',
     3: 'PO Receipt',
     4: 'Arrival Slip',
-    5: 'Weighment',
-    6: 'Attachments',
+    5: 'Attachments',
   },
 } as const;
 
@@ -37,4 +35,4 @@ export const DEBOUNCE_CONFIG = {
   SEARCH_DELAY: 100,
 } as const;
 
-export type StepNumber = 1 | 2 | 3 | 4 | 5 | 6;
+export type StepNumber = 1 | 2 | 3 | 4 | 5;

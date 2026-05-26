@@ -31,8 +31,6 @@ interface WeighmentFormData {
   secondWeighmentTime: string;
 }
 
-const REQUIRED_WEIGHMENT_MESSAGE = 'Weighment is required before this gate-in entry can continue.';
-
 function createEmptyWeighmentFormData(): WeighmentFormData {
   return {
     grossWeight: '',
@@ -43,11 +41,19 @@ function createEmptyWeighmentFormData(): WeighmentFormData {
   };
 }
 
+function hasWeighmentInput(values: WeighmentFormData) {
+  return Object.values(values).some((value) => value.trim() !== '');
+}
+
 function validateWeighmentDetails(values: WeighmentFormData) {
   const grossWeight = parseFloat(values.grossWeight);
   const tareWeight = parseFloat(values.tareWeight);
   const hasTareWeight = values.tareWeight.trim() !== '';
   const errors: Record<string, string> = {};
+
+  if (!hasWeighmentInput(values)) {
+    return errors;
+  }
 
   if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
     errors.grossWeight = 'Gross weight is required.';
@@ -77,7 +83,7 @@ export default function Step4Page() {
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
   useEntryStepTracker();
-  const currentStep = WIZARD_CONFIG.STEPS.WEIGHMENT;
+  const currentStep = WIZARD_CONFIG.STEPS.ATTACHMENTS;
   const createWeighment = useCreateWeighment(entryIdNumber || 0);
   const {
     data: weighmentData,
@@ -186,11 +192,6 @@ export default function Step4Page() {
 
     setApiErrors({});
 
-    if (hasNoWeighmentData && !fillDataMode) {
-      setApiErrors({ general: REQUIRED_WEIGHMENT_MESSAGE });
-      return;
-    }
-
     // In edit mode (and not fillDataMode and not updateMode), just navigate without API call
     if (effectiveEditMode && !updateMode) {
       navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
@@ -201,6 +202,16 @@ export default function Step4Page() {
       const validationErrors = validateWeighmentDetails(formData);
       if (Object.keys(validationErrors).length > 0) {
         setApiErrors(validationErrors);
+        return;
+      }
+
+      if (!hasWeighmentInput(formData)) {
+        setIsNavigating(true);
+        if (isEditMode) {
+          navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
+        } else {
+          navigate(`/gate/raw-materials/new/attachments?entryId=${entryId}`);
+        }
         return;
       }
 
@@ -271,6 +282,7 @@ export default function Step4Page() {
     <div className="space-y-6 pb-6">
       <StepHeader
         currentStep={currentStep}
+        title="Optional Weighment"
         error={
           hasServerError
             ? getServerErrorMessage()
@@ -286,7 +298,7 @@ export default function Step4Page() {
         <FillDataAlert
           message={
             isNotFoundError
-              ? getErrorMessage(weighmentError, 'Weighment not found')
+              ? getErrorMessage(weighmentError, 'Optional weighment not found')
               : 'No weighment data found for this entry.'
           }
           onFillData={handleFillData}
@@ -306,9 +318,7 @@ export default function Step4Page() {
             <div className="grid gap-4 md:grid-cols-3">
               {/* First Row */}
               <div className="space-y-2">
-                <Label htmlFor="grossWeight">
-                  Gross Weight <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="grossWeight">Gross Weight</Label>
                 <Input
                   id="grossWeight"
                   type="number"

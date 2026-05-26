@@ -33,7 +33,9 @@ describe('Step4Page', () => {
     expect(content).toContain('return (');
   });
 
-  it('requires gross weighment before moving to attachments', () => {
+  it('keeps weighment validation optional before moving to attachments', () => {
+    expect(content).toContain('hasWeighmentInput(formData)');
+    expect(content).toContain('if (!hasWeighmentInput(formData))');
     expect(content).toContain('validateWeighmentDetails(formData)');
     expect(content).toContain('Gross weight is required.');
     expect(content).toContain('Tare weight cannot be negative.');
@@ -41,8 +43,8 @@ describe('Step4Page', () => {
     expect(content).toContain('formData.tareWeight.trim() ? parseFloat(formData.tareWeight) : 0');
   });
 
-  it('marks only gross weight as required', () => {
-    expect(content).toContain('Gross Weight <span className="text-destructive">*</span>');
+  it('does not mark gross or tare weight as required', () => {
+    expect(content).toContain('<Label htmlFor="grossWeight">Gross Weight</Label>');
     expect(content).toContain('<Label htmlFor="tareWeight">Tare Weight</Label>');
   });
 });

@@ -17,37 +17,33 @@ describe('GRPOPreviewPage file content', () => {
     expect(content).toContain('export default function GRPOPreviewPage()');
   });
 
-  it('loads GRPO and gate weighment APIs', () => {
+  it('loads GRPO APIs', () => {
     expect(content).toContain('useGRPOPreview');
     expect(content).toContain('usePostGRPO');
-    expect(content).toContain('useWeighment');
-    expect(content).toContain("from '@/modules/gate/api/weighment/weighment.queries'");
+    expect(content).not.toContain('useWeighment');
   });
 
-  it('tracks tare weight in the merged GRPO form', () => {
+  it('does not track tare weight in the merged GRPO form', () => {
     expect(content).toContain('interface MergedFormState');
-    expect(content).toContain('tareWeight: string');
-    expect(content).toContain("tareWeight: prev?.tareWeight ?? ''");
+    expect(content).not.toContain('tareWeight: string');
+    expect(content).not.toContain("tareWeight: prev?.tareWeight ?? ''");
   });
 
-  it('renders a weighment section in GRPO', () => {
-    expect(content).toContain('Scale');
-    expect(content).toContain('Weighment');
-    expect(content).toContain('Gross Weight');
-    expect(content).toContain('Tare Weight <span className="text-destructive">*</span>');
-    expect(content).toContain('Net Weight');
-    expect(content).toContain('calculatedNetWeight');
+  it('does not render a weighment section in GRPO', () => {
+    expect(content).not.toContain('grpoGrossWeight');
+    expect(content).not.toContain('grpoTareWeight');
+    expect(content).not.toContain('calculatedNetWeight');
   });
 
-  it('requires tare weight before posting GRPO', () => {
-    expect(content).toContain('Gate gross weight is required before GRPO');
-    expect(content).toContain('Tare weight is required');
-    expect(content).toContain('Tare weight cannot be greater than gross weight');
+  it('does not require tare weight before posting GRPO', () => {
+    expect(content).not.toContain('Gate gross weight is required before GRPO');
+    expect(content).not.toContain('Tare weight is required');
+    expect(content).not.toContain('Tare weight cannot be greater than gross weight');
   });
 
-  it('sends tare weight with the GRPO post request', () => {
+  it('does not send tare weight with the GRPO post request', () => {
     expect(content).toContain('const result = await postGRPO.mutateAsync');
-    expect(content).toContain('tare_weight: parseFloat(mergedForm.tareWeight)');
+    expect(content).not.toContain('tare_weight: parseFloat(mergedForm.tareWeight)');
   });
 
   it('uses combined posting state for buttons', () => {
