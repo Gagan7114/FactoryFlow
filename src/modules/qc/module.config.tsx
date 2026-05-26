@@ -2,7 +2,6 @@ import { FlaskConical } from 'lucide-react';
 import { lazy } from 'react';
 
 import { QC_PERMISSIONS } from '@/config/permissions';
-import { EXECUTION_PERMISSIONS } from '@/config/permissions/production.permissions';
 import type { ModuleConfig } from '@/core/types';
 
 // Lazy load QC pages
@@ -34,6 +33,11 @@ const CustomerReturnQCDetailPage = lazy(
   () => import('./pages/customerReturns/CustomerReturnQCDetailPage'),
 );
 
+const lineClearanceQCPermissions = [
+  QC_PERMISSIONS.LINE_CLEARANCE_QC.VIEW,
+  QC_PERMISSIONS.LINE_CLEARANCE_QC.APPROVE,
+];
+
 /**
  * Quality Control module configuration
  *
@@ -54,6 +58,7 @@ export const qcModuleConfig: ModuleConfig = {
         QC_PERMISSIONS.INSPECTION.VIEW,
         QC_PERMISSIONS.ARRIVAL_SLIP.VIEW,
         QC_PERMISSIONS.PRODUCTION_QC.VIEW,
+        ...lineClearanceQCPermissions,
       ],
     },
 
@@ -116,10 +121,7 @@ export const qcModuleConfig: ModuleConfig = {
       path: '/qc/line-clearance',
       element: <LineClearanceQAPage />,
       layout: 'main',
-      permissions: [
-        EXECUTION_PERMISSIONS.VIEW_CLEARANCE,
-        EXECUTION_PERMISSIONS.APPROVE_CLEARANCE_QA,
-      ],
+      permissions: lineClearanceQCPermissions,
     },
 
     // ==================== Customer Return QC Submodule ====================
@@ -193,6 +195,7 @@ export const qcModuleConfig: ModuleConfig = {
         QC_PERMISSIONS.INSPECTION.VIEW,
         QC_PERMISSIONS.ARRIVAL_SLIP.VIEW,
         QC_PERMISSIONS.PRODUCTION_QC.VIEW,
+        ...lineClearanceQCPermissions,
       ],
       hasSubmenu: true,
       children: [
@@ -203,6 +206,7 @@ export const qcModuleConfig: ModuleConfig = {
             QC_PERMISSIONS.INSPECTION.VIEW,
             QC_PERMISSIONS.ARRIVAL_SLIP.VIEW,
             QC_PERMISSIONS.PRODUCTION_QC.VIEW,
+            ...lineClearanceQCPermissions,
           ],
         },
         {
@@ -231,10 +235,7 @@ export const qcModuleConfig: ModuleConfig = {
         {
           path: '/qc/line-clearance',
           title: 'Line Clearance QA',
-          permissions: [
-            EXECUTION_PERMISSIONS.VIEW_CLEARANCE,
-            EXECUTION_PERMISSIONS.APPROVE_CLEARANCE_QA,
-          ],
+          permissions: lineClearanceQCPermissions,
         },
         {
           path: '/qc/customer-returns',

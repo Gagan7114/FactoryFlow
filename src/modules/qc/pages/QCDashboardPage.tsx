@@ -11,7 +11,7 @@ import {
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { EXECUTION_PERMISSIONS, QC_PERMISSIONS } from '@/config/permissions';
+import { QC_PERMISSIONS } from '@/config/permissions';
 import type { ApiError } from '@/core/api/types';
 import { usePermission } from '@/core/auth/hooks/usePermission';
 import { useGlobalDateRange } from '@/core/store/hooks';
@@ -30,8 +30,8 @@ export default function QCDashboardPage() {
   const canViewArrivalSlips = hasAnyPermission([QC_PERMISSIONS.INSPECTION.VIEW]);
   const canViewProductionQC = hasAnyPermission([QC_PERMISSIONS.PRODUCTION_QC.VIEW]);
   const canViewLineClearance = hasAnyPermission([
-    EXECUTION_PERMISSIONS.VIEW_CLEARANCE,
-    EXECUTION_PERMISSIONS.APPROVE_CLEARANCE_QA,
+    QC_PERMISSIONS.LINE_CLEARANCE_QC.VIEW,
+    QC_PERMISSIONS.LINE_CLEARANCE_QC.APPROVE,
   ]);
   const canManageMaterialTypes = hasAnyPermission([
     QC_PERMISSIONS.MASTER_DATA.MANAGE_MATERIAL_TYPES,
