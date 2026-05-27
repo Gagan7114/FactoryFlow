@@ -17,7 +17,7 @@ import {
   TimerReset,
   XCircle,
 } from 'lucide-react';
-import { type FormEvent, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -103,6 +103,39 @@ function formatQty(qty: string | number | null | undefined, uom?: string) {
   return `${cleanQty} ${uom ?? ''}`.trim();
 }
 
+function toNumber(value: string | number | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatQtyWithBoxes(
+  qty: string | number | null | undefined,
+  uom?: string,
+  boxes?: string | number | null,
+) {
+  const qtyText = formatQty(qty, uom || 'PCS');
+  const boxValue = toNumber(boxes);
+  if (boxValue <= 0) return qtyText;
+  return `${qtyText} / ${formatQty(boxValue, 'Boxes')}`;
+}
+
+function getLineExpectedBoxes(line: DispatchSessionLine | DispatchBillLine) {
+  if ('expected_boxes' in line) return line.expected_boxes ?? line.bill_boxes ?? '0';
+  return line.total_boxes ?? '0';
+}
+
+function getSessionBoxes(
+  session: DispatchSession | null,
+  field: 'expected_boxes' | 'scanned_boxes' | 'pending_boxes',
+) {
+  if (!session) return 0;
+  return session.lines.reduce((sum, line) => {
+    if (field === 'expected_boxes') return sum + toNumber(line.expected_boxes ?? line.bill_boxes);
+    if (field === 'scanned_boxes') return sum + toNumber(line.scanned_boxes);
+    return sum + toNumber(line.pending_boxes);
+  }, 0);
+}
+
 function getRequestId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -167,6 +200,7 @@ function ProgressBar({ value, className }: { value: number; className?: string }
 
 function BillLookupSummary({ bill }: { bill: DispatchBillLookupResponse }) {
   const totalQty = bill.lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
+  const totalBoxes = bill.lines.reduce((sum, line) => sum + toNumber(line.total_boxes), 0);
 
   return (
     <section className="rounded-md border bg-white p-4 shadow-sm">
@@ -185,7 +219,7 @@ function BillLookupSummary({ bill }: { bill: DispatchBillLookupResponse }) {
         </div>
         <div className="grid grid-cols-3 gap-2 sm:min-w-[360px]">
           <StatTile label="Lines" value={bill.lines.length.toString()} tone="cyan" />
-          <StatTile label="Qty" value={formatQty(totalQty)} tone="emerald" />
+          <StatTile label="Qty" value={formatQtyWithBoxes(totalQty, 'PCS', totalBoxes)} tone="emerald" />
           <StatTile label="Source" value={bill.source_system.replaceAll('_', ' ')} />
         </div>
       </div>
@@ -213,7 +247,9 @@ function BillLinePreview({ lines }: { lines: DispatchBillLine[] }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Qty</p>
-            <p className="text-sm font-semibold">{formatQty(line.quantity, line.uom)}</p>
+            <p className="text-sm font-semibold">
+              {formatQtyWithBoxes(line.quantity, line.uom, getLineExpectedBoxes(line))}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Batch</p>
@@ -248,6 +284,9 @@ function SessionHero({ session }: { session: DispatchSession | null }) {
   }
 
   const progress = getProgress(session);
+  const expectedBoxes = getSessionBoxes(session, 'expected_boxes');
+  const scannedBoxes = getSessionBoxes(session, 'scanned_boxes');
+  const pendingBoxes = getSessionBoxes(session, 'pending_boxes');
 
   return (
     <section className="rounded-md border bg-white p-5 shadow-sm">
@@ -276,9 +315,9 @@ function SessionHero({ session }: { session: DispatchSession | null }) {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <StatTile label="Expected" value={formatQty(session.total_expected_qty)} tone="cyan" />
-          <StatTile label="Scanned" value={formatQty(session.total_scanned_qty)} tone="emerald" />
-          <StatTile label="Pending" value={formatQty(session.pending_qty)} tone="amber" />
+          <StatTile label="Expected" value={formatQtyWithBoxes(session.total_expected_qty, 'PCS', expectedBoxes)} tone="cyan" />
+          <StatTile label="Scanned" value={formatQtyWithBoxes(session.total_scanned_qty, 'PCS', scannedBoxes)} tone="emerald" />
+          <StatTile label="Pending" value={formatQtyWithBoxes(session.pending_qty, 'PCS', pendingBoxes)} tone="amber" />
           <StatTile
             label="Rejected"
             value={session.rejected_scan_count.toLocaleString('en-IN')}
@@ -290,8 +329,7 @@ function SessionHero({ session }: { session: DispatchSession | null }) {
   );
 }
 
-function ActiveLineFocus({ session }: { session: DispatchSession }) {
-  const activeLine = getDispatchActiveLine(session);
+function ActiveLineFocus({ activeLine }: { activeLine: DispatchSessionLine | null }) {
 
   if (!activeLine) {
     return (
@@ -322,8 +360,16 @@ function ActiveLineFocus({ session }: { session: DispatchSession }) {
           <p className="mt-1 text-sm text-muted-foreground">{activeLine.material_description || '-'}</p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:min-w-[360px]">
-          <StatTile label="Pending" value={formatQty(pending, activeLine.uom)} tone="amber" />
-          <StatTile label="Scanned" value={formatQty(activeLine.scanned_qty, activeLine.uom)} tone="emerald" />
+          <StatTile
+            label="Pending"
+            value={formatQtyWithBoxes(pending, activeLine.uom, activeLine.pending_boxes)}
+            tone="amber"
+          />
+          <StatTile
+            label="Scanned"
+            value={formatQtyWithBoxes(activeLine.scanned_qty, activeLine.uom, activeLine.scanned_boxes)}
+            tone="emerald"
+          />
           <StatTile label="Batch" value={activeLine.batch_number || '-'} />
           <StatTile label="Warehouse" value={activeLine.warehouse_code || '-'} />
         </div>
@@ -504,8 +550,17 @@ function ActionPanel({
   );
 }
 
-function LineBoard({ session }: { session: DispatchSession }) {
-  const activeLine = getDispatchActiveLine(session);
+function LineBoard({
+  session,
+  activeLine,
+  canSelectAnyLine,
+  onSelectLine,
+}: {
+  session: DispatchSession;
+  activeLine: DispatchSessionLine | null;
+  canSelectAnyLine: boolean;
+  onSelectLine: (line: DispatchSessionLine) => void;
+}) {
 
   return (
     <section className="rounded-md border bg-white shadow-sm">
@@ -514,19 +569,44 @@ function LineBoard({ session }: { session: DispatchSession }) {
       </div>
       <div className="divide-y">
         {session.lines.map((line) => (
-          <LineRow key={line.id} line={line} active={activeLine?.id === line.id} />
+          <LineRow
+            key={line.id}
+            line={line}
+            active={activeLine?.id === line.id}
+            canSelect={canSelectAnyLine && !isLineComplete(line)}
+            onSelect={() => onSelectLine(line)}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function LineRow({ line, active }: { line: DispatchSessionLine; active: boolean }) {
+function LineRow({
+  line,
+  active,
+  canSelect,
+  onSelect,
+}: {
+  line: DispatchSessionLine;
+  active: boolean;
+  canSelect: boolean;
+  onSelect: () => void;
+}) {
   const complete = isLineComplete(line);
   const progress = getLineProgress(line);
+  const Root = canSelect ? 'button' : 'div';
 
   return (
-    <div className={cn('grid gap-3 p-4 lg:grid-cols-[80px_minmax(0,1fr)_260px]', active && 'bg-cyan-50/50')}>
+    <Root
+      type={canSelect ? 'button' : undefined}
+      onClick={canSelect ? onSelect : undefined}
+      className={cn(
+        'grid w-full gap-3 p-4 text-left lg:grid-cols-[80px_minmax(0,1fr)_260px]',
+        active && 'bg-cyan-50/50 ring-1 ring-inset ring-cyan-300',
+        canSelect && 'transition hover:bg-cyan-50/40',
+      )}
+    >
       <div>
         <p className="text-xs text-muted-foreground">Seq</p>
         <p className="font-mono text-lg font-semibold">{line.sequence_no}</p>
@@ -543,11 +623,15 @@ function LineRow({ line, active }: { line: DispatchSessionLine; active: boolean 
         </div>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <StatTile label="Bill" value={formatQty(line.bill_qty, line.uom)} />
-        <StatTile label="Scanned" value={formatQty(line.scanned_qty, line.uom)} tone="emerald" />
-        <StatTile label="Pending" value={formatQty(line.pending_qty || line.remaining_qty, line.uom)} tone="amber" />
+        <StatTile label="Bill" value={formatQtyWithBoxes(line.bill_qty, line.uom, line.expected_boxes ?? line.bill_boxes)} />
+        <StatTile label="Scanned" value={formatQtyWithBoxes(line.scanned_qty, line.uom, line.scanned_boxes)} tone="emerald" />
+        <StatTile
+          label="Pending"
+          value={formatQtyWithBoxes(line.pending_qty || line.remaining_qty, line.uom, line.pending_boxes)}
+          tone="amber"
+        />
       </div>
-    </div>
+    </Root>
   );
 }
 
@@ -614,6 +698,8 @@ function SessionQueue({
         <div className="divide-y">
           {rows.map((session) => {
             const progress = getProgress(session);
+            const scannedBoxes = getSessionBoxes(session, 'scanned_boxes');
+            const pendingBoxes = getSessionBoxes(session, 'pending_boxes');
             return (
               <button
                 key={session.id}
@@ -641,8 +727,8 @@ function SessionQueue({
                   </div>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  <StatTile label="Scanned" value={formatQty(session.total_scanned_qty)} tone="emerald" />
-                  <StatTile label="Pending" value={formatQty(session.pending_qty)} tone="amber" />
+                  <StatTile label="Scanned" value={formatQtyWithBoxes(session.total_scanned_qty, 'PCS', scannedBoxes)} tone="emerald" />
+                  <StatTile label="Pending" value={formatQtyWithBoxes(session.pending_qty, 'PCS', pendingBoxes)} tone="amber" />
                   <StatTile label="Updated" value={formatDateTime(session.updated_at)} />
                 </div>
                 <ProgressBar value={progress} className="mt-3" />
@@ -709,6 +795,7 @@ export default function BarcodeDispatchPage() {
   const [billNumber, setBillNumber] = useState('');
   const [lookupBill, setLookupBill] = useState<DispatchBillLookupResponse | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
   const [closeReason, setCloseReason] = useState('');
   const [filters, setFilters] = useState({ bill_number: '', customer: '', from_date: '', to_date: '' });
 
@@ -726,6 +813,7 @@ export default function BarcodeDispatchPage() {
   const sessionQuery = useDispatchSession(selectedSessionId);
   const session = sessionQuery.data ?? null;
   const { data: scanLogs = [] } = useDispatchScanLogs(selectedSessionId);
+  const { data: dispatchSettings } = useDispatchSettings();
 
   const rowsByTab = {
     active: activeSessions.data ?? [],
@@ -739,8 +827,26 @@ export default function BarcodeDispatchPage() {
   };
 
   const trimmedBillNumber = billNumber.trim();
-  const scanEnabled = canSubmitDispatchScan(session);
+  const sequentialScan = dispatchSettings?.require_sequential_item_scanning !== false;
+  const defaultActiveLine = session ? getDispatchActiveLine(session) : null;
+  const selectedLine = session?.lines.find((line) => line.id === selectedLineId) ?? null;
+  const activeLine = sequentialScan ? defaultActiveLine : selectedLine || defaultActiveLine;
+  const scanEnabled = canSubmitDispatchScan(session) && Boolean(activeLine);
   const completeEnabled = canMarkDispatchComplete(session);
+
+  useEffect(() => {
+    if (!session) {
+      setSelectedLineId(null);
+      return;
+    }
+    if (sequentialScan) {
+      setSelectedLineId(null);
+      return;
+    }
+    const current = session.lines.find((line) => line.id === selectedLineId);
+    if (current && !isLineComplete(current)) return;
+    setSelectedLineId(defaultActiveLine?.id ?? null);
+  }, [defaultActiveLine?.id, selectedLineId, sequentialScan, session]);
 
   const handleLookup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -786,6 +892,7 @@ export default function BarcodeDispatchPage() {
         sessionId: session.id,
         data: {
           barcode,
+          line_id: sequentialScan ? null : activeLine?.id,
           device_id: 'web-dispatch-screen',
           request_id: getRequestId(),
         },
@@ -911,8 +1018,13 @@ export default function BarcodeDispatchPage() {
 
           {session && (
             <>
-              <ActiveLineFocus session={session} />
-              <LineBoard session={session} />
+              <ActiveLineFocus activeLine={activeLine} />
+              <LineBoard
+                session={session}
+                activeLine={activeLine}
+                canSelectAnyLine={!sequentialScan}
+                onSelectLine={(line) => setSelectedLineId(line.id)}
+              />
               <RecentScanStream logs={scanLogs} />
             </>
           )}

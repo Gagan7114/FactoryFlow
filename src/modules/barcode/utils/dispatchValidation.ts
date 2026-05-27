@@ -12,6 +12,18 @@ function toNumber(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function formatNumber(value: string | number | null | undefined) {
+  const parsed = toNumber(value);
+  return parsed.toLocaleString('en-IN', { maximumFractionDigits: 3 });
+}
+
+function getAcceptedScanBoxes(scan: DispatchScanLog) {
+  if (scan.entity_type === 'BOX' || scan.scan_type === 'BOX') return 1;
+  const parsed = scan.parsed_barcode as { box_count_dispatched?: unknown } | null | undefined;
+  const boxes = toNumber(parsed?.box_count_dispatched);
+  return boxes > 0 ? boxes : 0;
+}
+
 export function getDispatchActiveLine(
   sessionOrLines: DispatchSession | DispatchSessionLine[] | null | undefined,
 ) {
@@ -72,8 +84,12 @@ export function canMarkDispatchComplete(session: DispatchSession | null | undefi
 export function formatDispatchScanMessage(scan: DispatchScanLog | null | undefined) {
   if (!scan) return '';
   if (scan.result === 'ACCEPTED') {
-    const qty = scan.qty ? `${scan.qty} ${scan.uom}`.trim() : '';
-    return qty ? `Accepted ${scan.material_code} (${qty})` : `Accepted ${scan.material_code}`;
+    const boxes = getAcceptedScanBoxes(scan);
+    const qty = scan.qty ? `${formatNumber(scan.qty)} ${scan.uom}`.trim() : '';
+    const qtyWithBoxes = boxes > 0
+      ? [qty, `${formatNumber(boxes)} Boxes`].filter(Boolean).join(' / ')
+      : qty;
+    return qtyWithBoxes ? `Accepted ${scan.material_code} (${qtyWithBoxes})` : `Accepted ${scan.material_code}`;
   }
   return scan.reject_message || scan.reject_code || 'Scan rejected';
 }

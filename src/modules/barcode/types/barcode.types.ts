@@ -467,6 +467,7 @@ export interface DispatchBillLine {
   material_code: string;
   material_description: string;
   quantity: string;
+  total_boxes?: string;
   uom: string;
   batch_number?: string;
   warehouse_code?: string;
@@ -499,6 +500,10 @@ export interface DispatchSessionLine {
   scanned_qty: string;
   remaining_qty: string;
   pending_qty?: string;
+  bill_boxes?: string;
+  expected_boxes?: string;
+  scanned_boxes?: string;
+  pending_boxes?: string;
   uom: string;
   batch_number: string;
   warehouse_code: string;
@@ -618,6 +623,7 @@ export interface DispatchSessionCreatePayload {
 
 export interface DispatchScanSubmitPayload {
   barcode: string;
+  line_id?: number | null;
   device_id?: string;
   request_id?: string;
 }
@@ -658,6 +664,9 @@ export interface DispatchSummaryReportRow {
   total_expected_qty: string;
   total_dispatched_qty: string;
   pending_qty: string;
+  total_expected_boxes?: string;
+  total_dispatched_boxes?: string;
+  pending_boxes?: string;
   sap_sync_status: string;
   sap_sync_error: string;
 }
@@ -672,6 +681,8 @@ export interface DispatchDetailReport {
     status: DispatchSessionStatus;
     total_expected_qty: string;
     total_dispatched_qty: string;
+    total_expected_boxes?: string;
+    total_dispatched_boxes?: string;
   };
   lines: Array<{
     line_id: number;
@@ -681,6 +692,9 @@ export interface DispatchDetailReport {
     expected_qty: string;
     dispatched_qty: string;
     pending_qty: string;
+    expected_boxes?: string;
+    dispatched_boxes?: string;
+    pending_boxes?: string;
     uom: string;
     status: string;
   }>;

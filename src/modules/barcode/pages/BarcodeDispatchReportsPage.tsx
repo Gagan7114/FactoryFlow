@@ -61,6 +61,17 @@ function formatNumber(value: string | number | null | undefined) {
   return numeric.toLocaleString('en-IN', { maximumFractionDigits: 3 });
 }
 
+function formatQtyWithBoxes(
+  qty: string | number | null | undefined,
+  boxes?: string | number | null,
+  uom = 'PCS',
+) {
+  const qtyText = `${formatNumber(qty)} ${uom}`.trim();
+  const boxValue = Number(boxes ?? 0);
+  if (!Number.isFinite(boxValue) || boxValue <= 0) return qtyText;
+  return `${qtyText} / ${formatNumber(boxValue)} Boxes`;
+}
+
 function downloadCsv(filename: string, rows: CsvRow[]) {
   if (!rows.length) {
     toast.info('No rows to export');
@@ -283,9 +294,9 @@ function DispatchSummaryList({ rows, loading }: { rows: DispatchSummaryReportRow
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <SummaryTile label="Expected" value={formatNumber(row.total_expected_qty)} icon={<Package className="h-4 w-4" />} tone="cyan" />
-            <SummaryTile label="Dispatched" value={formatNumber(row.total_dispatched_qty)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
-            <SummaryTile label="Pending" value={formatNumber(row.pending_qty)} icon={<AlertTriangle className="h-4 w-4" />} tone="amber" />
+            <SummaryTile label="Expected" value={formatQtyWithBoxes(row.total_expected_qty, row.total_expected_boxes)} icon={<Package className="h-4 w-4" />} tone="cyan" />
+            <SummaryTile label="Dispatched" value={formatQtyWithBoxes(row.total_dispatched_qty, row.total_dispatched_boxes)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+            <SummaryTile label="Pending" value={formatQtyWithBoxes(row.pending_qty, row.pending_boxes)} icon={<AlertTriangle className="h-4 w-4" />} tone="amber" />
           </div>
         </div>
       ))}
@@ -406,6 +417,8 @@ export default function BarcodeDispatchReportsPage() {
 
   const totalDispatched = dispatchRows.reduce((sum, row) => sum + Number(row.total_dispatched_qty || 0), 0);
   const totalPending = dispatchRows.reduce((sum, row) => sum + Number(row.pending_qty || 0), 0);
+  const totalDispatchedBoxes = dispatchRows.reduce((sum, row) => sum + Number(row.total_dispatched_boxes || 0), 0);
+  const totalPendingBoxes = dispatchRows.reduce((sum, row) => sum + Number(row.pending_boxes || 0), 0);
 
   return (
     <div className="space-y-5">
@@ -416,8 +429,8 @@ export default function BarcodeDispatchReportsPage() {
 
       <section className="grid gap-3 md:grid-cols-4">
         <SummaryTile label="Dispatches" value={dispatchRows.length.toLocaleString('en-IN')} icon={<Truck className="h-4 w-4" />} tone="cyan" />
-        <SummaryTile label="Dispatched Qty" value={formatNumber(totalDispatched)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
-        <SummaryTile label="Pending Qty" value={formatNumber(totalPending)} icon={<Package className="h-4 w-4" />} tone="amber" />
+        <SummaryTile label="Dispatched Qty" value={formatQtyWithBoxes(totalDispatched, totalDispatchedBoxes)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+        <SummaryTile label="Pending Qty" value={formatQtyWithBoxes(totalPending, totalPendingBoxes)} icon={<Package className="h-4 w-4" />} tone="amber" />
         <SummaryTile label="Rejected Scans" value={rejectedRows.length.toLocaleString('en-IN')} icon={<AlertTriangle className="h-4 w-4" />} tone={rejectedRows.length ? 'rose' : 'slate'} />
       </section>
 
@@ -431,8 +444,18 @@ export default function BarcodeDispatchReportsPage() {
           <CardContent className="grid gap-3 p-4 md:grid-cols-4">
             <SummaryTile label="Customer" value={detailReport.data.session.customer_name || '-'} icon={<Truck className="h-4 w-4" />} />
             <SummaryTile label="Status" value={detailReport.data.session.status} icon={<FileSpreadsheet className="h-4 w-4" />} />
-            <SummaryTile label="Expected" value={formatNumber(detailReport.data.session.total_expected_qty)} icon={<Package className="h-4 w-4" />} tone="cyan" />
-            <SummaryTile label="Dispatched" value={formatNumber(detailReport.data.session.total_dispatched_qty)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+            <SummaryTile
+              label="Expected"
+              value={formatQtyWithBoxes(detailReport.data.session.total_expected_qty, detailReport.data.session.total_expected_boxes)}
+              icon={<Package className="h-4 w-4" />}
+              tone="cyan"
+            />
+            <SummaryTile
+              label="Dispatched"
+              value={formatQtyWithBoxes(detailReport.data.session.total_dispatched_qty, detailReport.data.session.total_dispatched_boxes)}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              tone="emerald"
+            />
           </CardContent>
         </Card>
       )}
