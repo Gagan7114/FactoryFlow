@@ -197,7 +197,7 @@ export function ProductionMovementRouteFlow({
               <th className="px-5 py-3 text-right font-medium">Closing Qty</th>
               <th className="px-5 py-3 text-right font-medium">Out</th>
               <th className="px-5 py-3 text-right font-medium">In</th>
-              <th className="px-5 py-3 text-right font-medium">Movement</th>
+              <th className="px-5 py-3 text-right font-medium">Difference</th>
               <th className="px-5 py-3 text-right font-medium">Entries</th>
               <th className="px-5 py-3 text-left font-medium">Type</th>
             </tr>
@@ -249,8 +249,8 @@ export function ProductionMovementRouteFlow({
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">
                       {formatQuantity(row.targetInQty)}
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums">
-                      {formatQuantity(row.movementQty)}
+                    <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">
+                      {formatQuantity(row.sourceOutQty - row.targetInQty)}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">
                       {`${numberFormatter.format(row.transferCount)} / ${numberFormatter.format(
@@ -359,7 +359,7 @@ function SkuMovementTable({
           <th className="px-4 py-2 text-right font-medium">Closing Qty</th>
           <th className="px-4 py-2 text-right font-medium">Out</th>
           <th className="px-4 py-2 text-right font-medium">In</th>
-          <th className="px-4 py-2 text-right font-medium">Movement</th>
+          <th className="px-4 py-2 text-right font-medium">Difference</th>
           <th className="px-4 py-2 text-right font-medium">Entries</th>
           <th className="px-4 py-2 text-left font-medium">Type</th>
         </tr>
@@ -388,8 +388,8 @@ function SkuMovementTable({
               <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
                 {formatQuantity(sku.targetInQty)}
               </td>
-              <td className="whitespace-nowrap px-4 py-2 text-right font-medium tabular-nums">
-                {formatQuantity(sku.movementQty)}
+              <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
+                {formatQuantity(sku.sourceOutQty - sku.targetInQty)}
               </td>
               <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
                 {`${numberFormatter.format(sku.transferCount)} / ${numberFormatter.format(

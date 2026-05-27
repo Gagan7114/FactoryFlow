@@ -1,6 +1,8 @@
 import { Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { Button, Input, Label, NativeSelect as Select, SelectOption } from '@/shared/components/ui';
+import { useDebounce } from '@/shared/hooks';
 
 import {
   DIRECTION_OPTIONS,
@@ -24,12 +26,21 @@ function normalizeSearch(value: string): string | undefined {
   return search ? search.toUpperCase() : undefined;
 }
 
+function isCompleteDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 export function ProductionMovementFilters({
   filters,
   filterOptions,
   isFetching,
   onFiltersChange,
 }: ProductionMovementFiltersProps) {
+  const [draftDates, setDraftDates] = useState({
+    date_from: filters.date_from,
+    date_to: filters.date_to,
+  });
+  const debouncedDates = useDebounce(draftDates, 500);
   const warehouseOptions = filterOptions?.warehouses ?? [];
   const selectedFromWarehouseMissing =
     Boolean(filters.from_warehouse) &&
@@ -44,8 +55,41 @@ export function ProductionMovementFilters({
 
   function handleReset() {
     const defaults = getDefaultProductionMovementFilters();
+    setDraftDates({ date_from: defaults.date_from, date_to: defaults.date_to });
     onFiltersChange(defaults);
   }
+
+  useEffect(() => {
+    setDraftDates((current) => {
+      if (current.date_from === filters.date_from && current.date_to === filters.date_to) {
+        return current;
+      }
+
+      return {
+        date_from: filters.date_from,
+        date_to: filters.date_to,
+      };
+    });
+  }, [filters.date_from, filters.date_to]);
+
+  useEffect(() => {
+    if (!isCompleteDate(debouncedDates.date_from) || !isCompleteDate(debouncedDates.date_to)) {
+      return;
+    }
+
+    if (
+      debouncedDates.date_from === filters.date_from &&
+      debouncedDates.date_to === filters.date_to
+    ) {
+      return;
+    }
+
+    onFiltersChange({
+      ...filters,
+      date_from: debouncedDates.date_from,
+      date_to: debouncedDates.date_to,
+    });
+  }, [debouncedDates, filters, onFiltersChange]);
 
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
@@ -134,8 +178,10 @@ export function ProductionMovementFilters({
         <Input
           id="prod-movement-from"
           type="date"
-          value={filters.date_from}
-          onChange={(event) => updateFilters({ date_from: event.target.value })}
+          value={draftDates.date_from}
+          onChange={(event) =>
+            setDraftDates((current) => ({ ...current, date_from: event.target.value }))
+          }
           className="w-40"
         />
       </div>
@@ -147,8 +193,10 @@ export function ProductionMovementFilters({
         <Input
           id="prod-movement-to"
           type="date"
-          value={filters.date_to}
-          onChange={(event) => updateFilters({ date_to: event.target.value })}
+          value={draftDates.date_to}
+          onChange={(event) =>
+            setDraftDates((current) => ({ ...current, date_to: event.target.value }))
+          }
           className="w-40"
         />
       </div>
