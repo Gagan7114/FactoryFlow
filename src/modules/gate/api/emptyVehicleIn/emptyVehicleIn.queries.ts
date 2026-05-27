@@ -84,3 +84,18 @@ export function useUpdateEmptyVehicleGateIn() {
     },
   });
 }
+
+export function useCompleteEmptyVehicleGateIn() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => emptyVehicleInApi.complete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: EMPTY_VEHICLE_IN_QUERY_KEYS.all });
+      queryClient.invalidateQueries({ queryKey: ['salesDispatch'] });
+      queryClient.invalidateQueries({ queryKey: ['dispatchPlans'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicleEntries'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicleEntriesCount'] });
+    },
+  });
+}

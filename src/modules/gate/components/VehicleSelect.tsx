@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SearchableSelect } from '@/shared/components';
 
@@ -27,6 +27,8 @@ interface VehicleSelectProps {
   labelAction?: ReactNode;
   required?: boolean;
   defaultDisplayText?: string;
+  priorityVehicleIds?: number[];
+  priorityVehicleMeta?: Record<number, { label?: string; description?: string }>;
 }
 
 export function VehicleSelect({
@@ -39,6 +41,8 @@ export function VehicleSelect({
   labelAction,
   required = false,
   defaultDisplayText,
+  priorityVehicleIds = [],
+  priorityVehicleMeta,
 }: VehicleSelectProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -46,6 +50,20 @@ export function VehicleSelect({
 
   const { data: vehicleNames = [], isLoading } = useVehicleNames(isDropdownOpen && !disabled);
   const { data: vehicleDetails } = useVehicleById(selectedId, selectedId !== null);
+  const orderedVehicleNames = useMemo(() => {
+    if (priorityVehicleIds.length === 0) return vehicleNames;
+
+    const priorityIndex = new Map(priorityVehicleIds.map((id, index) => [id, index]));
+    return [...vehicleNames].sort((left, right) => {
+      const leftIndex = priorityIndex.get(left.id);
+      const rightIndex = priorityIndex.get(right.id);
+
+      if (leftIndex !== undefined && rightIndex !== undefined) return leftIndex - rightIndex;
+      if (leftIndex !== undefined) return -1;
+      if (rightIndex !== undefined) return 1;
+      return left.vehicle_number.localeCompare(right.vehicle_number);
+    });
+  }, [priorityVehicleIds, vehicleNames]);
 
   const prevVehicleDetailsRef = useRef(vehicleDetails);
   const onChangeRef = useRef(onChange);
@@ -82,7 +100,7 @@ export function VehicleSelect({
   return (
     <SearchableSelect<VehicleName>
       value={value}
-      items={vehicleNames}
+      items={orderedVehicleNames}
       isLoading={isLoading}
       placeholder={placeholder}
       disabled={disabled}
@@ -94,6 +112,24 @@ export function VehicleSelect({
       inputId="vehicle-select"
       getItemKey={(v) => v.id}
       getItemLabel={(v) => v.vehicle_number}
+      renderItem={(vehicle) => {
+        const meta = priorityVehicleMeta?.[vehicle.id];
+        if (!meta) return <span className="text-sm">{vehicle.vehicle_number}</span>;
+
+        return (
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="truncate text-sm font-medium">{vehicle.vehicle_number}</span>
+              <span className="rounded border bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-normal text-primary">
+                Expected
+              </span>
+            </div>
+            {meta.description && (
+              <div className="truncate text-xs text-muted-foreground">{meta.description}</div>
+            )}
+          </div>
+        );
+      }}
       loadingText="Loading vehicles..."
       emptyText="No vehicles available"
       notFoundText="No vehicles found"

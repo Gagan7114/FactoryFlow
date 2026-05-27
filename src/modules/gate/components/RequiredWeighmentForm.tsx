@@ -9,14 +9,21 @@ interface RequiredWeighmentFormProps {
   values: RequiredWeighmentValues;
   onChange: (field: keyof RequiredWeighmentValues, value: string) => void;
   disabled?: boolean;
+  requiredFields?: {
+    grossWeight?: boolean;
+    tareWeight?: boolean;
+  };
 }
 
 export function RequiredWeighmentForm({
   values,
   onChange,
   disabled = false,
+  requiredFields,
 }: RequiredWeighmentFormProps) {
   const netWeight = calculateRequiredNetWeight(values);
+  const isGrossRequired = requiredFields?.grossWeight ?? true;
+  const isTareRequired = requiredFields?.tareWeight ?? true;
 
   return (
     <Card>
@@ -30,7 +37,7 @@ export function RequiredWeighmentForm({
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="required-gross-weight">
-              Gross Weight <span className="text-destructive">*</span>
+              Gross Weight {isGrossRequired && <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="required-gross-weight"
@@ -46,7 +53,7 @@ export function RequiredWeighmentForm({
 
           <div className="space-y-2">
             <Label htmlFor="required-tare-weight">
-              Tare Weight <span className="text-destructive">*</span>
+              Tare Weight {isTareRequired && <span className="text-destructive">*</span>}
             </Label>
             <Input
               id="required-tare-weight"

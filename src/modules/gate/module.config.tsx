@@ -95,6 +95,15 @@ const EmptyVehicleInPage = lazy(
 const EmptyVehicleInNewPage = lazy(
   () => import('./pages/emptyVehicleInPages/EmptyVehicleInNewPage'),
 );
+const EmptyVehicleInWeighmentPage = lazy(
+  () => import('./pages/emptyVehicleInPages/EmptyVehicleInWeighmentPage'),
+);
+const EmptyVehicleInAttachmentsPage = lazy(
+  () => import('./pages/emptyVehicleInPages/EmptyVehicleInAttachmentsPage'),
+);
+const EmptyVehicleInReviewPage = lazy(
+  () => import('./pages/emptyVehicleInPages/EmptyVehicleInReviewPage'),
+);
 const BSTOutDashboardPage = lazy(() => import('./pages/bstOutPages/BSTOutDashboardPage'));
 const BSTOutNewPage = lazy(() => import('./pages/bstOutPages/BSTOutNewPage'));
 const BSTOutWeighmentPage = lazy(() => import('./pages/bstOutPages/BSTOutWeighmentPage'));
@@ -673,6 +682,30 @@ export const gateModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE],
       breadcrumb: { label: 'New Empty Vehicle In' },
+    },
+    {
+      path: '/gate/empty-vehicle-in/new/weighment',
+      element: <EmptyVehicleInWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE],
+      breadcrumb: { label: 'Empty Vehicle In Weighment' },
+    },
+    {
+      path: '/gate/empty-vehicle-in/new/attachments',
+      element: <EmptyVehicleInAttachmentsPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE],
+      breadcrumb: { label: 'Empty Vehicle In Attachments' },
+    },
+    {
+      path: '/gate/empty-vehicle-in/new/review',
+      element: <EmptyVehicleInReviewPage />,
+      layout: 'main',
+      permissions: [
+        GATE_PERMISSIONS.EMPTY_VEHICLE_IN.CREATE,
+        GATE_PERMISSIONS.EMPTY_VEHICLE_IN.VIEW,
+      ],
+      breadcrumb: { label: 'Empty Vehicle In Review' },
     },
     {
       path: '/gate/empty-vehicle-out',

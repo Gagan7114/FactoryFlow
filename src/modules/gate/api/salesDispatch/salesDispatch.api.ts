@@ -142,6 +142,7 @@ export interface SalesDispatchGateOut {
   vehicle_entry_no: string;
   vehicle_entry_status: string;
   dispatch_plan?: number | null;
+  dispatch_date?: string | null;
   vehicle: number;
   transporter?: number | null;
   driver: number;
@@ -275,6 +276,7 @@ export interface SalesDispatchPendingBooking {
   bilty_date?: string | null;
   freight?: string | number | null;
   total_freight?: string | number | null;
+  dispatch_date?: string | null;
   gate_out_date?: string | null;
   out_time?: string | null;
   gatepass_no?: null;

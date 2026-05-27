@@ -15,9 +15,9 @@ export interface Weighment {
 }
 
 export interface CreateWeighmentRequest {
-  gross_weight: number;
-  tare_weight: number;
-  weighbridge_slip_no: string;
+  gross_weight?: number;
+  tare_weight?: number;
+  weighbridge_slip_no?: string;
   first_weighment_time?: string;
   second_weighment_time?: string;
   remarks?: string;

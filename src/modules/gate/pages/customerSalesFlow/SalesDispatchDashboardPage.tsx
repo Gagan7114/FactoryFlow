@@ -408,13 +408,14 @@ function DispatchTable({
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[1740px] table-fixed">
+        <table className="w-full min-w-[1905px] table-fixed">
           <colgroup>
             <col className="w-[180px]" />
             <col className="w-[280px]" />
             <col className="w-[240px]" />
             <col className="w-[320px]" />
             <col className="w-[130px]" />
+            <col className="w-[165px]" />
             <col className="w-[165px]" />
             <col className="w-[280px]" />
             <col className="w-[145px]" />
@@ -426,7 +427,8 @@ function DispatchTable({
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Customer</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Items</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Vehicle</th>
-              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gate Out</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Dispatch Date</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Actual Gate Out</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gatepass</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Status</th>
             </tr>
@@ -434,6 +436,8 @@ function DispatchTable({
           <tbody>
             {entries.map((entry) => {
               const itemSummary = entry.item_summary || summarizeItems(getEntryItems(entry));
+              const plannedDispatchDate = getPlannedDispatchDate(entry);
+              const actualGateOut = getActualGateOut(entry);
 
               return (
                 <tr
@@ -480,7 +484,10 @@ function DispatchTable({
                   </td>
                   <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
                   <td className="whitespace-nowrap p-3 text-sm">
-                    {formatDateTime(entry.gate_out_date, entry.out_time)}
+                    {formatDate(plannedDispatchDate)}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    {actualGateOut}
                   </td>
                   <td className="whitespace-nowrap p-3 text-sm">
                     <GateStatusBadge
@@ -714,7 +721,8 @@ function buildDashboardEntryExportRow(
     Transporter: exportValue(entry.transporter_name),
     'Bilty No.': exportValue(entry.bilty_no),
     'Bilty Date': exportValue(entry.bilty_date),
-    'Gate Out': formatDateTime(entry.gate_out_date, entry.out_time),
+    'Dispatch Date': formatDate(getPlannedDispatchDate(entry)),
+    'Actual Gate Out': getActualGateOut(entry),
     Gatepass: exportValue(entry.gatepass_no || 'Pending'),
     Status: getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode),
     'Gross Weight': isPending ? '-' : exportValue(entry.gross_weight),
@@ -942,9 +950,22 @@ function formatDocumentType(value: string) {
   return value === 'STOCK_TRANSFER' ? 'Stock Transfer' : 'A/R Invoice';
 }
 
+function formatDate(date?: string | null) {
+  return date || '-';
+}
+
 function formatDateTime(date?: string | null, time?: string | null) {
   if (!date && !time) return '-';
   return [date, time].filter(Boolean).join(' ');
+}
+
+function getPlannedDispatchDate(entry: SalesDispatchDashboardEntry) {
+  return entry.dispatch_date || (isPendingBookingEntry(entry) ? entry.gate_out_date : null);
+}
+
+function getActualGateOut(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) return '-';
+  return formatDateTime(entry.gate_out_date, entry.out_time);
 }
 
 function formatDashboardTimestamp(value?: string | null) {

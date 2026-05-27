@@ -12,6 +12,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useGlobalDateRange } from '@/core/store/hooks';
+import { useDispatchBills } from '@/modules/dashboards/dispatch-plans/api';
 import {
   type EmptyVehicleGateInEntry,
   useEmptyVehicleGateInEntries,
@@ -25,6 +26,11 @@ import {
   Input,
 } from '@/shared/components/ui';
 
+import {
+  buildExpectedDispatchVehicles,
+  formatDispatchNumber,
+} from './emptyVehicleInDispatch';
+
 export default function EmptyVehicleInPage() {
   const navigate = useNavigate();
   const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
@@ -37,15 +43,37 @@ export default function EmptyVehicleInPage() {
     }),
     [dateRange.from, dateRange.to],
   );
+  const expectedDispatchParams = useMemo(
+    () => ({
+      date_from: dateRange.from,
+      date_to: dateRange.to,
+      booking_status: 'BOOKED' as const,
+      limit: 200,
+    }),
+    [dateRange.from, dateRange.to],
+  );
 
   const {
     data: entries = [],
     isLoading: isEntriesLoading,
     refetch: refetchEntries,
   } = useEmptyVehicleGateInEntries(queryParams);
+  const {
+    data: activeDispatchEntries = [],
+    refetch: refetchActiveDispatchEntries,
+  } = useEmptyVehicleGateInEntries({ reason: 'DISPATCH', inside_only: true });
+  const {
+    data: expectedDispatchResponse,
+    isLoading: isExpectedDispatchLoading,
+    refetch: refetchExpectedDispatch,
+  } = useDispatchBills(expectedDispatchParams);
 
   const insideEntries = entries.filter(
     (entry) => !['COMPLETED', 'CANCELLED'].includes(entry.vehicle_entry_status),
+  );
+  const expectedDispatchVehicles = useMemo(
+    () => buildExpectedDispatchVehicles(expectedDispatchResponse?.data || [], activeDispatchEntries),
+    [activeDispatchEntries, expectedDispatchResponse?.data],
   );
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -94,7 +122,14 @@ export default function EmptyVehicleInPage() {
               }
             }}
           />
-          <Button variant="outline" onClick={() => refetchEntries()}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              refetchEntries();
+              refetchActiveDispatchEntries();
+              refetchExpectedDispatch();
+            }}
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -124,7 +159,96 @@ export default function EmptyVehicleInPage() {
             <p className="mt-2 text-sm font-medium text-muted-foreground">Total Entries</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <Clock className="h-5 w-5 text-amber-600" />
+              <span className="text-2xl font-bold">{expectedDispatchVehicles.length}</span>
+            </div>
+            <p className="mt-2 text-sm font-medium text-muted-foreground">Expected Dispatch</p>
+          </CardContent>
+        </Card>
       </div>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Truck className="h-4 w-4" />
+            Expected Dispatch Vehicles
+          </h3>
+        </div>
+        {isExpectedDispatchLoading ? (
+          <EmptyState text="Loading expected dispatch vehicles..." />
+        ) : expectedDispatchVehicles.length === 0 ? (
+          <EmptyState text="No expected dispatch vehicles in this date range" />
+        ) : (
+          <div className="overflow-hidden rounded-md border">
+            <div className="max-h-72 overflow-auto">
+              <table className="w-full min-w-[940px]">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="p-3 text-left text-sm font-medium">Vehicle</th>
+                    <th className="p-3 text-left text-sm font-medium">Dispatch Bills</th>
+                    <th className="p-3 text-left text-sm font-medium">Customer</th>
+                    <th className="p-3 text-left text-sm font-medium">Dispatch Date</th>
+                    <th className="p-3 text-left text-sm font-medium">Load</th>
+                    <th className="p-3 text-left text-sm font-medium">Bilty</th>
+                    <th className="p-3 text-right text-sm font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expectedDispatchVehicles.map((vehicle) => {
+                    const href = `/gate/empty-vehicle-in/new?expectedVehicleId=${vehicle.vehicleId}&dispatchDocEntry=${vehicle.docEntries[0]}`;
+                    return (
+                      <tr
+                        key={vehicle.vehicleId}
+                        className="cursor-pointer border-t hover:bg-muted/40"
+                        onClick={() => navigate(href)}
+                      >
+                        <td className="whitespace-nowrap p-3 text-sm font-medium">
+                          {vehicle.vehicleNo}
+                        </td>
+                        <td className="p-3 text-sm">
+                          <div className="max-w-[260px] truncate">
+                            {vehicle.docNums.join(', ')}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {vehicle.docNums.length} bill{vehicle.docNums.length === 1 ? '' : 's'}
+                          </div>
+                        </td>
+                        <td className="p-3 text-sm">
+                          <div className="max-w-[240px] truncate">
+                            {vehicle.customers.join(', ') || '-'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap p-3 text-sm">
+                          {vehicle.dispatchDate || '-'}
+                        </td>
+                        <td className="whitespace-nowrap p-3 text-sm">
+                          <div>{formatDispatchNumber(vehicle.totalWeight, 3)} kg</div>
+                          <div className="text-xs text-muted-foreground">
+                            {vehicle.totalBoxes > 0
+                              ? `${formatDispatchNumber(vehicle.totalBoxes)} boxes`
+                              : 'Boxes not available'}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap p-3 text-sm">
+                          {vehicle.biltyNo || '-'}
+                        </td>
+                        <td className="p-3 text-right text-sm">
+                          <Button type="button" size="sm" variant="outline">
+                            Start Entry
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -170,7 +294,7 @@ export default function EmptyVehicleInPage() {
                     <tr
                       key={entry.id}
                       className="cursor-pointer border-t hover:bg-muted/40"
-                      onClick={() => navigate(`/gate/empty-vehicle-in/new?entryId=${entry.id}`)}
+                      onClick={() => navigate(`/gate/empty-vehicle-in/new?gateInId=${entry.id}`)}
                     >
                       <td className="whitespace-nowrap p-3 text-sm font-medium">
                         {entry.entry_no}

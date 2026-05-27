@@ -1,14 +1,17 @@
 import { ArrowLeft, ArrowRight, FileText, LogIn, ShieldCheck, Truck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import { useGlobalDateRange } from '@/core/store/hooks';
+import { useDispatchBills } from '@/modules/dashboards/dispatch-plans/api';
 import {
   type EmptyVehicleGateInEntry,
   type EmptyVehicleGateInReasonValue,
   type SAPStockTransfer,
   useCreateEmptyVehicleGateIn,
   useEmptyVehicleGateIn,
+  useEmptyVehicleGateInEntries,
   useEmptyVehicleGateInReasons,
   useSAPStockTransfer,
   useSAPStockTransfers,
@@ -35,6 +38,16 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 import { getErrorMessage } from '@/shared/utils';
+
+import {
+  buildDispatchDocumentNotes,
+  buildDispatchDocumentReference,
+  buildExpectedDispatchDescription,
+  buildExpectedDispatchVehicles,
+  type ExpectedDispatchVehicle,
+  findExpectedDispatchVehicle,
+} from './emptyVehicleInDispatch';
+import { EMPTY_VEHICLE_IN_ROUTES, getGateInId } from './emptyVehicleInRoutes';
 
 function toDateInputValue(date = new Date()) {
   const year = date.getFullYear();
@@ -102,7 +115,10 @@ const showServerResults = () => true;
 export default function EmptyVehicleInNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const entryId = Number(searchParams.get('entryId') || 0) || null;
+  const { dateRange } = useGlobalDateRange();
+  const gateInId = getGateInId(searchParams);
+  const expectedVehicleId = Number(searchParams.get('expectedVehicleId') || 0) || null;
+  const dispatchDocEntry = Number(searchParams.get('dispatchDocEntry') || 0) || null;
 
   const [vehicle, setVehicle] = useState<VehicleSelection | null>(null);
   const [driver, setDriver] = useState<DriverSelection | null>(null);
@@ -121,7 +137,16 @@ export default function EmptyVehicleInNewPage() {
   const isBstReason = reason === 'BST';
 
   const { data: reasons = [], isLoading: isReasonsLoading } = useEmptyVehicleGateInReasons();
-  const { data: existingEntry, isLoading: isExistingLoading } = useEmptyVehicleGateIn(entryId);
+  const { data: existingEntry, isLoading: isExistingLoading } = useEmptyVehicleGateIn(gateInId);
+  const {
+    data: activeDispatchEntries = [],
+  } = useEmptyVehicleGateInEntries({ reason: 'DISPATCH', inside_only: true });
+  const { data: expectedDispatchResponse } = useDispatchBills({
+    date_from: dateRange.from,
+    date_to: dateRange.to,
+    booking_status: 'BOOKED',
+    limit: 200,
+  });
   const {
     data: sapTransfers = [],
     isLoading: isTransfersLoading,
@@ -132,6 +157,42 @@ export default function EmptyVehicleInNewPage() {
   );
   const createEmptyGateIn = useCreateEmptyVehicleGateIn();
   const updateEmptyGateIn = useUpdateEmptyVehicleGateIn();
+  const expectedDispatchVehicles = useMemo(
+    () => buildExpectedDispatchVehicles(expectedDispatchResponse?.data || [], activeDispatchEntries),
+    [activeDispatchEntries, expectedDispatchResponse?.data],
+  );
+  const selectedExpectedDispatch = useMemo(
+    () => findExpectedDispatchVehicle(
+      expectedDispatchVehicles,
+      dispatchDocEntry,
+      expectedVehicleId,
+    ),
+    [dispatchDocEntry, expectedDispatchVehicles, expectedVehicleId],
+  );
+  const priorityVehicleIds = useMemo(
+    () => expectedDispatchVehicles.map((expectedVehicle) => expectedVehicle.vehicleId),
+    [expectedDispatchVehicles],
+  );
+  const priorityVehicleMeta = useMemo(
+    () =>
+      Object.fromEntries(
+        expectedDispatchVehicles.map((expectedVehicle) => [
+          expectedVehicle.vehicleId,
+          { description: buildExpectedDispatchDescription(expectedVehicle) },
+        ]),
+      ),
+    [expectedDispatchVehicles],
+  );
+
+  const applyExpectedDispatch = useCallback((expectedDispatch: ExpectedDispatchVehicle) => {
+    setReason('DISPATCH');
+    setDocumentReference(buildDispatchDocumentReference(expectedDispatch));
+    setDocumentNotes(buildDispatchDocumentNotes(expectedDispatch));
+    setSelectedDocEntry('');
+    setSelectedTransferSnapshot(null);
+    setActualQuantities({});
+    setSubmittedSearch('');
+  }, []);
 
   useEffect(() => {
     if (!existingEntry) return;
@@ -177,7 +238,7 @@ export default function EmptyVehicleInNewPage() {
   }, [existingEntry]);
 
   useEffect(() => {
-    if (entryId) return;
+    if (gateInId) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Reset reused route form after leaving edit mode
     setVehicle(null);
@@ -194,7 +255,27 @@ export default function EmptyVehicleInNewPage() {
     setSecurityName('');
     setRemarks('');
     setFormError('');
-  }, [entryId]);
+  }, [gateInId]);
+
+  useEffect(() => {
+    if (gateInId || !selectedExpectedDispatch) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL-selected dispatch vehicle should seed the new-entry form.
+    setVehicle((current) => {
+      if (current?.vehicleId === selectedExpectedDispatch.vehicleId) return current;
+      return {
+        vehicleId: selectedExpectedDispatch.vehicleId,
+        vehicleNumber: selectedExpectedDispatch.vehicleNo,
+        vehicleType: '',
+        vehicleCapacity: '',
+        transporterId: 0,
+        transporterName: selectedExpectedDispatch.transporterName,
+        transporterContactPerson: '',
+        transporterMobile: '',
+      };
+    });
+    applyExpectedDispatch(selectedExpectedDispatch);
+  }, [applyExpectedDispatch, gateInId, selectedExpectedDispatch]);
 
   useEffect(() => {
     if (!selectedTransfer?.lines?.length) return;
@@ -215,25 +296,13 @@ export default function EmptyVehicleInNewPage() {
   const selectedTransferDisplay = selectedTransferForDisplay
     ? buildTransferLabel(selectedTransferForDisplay)
     : '';
-  const isEditing = Boolean(entryId);
+  const isEditing = Boolean(gateInId);
   const isBstDocumentLocked = Boolean(existingEntry?.is_bst_document_locked);
   const isSaving = createEmptyGateIn.isPending || updateEmptyGateIn.isPending;
   const headerTitle = isEditing ? 'Edit Empty Vehicle Entry' : 'New Empty Vehicle Entry';
   const headerSubtitle = isEditing
-    ? 'Update the linked document while the vehicle has not gone out'
-    : 'Capture vehicle, driver, entry reason, and the linked document';
-
-  const summaryItems = useMemo(
-    () => [
-      { label: 'Vehicle', value: vehicle?.vehicleNumber },
-      { label: 'Vehicle Type', value: vehicle?.vehicleType },
-      { label: 'Transporter', value: vehicle?.transporterName },
-      { label: 'Driver', value: driver?.driverName },
-      { label: 'Mobile', value: driver?.mobileNumber },
-      { label: 'License', value: driver?.drivingLicenseNumber },
-    ],
-    [driver, vehicle],
-  );
+    ? 'Update the linked document before weighment'
+    : 'Select vehicle, driver, entry reason, and linked document';
 
   const handleSubmit = async () => {
     if (!isEditing && !vehicle?.vehicleId) {
@@ -305,11 +374,11 @@ export default function EmptyVehicleInNewPage() {
         });
 
         toast.success('Empty vehicle entry updated');
-        navigate('/gate/empty-vehicle-in');
+        navigate(EMPTY_VEHICLE_IN_ROUTES.weighment(existingEntry.id));
         return;
       }
 
-      await createEmptyGateIn.mutateAsync({
+      const savedEntry = await createEmptyGateIn.mutateAsync({
         vehicle_id: vehicle!.vehicleId,
         driver_id: driver!.driverId,
         reason,
@@ -328,21 +397,25 @@ export default function EmptyVehicleInNewPage() {
         remarks,
       });
 
-      toast.success('Empty vehicle gate-in recorded');
-      navigate('/gate/empty-vehicle-in');
+      toast.success('Empty vehicle details saved');
+      navigate(EMPTY_VEHICLE_IN_ROUTES.weighment(savedEntry.id));
     } catch (error) {
       setFormError(getErrorMessage(error, 'Failed to save empty vehicle gate-in'));
     }
   };
 
-  if (entryId && isExistingLoading) {
+  if (gateInId && isExistingLoading) {
     return <EmptyState text="Loading empty vehicle entry..." />;
   }
 
   return (
     <div className="space-y-6 pb-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/gate/empty-vehicle-in')}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate(EMPTY_VEHICLE_IN_ROUTES.dashboard)}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -372,8 +445,14 @@ export default function EmptyVehicleInNewPage() {
               required
               value={vehicle?.vehicleNumber || ''}
               disabled={isEditing}
+              priorityVehicleIds={priorityVehicleIds}
+              priorityVehicleMeta={priorityVehicleMeta}
               onChange={(selectedVehicle) => {
                 setVehicle(selectedVehicle.vehicleId ? selectedVehicle : null);
+                const expectedDispatch = expectedDispatchVehicles.find(
+                  (expectedVehicle) => expectedVehicle.vehicleId === selectedVehicle.vehicleId,
+                );
+                if (expectedDispatch) applyExpectedDispatch(expectedDispatch);
                 setFormError('');
               }}
               placeholder="Select empty vehicle"
@@ -473,15 +552,6 @@ export default function EmptyVehicleInNewPage() {
             </div>
           </div>
 
-          {(vehicle || driver) && (
-            <div className="rounded-md border bg-muted/30 p-4">
-              <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-                {summaryItems.map((item) => (
-                  <InfoItem key={item.label} label={item.label} value={item.value} />
-                ))}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -598,12 +668,12 @@ export default function EmptyVehicleInNewPage() {
       {formError && <p className="text-sm text-destructive">{formError}</p>}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button variant="outline" onClick={() => navigate('/gate/empty-vehicle-in')}>
+        <Button variant="outline" onClick={() => navigate(EMPTY_VEHICLE_IN_ROUTES.dashboard)}>
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={isSaving} className="w-full sm:w-auto">
           <ShieldCheck className="mr-2 h-4 w-4" />
-          {isSaving ? 'Saving...' : isEditing ? 'Update Entry' : 'Record Gate In'}
+          {isSaving ? 'Saving...' : 'Save and Next'}
         </Button>
       </div>
     </div>

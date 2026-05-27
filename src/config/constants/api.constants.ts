@@ -79,6 +79,8 @@ export const API_ENDPOINTS = {
     EMPTY_VEHICLE_IN_ELIGIBLE: '/gate-core/empty-vehicle-ins/eligible/',
     EMPTY_VEHICLE_INS: '/gate-core/empty-vehicle-ins/',
     EMPTY_VEHICLE_IN_BY_ID: (id: number) => `/gate-core/empty-vehicle-ins/${id}/`,
+    EMPTY_VEHICLE_IN_COMPLETE_BY_ID: (id: number) =>
+      `/gate-core/empty-vehicle-ins/${id}/complete/`,
     EMPTY_VEHICLE_ELIGIBLE_ENTRIES: '/gate-core/empty-vehicle-outs/eligible-entries/',
     EMPTY_VEHICLE_OUTS: '/gate-core/empty-vehicle-outs/',
     EMPTY_VEHICLE_OUT_BY_ID: (id: number) => `/gate-core/empty-vehicle-outs/${id}/`,
