@@ -8,36 +8,44 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import type { WMSTransferLine } from '@/modules/warehouse/types';
 import { Badge } from '@/shared/components/ui';
 
-import type { ProductionMovementItem } from '../types';
-
 interface ProductionMovementTableProps {
-  items: ProductionMovementItem[];
+  direction?: 'all' | 'in' | 'out';
   isLoading?: boolean;
   onSearchSelect?: (term: string) => void;
+  search?: string;
+  transferLines: WMSTransferLine[];
+}
+
+interface TransferMovementEntry {
+  key: string;
+  date: string;
+  itemCode: string;
+  itemName: string;
+  warehouse: string;
+  counterpartyWarehouse: string;
+  counterpartyLabel: 'From' | 'To';
+  direction: 'IN' | 'OUT';
+  quantity: number;
+  docNum: number;
+  comments: string;
 }
 
 const numberFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 3,
 });
 
-const currencyFormatter = new Intl.NumberFormat('en-IN', {
-  currency: 'INR',
-  maximumFractionDigits: 0,
-  style: 'currency',
-});
-
 type SortColumn =
   | 'date'
-  | 'item_code'
-  | 'item_name'
+  | 'itemCode'
+  | 'itemName'
   | 'warehouse'
+  | 'counterpartyWarehouse'
   | 'direction'
   | 'quantity'
-  | 'abs_value'
-  | 'transaction_label'
-  | 'reference';
+  | 'docNum';
 
 interface SortState {
   col: SortColumn;
@@ -55,31 +63,44 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
+function normalizeSearch(value?: string): string {
+  return value?.trim().toUpperCase() ?? '';
+}
+
 function firstSearchWord(value: string): string {
   return value.trim().split(/\s+/)[0] ?? value;
 }
 
-function sortValue(item: ProductionMovementItem, col: SortColumn): string | number {
+function sortValue(item: TransferMovementEntry, col: SortColumn): string | number {
   switch (col) {
     case 'date': {
       const time = new Date(item.date).getTime();
       return Number.isNaN(time) ? item.date : time;
     }
-    case 'warehouse':
-      return `${item.warehouse} ${item.warehouse_name}`.toUpperCase();
-    case 'reference':
-      return `${item.reference} ${item.doc_num}`.toUpperCase();
-    case 'item_code':
-    case 'item_name':
-    case 'direction':
-    case 'transaction_label':
-      return String(item[col] ?? '').toUpperCase();
     case 'quantity':
-    case 'abs_value':
+    case 'docNum':
       return item[col] ?? 0;
+    case 'itemCode':
+    case 'itemName':
+    case 'warehouse':
+    case 'counterpartyWarehouse':
+    case 'direction':
+      return String(item[col] ?? '').toUpperCase();
     default:
       return '';
   }
+}
+
+function matchesSearch(item: TransferMovementEntry, search: string): boolean {
+  if (!search) return true;
+  return [
+    item.itemCode,
+    item.itemName,
+    item.warehouse,
+    item.counterpartyWarehouse,
+    String(item.docNum),
+    item.comments,
+  ].some((value) => value.toUpperCase().includes(search));
 }
 
 function SortIcon({ col, sort }: { col: SortColumn; sort: SortState }) {
@@ -120,21 +141,61 @@ function HeaderSortButton({
   );
 }
 
+function buildTransferEntries(lines: WMSTransferLine[]): TransferMovementEntry[] {
+  return lines.flatMap((line) => {
+    const base = {
+      comments: line.comments ?? '',
+      date: line.doc_date,
+      docNum: line.doc_num,
+      itemCode: line.item_code,
+      itemName: line.item_name,
+      quantity: line.quantity,
+    };
+
+    return [
+      {
+        ...base,
+        key: `${line.doc_entry}-${line.line_num}-out`,
+        counterpartyLabel: 'To' as const,
+        counterpartyWarehouse: line.to_warehouse,
+        direction: 'OUT' as const,
+        warehouse: line.from_warehouse,
+      },
+      {
+        ...base,
+        key: `${line.doc_entry}-${line.line_num}-in`,
+        counterpartyLabel: 'From' as const,
+        counterpartyWarehouse: line.from_warehouse,
+        direction: 'IN' as const,
+        warehouse: line.to_warehouse,
+      },
+    ];
+  });
+}
+
 export function ProductionMovementTable({
-  items,
+  direction = 'all',
   isLoading,
   onSearchSelect,
+  search,
+  transferLines,
 }: ProductionMovementTableProps) {
   const [sort, setSort] = useState<SortState>({ col: 'date', dir: 'desc' });
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const aVal = sortValue(a, sort.col);
-      const bVal = sortValue(b, sort.col);
-      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sort.dir === 'asc' ? cmp : -cmp;
-    });
-  }, [items, sort]);
+    const normalizedSearch = normalizeSearch(search);
+    const normalizedDirection = direction.toUpperCase();
+
+    return buildTransferEntries(transferLines)
+      .filter((item) => direction === 'all' || item.direction === normalizedDirection)
+      .filter((item) => matchesSearch(item, normalizedSearch))
+      .sort((a, b) => {
+        const aVal = sortValue(a, sort.col);
+        const bVal = sortValue(b, sort.col);
+        const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        return sort.dir === 'asc' ? cmp : -cmp;
+      });
+  }, [direction, search, sort, transferLines]);
 
   function toggleSort(col: SortColumn) {
     setSort((current) =>
@@ -165,7 +226,7 @@ export function ProductionMovementTable({
               </th>
               <th className="px-5 py-3 font-medium">
                 <HeaderSortButton
-                  col="item_code"
+                  col="itemCode"
                   label="Item Code"
                   sort={sort}
                   onSort={toggleSort}
@@ -173,7 +234,7 @@ export function ProductionMovementTable({
               </th>
               <th className="px-5 py-3 font-medium">
                 <HeaderSortButton
-                  col="item_name"
+                  col="itemName"
                   label="Item Name"
                   sort={sort}
                   onSort={toggleSort}
@@ -197,6 +258,14 @@ export function ProductionMovementTable({
               </th>
               <th className="px-5 py-3 font-medium">
                 <HeaderSortButton
+                  col="counterpartyWarehouse"
+                  label="From / To"
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              </th>
+              <th className="px-5 py-3 font-medium">
+                <HeaderSortButton
                   col="quantity"
                   label="Quantity"
                   sort={sort}
@@ -205,62 +274,35 @@ export function ProductionMovementTable({
                 />
               </th>
               <th className="px-5 py-3 font-medium">
-                <HeaderSortButton
-                  col="abs_value"
-                  label="Value"
-                  sort={sort}
-                  align="right"
-                  onSort={toggleSort}
-                />
+                <HeaderSortButton col="docNum" label="Reference" sort={sort} onSort={toggleSort} />
               </th>
-              <th className="px-5 py-3 font-medium">
-                <HeaderSortButton
-                  col="transaction_label"
-                  label="Type"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </th>
-              <th className="px-5 py-3 font-medium">
-                <HeaderSortButton
-                  col="reference"
-                  label="Reference"
-                  sort={sort}
-                  onSort={toggleSort}
-                />
-              </th>
+              <th className="px-5 py-3 text-left font-medium">Type</th>
             </tr>
           </thead>
           <tbody>
             {sortedItems.length === 0 && !isLoading ? (
               <tr>
                 <td colSpan={9} className="px-5 py-10 text-center text-muted-foreground">
-                  No production movement entries found.
+                  No transfer movement entries found.
                 </td>
               </tr>
             ) : (
-              sortedItems.map((item, index) => (
-                <tr
-                  key={`${item.date}-${item.item_code}-${item.warehouse}-${item.doc_num}-${index}`}
-                  className="border-t"
-                >
+              sortedItems.map((item) => (
+                <tr key={item.key} className="border-t">
                   <td className="whitespace-nowrap px-5 py-3">{formatDate(item.date)}</td>
                   <td
                     className="cursor-pointer whitespace-nowrap px-5 py-3 font-mono text-xs text-primary hover:bg-muted/40"
-                    onClick={() => onSearchSelect?.(item.item_code)}
+                    onClick={() => onSearchSelect?.(item.itemCode)}
                   >
-                    {item.item_code}
+                    {item.itemCode}
                   </td>
                   <td
                     className="min-w-64 cursor-pointer px-5 py-3 font-medium hover:bg-muted/40"
-                    onClick={() => onSearchSelect?.(firstSearchWord(item.item_name))}
+                    onClick={() => onSearchSelect?.(firstSearchWord(item.itemName))}
                   >
-                    {item.item_name}
+                    {item.itemName}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3">
-                    <div className="font-medium">{item.warehouse}</div>
-                    <div className="text-xs text-muted-foreground">{item.warehouse_name}</div>
-                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 font-medium">{item.warehouse}</td>
                   <td className="px-5 py-3">
                     <Badge
                       variant="outline"
@@ -278,18 +320,21 @@ export function ProductionMovementTable({
                       {item.direction}
                     </Badge>
                   </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <span className="text-xs text-muted-foreground">{item.counterpartyLabel}</span>{' '}
+                    <span className="font-medium">{item.counterpartyWarehouse}</span>
+                  </td>
                   <td className="whitespace-nowrap px-5 py-3 text-right">
                     {numberFormatter.format(item.quantity)}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-3 text-right">
-                    {currencyFormatter.format(item.abs_value)}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3">{item.transaction_label}</td>
                   <td className="whitespace-nowrap px-5 py-3">
-                    <div>{item.reference || '--'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.doc_num ? `Doc ${item.doc_num}` : ''}
-                    </div>
+                    <div>Doc {item.docNum}</div>
+                    <div className="text-xs text-muted-foreground">{item.comments}</div>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <Badge variant="outline" className="bg-background">
+                      Transfer
+                    </Badge>
                   </td>
                 </tr>
               ))

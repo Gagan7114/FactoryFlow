@@ -39,7 +39,7 @@ export const PRODUCTION_FLOW_ROUTES: ProductionFlowRouteDefinition[] = [
     label: 'PC to PF',
     fromCodes: ['BH-PC'],
     toCodes: ['BH-PF'],
-    kind: 'production',
+    kind: 'transfer',
   },
   {
     id: 'pf-gpfg',

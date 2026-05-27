@@ -7,16 +7,13 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import {
   useProductionMovementFilterOptions,
-  useProductionMovementReport,
   useProductionMovementWarehouseBalanceReports,
 } from '../api';
 import {
   ProductionMovementFilters,
   ProductionMovementMetaCards,
-  ProductionMovementNegativeEntries,
   ProductionMovementRouteFlow,
   ProductionMovementTable,
-  ProductionMovementWarehouseSummary,
 } from '../components';
 import { getDefaultProductionMovementFilters, PRODUCTION_FLOW_ROUTES } from '../constants';
 import type { ProductionMovementFilters as ProductionMovementFiltersType } from '../types';
@@ -30,10 +27,8 @@ export default function ProductionMovementDashboardPage() {
   const [filters, setFilters] = useState<ProductionMovementFiltersType>(() =>
     getDefaultProductionMovementFilters(),
   );
-  const [showNegativeEntries, setShowNegativeEntries] = useState(false);
 
   const optionsQuery = useProductionMovementFilterOptions();
-  const reportQuery = useProductionMovementReport(filters);
   const routeMovementFilters = useMemo<ProductionMovementFiltersType>(
     () => ({
       date_from: filters.date_from,
@@ -44,7 +39,6 @@ export default function ProductionMovementDashboardPage() {
     }),
     [filters.date_from, filters.date_to],
   );
-  const routeMovementQuery = useProductionMovementReport(routeMovementFilters);
   const routeBalanceWarehouses = useMemo(
     () => Array.from(new Set(PRODUCTION_FLOW_ROUTES.flatMap((route) => route.toCodes))),
     [],
@@ -56,19 +50,12 @@ export default function ProductionMovementDashboardPage() {
   const transferOverviewQuery = useTransferOverview({
     from_date: filters.date_from,
     to_date: filters.date_to,
-    limit: 1000,
+    from_warehouse: filters.from_warehouse,
+    to_warehouse: filters.to_warehouse,
+    limit: filters.limit ?? 500,
   });
 
-  const sapError =
-    reportQuery.error ??
-    optionsQuery.error ??
-    routeMovementQuery.error ??
-    transferOverviewQuery.error;
-
-  const sortedWarehouseSummary = useMemo(
-    () => reportQuery.data?.warehouse_summary ?? [],
-    [reportQuery.data],
-  );
+  const sapError = optionsQuery.error ?? transferOverviewQuery.error;
 
   const routeWarehouseBalances = useMemo(() => {
     return routeBalanceQueries.reduce<Record<string, { openingQty: number; closingQty: number }>>(
@@ -91,18 +78,10 @@ export default function ProductionMovementDashboardPage() {
     (query) => query.isLoading || query.isFetching,
   );
 
-  const handleWarehouseSelect = useCallback((warehouse: string) => {
-    setFilters((current) => ({ ...current, warehouse }));
-  }, []);
-
   const handleSearchSelect = useCallback((term: string) => {
     const search = term.trim().toUpperCase();
     if (!search) return;
     setFilters((current) => ({ ...current, search }));
-  }, []);
-
-  const handleNetQtyClick = useCallback(() => {
-    setShowNegativeEntries((current) => !current);
   }, []);
 
   return (
@@ -115,50 +94,40 @@ export default function ProductionMovementDashboardPage() {
       <ProductionMovementFilters
         filters={filters}
         filterOptions={optionsQuery.data}
-        isFetching={optionsQuery.isFetching || reportQuery.isFetching}
+        isFetching={optionsQuery.isFetching || transferOverviewQuery.isFetching}
         onFiltersChange={setFilters}
       />
 
       {sapError && isSAPError(sapError) && (
-        <SAPUnavailableBanner error={sapError as ApiError} onRetry={reportQuery.refetch} />
+        <SAPUnavailableBanner
+          error={sapError as ApiError}
+          onRetry={transferOverviewQuery.refetch}
+        />
       )}
 
       {!(sapError && isSAPError(sapError)) && (
         <>
           <ProductionMovementMetaCards
-            summary={reportQuery.data?.summary}
-            isNetQtyDrilldownActive={showNegativeEntries}
-            onNetQtyClick={handleNetQtyClick}
+            direction={filters.direction ?? 'all'}
+            search={filters.search}
+            transferLines={transferOverviewQuery.data?.transfers ?? []}
           />
-          {showNegativeEntries && (
-            <ProductionMovementNegativeEntries
-              items={reportQuery.data?.data ?? []}
-              isLoading={reportQuery.isLoading || reportQuery.isFetching}
-              onClose={() => setShowNegativeEntries(false)}
-            />
-          )}
           <ProductionMovementRouteFlow
             balanceFilters={routeMovementFilters}
-            movementItems={routeMovementQuery.data?.data}
             transferLines={transferOverviewQuery.data?.transfers}
             transferRoutes={transferOverviewQuery.data?.routes}
             warehouseBalances={routeWarehouseBalances}
-            warehouseSummary={routeMovementQuery.data?.warehouse_summary}
             isLoading={
-              routeMovementQuery.isLoading ||
-              routeMovementQuery.isFetching ||
               routeBalanceLoading ||
               transferOverviewQuery.isLoading ||
               transferOverviewQuery.isFetching
             }
           />
-          <ProductionMovementWarehouseSummary
-            warehouses={sortedWarehouseSummary}
-            onWarehouseSelect={handleWarehouseSelect}
-          />
           <ProductionMovementTable
-            items={reportQuery.data?.data ?? []}
-            isLoading={reportQuery.isLoading || reportQuery.isFetching}
+            direction={filters.direction ?? 'all'}
+            search={filters.search}
+            transferLines={transferOverviewQuery.data?.transfers ?? []}
+            isLoading={transferOverviewQuery.isLoading || transferOverviewQuery.isFetching}
             onSearchSelect={handleSearchSelect}
           />
         </>

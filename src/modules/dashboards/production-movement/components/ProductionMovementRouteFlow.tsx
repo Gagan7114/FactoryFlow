@@ -6,11 +6,7 @@ import { Badge } from '@/shared/components/ui';
 
 import { useProductionMovementSkuBalanceReports } from '../api';
 import { PRODUCTION_FLOW_ROUTES, type ProductionFlowRouteDefinition } from '../constants';
-import type {
-  ProductionMovementFilters,
-  ProductionMovementItem,
-  ProductionMovementWarehouseSummary,
-} from '../types';
+import type { ProductionMovementFilters } from '../types';
 
 interface FlowRouteRow extends ProductionFlowRouteDefinition {
   openingQty?: number;
@@ -41,11 +37,9 @@ interface SkuRouteRow {
 
 interface ProductionMovementRouteFlowProps {
   balanceFilters?: ProductionMovementFilters;
-  movementItems?: ProductionMovementItem[];
   transferLines?: WMSTransferLine[];
   transferRoutes?: WMSTransferRoute[];
   warehouseBalances?: Record<string, WarehouseBalance>;
-  warehouseSummary?: ProductionMovementWarehouseSummary[];
   isLoading?: boolean;
 }
 
@@ -63,9 +57,7 @@ function matchesRoute(
 ): boolean {
   const fromWarehouse = normalizeWarehouse(route.from_warehouse);
   const toWarehouse = normalizeWarehouse(route.to_warehouse);
-  return (
-    definition.fromCodes.includes(fromWarehouse) && definition.toCodes.includes(toWarehouse)
-  );
+  return definition.fromCodes.includes(fromWarehouse) && definition.toCodes.includes(toWarehouse);
 }
 
 function formatCodes(codes: string[]): string {
@@ -83,33 +75,15 @@ function formatOptionalQuantity(value?: number): string {
 
 export function ProductionMovementRouteFlow({
   balanceFilters,
-  movementItems = [],
   transferLines = [],
   transferRoutes = [],
   warehouseBalances = {},
-  warehouseSummary = [],
   isLoading,
 }: ProductionMovementRouteFlowProps) {
   const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(() => new Set());
 
   const rows = useMemo<FlowRouteRow[]>(() => {
-    const warehouseSummaryByCode = new Map(
-      warehouseSummary.map((warehouse) => [normalizeWarehouse(warehouse.warehouse), warehouse]),
-    );
-
-    function sumWarehouseQty(
-      codes: string[],
-      key: 'in_qty' | 'out_qty',
-    ): number {
-      return codes.reduce((total, code) => {
-        return total + (warehouseSummaryByCode.get(normalizeWarehouse(code))?.[key] ?? 0);
-      }, 0);
-    }
-
-    function sumTargetBalance(
-      codes: string[],
-      key: keyof WarehouseBalance,
-    ): number | undefined {
+    function sumTargetBalance(codes: string[], key: keyof WarehouseBalance): number | undefined {
       let found = false;
       const total = codes.reduce((sum, code) => {
         const balance = warehouseBalances[normalizeWarehouse(code)];
@@ -124,12 +98,13 @@ export function ProductionMovementRouteFlow({
     function buildTransferSkuRows(definition: ProductionFlowRouteDefinition): SkuRouteRow[] {
       const grouped = new Map<string, SkuRouteRow & { docNums: Set<number> }>();
 
-      transferLines.filter((line) => matchesRoute(line, definition)).forEach((line) => {
-        const itemCode = line.item_code.trim().toUpperCase();
-        const key = itemCode || line.item_name;
-        const current =
-          grouped.get(key) ??
-          {
+      transferLines
+        .filter((line) => matchesRoute(line, definition))
+        .forEach((line) => {
+          const itemCode = line.item_code.trim().toUpperCase();
+          const itemIdentity = itemCode || line.item_name;
+          const key = `transfer:${itemIdentity}`;
+          const current = grouped.get(key) ?? {
             key,
             itemCode,
             itemName: line.item_name,
@@ -141,14 +116,14 @@ export function ProductionMovementRouteFlow({
             docNums: new Set<number>(),
           };
 
-        current.sourceOutQty += line.quantity;
-        current.targetInQty += line.quantity;
-        current.movementQty += line.quantity;
-        current.lineCount += 1;
-        current.docNums.add(line.doc_num);
-        current.transferCount = current.docNums.size;
-        grouped.set(key, current);
-      });
+          current.sourceOutQty += line.quantity;
+          current.targetInQty += line.quantity;
+          current.movementQty += line.quantity;
+          current.lineCount += 1;
+          current.docNums.add(line.doc_num);
+          current.transferCount = current.docNums.size;
+          grouped.set(key, current);
+        });
 
       return Array.from(grouped.values())
         .map((row) => ({
@@ -164,59 +139,9 @@ export function ProductionMovementRouteFlow({
         .sort((a, b) => b.movementQty - a.movementQty);
     }
 
-    function buildProductionSkuRows(definition: ProductionFlowRouteDefinition): SkuRouteRow[] {
-      const grouped = new Map<string, SkuRouteRow>();
-
-      movementItems
-        .filter((item) => {
-          const warehouse = normalizeWarehouse(item.warehouse);
-          return item.direction === 'IN' && definition.toCodes.includes(warehouse);
-        })
-        .forEach((item) => {
-          const itemCode = item.item_code.trim().toUpperCase();
-          const key = itemCode || item.item_name;
-          const current =
-            grouped.get(key) ??
-            {
-              key,
-              itemCode,
-              itemName: item.item_name,
-              sourceOutQty: 0,
-              targetInQty: 0,
-              movementQty: 0,
-              transferCount: 0,
-              lineCount: 0,
-            };
-
-          current.targetInQty += item.in_qty;
-          current.movementQty += item.in_qty;
-          current.lineCount += 1;
-          grouped.set(key, current);
-        });
-
-      return Array.from(grouped.values()).sort((a, b) => b.movementQty - a.movementQty);
-    }
-
     return PRODUCTION_FLOW_ROUTES.map((definition) => {
       const openingQty = sumTargetBalance(definition.toCodes, 'openingQty');
       const closingQty = sumTargetBalance(definition.toCodes, 'closingQty');
-
-      if (definition.kind === 'production') {
-        const sourceOutQty = sumWarehouseQty(definition.fromCodes, 'out_qty');
-        const targetInQty = sumWarehouseQty(definition.toCodes, 'in_qty');
-
-        return {
-          ...definition,
-          openingQty,
-          closingQty,
-          sourceOutQty,
-          targetInQty,
-          movementQty: targetInQty,
-          transferCount: 0,
-          lineCount: 0,
-          skuRows: buildProductionSkuRows(definition),
-        };
-      }
 
       const matchingRoutes = transferRoutes.filter((route) => matchesRoute(route, definition));
       const movementQty = matchingRoutes.reduce((total, route) => total + route.quantity, 0);
@@ -228,15 +153,12 @@ export function ProductionMovementRouteFlow({
         sourceOutQty: movementQty,
         targetInQty: movementQty,
         movementQty,
-        transferCount: matchingRoutes.reduce(
-          (total, route) => total + route.transfer_count,
-          0,
-        ),
+        transferCount: matchingRoutes.reduce((total, route) => total + route.transfer_count, 0),
         lineCount: matchingRoutes.reduce((total, route) => total + route.line_count, 0),
         skuRows: buildTransferSkuRows(definition),
       };
     });
-  }, [movementItems, transferLines, transferRoutes, warehouseBalances, warehouseSummary]);
+  }, [transferLines, transferRoutes, warehouseBalances]);
 
   function toggleRoute(routeId: string) {
     setExpandedRoutes((current) => {
@@ -331,11 +253,9 @@ export function ProductionMovementRouteFlow({
                       {formatQuantity(row.movementQty)}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums">
-                      {row.kind === 'transfer'
-                        ? `${numberFormatter.format(row.transferCount)} / ${numberFormatter.format(
-                            row.lineCount,
-                          )}`
-                        : '-'}
+                      {`${numberFormatter.format(row.transferCount)} / ${numberFormatter.format(
+                        row.lineCount,
+                      )}`}
                     </td>
                     <td className="whitespace-nowrap px-5 py-3">
                       <Badge
@@ -346,7 +266,7 @@ export function ProductionMovementRouteFlow({
                             : 'border-muted bg-muted/40 text-muted-foreground'
                         }
                       >
-                        {row.kind === 'transfer' ? 'Transfer' : 'Production'}
+                        Transfer
                       </Badge>
                     </td>
                   </tr>
@@ -421,9 +341,7 @@ function SkuMovementTable({
     }, new Map());
   }, [skuBalanceQueries, skuBalanceRequests]);
 
-  const isBalanceLoading = skuBalanceQueries.some(
-    (query) => query.isLoading || query.isFetching,
-  );
+  const isBalanceLoading = skuBalanceQueries.some((query) => query.isLoading || query.isFetching);
 
   return (
     <table className="w-full text-xs">
@@ -474,15 +392,13 @@ function SkuMovementTable({
                 {formatQuantity(sku.movementQty)}
               </td>
               <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums">
-                {row.kind === 'transfer'
-                  ? `${numberFormatter.format(sku.transferCount)} / ${numberFormatter.format(
-                      sku.lineCount,
-                    )}`
-                  : numberFormatter.format(sku.lineCount)}
+                {`${numberFormatter.format(sku.transferCount)} / ${numberFormatter.format(
+                  sku.lineCount,
+                )}`}
               </td>
               <td className="whitespace-nowrap px-4 py-2">
                 <Badge variant="outline" className="bg-background">
-                  {row.kind === 'transfer' ? 'Transfer' : 'Production'}
+                  Transfer
                 </Badge>
               </td>
             </tr>

@@ -1,13 +1,6 @@
 import { Loader2 } from 'lucide-react';
 
-import {
-  Button,
-  Checkbox,
-  Input,
-  Label,
-  NativeSelect as Select,
-  SelectOption,
-} from '@/shared/components/ui';
+import { Button, Input, Label, NativeSelect as Select, SelectOption } from '@/shared/components/ui';
 
 import {
   DIRECTION_OPTIONS,
@@ -38,9 +31,12 @@ export function ProductionMovementFilters({
   onFiltersChange,
 }: ProductionMovementFiltersProps) {
   const warehouseOptions = filterOptions?.warehouses ?? [];
-  const selectedWarehouseMissing =
-    Boolean(filters.warehouse) &&
-    !warehouseOptions.some((warehouse) => warehouse.code === filters.warehouse);
+  const selectedFromWarehouseMissing =
+    Boolean(filters.from_warehouse) &&
+    !warehouseOptions.some((warehouse) => warehouse.code === filters.from_warehouse);
+  const selectedToWarehouseMissing =
+    Boolean(filters.to_warehouse) &&
+    !warehouseOptions.some((warehouse) => warehouse.code === filters.to_warehouse);
 
   function updateFilters(patch: Partial<FiltersType>) {
     onFiltersChange({ ...filters, ...patch });
@@ -68,20 +64,18 @@ export function ProductionMovementFilters({
       </div>
 
       <div className="order-2 flex flex-col gap-1.5">
-        <Label htmlFor="prod-movement-warehouse" className="text-xs">
-          Warehouse
+        <Label htmlFor="prod-movement-from-warehouse" className="text-xs">
+          From Warehouse
         </Label>
         <Select
-          id="prod-movement-warehouse"
+          id="prod-movement-from-warehouse"
           className="w-48"
-          value={filters.warehouse ?? ''}
-          onChange={(event) =>
-            updateFilters({ warehouse: event.target.value || undefined })
-          }
+          value={filters.from_warehouse ?? ''}
+          onChange={(event) => updateFilters({ from_warehouse: event.target.value || undefined })}
         >
           <SelectOption value="">All</SelectOption>
-          {selectedWarehouseMissing && (
-            <SelectOption value={filters.warehouse!}>{filters.warehouse}</SelectOption>
+          {selectedFromWarehouseMissing && (
+            <SelectOption value={filters.from_warehouse!}>{filters.from_warehouse}</SelectOption>
           )}
           {warehouseOptions.map((warehouse) => (
             <SelectOption key={warehouse.code} value={warehouse.code}>
@@ -92,6 +86,28 @@ export function ProductionMovementFilters({
       </div>
 
       <div className="order-3 flex flex-col gap-1.5">
+        <Label htmlFor="prod-movement-to-warehouse" className="text-xs">
+          To Warehouse
+        </Label>
+        <Select
+          id="prod-movement-to-warehouse"
+          className="w-48"
+          value={filters.to_warehouse ?? ''}
+          onChange={(event) => updateFilters({ to_warehouse: event.target.value || undefined })}
+        >
+          <SelectOption value="">All</SelectOption>
+          {selectedToWarehouseMissing && (
+            <SelectOption value={filters.to_warehouse!}>{filters.to_warehouse}</SelectOption>
+          )}
+          {warehouseOptions.map((warehouse) => (
+            <SelectOption key={warehouse.code} value={warehouse.code}>
+              {warehouse.code}
+            </SelectOption>
+          ))}
+        </Select>
+      </div>
+
+      <div className="order-4 flex flex-col gap-1.5">
         <Label htmlFor="prod-movement-direction" className="text-xs">
           Direction
         </Label>
@@ -106,27 +122,6 @@ export function ProductionMovementFilters({
           {DIRECTION_OPTIONS.map((option) => (
             <SelectOption key={option.value} value={option.value}>
               {option.label}
-            </SelectOption>
-          ))}
-        </Select>
-      </div>
-
-      <div className="order-4 flex flex-col gap-1.5">
-        <Label htmlFor="prod-movement-type" className="text-xs">
-          Movement Type
-        </Label>
-        <Select
-          id="prod-movement-type"
-          className="w-44"
-          value={filters.transaction_type ?? ''}
-          onChange={(event) =>
-            updateFilters({ transaction_type: event.target.value || undefined })
-          }
-        >
-          <SelectOption value="">All</SelectOption>
-          {(filterOptions?.transaction_types ?? []).map((type) => (
-            <SelectOption key={type.code} value={type.code}>
-              {type.label ?? type.code}
             </SelectOption>
           ))}
         </Select>
@@ -174,17 +169,6 @@ export function ProductionMovementFilters({
             </SelectOption>
           ))}
         </Select>
-      </div>
-
-      <div className="order-8 mb-2 flex items-center gap-2">
-        <Checkbox
-          id="prod-movement-production-only"
-          checked={filters.production_only ?? true}
-          onCheckedChange={(checked) => updateFilters({ production_only: checked })}
-        />
-        <Label htmlFor="prod-movement-production-only" className="text-xs">
-          Production warehouses
-        </Label>
       </div>
 
       <Button variant="outline" size="sm" onClick={handleReset} className="order-9 mb-0.5">

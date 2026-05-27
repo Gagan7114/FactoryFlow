@@ -21,6 +21,8 @@ export const PRODUCTION_MOVEMENT_QUERY_KEYS = {
         date_from: filters.date_from,
         date_to: filters.date_to,
         warehouse: filters.warehouse,
+        from_warehouse: filters.from_warehouse,
+        to_warehouse: filters.to_warehouse,
         direction: filters.direction,
         transaction_type: filters.transaction_type,
         search: filters.search,
@@ -108,10 +110,7 @@ export function useProductionMovementSkuBalanceReports(
 
       return {
         queryKey: [
-          ...PRODUCTION_MOVEMENT_QUERY_KEYS.report(
-            skuFilters,
-            currentCompany?.company_id,
-          ),
+          ...PRODUCTION_MOVEMENT_QUERY_KEYS.report(skuFilters, currentCompany?.company_id),
           request.key,
         ],
         queryFn: () => productionMovementApi.getReport(skuFilters),

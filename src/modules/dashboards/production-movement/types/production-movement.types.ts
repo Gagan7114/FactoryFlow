@@ -2,6 +2,8 @@ export interface ProductionMovementFilters {
   date_from: string;
   date_to: string;
   warehouse?: string;
+  from_warehouse?: string;
+  to_warehouse?: string;
   direction?: 'all' | 'in' | 'out';
   transaction_type?: string;
   search?: string;

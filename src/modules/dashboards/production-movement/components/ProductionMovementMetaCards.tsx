@@ -1,75 +1,90 @@
-import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  IndianRupee,
-  ListChecks,
-  PackageCheck,
-  PackageOpen,
-  Scale,
-} from 'lucide-react';
+import { ArrowDownToLine, ArrowRightLeft, ArrowUpFromLine, ListChecks, Route } from 'lucide-react';
+import { useMemo } from 'react';
 
+import type { WMSTransferLine } from '@/modules/warehouse/types';
 import { Card, CardContent } from '@/shared/components/ui';
-import { cn } from '@/shared/utils';
-
-import type { ProductionMovementSummary } from '../types';
 
 interface ProductionMovementMetaCardsProps {
-  isNetQtyDrilldownActive?: boolean;
-  onNetQtyClick?: () => void;
-  summary?: ProductionMovementSummary;
+  direction?: 'all' | 'in' | 'out';
+  search?: string;
+  transferLines: WMSTransferLine[];
 }
 
 const numberFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 3,
 });
 
-const currencyFormatter = new Intl.NumberFormat('en-IN', {
-  currency: 'INR',
-  maximumFractionDigits: 0,
-  style: 'currency',
-});
+function normalizeSearch(value?: string): string {
+  return value?.trim().toUpperCase() ?? '';
+}
+
+function matchesSearch(line: WMSTransferLine, search: string): boolean {
+  if (!search) return true;
+  return [
+    line.item_code,
+    line.item_name,
+    line.from_warehouse,
+    line.to_warehouse,
+    String(line.doc_num),
+    line.comments ?? '',
+  ].some((value) => value.toUpperCase().includes(search));
+}
 
 export function ProductionMovementMetaCards({
-  isNetQtyDrilldownActive,
-  onNetQtyClick,
-  summary,
+  direction = 'all',
+  search,
+  transferLines,
 }: ProductionMovementMetaCardsProps) {
+  const summary = useMemo(() => {
+    const matchingLines = transferLines.filter((line) =>
+      matchesSearch(line, normalizeSearch(search)),
+    );
+    const totalQuantity = matchingLines.reduce((total, line) => total + line.quantity, 0);
+    const transferDocs = new Set(matchingLines.map((line) => line.doc_entry));
+    const routes = new Set(
+      matchingLines.map((line) => `${line.from_warehouse}->${line.to_warehouse}`),
+    );
+
+    return {
+      entries: direction === 'all' ? matchingLines.length * 2 : matchingLines.length,
+      inQty: direction === 'out' ? 0 : totalQuantity,
+      lineCount: matchingLines.length,
+      outQty: direction === 'in' ? 0 : totalQuantity,
+      routeCount: routes.size,
+      transferCount: transferDocs.size,
+    };
+  }, [direction, search, transferLines]);
+
   const cards = [
     {
-      label: 'Total Entries',
-      value: numberFormatter.format(summary?.total_entries ?? 0),
+      label: 'Movement Entries',
+      value: numberFormatter.format(summary.entries),
       icon: ListChecks,
     },
     {
-      label: 'Opening Qty',
-      value: numberFormatter.format(summary?.opening_qty ?? 0),
-      icon: PackageOpen,
+      label: 'Transfer Docs',
+      value: numberFormatter.format(summary.transferCount),
+      icon: ArrowRightLeft,
+    },
+    {
+      label: 'Line Items',
+      value: numberFormatter.format(summary.lineCount),
+      icon: ListChecks,
     },
     {
       label: 'In Qty',
-      value: numberFormatter.format(summary?.total_in_qty ?? 0),
+      value: numberFormatter.format(summary.inQty),
       icon: ArrowDownToLine,
     },
     {
       label: 'Out Qty',
-      value: numberFormatter.format(summary?.total_out_qty ?? 0),
+      value: numberFormatter.format(summary.outQty),
       icon: ArrowUpFromLine,
     },
     {
-      key: 'net_qty',
-      label: 'Net Qty',
-      value: numberFormatter.format(summary?.net_qty ?? 0),
-      icon: Scale,
-    },
-    {
-      label: 'Closing Qty',
-      value: numberFormatter.format(summary?.closing_qty ?? 0),
-      icon: PackageCheck,
-    },
-    {
-      label: 'Movement Value',
-      value: currencyFormatter.format(summary?.total_value ?? 0),
-      icon: IndianRupee,
+      label: 'Routes',
+      value: numberFormatter.format(summary.routeCount),
+      icon: Route,
     },
   ];
 
@@ -77,31 +92,9 @@ export function ProductionMovementMetaCards({
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
       {cards.map((card) => {
         const Icon = card.icon;
-        const isNetQty = card.key === 'net_qty';
-        const isClickable = isNetQty && Boolean(onNetQtyClick);
 
         return (
-          <Card
-            key={card.label}
-            role={isClickable ? 'button' : undefined}
-            tabIndex={isClickable ? 0 : undefined}
-            onClick={isClickable ? onNetQtyClick : undefined}
-            onKeyDown={
-              isClickable
-                ? (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      onNetQtyClick?.();
-                    }
-                  }
-                : undefined
-            }
-            className={cn(
-              isClickable &&
-                'cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/20 focus:outline-none focus:ring-2 focus:ring-primary/30',
-              isNetQty && isNetQtyDrilldownActive && 'border-primary/60 bg-muted/30',
-            )}
-          >
+          <Card key={card.label}>
             <CardContent className="flex items-center gap-4 p-5">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <Icon className="h-5 w-5 text-foreground" />
