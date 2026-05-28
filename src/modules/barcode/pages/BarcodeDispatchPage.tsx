@@ -915,6 +915,7 @@ export default function BarcodeDispatchPage() {
       const result = await completeMutation.mutateAsync(session.id);
       setTab('completed');
       toast.success(`Bill ${result.bill_number} completed`);
+      navigate(`/barcode/dispatch/summary/${result.id}`);
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to complete dispatch.');
     }
@@ -1124,14 +1125,24 @@ export default function BarcodeDispatchPage() {
           <DispatchSettingsPanel />
 
           {session && CLOSED_STATUSES.has(session.status) && (
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={() => navigate(`/barcode/dispatch/reports?session=${session.id}`)}
-            >
-              <BarChart3 className="h-4 w-4" />
-              Open report
-            </Button>
+            <div className="grid gap-2">
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => navigate(`/barcode/dispatch/summary/${session.id}`)}
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                Open summary
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => navigate(`/barcode/dispatch/reports?session=${session.id}`)}
+              >
+                <BarChart3 className="h-4 w-4" />
+                Open report
+              </Button>
+            </div>
           )}
         </aside>
       </div>
