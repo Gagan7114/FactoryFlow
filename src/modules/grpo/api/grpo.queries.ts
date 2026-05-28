@@ -6,6 +6,7 @@ import { grpoApi } from './grpo.api';
 // Query keys
 export const GRPO_QUERY_KEYS = {
   all: ['grpo'] as const,
+  summary: () => [...GRPO_QUERY_KEYS.all, 'summary'] as const,
   pending: () => [...GRPO_QUERY_KEYS.all, 'pending'] as const,
   allEntries: () => [...GRPO_QUERY_KEYS.all, 'all-entries'] as const,
   preview: (vehicleEntryId: number) =>
@@ -25,6 +26,16 @@ export const GRPO_QUERY_KEYS = {
   attachments: (postingId: number) =>
     [...GRPO_QUERY_KEYS.all, 'attachments', postingId] as const,
 };
+
+// Get material GRPO dashboard insights
+export function useGRPODashboardSummary() {
+  return useQuery({
+    queryKey: GRPO_QUERY_KEYS.summary(),
+    queryFn: () => grpoApi.getSummary(),
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+}
 
 // Get pending GRPO entries
 export function usePendingGRPOEntries() {
@@ -62,6 +73,7 @@ export function usePostGRPO() {
     mutationFn: (data: PostGRPORequest) => grpoApi.post(data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: GRPO_QUERY_KEYS.pending() });
+      queryClient.invalidateQueries({ queryKey: GRPO_QUERY_KEYS.summary() });
       queryClient.invalidateQueries({
         queryKey: GRPO_QUERY_KEYS.preview(variables.vehicle_entry_id),
       });

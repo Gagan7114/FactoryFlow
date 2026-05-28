@@ -5,7 +5,7 @@
 // are exported as defined functions.
 // ═══════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
@@ -15,6 +15,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('../../api/grpo.api', () => ({
   grpoApi: {
+    getSummary: vi.fn(),
     getPendingEntries: vi.fn(),
     getPreview: vi.fn(),
     post: vi.fn(),
@@ -26,11 +27,12 @@ vi.mock('../../api/grpo.api', () => ({
 
 import {
   GRPO_QUERY_KEYS,
-  usePendingGRPOEntries,
-  useGRPOPreview,
-  usePostGRPO,
-  useGRPOHistory,
+  useGRPODashboardSummary,
   useGRPODetail,
+  useGRPOHistory,
+  useGRPOPreview,
+  usePendingGRPOEntries,
+  usePostGRPO,
   useWarehouses,
 } from '../../api/grpo.queries';
 
@@ -50,6 +52,10 @@ describe('GRPO_QUERY_KEYS', () => {
 
   it('pending() returns correct key', () => {
     expect(GRPO_QUERY_KEYS.pending()).toEqual(['grpo', 'pending']);
+  });
+
+  it('summary() returns correct key', () => {
+    expect(GRPO_QUERY_KEYS.summary()).toEqual(['grpo', 'summary']);
   });
 
   it('preview() returns correct key with id', () => {
@@ -75,6 +81,10 @@ describe('GRPO_QUERY_KEYS', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('GRPO query hooks', () => {
+  it('exports useGRPODashboardSummary as a function', () => {
+    expect(typeof useGRPODashboardSummary).toBe('function');
+  });
+
   it('exports usePendingGRPOEntries as a function', () => {
     expect(typeof usePendingGRPOEntries).toBe('function');
   });
