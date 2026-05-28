@@ -3,12 +3,15 @@ const GATE_SALES_DISPATCH_BASE = '/gate/sales-dispatch';
 const GATE_BST_OUT_BASE = '/gate/bst-out';
 
 function buildSalesDispatchRoutes(base: string) {
+  const barcodeScan = (entryId: string | number) =>
+    `${base}/new/barcode-scan?entryId=${encodeURIComponent(String(entryId))}`;
+
   return {
     dashboard: base,
     reports: `${base}/reports`,
     newEntry: `${base}/new`,
-    weighment: (entryId: string | number) =>
-      `${base}/new/weighment?entryId=${encodeURIComponent(String(entryId))}`,
+    barcodeScan,
+    weighment: barcodeScan,
     attachments: (entryId: string | number) =>
       `${base}/new/attachments?entryId=${encodeURIComponent(String(entryId))}`,
     gatepass: (entryId: string | number) =>

@@ -270,8 +270,8 @@ export default function SalesDispatchAttachmentsPage() {
         <CardContent className="grid gap-3 text-sm md:grid-cols-3">
           <InfoItem label="Truck Photo Location" value={hasTruckPhoto ? 'Captured' : 'Required'} />
           <InfoItem
-            label="Weighment"
-            value={entry.gatepass_readiness.has_weighment ? 'Recorded' : 'Pending'}
+            label="Box Scanning"
+            value={entry.gatepass_readiness.has_box_scans ? 'Captured' : 'Pending'}
           />
           <InfoItem
             label="SAP Items"
@@ -281,7 +281,7 @@ export default function SalesDispatchAttachmentsPage() {
       </Card>
 
       <StepFooter
-        onPrevious={() => navigate(DOCKING_ROUTES.weighment(entryId || entry.vehicle_entry))}
+        onPrevious={() => navigate(DOCKING_ROUTES.barcodeScan(entryId || entry.vehicle_entry))}
         onCancel={() => navigate(DOCKING_ROUTES.dashboard)}
         onNext={handleNext}
         isSaving={previewGatepass.isPending}

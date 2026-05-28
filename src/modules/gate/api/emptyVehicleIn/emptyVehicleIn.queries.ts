@@ -93,7 +93,7 @@ export function useCompleteEmptyVehicleGateIn() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EMPTY_VEHICLE_IN_QUERY_KEYS.all });
       queryClient.invalidateQueries({ queryKey: ['salesDispatch'] });
-      queryClient.invalidateQueries({ queryKey: ['dispatchPlans'] });
+      queryClient.invalidateQueries({ queryKey: ['dispatch-plans'] });
       queryClient.invalidateQueries({ queryKey: ['vehicleEntries'] });
       queryClient.invalidateQueries({ queryKey: ['vehicleEntriesCount'] });
     },

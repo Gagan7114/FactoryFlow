@@ -1,5 +1,4 @@
 import {
-  AlertTriangle,
   BarChart3,
   CheckCircle2,
   Clock,
@@ -65,6 +64,16 @@ type DashboardFilter =
   | 'GATEPASS_PENDING'
   | 'DISPATCHED';
 
+type DockingDateBucket = 'today' | 'overdue' | 'upcoming' | 'all';
+type DockingBucketCounts = Record<DockingDateBucket, number>;
+
+const DOCKING_BUCKET_OPTIONS: Array<{ value: DockingDateBucket; label: string }> = [
+  { value: 'today', label: 'Today' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'all', label: 'All' },
+];
+
 export default function SalesDispatchDashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -77,6 +86,8 @@ export default function SalesDispatchDashboardPage() {
     isGateOutMode: boolean;
     filter: DashboardFilter;
   }>({ isGateOutMode, filter: 'ALL' });
+  const [selectedDockingBucket, setSelectedDockingBucket] =
+    useState<DockingDateBucket>('today');
   const selectedFilter =
     selectedFilterState.isGateOutMode === isGateOutMode ? selectedFilterState.filter : 'ALL';
   const listParams = useMemo(
@@ -108,10 +119,21 @@ export default function SalesDispatchDashboardPage() {
     return [...pendingBookings, ...entries].sort(sortDockingDashboardEntries);
   }, [entries, isGateOutMode, pendingBookings]);
 
+  const dockingBucketCounts = useMemo(
+    () => buildDockingDateBucketCounts(displayEntries),
+    [displayEntries],
+  );
+
   const cardFilteredEntries = useMemo(
     () =>
-      displayEntries.filter((entry) => matchesSalesDispatchDashboardFilter(entry, selectedFilter)),
-    [displayEntries, selectedFilter],
+      isGateOutMode
+        ? displayEntries.filter((entry) =>
+            matchesSalesDispatchDashboardFilter(entry, selectedFilter),
+          )
+        : displayEntries.filter((entry) =>
+            matchesDockingDateBucket(entry, selectedDockingBucket),
+          ),
+    [displayEntries, isGateOutMode, selectedDockingBucket, selectedFilter],
   );
 
   const filteredEntries = useMemo(() => {
@@ -133,86 +155,39 @@ export default function SalesDispatchDashboardPage() {
     'PRINT_NOT_COMMITTED',
   );
   const markedOutCount = countSalesDispatchDashboardEntries(displayEntries, 'MARKED_OUT');
-  const pendingDockingCount = countSalesDispatchDashboardEntries(displayEntries, 'PENDING_DOCKING');
-  const waitingInsideCount = countSalesDispatchDashboardEntries(displayEntries, 'WAITING_INSIDE');
-  const missingPhotoCount = countSalesDispatchDashboardEntries(displayEntries, 'MISSING_PHOTO_GPS');
-  const gatepassPendingCount = countSalesDispatchDashboardEntries(
-    displayEntries,
-    'GATEPASS_PENDING',
-  );
-  const dispatchedCount = countSalesDispatchDashboardEntries(displayEntries, 'DISPATCHED');
 
-  const statCards = isGateOutMode
-    ? [
-        {
-          filter: 'ALL' as const,
-          icon: <List className="h-5 w-5 text-slate-600" />,
-          label: 'All',
-          value: allCount,
-        },
-        {
-          filter: 'PENDING_OUT' as const,
-          icon: <Truck className="h-5 w-5 text-blue-600" />,
-          label: 'Pending Out',
-          value: pendingOutCount,
-        },
-        {
-          filter: 'AWAITING_GATEPASS' as const,
-          icon: <FileText className="h-5 w-5 text-violet-600" />,
-          label: 'Awaiting Gatepass',
-          value: awaitingGatepassCount,
-        },
-        {
-          filter: 'PRINT_NOT_COMMITTED' as const,
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          label: 'Print Not Committed',
-          value: printedNotCommittedCount,
-        },
-        {
-          filter: 'MARKED_OUT' as const,
-          icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
-          label: 'Marked Out',
-          value: markedOutCount,
-        },
-      ]
-    : [
-        {
-          filter: 'ALL' as const,
-          icon: <List className="h-5 w-5 text-slate-600" />,
-          label: 'All',
-          value: allCount,
-        },
-        {
-          filter: 'PENDING_DOCKING' as const,
-          icon: <Clock className="h-5 w-5 text-amber-600" />,
-          label: 'Pending',
-          value: pendingDockingCount,
-        },
-        {
-          filter: 'WAITING_INSIDE' as const,
-          icon: <Truck className="h-5 w-5 text-blue-600" />,
-          label: 'Waiting Inside',
-          value: waitingInsideCount,
-        },
-        {
-          filter: 'MISSING_PHOTO_GPS' as const,
-          icon: <AlertTriangle className="h-5 w-5 text-amber-600" />,
-          label: 'Missing Photo / GPS',
-          value: missingPhotoCount,
-        },
-        {
-          filter: 'GATEPASS_PENDING' as const,
-          icon: <FileText className="h-5 w-5 text-violet-600" />,
-          label: 'Gatepass Pending',
-          value: gatepassPendingCount,
-        },
-        {
-          filter: 'DISPATCHED' as const,
-          icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
-          label: 'Dispatched',
-          value: dispatchedCount,
-        },
-      ];
+  const statCards = [
+    {
+      filter: 'ALL' as const,
+      icon: <List className="h-5 w-5 text-slate-600" />,
+      label: 'All',
+      value: allCount,
+    },
+    {
+      filter: 'PENDING_OUT' as const,
+      icon: <Truck className="h-5 w-5 text-blue-600" />,
+      label: 'Pending Out',
+      value: pendingOutCount,
+    },
+    {
+      filter: 'AWAITING_GATEPASS' as const,
+      icon: <FileText className="h-5 w-5 text-violet-600" />,
+      label: 'Awaiting Gatepass',
+      value: awaitingGatepassCount,
+    },
+    {
+      filter: 'PRINT_NOT_COMMITTED' as const,
+      icon: <Clock className="h-5 w-5 text-amber-600" />,
+      label: 'Print Not Committed',
+      value: printedNotCommittedCount,
+    },
+    {
+      filter: 'MARKED_OUT' as const,
+      icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+      label: 'Marked Out',
+      value: markedOutCount,
+    },
+  ];
 
   const handleToggleLock = async () => {
     if (!canManageDockingLock) {
@@ -248,7 +223,7 @@ export default function SalesDispatchDashboardPage() {
         dateRange,
         isGateOutMode,
         searchTerm,
-        selectedFilter,
+        selectedFilter: isGateOutMode ? selectedFilter : selectedDockingBucket.toUpperCase(),
       });
       toast.success(`${exportedRows} ${exportedRows === 1 ? 'row' : 'rows'} exported`);
     } catch (exportError) {
@@ -326,18 +301,26 @@ export default function SalesDispatchDashboardPage() {
         />
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        {statCards.map((card) => (
-          <StatCard
-            key={card.filter}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            isActive={selectedFilter === card.filter}
-            onClick={() => setSelectedFilterState({ isGateOutMode, filter: card.filter })}
-          />
-        ))}
-      </div>
+      {isGateOutMode ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {statCards.map((card) => (
+            <StatCard
+              key={card.filter}
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              isActive={selectedFilter === card.filter}
+              onClick={() => setSelectedFilterState({ isGateOutMode, filter: card.filter })}
+            />
+          ))}
+        </div>
+      ) : (
+        <DockingDateBucketFilters
+          selectedBucket={selectedDockingBucket}
+          counts={dockingBucketCounts}
+          onChange={setSelectedDockingBucket}
+        />
+      )}
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -625,13 +608,71 @@ function matchesSalesDispatchDashboardFilter(
   }
 }
 
+function buildDockingDateBucketCounts(entries: SalesDispatchDashboardEntry[]): DockingBucketCounts {
+  const todayKey = getLocalDateKey(new Date());
+  return {
+    today: entries.filter((entry) => matchesDockingDateBucket(entry, 'today', todayKey)).length,
+    overdue: entries.filter((entry) => matchesDockingDateBucket(entry, 'overdue', todayKey)).length,
+    upcoming: entries.filter((entry) => matchesDockingDateBucket(entry, 'upcoming', todayKey))
+      .length,
+    all: entries.length,
+  };
+}
+
+function matchesDockingDateBucket(
+  entry: SalesDispatchDashboardEntry,
+  bucket: DockingDateBucket,
+  todayKey = getLocalDateKey(new Date()),
+) {
+  if (bucket === 'all') return true;
+
+  const comparison = compareDateToKey(getPlannedDispatchDate(entry), todayKey);
+  if (comparison === null) return false;
+
+  if (bucket === 'today') return comparison === 0;
+  if (bucket === 'overdue') return comparison < 0 && !isClosedDockingDashboardEntry(entry);
+  return comparison > 0;
+}
+
+function compareDateToKey(value: string | null | undefined, todayKey: string) {
+  const dateKey = normalizeDateKey(value);
+  if (!dateKey) return null;
+  if (dateKey === todayKey) return 0;
+  return dateKey < todayKey ? -1 : 1;
+}
+
+function normalizeDateKey(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return '';
+
+  const yearFirst = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (yearFirst) return `${yearFirst[1]}-${yearFirst[2]}-${yearFirst[3]}`;
+
+  const dayFirst = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}`;
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? '' : getLocalDateKey(parsed);
+}
+
+function getLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isClosedDockingDashboardEntry(entry: SalesDispatchDashboardEntry) {
+  return ['DISPATCHED', 'REJECTED', 'CANCELLED'].includes(entry.status);
+}
+
 function exportSalesDispatchDashboard(
   entries: SalesDispatchDashboardEntry[],
   context: {
     dateRange: { from?: string; to?: string };
     isGateOutMode: boolean;
     searchTerm: string;
-    selectedFilter: DashboardFilter;
+    selectedFilter: string;
   },
 ) {
   const workbook = XLSX.utils.book_new();
@@ -662,7 +703,7 @@ function buildDashboardExportSummary(
     dateRange: { from?: string; to?: string };
     isGateOutMode: boolean;
     searchTerm: string;
-    selectedFilter: DashboardFilter;
+    selectedFilter: string;
   },
 ): ExportRow[] {
   return [
@@ -813,7 +854,7 @@ function appendDashboardExportSheet(workbook: XLSX.WorkBook, rows: ExportRow[], 
 function buildDashboardExportFileName(context: {
   dateRange: { from?: string; to?: string };
   isGateOutMode: boolean;
-  selectedFilter: DashboardFilter;
+  selectedFilter: string;
 }) {
   const dashboardName = context.isGateOutMode ? 'Sales_Dispatch_Out' : 'Docking';
   const fromDate = context.dateRange.from || 'all';
@@ -965,6 +1006,10 @@ function getPlannedDispatchDate(entry: SalesDispatchDashboardEntry) {
 
 function getActualGateOut(entry: SalesDispatchDashboardEntry) {
   if (isPendingBookingEntry(entry)) return '-';
+  if (entry.status !== GATE_OUT_COMPLETED_STATUS) return '-';
+  if (!entry.gate_out_date && !entry.out_time) {
+    return formatDashboardTimestamp(entry.dispatched_at);
+  }
   return formatDateTime(entry.gate_out_date, entry.out_time);
 }
 
@@ -989,6 +1034,55 @@ function isPendingBookingEntry(
 
 function getEntryItems(entry: SalesDispatchDashboardEntry) {
   return isPendingBookingEntry(entry) ? [] : entry.items;
+}
+
+function DockingDateBucketFilters({
+  selectedBucket,
+  counts,
+  onChange,
+}: {
+  selectedBucket: DockingDateBucket;
+  counts: DockingBucketCounts;
+  onChange: (bucket: DockingDateBucket) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-4">
+      <span className="mr-1 text-sm font-medium text-muted-foreground">Dispatch Date</span>
+      {DOCKING_BUCKET_OPTIONS.map((option) => {
+        const count = counts[option.value];
+        const isActive = selectedBucket === option.value;
+        const hasOverdueVehicles = option.value === 'overdue' && count > 0;
+
+        return (
+          <Button
+            key={option.value}
+            type="button"
+            variant={isActive ? 'default' : 'outline'}
+            className={cn(
+              'gap-2',
+              hasOverdueVehicles &&
+                !isActive &&
+                'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800',
+              hasOverdueVehicles && isActive && 'bg-red-600 text-white hover:bg-red-700',
+            )}
+            onClick={() => onChange(option.value)}
+          >
+            <span>{option.label}</span>
+            <span
+              className={cn(
+                'inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground',
+                hasOverdueVehicles && !isActive && 'bg-red-100 text-red-700',
+                hasOverdueVehicles && isActive && 'bg-white/20 text-white',
+              )}
+            >
+              {count}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
 }
 
 function StatCard({

@@ -382,7 +382,15 @@ function ReportTableHeader({ mode }: { mode: ReportTableMode }) {
       ? ['Vehicle', 'SAP Documents', 'Customer', 'Photo At', 'GPS', 'Status']
       : mode === 'photoStatus'
         ? ['Vehicle', 'Status', 'Truck Photo', 'GPS', 'Printed At', 'Dispatched At', 'Entry No.']
-        : ['Entry No.', 'SAP Documents', 'Customer', 'Vehicle', 'Gate Out', 'Gatepass', 'Status'];
+        : [
+            'Entry No.',
+            'SAP Documents',
+            'Customer',
+            'Vehicle',
+            'Actual Gate Out',
+            'Gatepass',
+            'Status',
+          ];
 
   return (
     <tr>
@@ -488,7 +496,7 @@ function ReportTableRow({
       </td>
       <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
       <td className="whitespace-nowrap p-3 text-sm">
-        {formatDateTime(entry.gate_out_date, entry.out_time)}
+        {formatActualGateOut(entry)}
       </td>
       <td className="whitespace-nowrap p-3 text-sm">
         <GateStatusBadge
@@ -572,7 +580,7 @@ function buildReportEntryExportRow(reportName: string, entry: SalesDispatchGateO
     Vehicle: exportValue(entry.vehicle_no),
     Driver: exportValue(entry.driver_name),
     Transporter: exportValue(entry.transporter_name),
-    'Gate Out': formatDateTime(entry.gate_out_date, entry.out_time),
+    'Actual Gate Out': formatActualGateOut(entry),
     Gatepass: exportValue(entry.gatepass_no || 'Pending'),
     Status: formatStatus(entry.status),
     'Truck Photo': entry.truck_photo ? 'Captured' : 'Missing',
@@ -636,6 +644,13 @@ function formatStatus(value?: string | null) {
 function formatDateTime(date?: string | null, time?: string | null) {
   if (!date && !time) return '-';
   return [date, time].filter(Boolean).join(' ');
+}
+
+function formatActualGateOut(entry: SalesDispatchGateOut) {
+  if (entry.status !== 'DISPATCHED') return '-';
+  return entry.gate_out_date || entry.out_time
+    ? formatDateTime(entry.gate_out_date, entry.out_time)
+    : formatTimestamp(entry.dispatched_at);
 }
 
 function formatTimestamp(value?: string | null) {

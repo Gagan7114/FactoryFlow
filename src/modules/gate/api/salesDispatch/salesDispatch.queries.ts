@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
   type SalesDispatchAttachmentUploadRequest,
+  type SalesDispatchBoxScanRequest,
   type SalesDispatchCreateRequest,
   type SalesDispatchDocumentParams,
   type SalesDispatchDocumentType,
@@ -34,6 +35,7 @@ export const SALES_DISPATCH_QUERY_KEYS = {
     [...SALES_DISPATCH_QUERY_KEYS.all, 'byVehicleEntry', vehicleEntryId] as const,
   attachments: (id?: number | null) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'attachments', id] as const,
+  boxScans: (id?: number | null) => [...SALES_DISPATCH_QUERY_KEYS.all, 'boxScans', id] as const,
   gatepassPrintHistory: (id?: number | null) =>
     [...SALES_DISPATCH_QUERY_KEYS.all, 'gatepassPrintHistory', id] as const,
 };
@@ -41,7 +43,7 @@ export const SALES_DISPATCH_QUERY_KEYS = {
 function invalidateSalesDispatch(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: SALES_DISPATCH_QUERY_KEYS.all });
   queryClient.invalidateQueries({ queryKey: ['vehicleEntries'] });
-  queryClient.invalidateQueries({ queryKey: ['dispatchPlans'] });
+  queryClient.invalidateQueries({ queryKey: ['dispatch-plans'] });
 }
 
 export function useSalesDispatchDocuments(
@@ -136,6 +138,14 @@ export function useSalesDispatchAttachments(id?: number | null) {
   });
 }
 
+export function useSalesDispatchBoxScans(id?: number | null) {
+  return useQuery({
+    queryKey: SALES_DISPATCH_QUERY_KEYS.boxScans(id),
+    queryFn: () => salesDispatchApi.boxScans(id!),
+    enabled: !!id,
+  });
+}
+
 export function useCreateSalesDispatch() {
   const queryClient = useQueryClient();
 
@@ -170,6 +180,26 @@ export function useUploadSalesDispatchAttachment() {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: SalesDispatchAttachmentUploadRequest }) =>
       salesDispatchApi.uploadAttachment(id, data),
+    onSuccess: () => invalidateSalesDispatch(queryClient),
+  });
+}
+
+export function useScanSalesDispatchBox() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: SalesDispatchBoxScanRequest }) =>
+      salesDispatchApi.scanBox(id, data),
+    onSuccess: () => invalidateSalesDispatch(queryClient),
+  });
+}
+
+export function useRemoveSalesDispatchBoxScan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, scanId }: { id: number; scanId: number }) =>
+      salesDispatchApi.removeBoxScan(id, scanId),
     onSuccess: () => invalidateSalesDispatch(queryClient),
   });
 }

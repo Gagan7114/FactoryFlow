@@ -1,13 +1,4 @@
-import {
-  AlertTriangle,
-  FileText,
-  PackageCheck,
-  Plus,
-  RefreshCw,
-  ShieldCheck,
-  Truck,
-  X,
-} from 'lucide-react';
+import { FileText, RefreshCw, Truck } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -34,7 +25,7 @@ import {
   type VehicleSelection,
 } from '@/modules/gate/components';
 import { SearchableSelect } from '@/shared/components';
-import { Button, Input, Label, NativeSelect, SelectOption, Textarea } from '@/shared/components/ui';
+import { Button, Input, Label, NativeSelect, SelectOption } from '@/shared/components/ui';
 import { getErrorMessage } from '@/shared/utils';
 
 import {
@@ -44,9 +35,6 @@ import {
   buildEntryDocumentKey,
   DOCKING_TOTAL_STEPS,
   formatDocumentType,
-  formatValue,
-  getDocumentLines,
-  getLineText,
   lockedDateTimeInputClassName,
   toDateInputValue,
   toTimeInputValue,
@@ -83,6 +71,18 @@ function buildEmptyDraft(documentType: SalesDispatchDocumentType = 'INVOICE'): D
     dockIncharge: '',
     remarks: '',
   };
+}
+
+function dateInputFromTimestamp(value?: string | null) {
+  if (!value) return toDateInputValue();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? toDateInputValue() : toDateInputValue(date);
+}
+
+function timeInputFromTimestamp(value?: string | null) {
+  if (!value) return toTimeInputValue();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? toTimeInputValue() : toTimeInputValue(date);
 }
 
 function parseInitialDocumentType(value: string | null): SalesDispatchDocumentType {
@@ -144,6 +144,59 @@ function buildDriverSelectionFromPendingBooking(
   };
 }
 
+function buildDocumentOptionFromPendingBooking(
+  booking: SalesDispatchPendingBooking,
+): SalesDispatchDocument | null {
+  if (!booking.documents.length) return null;
+
+  const primary = booking.documents[0];
+  return {
+    ...primary,
+    doc_num: booking.document_numbers.join(', ') || primary.doc_num,
+    card_name: booking.customer_name || primary.card_name,
+    place_of_supply: booking.place_of_supply || primary.place_of_supply,
+    eway_bill: booking.eway_bill || primary.eway_bill,
+    item_summary: booking.item_summary || primary.item_summary,
+    total_weight: booking.total_weight || primary.total_weight,
+    plan: primary.plan,
+  };
+}
+
+function buildDocumentOptionFromEntry(entry: SalesDispatchGateOut): SalesDispatchDocument {
+  return {
+    document_type: entry.document_type,
+    doc_entry: entry.sap_doc_entry,
+    doc_num: entry.sap_doc_num,
+    doc_date: entry.sap_doc_date,
+    doc_total: entry.sap_doc_total,
+    branch_id: entry.sap_branch_id,
+    branch_name: entry.sap_branch_name,
+    card_code: entry.customer_code,
+    card_name: entry.customer_name,
+    ship_to_code: entry.ship_to_code,
+    ship_to_address: entry.ship_to_address,
+    place_of_supply: entry.place_of_supply,
+    bp_gstin: entry.bp_gstin,
+    eway_bill: entry.eway_bill,
+    vehicle_no: entry.vehicle_no,
+    transporter_name: entry.transporter_name,
+    bilty_no: entry.bilty_no,
+    bilty_date: entry.bilty_date,
+    from_warehouse: entry.from_warehouse,
+    to_warehouse: entry.to_warehouse,
+    warehouses: entry.warehouses,
+    item_summary: entry.item_summary,
+    base_refs: entry.base_refs,
+    total_quantity: entry.total_quantity,
+    total_litres: entry.total_litres,
+    total_boxes: entry.total_boxes,
+    total_weight: entry.total_weight,
+    line_count: entry.items?.length || 0,
+    items: entry.items || [],
+    plan: entry.dispatch_plan ? { id: entry.dispatch_plan } : null,
+  };
+}
+
 function canEditEntry(entry?: SalesDispatchGateOut | null) {
   return !entry || ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'].includes(entry.status);
 }
@@ -187,20 +240,6 @@ function getCreateDocuments(
   });
 }
 
-function getUniqueDocumentValues(
-  documents: SalesDispatchDocument[],
-  getValue: (document: SalesDispatchDocument) => string,
-) {
-  const values: string[] = [];
-  documents.forEach((document) => {
-    const value = getValue(document).trim();
-    if (value && !values.includes(value)) {
-      values.push(value);
-    }
-  });
-  return values;
-}
-
 export default function SalesDispatchNewPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -235,19 +274,32 @@ export default function SalesDispatchNewPage() {
       search: submittedSearch,
       limit: 50,
     },
-    { enabled: !isPendingBookingMode },
+    { enabled: !isPendingBookingMode && !existingVehicleEntryId },
   );
   const pendingBooking = pendingBookings[0] || null;
+  const pendingBookingDocumentOption = useMemo(
+    () => (pendingBooking ? buildDocumentOptionFromPendingBooking(pendingBooking) : null),
+    [pendingBooking],
+  );
+  const existingEntryDocumentOption = useMemo(
+    () => (existingEntry ? buildDocumentOptionFromEntry(existingEntry) : null),
+    [existingEntry],
+  );
   const selectedDocumentKey = useMemo(
     () => parseDocumentKey(draft.documentKey),
     [draft.documentKey],
   );
   const { data: selectedDocumentDetail } = useSalesDispatchDocument(
-    existingEntry ? null : selectedDocumentKey?.documentType,
-    existingEntry ? null : selectedDocumentKey?.docEntry,
+    existingEntry || isPendingBookingMode ? null : selectedDocumentKey?.documentType,
+    existingEntry || isPendingBookingMode ? null : selectedDocumentKey?.docEntry,
   );
   const createSalesDispatch = useCreateSalesDispatch();
   const updateSalesDispatch = useUpdateSalesDispatch();
+  const documentOptions = useMemo(() => {
+    if (existingEntryDocumentOption) return [existingEntryDocumentOption];
+    if (pendingBookingDocumentOption) return [pendingBookingDocumentOption];
+    return documents;
+  }, [documents, existingEntryDocumentOption, pendingBookingDocumentOption]);
 
   useEffect(() => {
     if (!existingEntry) return;
@@ -257,52 +309,43 @@ export default function SalesDispatchNewPage() {
       driver: buildDriverSelection(existingEntry),
       documentType: existingEntry.document_type,
       documentKey: buildEntryDocumentKey(existingEntry),
-      gateOutDate: existingEntry.gate_out_date || toDateInputValue(),
-      outTime: existingEntry.out_time || toTimeInputValue(),
+      gateOutDate: dateInputFromTimestamp(existingEntry.docked_at),
+      outTime: timeInputFromTimestamp(existingEntry.docked_at),
       securityName: existingEntry.security_name || '',
       biltyNo: existingEntry.bilty_no || '',
       biltyDate: existingEntry.bilty_date || '',
       dockIncharge: existingEntry.dock_incharge || '',
       remarks: existingEntry.remarks || '',
     });
+    setSelectedDocuments([]);
+    setSelectedListDocument(buildDocumentOptionFromEntry(existingEntry));
   }, [existingEntry]);
 
   useEffect(() => {
     if (!pendingBooking || existingEntry) return;
+    const documentOption = buildDocumentOptionFromPendingBooking(pendingBooking);
 
     setDraft((current) => ({
       ...current,
       vehicle: buildVehicleSelectionFromPendingBooking(pendingBooking),
       driver: buildDriverSelectionFromPendingBooking(pendingBooking),
       documentType: 'INVOICE',
-      documentKey: '',
+      documentKey: documentOption ? buildDocumentKey(documentOption) : '',
       biltyNo: pendingBooking.bilty_no || '',
       biltyDate: pendingBooking.bilty_date || '',
-      remarks: pendingBooking.document_numbers.length
-        ? `Booked invoices: ${pendingBooking.document_numbers.join(', ')}`
-        : current.remarks,
     }));
     setSelectedDocuments(pendingBooking.documents);
-    setSelectedListDocument(null);
+    setSelectedListDocument(documentOption);
     setSubmittedSearch('');
     setFormError('');
   }, [existingEntry, pendingBooking]);
 
   const documentFromList = useMemo(
-    () => documents.find((document) => buildDocumentKey(document) === draft.documentKey) || null,
-    [documents, draft.documentKey],
+    () =>
+      documentOptions.find((document) => buildDocumentKey(document) === draft.documentKey) || null,
+    [documentOptions, draft.documentKey],
   );
   const selectedDocument = selectedDocumentDetail || selectedListDocument || documentFromList;
-  const documentsForDisplay =
-    selectedDocuments.length > 0 ? selectedDocuments : selectedDocument ? [selectedDocument] : [];
-  const customerNames = getUniqueDocumentValues(
-    documentsForDisplay,
-    (document) => document.card_name || document.card_code || '',
-  );
-  const ewayBills = getUniqueDocumentValues(
-    documentsForDisplay,
-    (document) => document.eway_bill || '',
-  );
 
   const documentDisplay = selectedDocument
     ? buildDocumentLabel(selectedDocument)
@@ -329,31 +372,9 @@ export default function SalesDispatchNewPage() {
     setFormError('');
   };
 
-  const handleAddSelectedDocument = () => {
-    if (!selectedDocument || draft.documentType !== 'INVOICE') return;
-    setSelectedDocuments((current) => {
-      if (
-        current.some(
-          (document) => buildDocumentKey(document) === buildDocumentKey(selectedDocument),
-        )
-      ) {
-        return current;
-      }
-      return [...current, selectedDocument];
-    });
-    setSelectedListDocument(null);
-    updateDraft('documentKey', '');
-  };
-
-  const handleRemoveSelectedDocument = (documentKey: string) => {
-    setSelectedDocuments((current) =>
-      current.filter((document) => buildDocumentKey(document) !== documentKey),
-    );
-  };
-
   const handleSaveAndNext = async () => {
     if (existingEntry && isExistingReadOnly) {
-      navigate(DOCKING_ROUTES.weighment(existingEntry.vehicle_entry));
+      navigate(DOCKING_ROUTES.barcodeScan(existingEntry.vehicle_entry));
       return;
     }
 
@@ -379,12 +400,12 @@ export default function SalesDispatchNewPage() {
     }
 
     if (!draft.gateOutDate) {
-      setFormError('Gate out date is required');
+      setFormError('Docking date is required');
       return;
     }
 
     if (!draft.outTime) {
-      setFormError('Out time is required');
+      setFormError('Docking time is required');
       return;
     }
 
@@ -392,8 +413,6 @@ export default function SalesDispatchNewPage() {
 
     try {
       const payload = {
-        gate_out_date: draft.gateOutDate,
-        out_time: draft.outTime,
         security_name: draft.securityName,
         bilty_no: draft.biltyNo,
         bilty_date: draft.biltyDate || null,
@@ -417,7 +436,7 @@ export default function SalesDispatchNewPage() {
           });
 
       toast.success('Docking details saved');
-      navigate(DOCKING_ROUTES.weighment(entry.vehicle_entry));
+      navigate(DOCKING_ROUTES.barcodeScan(entry.vehicle_entry));
     } catch (error) {
       setFormError(getErrorMessage(error, 'Failed to save Docking entry'));
     }
@@ -474,198 +493,88 @@ export default function SalesDispatchNewPage() {
 
         <FormSection icon={<FileText className="h-5 w-5" />} title="SAP Document">
           <div className="grid gap-4 lg:grid-cols-2">
-            {existingEntry ? (
-              <ReadOnlyTextField
-                label="SAP Document"
-                value={documentDisplay}
-                className="lg:col-span-2"
-              />
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="sales-dispatch-document-type">
-                    Document Type <span className="text-destructive">*</span>
-                  </Label>
-                  <NativeSelect
-                    id="sales-dispatch-document-type"
-                    value={draft.documentType}
-                    onChange={(event) =>
-                      handleDocumentTypeChange(event.target.value as SalesDispatchDocumentType)
-                    }
-                  >
-                    <SelectOption value="INVOICE">Invoice</SelectOption>
-                    <SelectOption value="STOCK_TRANSFER">Stock Transfer</SelectOption>
-                  </NativeSelect>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-document-type">
+                Document Type <span className="text-destructive">*</span>
+              </Label>
+              <NativeSelect
+                id="sales-dispatch-document-type"
+                value={draft.documentType}
+                disabled={isExistingReadOnly || !!existingEntry || isPendingBookingMode}
+                onChange={(event) =>
+                  handleDocumentTypeChange(event.target.value as SalesDispatchDocumentType)
+                }
+              >
+                <SelectOption value="INVOICE">Invoice</SelectOption>
+                <SelectOption value="STOCK_TRANSFER">Stock Transfer</SelectOption>
+              </NativeSelect>
+            </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label>
-                      SAP {formatDocumentType(draft.documentType)}{' '}
-                      <span className="text-destructive">*</span>
-                    </Label>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => refetchDocuments()}
-                    >
-                      <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                      Refresh
-                    </Button>
-                  </div>
-                  <SearchableSelect<SalesDispatchDocument>
-                    inputId="sales-dispatch-document"
-                    value={draft.documentKey}
-                    items={documents}
-                    isLoading={isDocumentsLoading}
-                    isError={isDocumentsError}
-                    placeholder="Search by document, customer, item, or warehouse"
-                    getItemKey={buildDocumentKey}
-                    getItemLabel={buildDocumentLabel}
-                    filterFn={showServerResults}
-                    loadingText="Loading SAP documents..."
-                    emptyText="Search SAP documents"
-                    notFoundText="No SAP documents found"
-                    errorText="Failed to load SAP documents"
-                    onSearchChange={(value) => setSubmittedSearch(value.trim())}
-                    onClear={() => {
-                      setSelectedListDocument(null);
-                      updateDraft('documentKey', '');
-                    }}
-                    onItemSelect={(document) => {
-                      setSelectedListDocument(document);
-                      updateDraft('documentKey', buildDocumentKey(document));
-                    }}
-                    renderItem={(document) => (
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">
-                          {formatDocumentType(document.document_type)} {document.doc_num}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {[
-                            document.doc_date,
-                            document.card_name || document.to_warehouse || document.warehouses,
-                            document.item_summary,
-                          ]
-                            .filter(Boolean)
-                            .join(' - ')}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          {document.total_quantity ? `Qty ${document.total_quantity}` : ''}
-                        </div>
-                      </div>
-                    )}
-                  />
-                  {draft.documentType === 'INVOICE' ? (
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!selectedDocument}
-                        onClick={handleAddSelectedDocument}
-                      >
-                        <Plus className="mr-2 h-3.5 w-3.5" />
-                        Add Invoice
-                      </Button>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label>
+                  SAP {formatDocumentType(draft.documentType)}{' '}
+                  <span className="text-destructive">*</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPendingBookingMode || !!existingEntry}
+                  onClick={() => refetchDocuments()}
+                >
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Refresh
+                </Button>
+              </div>
+              <SearchableSelect<SalesDispatchDocument>
+                inputId="sales-dispatch-document"
+                value={draft.documentKey}
+                items={documentOptions}
+                isLoading={!isPendingBookingMode && !existingEntry && isDocumentsLoading}
+                isError={!isPendingBookingMode && !existingEntry && isDocumentsError}
+                disabled={isExistingReadOnly || !!existingEntry || isPendingBookingMode}
+                defaultDisplayText={documentDisplay}
+                placeholder="Search by document, customer, item, or warehouse"
+                getItemKey={buildDocumentKey}
+                getItemLabel={buildDocumentLabel}
+                filterFn={showServerResults}
+                loadingText="Loading SAP documents..."
+                emptyText="Search SAP documents"
+                notFoundText="No SAP documents found"
+                errorText="Failed to load SAP documents"
+                onSearchChange={(value) => {
+                  if (!isPendingBookingMode && !existingEntry) setSubmittedSearch(value.trim());
+                }}
+                onClear={() => {
+                  setSelectedListDocument(null);
+                  setSelectedDocuments([]);
+                  updateDraft('documentKey', '');
+                }}
+                onItemSelect={(document) => {
+                  setSelectedListDocument(document);
+                  setSelectedDocuments([]);
+                  updateDraft('documentKey', buildDocumentKey(document));
+                }}
+                renderItem={(document) => (
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">
+                      {formatDocumentType(document.document_type)} {document.doc_num}
                     </div>
-                  ) : null}
-                </div>
-              </>
-            )}
-
-            {!existingEntry && selectedDocuments.length > 0 ? (
-              <SelectedDocumentsTable
-                documents={selectedDocuments}
-                onRemove={handleRemoveSelectedDocument}
-              />
-            ) : null}
-
-            {!existingEntry && customerNames.length > 1 ? (
-              <WarningBanner text="Selected invoices belong to different customers." />
-            ) : null}
-
-            {!existingEntry && ewayBills.length > 1 ? (
-              <WarningBanner text="Selected invoices have different e-way bills." />
-            ) : null}
-
-            <ReadOnlyTextField
-              label="Customer / Destination"
-              value={
-                customerNames.join(', ') ||
-                existingEntry?.customer_name ||
-                existingEntry?.to_warehouse ||
-                ''
-              }
-            />
-            <ReadOnlyTextField
-              label="Ship To / Warehouse"
-              value={
-                getUniqueDocumentValues(
-                  documentsForDisplay,
-                  (document) => document.ship_to_address || document.warehouses || '',
-                ).join(', ') ||
-                existingEntry?.ship_to_address ||
-                existingEntry?.warehouses ||
-                ''
-              }
-            />
-            <ReadOnlyTextField
-              label="E-way Bill"
-              value={ewayBills.join(', ') || existingEntry?.eway_bill || ''}
-            />
-            <ReadOnlyTextField
-              label="Transporter"
-              value={
-                getUniqueDocumentValues(
-                  documentsForDisplay,
-                  (document) => document.transporter_name || '',
-                ).join(', ') ||
-                existingEntry?.transporter_name ||
-                ''
-              }
-            />
-          </div>
-        </FormSection>
-
-        <FormSection icon={<PackageCheck className="h-5 w-5" />} title="Document Lines">
-          <DocumentLinesTable document={selectedDocument} entry={existingEntry} />
-        </FormSection>
-
-        <FormSection icon={<ShieldCheck className="h-5 w-5" />} title="Gate Details">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <TextField
-              id="sales-dispatch-bilty"
-              label="Bilty / LR No."
-              value={draft.biltyNo}
-              disabled={isExistingReadOnly}
-              onChange={(value) => updateDraft('biltyNo', value)}
-            />
-            <TextField
-              id="sales-dispatch-bilty-date"
-              label="Bilty Date"
-              type="date"
-              value={draft.biltyDate}
-              disabled={isExistingReadOnly}
-              onChange={(value) => updateDraft('biltyDate', value)}
-            />
-            <TextField
-              id="sales-dispatch-dock-incharge"
-              label="Dock Incharge"
-              value={draft.dockIncharge}
-              disabled={isExistingReadOnly}
-              onChange={(value) => updateDraft('dockIncharge', value)}
-              placeholder="Dock staff name"
-            />
-            <div className="space-y-2 lg:col-span-2">
-              <Label htmlFor="sales-dispatch-remarks">Remarks</Label>
-              <Textarea
-                id="sales-dispatch-remarks"
-                value={draft.remarks}
-                disabled={isExistingReadOnly}
-                onChange={(event) => updateDraft('remarks', event.target.value)}
-                placeholder="Optional notes"
+                    <div className="truncate text-xs text-muted-foreground">
+                      {[
+                        document.doc_date,
+                        document.card_name || document.to_warehouse || document.warehouses,
+                        document.item_summary,
+                      ]
+                        .filter(Boolean)
+                        .join(' - ')}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {document.total_quantity ? `Qty ${document.total_quantity}` : ''}
+                    </div>
+                  </div>
+                )}
               />
             </div>
           </div>
@@ -678,7 +587,7 @@ export default function SalesDispatchNewPage() {
         showPrevious={false}
         isSaving={isSaving}
         nextLabel={
-          isExistingReadOnly ? 'Continue to Weighment' : isSaving ? 'Saving...' : 'Save and Next'
+          isExistingReadOnly ? 'Continue to Box Scanning' : isSaving ? 'Saving...' : 'Save and Next'
         }
       />
     </div>
@@ -712,67 +621,12 @@ function FormSection({
   );
 }
 
-function SelectedDocumentsTable({
-  documents,
-  onRemove,
-}: {
-  documents: SalesDispatchDocument[];
-  onRemove: (documentKey: string) => void;
-}) {
-  return (
-    <div className="lg:col-span-2 overflow-hidden rounded-md border">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px]">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-3 text-left text-sm font-medium">Invoice</th>
-              <th className="p-3 text-left text-sm font-medium">Customer</th>
-              <th className="p-3 text-left text-sm font-medium">E-way Bill</th>
-              <th className="p-3 text-left text-sm font-medium">Weight</th>
-              <th className="w-12 p-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {documents.map((document) => (
-              <tr key={buildDocumentKey(document)} className="border-t">
-                <td className="whitespace-nowrap p-3 text-sm font-medium">{document.doc_num}</td>
-                <td className="p-3 text-sm">{document.card_name || '-'}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{document.eway_bill || '-'}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{document.total_weight || '-'}</td>
-                <td className="p-2 text-right">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onRemove(buildDocumentKey(document))}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function WarningBanner({ text }: { text: string }) {
-  return (
-    <div className="lg:col-span-2 flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-      <AlertTriangle className="h-4 w-4 shrink-0" />
-      <span>{text}</span>
-    </div>
-  );
-}
-
 function ReadOnlyDateTime({ dateValue, timeValue }: { dateValue: string; timeValue: string }) {
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <Label htmlFor="sales-dispatch-date">
-          Gate Out Date <span className="text-destructive">*</span>
+          Docking Date <span className="text-destructive">*</span>
         </Label>
         <Input
           id="sales-dispatch-date"
@@ -785,7 +639,7 @@ function ReadOnlyDateTime({ dateValue, timeValue }: { dateValue: string; timeVal
       </div>
       <div className="space-y-2">
         <Label htmlFor="sales-dispatch-time">
-          Out Time <span className="text-destructive">*</span>
+          Docking Time <span className="text-destructive">*</span>
         </Label>
         <Input
           id="sales-dispatch-time"
@@ -834,104 +688,6 @@ function TextField({
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
       />
-    </div>
-  );
-}
-
-function ReadOnlyTextField({
-  label,
-  value,
-  className,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className={`space-y-2 ${className || ''}`}>
-      <Label>{label}</Label>
-      <Input
-        value={formatValue(value)}
-        readOnly
-        disabled
-        className={lockedDateTimeInputClassName}
-      />
-    </div>
-  );
-}
-
-function DocumentLinesTable({
-  document,
-  entry,
-}: {
-  document: SalesDispatchDocument | null;
-  entry?: SalesDispatchGateOut | null;
-}) {
-  const documentLines = getDocumentLines(document);
-  const entryLines = entry?.items || [];
-  const hasLines = documentLines.length > 0 || entryLines.length > 0;
-
-  return (
-    <div className="overflow-hidden rounded-md border">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px]">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-3 text-left text-sm font-medium">Item Code</th>
-              <th className="p-3 text-left text-sm font-medium">Item</th>
-              <th className="p-3 text-left text-sm font-medium">Quantity</th>
-              <th className="p-3 text-left text-sm font-medium">UOM</th>
-              <th className="p-3 text-left text-sm font-medium">Warehouse</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!hasLines ? (
-              <tr>
-                <td colSpan={5} className="h-20 p-3 text-center text-sm text-muted-foreground">
-                  Select a SAP document to view lines
-                </td>
-              </tr>
-            ) : entryLines.length > 0 ? (
-              entryLines.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="whitespace-nowrap p-3 text-sm">{item.item_code}</td>
-                  <td className="p-3 text-sm font-medium">{item.item_name}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.quantity}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">{item.uom}</td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {item.warehouse_code || item.from_warehouse || item.to_warehouse || '-'}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              documentLines.map((line, index) => (
-                <tr key={getLineText(line, ['line_num', 'LineNum']) || index} className="border-t">
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {getLineText(line, ['item_code', 'ItemCode', 'ItemCode']) || '-'}
-                  </td>
-                  <td className="p-3 text-sm font-medium">
-                    {getLineText(line, ['item_name', 'ItemName', 'Dscription']) || '-'}
-                  </td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {getLineText(line, ['quantity', 'Quantity']) || '-'}
-                  </td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {getLineText(line, ['uom', 'UomCode', 'unitMsr']) || '-'}
-                  </td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {getLineText(line, [
-                      'warehouse_code',
-                      'WhsCode',
-                      'from_warehouse',
-                      'to_warehouse',
-                    ]) || '-'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

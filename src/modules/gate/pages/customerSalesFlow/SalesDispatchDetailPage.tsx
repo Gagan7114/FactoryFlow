@@ -6,12 +6,10 @@ import {
   Paperclip,
   Printer,
   RotateCcw,
-  Scale,
-  ShieldCheck,
   Truck,
   XCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -20,11 +18,11 @@ import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchGateOut,
   type SalesDispatchGateOutDocument,
+  type SalesDispatchBoxScan,
   type SalesDispatchItem,
   useCancelSalesDispatch,
   useRejectSalesDispatch,
   useSalesDispatch,
-  useWeighment,
 } from '@/modules/gate/api';
 import { GateStatusBadge, StepLoadingSpinner } from '@/modules/gate/components';
 import {
@@ -49,13 +47,18 @@ import {
   formatDocumentType,
   formatTimestamp,
   formatValue,
-  summarizeSalesDispatchItems,
 } from './salesDispatchFlow.helpers';
 import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
 
 interface DetailDocument extends SalesDispatchGateOutDocument {
   key: string;
   items: SalesDispatchItem[];
+}
+
+interface AuditEvent {
+  label: string;
+  value: string;
+  detail?: string;
 }
 
 export default function SalesDispatchDetailPage() {
@@ -74,7 +77,6 @@ export default function SalesDispatchDetailPage() {
   const [rejectError, setRejectError] = useState('');
 
   const { data: entry, isLoading, error, refetch } = useSalesDispatch(id);
-  const { data: weighment } = useWeighment(entry?.vehicle_entry || null);
   const cancelSalesDispatch = useCancelSalesDispatch();
   const rejectSalesDispatch = useRejectSalesDispatch();
 
@@ -194,7 +196,7 @@ export default function SalesDispatchDetailPage() {
               )
             }
           >
-            {isGateOutMode ? 'Open Gate Out' : 'Resume Flow'}
+            {getPrimaryActionLabel(entry, isGateOutMode)}
           </Button>
           {canReprintGatepass && entry && (
             <Button
@@ -234,90 +236,23 @@ export default function SalesDispatchDetailPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Docking Summary
-          </CardTitle>
-          <GateStatusBadge status={entry.status} />
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Entry No." value={entry.entry_no} />
-          <InfoItem label="Vehicle Entry" value={entry.vehicle_entry_no} />
-          <InfoItem label="SAP Documents" value={formatDocumentNumbers(entry)} />
-          <InfoItem label="Document Count" value={formatDocumentCount(detailDocuments)} />
-          <InfoItem label="Document Type" value={formatDocumentType(entry.document_type)} />
-          <InfoItem label="Gate Out" value={formatDateTime(entry.gate_out_date, entry.out_time)} />
-          <InfoItem label="Gatepass No." value={entry.gatepass_no} />
-          <InfoItem label="Updated" value={formatTimestamp(entry.updated_at)} />
-        </CardContent>
-      </Card>
+      <DockingOverviewCard entry={entry} documents={detailDocuments} />
 
       <DocumentsCard documents={detailDocuments} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5" />
-              Vehicle & Driver
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Vehicle" value={entry.vehicle_no} />
-            <InfoItem label="Transporter" value={entry.transporter_name} />
-            <InfoItem label="Driver" value={entry.driver_name} />
-            <InfoItem label="Driver Mobile" value={entry.driver_mobile_no} />
-            <InfoItem label="Bilty / LR" value={entry.bilty_no} />
-            <InfoItem label="Security" value={entry.security_name} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              Primary Customer & SAP
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
-            <InfoItem label="Customer" value={entry.customer_name} />
-            <InfoItem label="Ship To" value={entry.ship_to_address || entry.warehouses} />
-            <InfoItem label="E-way Bill" value={entry.eway_bill} />
-            <InfoItem label="GSTIN" value={entry.bp_gstin} />
-            <InfoItem label="From Warehouse" value={entry.from_warehouse} />
-            <InfoItem label="To Warehouse" value={entry.to_warehouse} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5" />
-            Weighment
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Gross Weight" value={weighment?.gross_weight || entry.gross_weight} />
-          <InfoItem label="Tare Weight" value={weighment?.tare_weight || entry.tare_weight} />
-          <InfoItem label="Net Weight" value={weighment?.net_weight || entry.net_weight} />
-          <InfoItem label="Slip No." value={weighment?.weighbridge_slip_no} />
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PackageCheck className="h-5 w-5" />
-            Dispatch Lines
+            Items to Load
           </CardTitle>
         </CardHeader>
         <CardContent>
           <DocumentItemsByDocument documents={detailDocuments} itemSummary={entry.item_summary} />
         </CardContent>
       </Card>
+
+      <BoxScansCard entry={entry} />
 
       <Card>
         <CardHeader>
@@ -348,32 +283,7 @@ export default function SalesDispatchDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarClock className="h-5 w-5" />
-            Finalization
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
-          <InfoItem label="Printed At" value={formatTimestamp(entry.printed_at)} />
-          <InfoItem label="Print Committed At" value={formatTimestamp(entry.print_committed_at)} />
-          <InfoItem label="Dispatched At" value={formatTimestamp(entry.dispatched_at)} />
-          <InfoItem label="Remarks" value={entry.remarks} />
-          {entry.status === 'CANCELLED' && (
-            <>
-              <InfoItem label="Cancel Reason" value={entry.cancel_reason} />
-              <InfoItem label="Cancelled At" value={formatTimestamp(entry.cancelled_at)} />
-            </>
-          )}
-          {entry.status === 'REJECTED' && (
-            <>
-              <InfoItem label="Reject Reason" value={entry.reject_reason} />
-              <InfoItem label="Rejected At" value={formatTimestamp(entry.rejected_at)} />
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <AuditTrailCard entry={entry} />
 
       <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
         <DialogContent>
@@ -458,10 +368,180 @@ export default function SalesDispatchDetailPage() {
   );
 }
 
+function DockingOverviewCard({
+  entry,
+  documents,
+}: {
+  entry: SalesDispatchGateOut;
+  documents: DetailDocument[];
+}) {
+  const primaryDocument = documents[0];
+  const customer = entry.customer_name || primaryDocument?.customer_name || entry.to_warehouse;
+  const destination = primaryDocument
+    ? formatDocumentDestination(primaryDocument)
+    : entry.ship_to_address || entry.warehouses;
+  const showGatepass = hasDisplayValue(entry.gatepass_no);
+  const showActualGateOut = entry.status === 'DISPATCHED';
+  const showRemarks = hasDisplayValue(entry.remarks);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Truck className="h-5 w-5" />
+          Docking Overview
+        </CardTitle>
+        <GateStatusBadge status={entry.status} />
+      </CardHeader>
+      <CardContent className="grid gap-6 text-sm lg:grid-cols-3">
+        <InfoGroup title="Vehicle & Driver">
+          <InfoItem label="Vehicle" value={entry.vehicle_no} />
+          <InfoItem label="Driver" value={entry.driver_name} />
+          <InfoItem label="Driver Mobile" value={entry.driver_mobile_no} />
+          <InfoItem label="Transporter" value={entry.transporter_name} />
+          <InfoItem label="Bilty / LR" value={entry.bilty_no} />
+        </InfoGroup>
+
+        <InfoGroup title="Document">
+          <InfoItem label="SAP Document" value={formatDocumentNumbers(entry)} />
+          <InfoItem label="Customer" value={customer} />
+          <InfoItem label="Destination" value={destination} />
+          <InfoItem label="GSTIN" value={entry.bp_gstin || primaryDocument?.bp_gstin} />
+          {hasDisplayValue(entry.eway_bill || primaryDocument?.eway_bill) ? (
+            <InfoItem label="E-way Bill" value={entry.eway_bill || primaryDocument?.eway_bill} />
+          ) : null}
+        </InfoGroup>
+
+        <InfoGroup title="Docking">
+          <InfoItem label="Vehicle Entry" value={entry.vehicle_entry_no} />
+          <InfoItem label="Docked At" value={formatTimestamp(entry.docked_at)} />
+          <InfoItem label="Box Scan Progress" value={formatScanProgress(entry)} />
+          <InfoItem label="Security" value={entry.security_name} />
+          {showGatepass ? <InfoItem label="Gatepass No." value={entry.gatepass_no} /> : null}
+          {showActualGateOut ? (
+            <InfoItem label="Actual Gate Out" value={formatActualGateOut(entry)} />
+          ) : null}
+          {showRemarks ? <InfoItem label="Remarks" value={entry.remarks} /> : null}
+        </InfoGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BoxScansCard({ entry }: { entry: SalesDispatchGateOut }) {
+  const scans = entry.box_scans ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <PackageCheck className="h-5 w-5" />
+          Scanned Boxes
+        </CardTitle>
+        <div className="text-sm text-muted-foreground">{formatScanProgress(entry)}</div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+          <InfoItem label="Scanned Boxes" value={scans.length} />
+          <InfoItem label="Expected Boxes" value={entry.total_boxes} />
+          <InfoItem label="Total Scanned Quantity" value={formatScannedQuantity(entry)} />
+          <InfoItem label="Last Scan" value={formatTimestamp(scans[0]?.scanned_at || null)} />
+        </div>
+
+        {scans.length > 0 ? (
+          <div className="overflow-hidden rounded-md border">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px]">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="p-3 text-left text-sm font-medium">Barcode</th>
+                    <th className="p-3 text-left text-sm font-medium">Item</th>
+                    <th className="p-3 text-right text-sm font-medium">Quantity</th>
+                    <th className="p-3 text-left text-sm font-medium">Pallet</th>
+                    <th className="p-3 text-left text-sm font-medium">Scanned At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scans.map((scan) => (
+                    <tr key={scan.id} className="border-t align-top">
+                      <td className="whitespace-nowrap p-3 text-sm font-semibold">
+                        {formatValue(scan.box_barcode || scan.barcode_raw)}
+                      </td>
+                      <td className="p-3 text-sm">
+                        <div className="font-medium">
+                          {formatValue(scan.item_name || scan.item_code)}
+                        </div>
+                        {scan.batch_number ? (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Batch: {scan.batch_number}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                        {formatQuantityWithUom(scan.quantity, scan.uom)}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {formatValue(scan.pallet_code)}
+                      </td>
+                      <td className="whitespace-nowrap p-3 text-sm">
+                        {formatTimestamp(scan.scanned_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-20 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+            No boxes scanned yet
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AuditTrailCard({ entry }: { entry: SalesDispatchGateOut }) {
+  const events = buildAuditEvents(entry);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5" />
+          Audit Trail
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {events.map((event) => (
+            <div key={event.label} className="border-l-2 pl-4">
+              <div className="text-sm font-medium">{event.label}</div>
+              <div className="mt-1 text-sm text-muted-foreground">{event.value}</div>
+              {event.detail ? (
+                <div className="mt-1 text-xs text-muted-foreground">{event.detail}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">{children}</div>
+    </div>
+  );
+}
+
 function DocumentsCard({ documents }: { documents: DetailDocument[] }) {
   const showEwayBill = documents.some((document) => hasDisplayValue(document.eway_bill));
   const showAmount = documents.some((document) => hasDisplayValue(document.sap_doc_total));
-  const showWeight = documents.some((document) => hasDisplayValue(document.total_weight));
 
   return (
     <Card>
@@ -489,10 +569,7 @@ function DocumentsCard({ documents }: { documents: DetailDocument[] }) {
                   {showAmount ? (
                     <th className="w-[120px] p-3 text-right text-sm font-medium">Amount</th>
                   ) : null}
-                  {showWeight ? (
-                    <th className="w-[130px] p-3 text-right text-sm font-medium">SAP Weight</th>
-                  ) : null}
-                  <th className="w-[230px] p-3 text-left text-sm font-medium">Items</th>
+                  <th className="w-[210px] p-3 text-left text-sm font-medium">Load</th>
                 </tr>
               </thead>
               <tbody>
@@ -526,16 +603,7 @@ function DocumentsCard({ documents }: { documents: DetailDocument[] }) {
                         {formatValue(document.sap_doc_total)}
                       </td>
                     ) : null}
-                    {showWeight ? (
-                      <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
-                        {formatValue(formatWeightValue(document.total_weight))}
-                      </td>
-                    ) : null}
-                    <td className="p-3 text-sm">
-                      {formatValue(
-                        document.item_summary || summarizeSalesDispatchItems(document.items),
-                      )}
-                    </td>
+                    <td className="p-3 text-sm">{formatDocumentLoad(document)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -696,6 +764,145 @@ function formatDocumentNumbers(entry: SalesDispatchGateOut) {
 function formatDocumentCount(documents: DetailDocument[]) {
   if (documents.length === 0) return 'No SAP documents';
   return documents.length === 1 ? '1 SAP document' : `${documents.length} SAP documents`;
+}
+
+function formatDocumentLoad(document: DetailDocument) {
+  const itemCount = document.items.length
+    ? `${document.items.length} ${document.items.length === 1 ? 'item' : 'items'}`
+    : '';
+  const parts = [
+    itemCount,
+    document.total_quantity ? `${document.total_quantity} qty` : '',
+    document.total_boxes ? `${document.total_boxes} boxes` : '',
+    document.total_litres ? `${document.total_litres} litres` : '',
+    document.total_weight ? formatWeightValue(document.total_weight) : '',
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(' / ') : '-';
+}
+
+function formatScanProgress(entry: SalesDispatchGateOut) {
+  const scanned = entry.box_scans?.length ?? 0;
+  const expected = getPositiveNumber(entry.total_boxes);
+  if (expected) return `${scanned} / ${expected} boxes`;
+  return scanned > 0 ? `${scanned} scanned` : 'No boxes scanned';
+}
+
+function formatScannedQuantity(entry: SalesDispatchGateOut) {
+  const quantity = sumScannedQuantity(entry.box_scans);
+  if (!quantity) return '';
+  const uom = entry.box_scans?.find((scan) => hasDisplayValue(scan.uom))?.uom || entry.uom;
+  return [quantity, uom].filter(Boolean).join(' ');
+}
+
+function formatQuantityWithUom(quantity?: string | number | null, uom?: string | null) {
+  if (!hasDisplayValue(quantity)) return '-';
+  return [quantity, uom].filter(Boolean).join(' ');
+}
+
+function sumScannedQuantity(scans?: SalesDispatchBoxScan[]) {
+  if (!scans?.length) return '';
+  const total = scans.reduce((sum, scan) => {
+    const quantity = Number(scan.quantity);
+    return Number.isFinite(quantity) ? sum + quantity : sum;
+  }, 0);
+  return total > 0 ? total.toLocaleString('en-IN', { maximumFractionDigits: 2 }) : '';
+}
+
+function formatActualGateOut(entry: SalesDispatchGateOut) {
+  if (entry.status !== 'DISPATCHED') return '-';
+  return entry.gate_out_date || entry.out_time
+    ? formatDateTime(entry.gate_out_date, entry.out_time)
+    : formatTimestamp(entry.dispatched_at);
+}
+
+function getPositiveNumber(value?: string | number | null) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function getPrimaryActionLabel(entry: SalesDispatchGateOut, isGateOutMode: boolean) {
+  if (isGateOutMode) return 'Open Gate Out';
+
+  if (entry.status === 'DOCKED') return 'Continue Barcode Scan';
+  if (entry.status === 'PHOTO_ATTACHED' || entry.status === 'READY_FOR_GATEPASS') {
+    return 'Prepare Gatepass';
+  }
+  if (entry.status === 'GATEPASS_PRINTED') return 'Commit Gatepass Print';
+  if (entry.status === 'PRINT_COMMITTED') return 'Dispatch Vehicle';
+
+  return 'Resume Flow';
+}
+
+function buildAuditEvents(entry: SalesDispatchGateOut): AuditEvent[] {
+  const events: AuditEvent[] = [];
+
+  if (hasDisplayValue(entry.docked_at)) {
+    events.push({
+      label: 'Docked',
+      value: formatTimestamp(entry.docked_at),
+      detail: entry.dock_incharge ? `Dock incharge: ${entry.dock_incharge}` : undefined,
+    });
+  }
+
+  if (hasDisplayValue(entry.photo_uploaded_at)) {
+    events.push({
+      label: 'Truck Photo Uploaded',
+      value: formatTimestamp(entry.photo_uploaded_at),
+    });
+  }
+
+  if (hasDisplayValue(entry.printed_at)) {
+    events.push({
+      label: 'Gatepass Printed',
+      value: formatTimestamp(entry.printed_at),
+      detail: entry.gatepass_no ? `Gatepass: ${entry.gatepass_no}` : undefined,
+    });
+  }
+
+  if (hasDisplayValue(entry.print_committed_at)) {
+    events.push({
+      label: 'Print Committed',
+      value: formatTimestamp(entry.print_committed_at),
+    });
+  }
+
+  if (entry.status === 'DISPATCHED' && (entry.dispatched_at || entry.gate_out_date)) {
+    events.push({
+      label: 'Dispatched',
+      value: formatActualGateOut(entry),
+    });
+  }
+
+  if (entry.status === 'CANCELLED') {
+    events.push({
+      label: 'Cancelled',
+      value: formatTimestamp(entry.cancelled_at),
+      detail: entry.cancel_reason,
+    });
+  }
+
+  if (entry.status === 'REJECTED') {
+    events.push({
+      label: 'Rejected',
+      value: formatTimestamp(entry.rejected_at),
+      detail: entry.reject_reason,
+    });
+  }
+
+  if (hasDisplayValue(entry.remarks)) {
+    events.push({
+      label: 'Remarks',
+      value: String(entry.remarks),
+    });
+  }
+
+  events.push({
+    label: 'Last Updated',
+    value: formatTimestamp(entry.updated_at),
+  });
+
+  return events;
 }
 
 function formatDocumentDestination(document: SalesDispatchGateOutDocument) {

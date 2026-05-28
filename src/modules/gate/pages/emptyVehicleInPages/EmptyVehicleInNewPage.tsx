@@ -23,6 +23,7 @@ import {
   VehicleSelect,
   type VehicleSelection,
 } from '@/modules/gate/components';
+import { useVehicleById } from '@/modules/gate/api/vehicle/vehicle.queries';
 import { SearchableSelect } from '@/shared/components';
 import {
   Badge,
@@ -119,6 +120,7 @@ export default function EmptyVehicleInNewPage() {
   const gateInId = getGateInId(searchParams);
   const expectedVehicleId = Number(searchParams.get('expectedVehicleId') || 0) || null;
   const dispatchDocEntry = Number(searchParams.get('dispatchDocEntry') || 0) || null;
+  const isExpectedDispatchEntry = !gateInId && Boolean(expectedVehicleId || dispatchDocEntry);
 
   const [vehicle, setVehicle] = useState<VehicleSelection | null>(null);
   const [driver, setDriver] = useState<DriverSelection | null>(null);
@@ -141,6 +143,10 @@ export default function EmptyVehicleInNewPage() {
   const {
     data: activeDispatchEntries = [],
   } = useEmptyVehicleGateInEntries({ reason: 'DISPATCH', inside_only: true });
+  const { data: expectedVehicleDetails } = useVehicleById(
+    expectedVehicleId,
+    isExpectedDispatchEntry && Boolean(expectedVehicleId),
+  );
   const { data: expectedDispatchResponse } = useDispatchBills({
     date_from: dateRange.from,
     date_to: dateRange.to,
@@ -278,6 +284,26 @@ export default function EmptyVehicleInNewPage() {
   }, [applyExpectedDispatch, gateInId, selectedExpectedDispatch]);
 
   useEffect(() => {
+    if (gateInId || selectedExpectedDispatch || !expectedVehicleDetails) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL-selected expected vehicle should seed the locked field while dispatch details load.
+    setVehicle((current) => {
+      if (current?.vehicleId === expectedVehicleDetails.id) return current;
+      return {
+        vehicleId: expectedVehicleDetails.id,
+        vehicleNumber: expectedVehicleDetails.vehicle_number,
+        vehicleType: expectedVehicleDetails.vehicle_type.name,
+        vehicleCapacity: `${expectedVehicleDetails.capacity_ton} Tons`,
+        transporterId: expectedVehicleDetails.transporter?.id || 0,
+        transporterName: expectedVehicleDetails.transporter?.name || '',
+        transporterContactPerson: expectedVehicleDetails.transporter?.contact_person || '',
+        transporterMobile: expectedVehicleDetails.transporter?.mobile_no || '',
+      };
+    });
+    setReason('DISPATCH');
+  }, [expectedVehicleDetails, gateInId, selectedExpectedDispatch]);
+
+  useEffect(() => {
     if (!selectedTransfer?.lines?.length) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Seed actual quantities from SAP line quantities when details load
@@ -358,13 +384,17 @@ export default function EmptyVehicleInNewPage() {
             ...(isBstDocumentLocked
               ? {}
               : {
-                  sap_doc_entry: isBstReason ? Number(selectedDocEntry) : null,
-                  items: isBstReason
-                    ? bstLines.map((line) => ({
-                        line_num: line.line_num,
-                        actual_quantity: Number(actualQuantities[line.line_num] || line.quantity || 0),
-                      }))
-                    : [],
+                  ...(isBstReason
+                    ? {
+                        sap_doc_entry: Number(selectedDocEntry),
+                        items: bstLines.map((line) => ({
+                          line_num: line.line_num,
+                          actual_quantity: Number(
+                            actualQuantities[line.line_num] || line.quantity || 0,
+                          ),
+                        })),
+                      }
+                    : {}),
                   document_reference: documentReference,
                   document_notes: documentNotes,
                 }),
@@ -384,13 +414,17 @@ export default function EmptyVehicleInNewPage() {
         reason,
         gate_in_date: gateInDate,
         in_time: inTime,
-        sap_doc_entry: isBstReason ? Number(selectedDocEntry) : null,
-        items: isBstReason
-          ? bstLines.map((line) => ({
-              line_num: line.line_num,
-              actual_quantity: Number(actualQuantities[line.line_num] || line.quantity || 0),
-            }))
-          : [],
+        ...(isBstReason
+          ? {
+              sap_doc_entry: Number(selectedDocEntry),
+              items: bstLines.map((line) => ({
+                line_num: line.line_num,
+                actual_quantity: Number(
+                  actualQuantities[line.line_num] || line.quantity || 0,
+                ),
+              })),
+            }
+          : {}),
         document_reference: documentReference,
         document_notes: documentNotes,
         security_name: securityName,
@@ -444,7 +478,8 @@ export default function EmptyVehicleInNewPage() {
               label="Vehicle Number"
               required
               value={vehicle?.vehicleNumber || ''}
-              disabled={isEditing}
+              defaultDisplayText={vehicle?.vehicleNumber || ''}
+              disabled={isEditing || isExpectedDispatchEntry}
               priorityVehicleIds={priorityVehicleIds}
               priorityVehicleMeta={priorityVehicleMeta}
               onChange={(selectedVehicle) => {
@@ -455,7 +490,9 @@ export default function EmptyVehicleInNewPage() {
                 if (expectedDispatch) applyExpectedDispatch(expectedDispatch);
                 setFormError('');
               }}
-              placeholder="Select empty vehicle"
+              placeholder={
+                isExpectedDispatchEntry ? 'Loading expected vehicle' : 'Select empty vehicle'
+              }
             />
 
             <DriverSelect
@@ -488,7 +525,7 @@ export default function EmptyVehicleInNewPage() {
                   }
                   setFormError('');
                 }}
-                disabled={isReasonsLoading || isEditing}
+                disabled={isReasonsLoading || isEditing || isExpectedDispatchEntry}
               >
                 <SelectOption value="">Select reason</SelectOption>
                 {reasons.map((reasonOption) => (

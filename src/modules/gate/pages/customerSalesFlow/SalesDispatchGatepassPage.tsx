@@ -27,8 +27,6 @@ import {
   usePrintSalesDispatchGatepass,
   useSalesDispatchByVehicleEntry,
   useSalesDispatchLock,
-  useWeighment,
-  type Weighment,
 } from '@/modules/gate/api';
 import {
   GateStatusBadge,
@@ -104,7 +102,6 @@ export default function SalesDispatchGatepassPage() {
     error: entryError,
     refetch,
   } = useSalesDispatchByVehicleEntry(entryIdNumber);
-  const { data: weighment } = useWeighment(entryIdNumber);
   const { data: dispatchLock } = useSalesDispatchLock();
   const previewGatepass = usePreviewSalesDispatchGatepass();
   const printGatepass = usePrintSalesDispatchGatepass();
@@ -313,7 +310,7 @@ export default function SalesDispatchGatepassPage() {
     currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
   const qrValue = entry.qr_payload || entry.gatepass_no || entry.random_code || entry.entry_no;
   const gatepassDocuments = getGatepassDocuments(entry);
-  const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft, weighment);
+  const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft);
   const gatepassSummaryFields = buildGatepassSummaryFields(entry);
   const pageTitle = getGatepassPageTitle(entry, isGateOutMode);
 
@@ -497,9 +494,9 @@ export default function SalesDispatchGatepassPage() {
                 ready={Boolean(readiness?.has_truck_photo_geolocation)}
               />
               <ReadinessItem
-                label="Weighment"
-                ready={Boolean(readiness?.has_weighment)}
-                detail={weighment ? `${weighment.net_weight} net` : 'Pending'}
+                label="Box Scanning"
+                ready={Boolean(readiness?.has_box_scans)}
+                detail={`${entry.box_scans?.length || 0} boxes`}
               />
               <ReadinessItem label="SAP Items" ready={Boolean(readiness?.has_items)} />
 
@@ -638,20 +635,25 @@ function buildGatepassSummaryFields(entry: SalesDispatchGateOut): GatepassRefere
     { label: 'Vehicle', value: entry.vehicle_no },
     { label: 'Driver', value: entry.driver_name },
     { label: 'Driver Contact', value: entry.driver_mobile_no },
-    { label: 'Gate Out', value: formatDateTime(entry.gate_out_date, entry.out_time) },
+    { label: 'Actual Gate Out', value: formatActualGateOut(entry) },
     { label: 'Printed At', value: formatTimestamp(entry.printed_at) },
   ];
+}
+
+function formatActualGateOut(entry: SalesDispatchGateOut) {
+  if (entry.status !== 'DISPATCHED') return '-';
+  return entry.gate_out_date || entry.out_time
+    ? formatDateTime(entry.gate_out_date, entry.out_time)
+    : formatTimestamp(entry.dispatched_at);
 }
 
 function buildGatepassReferenceFields(
   entry: SalesDispatchGateOut,
   draft: GatepassDraft,
-  weighment: Weighment | null | undefined,
 ): GatepassReferenceField[] {
   const ewayBill = draft.ewayBill || entry.eway_bill;
   const sealNumber = draft.sealNumber || entry.seal_number;
   const pgiReference = draft.pgiReference || entry.pgi_reference;
-  const weighbridgeWeight = formatWeightValue(weighment?.net_weight || entry.net_weight);
   const physicalQuantity = formatPhysicalQuantity(entry, draft);
 
   return filterVisibleFields([
@@ -659,7 +661,6 @@ function buildGatepassReferenceFields(
     { label: 'Invoice Date', value: entry.sap_doc_date },
     { label: 'Total Amount', value: entry.sap_doc_total },
     { label: 'Transporter', value: entry.transporter_name },
-    { label: 'Weighbridge Weight', value: weighbridgeWeight },
     { label: 'Bilty / LR', value: entry.bilty_no },
     { label: 'E-way Bill', value: ewayBill },
     { label: 'Seal No.', value: sealNumber },

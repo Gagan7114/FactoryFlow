@@ -1,6 +1,6 @@
 import { Truck } from 'lucide-react';
 import { lazy } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 
 import { DISPATCH_PERMISSIONS, GATE_PERMISSIONS, GRPO_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -33,8 +33,8 @@ const DockingDashboardPage = lazy(
 const DockingNewPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchNewPage'),
 );
-const DockingWeighmentPage = lazy(
-  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchWeighmentPage'),
+const DockingBarcodeScanPage = lazy(
+  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchBarcodeScanPage'),
 );
 const DockingAttachmentsPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchAttachmentsPage'),
@@ -79,6 +79,11 @@ const serviceGRPOViewPermissions = [
   GRPO_PERMISSIONS.VIEW_POSTING,
 ] as const;
 
+function RedirectWithSearch({ to }: { to: string }) {
+  const location = useLocation();
+  return <Navigate to={`${to}${location.search}`} replace />;
+}
+
 export const dispatchModuleConfig: ModuleConfig = {
   name: 'dispatch',
   routes: [
@@ -118,11 +123,18 @@ export const dispatchModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'New Docking' },
     },
     {
-      path: '/dispatch/docking/new/weighment',
-      element: <DockingWeighmentPage />,
+      path: '/dispatch/docking/new/barcode-scan',
+      element: <DockingBarcodeScanPage />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Docking Weighment' },
+      breadcrumb: { label: 'Docking Box Scanning' },
+    },
+    {
+      path: '/dispatch/docking/new/weighment',
+      element: <RedirectWithSearch to="/dispatch/docking/new/barcode-scan" />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
+      breadcrumb: { label: 'Docking Box Scanning' },
     },
     {
       path: '/dispatch/docking/new/attachments',

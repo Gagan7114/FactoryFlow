@@ -60,6 +60,7 @@ export interface SalesDispatchGatepassReadiness {
   ready: boolean;
   missing: string[];
   has_truck_photo_geolocation: boolean;
+  has_box_scans: boolean;
   has_weighment: boolean;
   has_items: boolean;
 }
@@ -132,6 +133,29 @@ export interface SalesDispatchAttachment {
   uploaded_by?: number | null;
   uploaded_by_name?: string;
   uploaded_at: string;
+}
+
+export interface SalesDispatchBoxScan {
+  id: number;
+  sales_dispatch: number;
+  box?: number | null;
+  scan_log?: number | null;
+  box_barcode: string;
+  barcode_raw: string;
+  item_code?: string;
+  item_name?: string;
+  batch_number?: string;
+  quantity?: string | null;
+  uom?: string;
+  box_status?: string;
+  warehouse_code?: string;
+  pallet_code?: string;
+  scanned_by?: number | null;
+  scanned_by_name?: string;
+  scanned_at: string;
+  created_at?: string;
+  updated_at?: string;
+  duplicate?: boolean;
 }
 
 export interface SalesDispatchGateOut {
@@ -232,6 +256,7 @@ export interface SalesDispatchGateOut {
   gatepass_readiness: SalesDispatchGatepassReadiness;
   items: SalesDispatchItem[];
   attachments: SalesDispatchAttachment[];
+  box_scans?: SalesDispatchBoxScan[];
   gatepass_print_logs?: SalesDispatchGatepassPrintLog[];
   created_at: string;
   updated_at: string;
@@ -386,8 +411,6 @@ export interface SalesDispatchCreateRequest {
   vehicle_id: number;
   driver_id: number;
   dispatch_plan_id?: number | null;
-  gate_out_date?: string | null;
-  out_time?: string | null;
   security_name?: string;
   bilty_no?: string;
   bilty_date?: string | null;
@@ -400,8 +423,6 @@ export interface SalesDispatchCreateRequest {
 export type SalesDispatchUpdateRequest = Partial<
   Pick<
     SalesDispatchCreateRequest,
-    | 'gate_out_date'
-    | 'out_time'
     | 'security_name'
     | 'bilty_no'
     | 'bilty_date'
@@ -418,6 +439,10 @@ export interface SalesDispatchAttachmentUploadRequest {
   latitude?: number | string | null;
   longitude?: number | string | null;
   notes?: string;
+}
+
+export interface SalesDispatchBoxScanRequest {
+  barcode_raw: string;
 }
 
 export interface SalesDispatchGatepassPrintRequest {
@@ -574,6 +599,25 @@ export const salesDispatchApi = {
       { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return response.data;
+  },
+
+  async boxScans(id: number): Promise<SalesDispatchBoxScan[]> {
+    const response = await apiClient.get<SalesDispatchBoxScan[]>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_BOX_SCANS(id),
+    );
+    return response.data;
+  },
+
+  async scanBox(id: number, data: SalesDispatchBoxScanRequest): Promise<SalesDispatchBoxScan> {
+    const response = await apiClient.post<SalesDispatchBoxScan>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_BOX_SCANS(id),
+      data,
+    );
+    return response.data;
+  },
+
+  async removeBoxScan(id: number, scanId: number): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_BOX_SCAN(id, scanId));
   },
 
   async previewGatepass(id: number): Promise<SalesDispatchGateOut> {

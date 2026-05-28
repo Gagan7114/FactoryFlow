@@ -204,9 +204,9 @@ export const ROUTES = {
         path: '/gate/sales-dispatch/new',
         title: 'New Sales Dispatch Out Entry',
       },
-      SALES_DISPATCH_WEIGHMENT: {
-        path: '/gate/sales-dispatch/new/weighment',
-        title: 'Sales Dispatch Out Weighment',
+      SALES_DISPATCH_BARCODE_SCAN: {
+        path: '/gate/sales-dispatch/new/barcode-scan',
+        title: 'Sales Dispatch Out Box Scanning',
       },
       SALES_DISPATCH_ATTACHMENTS: {
         path: '/gate/sales-dispatch/new/attachments',

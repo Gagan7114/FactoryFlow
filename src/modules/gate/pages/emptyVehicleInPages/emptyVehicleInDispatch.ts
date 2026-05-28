@@ -36,6 +36,7 @@ export function buildExpectedDispatchVehicles(
   bills.forEach((bill) => {
     const vehicleId = bill.plan.vehicle_id;
     if (!vehicleId || bill.plan.booking_status !== 'BOOKED') return;
+    if (bill.plan.linked_vehicle_entry_id) return;
     if (activeDispatchVehicleIds.has(vehicleId)) return;
 
     const current = grouped.get(vehicleId);

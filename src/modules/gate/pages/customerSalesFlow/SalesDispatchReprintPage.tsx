@@ -409,8 +409,8 @@ const PrintableGatepass = ({
           <PrintField label="Transporter" value={entry.transporter_name} />
           <PrintField label="Bilty / LR" value={entry.bilty_no} />
           <PrintField
-            label="Gate Out"
-            value={formatDateTime(entry.gate_out_date, entry.out_time)}
+            label="Actual Gate Out"
+            value={formatActualGateOut(entry)}
           />
           <PrintField label="Original Printed" value={formatTimestamp(entry.printed_at)} />
           <PrintField
@@ -508,6 +508,13 @@ const PrintableGatepass = ({
     </div>
   );
 };
+
+function formatActualGateOut(entry: SalesDispatchGateOut) {
+  if (entry.status !== 'DISPATCHED') return '-';
+  return entry.gate_out_date || entry.out_time
+    ? formatDateTime(entry.gate_out_date, entry.out_time)
+    : formatTimestamp(entry.dispatched_at);
+}
 
 function PrintField({ label, value }: { label: string; value?: string | number | null }) {
   return (

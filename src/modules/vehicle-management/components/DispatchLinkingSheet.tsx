@@ -568,6 +568,7 @@ function DispatchVehicleSelect({
   const sapVehicleNo = normalizeVehicleNumber(value);
   const hasUnlinkedSapVehicle = Boolean(sapVehicleNo && !localSelectedId);
 
+  const prevSelectedIdRef = useRef(selectedId);
   const prevVehicleDetailsRef = useRef(vehicleDetails);
   const onChangeRef = useRef(onChange);
 
@@ -576,14 +577,15 @@ function DispatchVehicleSelect({
   }, [onChange]);
 
   useEffect(() => {
-    if (selectedId === localSelectedId) return;
+    if (selectedId === prevSelectedIdRef.current) return;
+    prevSelectedIdRef.current = selectedId;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Sheet edit mode must sync selected id from the opened bill.
     setLocalSelectedId(selectedId);
     if (!selectedId) {
       setSelectedVehicleDetails(null);
       prevVehicleDetailsRef.current = undefined;
     }
-  }, [selectedId, localSelectedId]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (localSelectedId || !sapVehicleNo || vehicleNames.length === 0) return;
