@@ -48,6 +48,11 @@ import {
   formatTimestamp,
   formatValue,
 } from './salesDispatchFlow.helpers';
+import {
+  getExpectedDispatchBoxes,
+  getExpectedDocumentBoxes,
+  getExpectedItemBoxes,
+} from './salesDispatchBoxCounts';
 import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
 
 interface DetailDocument extends SalesDispatchGateOutDocument {
@@ -188,13 +193,7 @@ export default function SalesDispatchDetailPage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() =>
-              navigate(
-                isGateOutMode
-                  ? routes.gatepass(entry.vehicle_entry)
-                  : `${routes.newEntry}?entryId=${entry.vehicle_entry}`,
-              )
-            }
+            onClick={() => navigate(getPrimaryActionPath(entry, isGateOutMode, routes))}
           >
             {getPrimaryActionLabel(entry, isGateOutMode)}
           </Button>
@@ -443,7 +442,7 @@ function BoxScansCard({ entry }: { entry: SalesDispatchGateOut }) {
       <CardContent className="space-y-4">
         <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
           <InfoItem label="Scanned Boxes" value={scans.length} />
-          <InfoItem label="Expected Boxes" value={entry.total_boxes} />
+          <InfoItem label="Expected Boxes" value={formatCount(getExpectedDispatchBoxes(entry))} />
           <InfoItem label="Total Scanned Quantity" value={formatScannedQuantity(entry)} />
           <InfoItem label="Last Scan" value={formatTimestamp(scans[0]?.scanned_at || null)} />
         </div>
@@ -770,10 +769,11 @@ function formatDocumentLoad(document: DetailDocument) {
   const itemCount = document.items.length
     ? `${document.items.length} ${document.items.length === 1 ? 'item' : 'items'}`
     : '';
+  const expectedBoxes = getExpectedDocumentBoxes(document);
   const parts = [
     itemCount,
     document.total_quantity ? `${document.total_quantity} qty` : '',
-    document.total_boxes ? `${document.total_boxes} boxes` : '',
+    expectedBoxes > 0 ? `${formatCount(expectedBoxes)} boxes` : '',
     document.total_litres ? `${document.total_litres} litres` : '',
     document.total_weight ? formatWeightValue(document.total_weight) : '',
   ].filter(Boolean);
@@ -783,8 +783,8 @@ function formatDocumentLoad(document: DetailDocument) {
 
 function formatScanProgress(entry: SalesDispatchGateOut) {
   const scanned = entry.box_scans?.length ?? 0;
-  const expected = getPositiveNumber(entry.total_boxes);
-  if (expected) return `${scanned} / ${expected} boxes`;
+  const expected = getExpectedDispatchBoxes(entry);
+  if (expected) return `${scanned} / ${formatCount(expected)} boxes`;
   return scanned > 0 ? `${scanned} scanned` : 'No boxes scanned';
 }
 
@@ -816,9 +816,12 @@ function formatActualGateOut(entry: SalesDispatchGateOut) {
     : formatTimestamp(entry.dispatched_at);
 }
 
-function getPositiveNumber(value?: string | number | null) {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+function formatCount(value: number) {
+  return value > 0
+    ? value.toLocaleString('en-IN', {
+        maximumFractionDigits: 2,
+      })
+    : '';
 }
 
 function getPrimaryActionLabel(entry: SalesDispatchGateOut, isGateOutMode: boolean) {
@@ -832,6 +835,22 @@ function getPrimaryActionLabel(entry: SalesDispatchGateOut, isGateOutMode: boole
   if (entry.status === 'PRINT_COMMITTED') return 'Dispatch Vehicle';
 
   return 'Resume Flow';
+}
+
+function getPrimaryActionPath(
+  entry: SalesDispatchGateOut,
+  isGateOutMode: boolean,
+  routes: ReturnType<typeof getSalesDispatchRoutes>,
+) {
+  if (isGateOutMode) return routes.gatepass(entry.vehicle_entry);
+  if (entry.status === 'DOCKED') return routes.barcodeScan(entry.vehicle_entry);
+  if (entry.status === 'PHOTO_ATTACHED' || entry.status === 'READY_FOR_GATEPASS') {
+    return routes.gatepass(entry.vehicle_entry);
+  }
+  if (entry.status === 'GATEPASS_PRINTED' || entry.status === 'PRINT_COMMITTED') {
+    return routes.gatepass(entry.vehicle_entry);
+  }
+  return `${routes.newEntry}?entryId=${entry.vehicle_entry}`;
 }
 
 function buildAuditEvents(entry: SalesDispatchGateOut): AuditEvent[] {
@@ -932,8 +951,9 @@ function formatItemWarehouse(item: SalesDispatchItem) {
 }
 
 function formatItemMetrics(item: SalesDispatchItem) {
+  const expectedBoxes = getExpectedItemBoxes(item);
   const metrics = [
-    item.total_boxes ? `${item.total_boxes} boxes` : '',
+    expectedBoxes > 0 ? `${formatCount(expectedBoxes)} boxes` : '',
     item.total_litres ? `${item.total_litres} litres` : '',
     item.total_weight ? formatWeightValue(item.total_weight) : '',
   ].filter(Boolean);

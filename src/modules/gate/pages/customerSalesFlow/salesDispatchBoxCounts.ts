@@ -1,0 +1,65 @@
+import type {
+  SalesDispatchGateOut,
+  SalesDispatchGateOutDocument,
+  SalesDispatchItem,
+} from '@/modules/gate/api';
+
+const PACK_SIZE_PATTERN = /(\d+(?:\.\d+)?)\s*(?:PCS?|SETS?|TINS?|BOTTLES?)\b/gi;
+
+export function getExpectedDispatchBoxes(entry?: SalesDispatchGateOut | null) {
+  if (!entry) return 0;
+
+  const entryTotal = parsePositiveNumber(entry.total_boxes);
+  if (entryTotal > 0) return entryTotal;
+
+  const documentTotal = sumPositiveValues(
+    entry.documents?.map((document) => getExpectedDocumentBoxes(document)) || [],
+  );
+  if (documentTotal > 0) return documentTotal;
+
+  return sumPositiveValues(getExpectedItems(entry).map((item) => getExpectedItemBoxes(item)));
+}
+
+export function getExpectedDocumentBoxes(document?: SalesDispatchGateOutDocument | null) {
+  if (!document) return 0;
+
+  const documentTotal = parsePositiveNumber(document.total_boxes);
+  if (documentTotal > 0) return documentTotal;
+
+  return sumPositiveValues((document.items || []).map((item) => getExpectedItemBoxes(item)));
+}
+
+export function getExpectedItemBoxes(item?: SalesDispatchItem | null) {
+  if (!item) return 0;
+
+  const itemTotal = parsePositiveNumber(item.total_boxes);
+  if (itemTotal > 0) return itemTotal;
+
+  const quantity = parsePositiveNumber(item.quantity);
+  const packSize = parsePackSize(item.item_name);
+  if (quantity <= 0 || packSize <= 0) return 0;
+
+  return Math.ceil(quantity / packSize);
+}
+
+export function parsePositiveNumber(value?: string | number | null) {
+  const normalized =
+    typeof value === 'string' ? value.replace(/,/g, '').trim() : String(value ?? '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function getExpectedItems(entry: SalesDispatchGateOut) {
+  if (entry.items?.length) return entry.items;
+  return entry.documents?.flatMap((document) => document.items || []) || [];
+}
+
+function parsePackSize(itemName?: string | null) {
+  const matches = [...String(itemName || '').matchAll(PACK_SIZE_PATTERN)];
+  const lastMatch = matches[matches.length - 1];
+  return parsePositiveNumber(lastMatch?.[1]);
+}
+
+function sumPositiveValues(values: number[]) {
+  return values.reduce((sum, value) => (value > 0 ? sum + value : sum), 0);
+}

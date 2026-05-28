@@ -41,6 +41,11 @@ import {
 import { cn, getErrorMessage } from '@/shared/utils';
 
 import { DOCKING_TOTAL_STEPS, formatTimestamp, formatValue } from './salesDispatchFlow.helpers';
+import {
+  getExpectedDispatchBoxes,
+  getExpectedItemBoxes,
+  parsePositiveNumber,
+} from './salesDispatchBoxCounts';
 import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 type ScanSource = 'camera' | 'manual';
@@ -74,7 +79,7 @@ export default function SalesDispatchBarcodeScanPage() {
   ]);
   const isSaving = scanBox.isPending || removeScan.isPending;
 
-  const expectedBoxes = parsePositiveNumber(entry?.total_boxes);
+  const expectedBoxes = getExpectedDispatchBoxes(entry);
   const scannedQuantity = useMemo(
     () => scans.reduce((total, scan) => total + parsePositiveNumber(scan.quantity), 0),
     [scans],
@@ -293,13 +298,13 @@ export default function SalesDispatchBarcodeScanPage() {
                 </form>
 
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <ScanMetric label="Boxes" value={String(scans.length)} />
                   <ScanMetric
-                    label="Expected"
+                    label="Expected Boxes"
                     value={expectedBoxes > 0 ? formatNumber(expectedBoxes) : '-'}
                   />
+                  <ScanMetric label="Scanned Boxes" value={String(scans.length)} />
                   <ScanMetric
-                    label="Quantity"
+                    label="Scanned Qty"
                     value={scannedQuantity > 0 ? formatNumber(scannedQuantity) : '-'}
                   />
                 </div>
@@ -434,6 +439,7 @@ interface ItemScanRow {
   expectedQuantity: number;
   uom: string;
   totalWeight: number;
+  expectedBoxes: number;
   scanCount: number;
   scannedQuantity: number;
   progressPercent: number | null;
@@ -493,6 +499,7 @@ function ItemsToScanCard({
                   <th className="w-[150px] p-3 text-left font-medium">Item Code</th>
                   <th className="p-3 text-left font-medium">Item</th>
                   <th className="w-[150px] p-3 text-right font-medium">Invoice Qty</th>
+                  <th className="w-[130px] p-3 text-right font-medium">Boxes</th>
                   <th className="w-[150px] p-3 text-right font-medium">Weight</th>
                   <th className="w-[190px] p-3 text-left font-medium">Scanned</th>
                   <th className="w-[130px] p-3 text-left font-medium">Status</th>
@@ -519,6 +526,9 @@ function ItemsToScanCard({
                     </td>
                     <td className="whitespace-nowrap p-3 text-right align-top tabular-nums">
                       {formatQuantity(item.expectedQuantity, item.uom)}
+                    </td>
+                    <td className="whitespace-nowrap p-3 text-right align-top tabular-nums">
+                      {item.expectedBoxes > 0 ? formatNumber(item.expectedBoxes) : '-'}
                     </td>
                     <td className="whitespace-nowrap p-3 text-right align-top tabular-nums">
                       {item.totalWeight > 0 ? `${formatNumber(item.totalWeight)} kg` : '-'}
@@ -582,11 +592,6 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
   );
 }
 
-function parsePositiveNumber(value?: string | number | null) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-}
-
 function buildItemScanSummary(
   entry: SalesDispatchGateOut | undefined,
   scans: SalesDispatchBoxScan[],
@@ -619,6 +624,7 @@ function buildItemScanSummary(
       expectedQuantity,
       uom: item.uom || '',
       totalWeight: parsePositiveNumber(item.total_weight),
+      expectedBoxes: getExpectedItemBoxes(item),
       scanCount: scanStats.count,
       scannedQuantity: scanStats.quantity,
       progressPercent,
