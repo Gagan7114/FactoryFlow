@@ -19,6 +19,7 @@ const PrintHistoryPage = lazy(() => import('./pages/PrintHistoryPage'));
 const ScanPage = lazy(() => import('./pages/ScanPage'));
 const BarcodeDispatchPage = lazy(() => import('./pages/BarcodeDispatchPage'));
 const BarcodeDispatchReportsPage = lazy(() => import('./pages/BarcodeDispatchReportsPage'));
+const BarcodeDispatchSummaryPage = lazy(() => import('./pages/BarcodeDispatchSummaryPage'));
 
 // Pallet Operations
 const PalletMovePage = lazy(() => import('./pages/PalletMovePage'));
@@ -99,6 +100,12 @@ export const barcodeModuleConfig: ModuleConfig = {
     {
       path: '/barcode/dispatch/reports',
       element: <BarcodeDispatchReportsPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+    },
+    {
+      path: '/barcode/dispatch/summary/:sessionId',
+      element: <BarcodeDispatchSummaryPage />,
       layout: 'main',
       permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
     },
