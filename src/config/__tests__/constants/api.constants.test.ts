@@ -218,12 +218,17 @@ describe('API_ENDPOINTS.QUALITY_CONTROL_V2', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('API_ENDPOINTS.GRPO', () => {
-  it('has PENDING, PREVIEW, POST, HISTORY, DETAIL', () => {
+  it('has SUMMARY, PENDING, PREVIEW, POST, HISTORY, DETAIL', () => {
+    expect(API_ENDPOINTS.GRPO).toHaveProperty('SUMMARY');
     expect(API_ENDPOINTS.GRPO).toHaveProperty('PENDING');
     expect(API_ENDPOINTS.GRPO).toHaveProperty('PREVIEW');
     expect(API_ENDPOINTS.GRPO).toHaveProperty('POST');
     expect(API_ENDPOINTS.GRPO).toHaveProperty('HISTORY');
     expect(API_ENDPOINTS.GRPO).toHaveProperty('DETAIL');
+  });
+
+  it('SUMMARY returns correct path', () => {
+    expect(API_ENDPOINTS.GRPO.SUMMARY).toBe('/grpo/summary/');
   });
 
   it('PREVIEW returns correct parameterized path', () => {

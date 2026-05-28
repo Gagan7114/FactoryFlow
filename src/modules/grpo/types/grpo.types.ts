@@ -19,6 +19,18 @@ export type QCStatus =
 // SAP Attachment Status
 export type AttachmentStatus = 'PENDING' | 'UPLOADED' | 'LINKED' | 'FAILED';
 
+// Dashboard summary (GET /summary/)
+export interface GRPODashboardSummary {
+  pending_entry_count: number;
+  pending_po_count: number;
+  qc_accepted_qty: string;
+  qc_rejected_qty: string;
+  posting_pending_count: number;
+  posted_count: number;
+  failed_count: number;
+  partially_posted_count: number;
+}
+
 // GRPO Attachment (linked to a posted GRPO)
 export interface GRPOAttachment {
   id: number;

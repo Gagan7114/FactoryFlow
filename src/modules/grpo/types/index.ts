@@ -5,6 +5,7 @@ export type {
   EntryPhase,
   ExtraCharge,
   GRPOAttachment,
+  GRPODashboardSummary,
   GRPOHistoryEntry,
   GRPOHistoryLine,
   GRPOStatus,
