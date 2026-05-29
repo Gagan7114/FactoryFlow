@@ -540,6 +540,10 @@ export const API_ENDPOINTS = {
       `/barcode/dispatch/sessions/${sessionId}/scans/`,
     DISPATCH_SESSION_SCAN: (sessionId: number) =>
       `/barcode/dispatch/sessions/${sessionId}/scan/`,
+    DISPATCH_SCANNED_BOX: (sessionId: number, unitId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scanned-boxes/${unitId}/`,
+    DISPATCH_SCANNED_BOX_REMOVE: (sessionId: number, unitId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scanned-boxes/${unitId}/remove/`,
     DISPATCH_SESSION_DISPATCH: (sessionId: number) =>
       `/barcode/dispatch/sessions/${sessionId}/dispatch/`,
     DISPATCH_SESSION_COMPLETE: (sessionId: number) =>

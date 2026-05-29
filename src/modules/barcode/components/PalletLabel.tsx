@@ -30,19 +30,8 @@ interface PalletLabelProps {
 const EMPTY_VALUE = '-';
 const LABEL_BORDER = '0.25mm solid #111';
 const OUTER_BORDER = '0.35mm solid #000';
-const TEXT_WEIGHT = 600;
 const EMPHASIS_WEIGHT = 700;
 const HEADER_WEIGHT = 800;
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return EMPTY_VALUE;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear()).slice(2);
-  return `${dd}/${mm}/${yy}`;
-};
 
 const formatNumber = (value?: string | number | null) => {
   if (value === null || value === undefined || value === '') return EMPTY_VALUE;
@@ -85,55 +74,101 @@ const itemNameStyle = (name: string): CSSProperties => ({
   textTransform: 'uppercase',
 });
 
-interface LabelField {
-  label: string;
-  value: string;
-  strong?: boolean;
+function PalletIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: '6.4mm',
+        height: '4.8mm',
+        position: 'relative',
+        display: 'inline-block',
+        flex: '0 0 auto',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: '0.2mm',
+          height: '1mm',
+          background: '#fff',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: '1.9mm',
+          height: '1mm',
+          background: '#fff',
+        }}
+      />
+      {[0.2, 2.65, 5.1].map((left) => (
+        <span
+          key={left}
+          style={{
+            position: 'absolute',
+            left: `${left}mm`,
+            bottom: '0.2mm',
+            width: '0.9mm',
+            height: '1.4mm',
+            background: '#fff',
+          }}
+        />
+      ))}
+    </span>
+  );
 }
 
-function InfoCell({ label, value, strong = false }: LabelField) {
+function DetailRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
   return (
     <div
       style={{
         minWidth: 0,
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: '20mm 3mm 1fr',
         alignItems: 'center',
-        gap: '0.8mm',
-        borderRight: LABEL_BORDER,
         borderBottom: LABEL_BORDER,
-        padding: '0.55mm 0.9mm',
+        padding: '0 1.2mm',
         overflow: 'hidden',
       }}
     >
       <span
         style={{
-          flex: '0 0 auto',
-          fontSize: '7px',
-          fontWeight: TEXT_WEIGHT,
-          lineHeight: 1,
-          letterSpacing: 0,
-          color: '#111',
+          fontSize: '9px',
+          fontWeight: HEADER_WEIGHT,
+          textTransform: 'uppercase',
+          whiteSpace: 'nowrap',
         }}
       >
-        {label}:
+        {label}
       </span>
-      <div
+      <span
+        style={{
+          fontSize: '9px',
+          fontWeight: HEADER_WEIGHT,
+          textAlign: 'center',
+        }}
+      >
+        :
+      </span>
+      <span
         style={{
           minWidth: 0,
-          flex: '1 1 auto',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
-          fontSize: strong ? '8.2px' : '7.4px',
-          fontWeight: strong ? EMPHASIS_WEIGHT : TEXT_WEIGHT,
-          lineHeight: 1,
-          letterSpacing: 0,
-          color: '#000',
+          textAlign: 'left',
+          fontSize: strong ? '10.8px' : '9.6px',
+          fontWeight: strong ? HEADER_WEIGHT : EMPHASIS_WEIGHT,
           textTransform: 'uppercase',
         }}
       >
         {value || EMPTY_VALUE}
-      </div>
+      </span>
     </div>
   );
 }
@@ -142,14 +177,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
   const qrValue = data.qr_payload || data.barcode;
   const itemName = compactText(data.item_name || data.item_code);
   const boxCount = compactText(data.box_count);
-  const fields: LabelField[] = [
-    { label: 'Batch', value: compactText(data.batch_number) },
-    { label: 'Total Qty', value: joinValue(formatNumber(data.total_qty), data.uom), strong: true },
-    { label: 'Boxes', value: boxCount },
-    { label: 'MFG', value: formatDate(data.mfg_date) },
-    { label: 'EXP', value: formatDate(data.exp_date) },
-    { label: 'Warehouse', value: compactText(data.warehouse) },
-  ];
+  const totalQty = joinValue(formatNumber(data.total_qty), data.uom);
 
   return (
     <div
@@ -166,121 +194,17 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
         fontFamily: 'Arial, Helvetica, sans-serif',
         lineHeight: 1,
         display: 'grid',
-        gridTemplateColumns: '66mm 34mm',
+        gridTemplateColumns: '34mm 66mm',
         alignItems: 'stretch',
         border: OUTER_BORDER,
       }}
     >
       <div
         style={{
-          display: 'grid',
-          gridTemplateRows: '6mm 6.2mm 10.2mm 1fr',
-          minWidth: 0,
-          height: '100%',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            alignItems: 'center',
-            backgroundColor: '#000',
-            color: '#fff',
-            minWidth: 0,
-            padding: '0 1.2mm',
-          }}
-        >
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              fontSize: '10px',
-              fontWeight: HEADER_WEIGHT,
-              lineHeight: 1,
-              letterSpacing: 0,
-            }}
-          >
-            PALLET BARCODE
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 17mm',
-            alignItems: 'center',
-            minWidth: 0,
-            borderBottom: LABEL_BORDER,
-          }}
-        >
-          <div
-            style={{
-              minWidth: 0,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              padding: '0 1mm',
-              fontSize: '8px',
-              fontWeight: HEADER_WEIGHT,
-              lineHeight: 1,
-              letterSpacing: 0,
-            }}
-          >
-            Pallet No: {compactText(data.barcode)}
-          </div>
-          <div
-            style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderLeft: LABEL_BORDER,
-              fontSize: '8px',
-              fontWeight: HEADER_WEIGHT,
-              lineHeight: 1,
-            }}
-          >
-            Boxes: {boxCount}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            minWidth: 0,
-            borderBottom: LABEL_BORDER,
-            padding: '0.8mm 1mm',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={itemNameStyle(itemName)}>{itemName}</div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gridAutoRows: '1fr',
-            borderTop: 0,
-            minWidth: 0,
-            overflow: 'hidden',
-          }}
-        >
-          {fields.map((field) => (
-            <InfoCell key={field.label} {...field} />
-          ))}
-        </div>
-      </div>
-
-      <div
-        style={{
           minWidth: 0,
           display: 'grid',
           gridTemplateRows: '30mm 1fr',
-          borderLeft: OUTER_BORDER,
+          borderRight: OUTER_BORDER,
           overflow: 'hidden',
         }}
       >
@@ -317,13 +241,13 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
         >
           <div
             style={{
-              fontSize: '5.4px',
+              fontSize: '6.2px',
               fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
               color: '#000',
             }}
           >
-            Scan Pallet Barcode
+            SCAN PALLET
           </div>
           <div
             style={{
@@ -332,14 +256,70 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               fontFamily: 'Consolas, monospace',
-              fontSize: '6.4px',
+              fontSize: '6.3px',
               fontWeight: EMPHASIS_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
             }}
           >
-            Pallet Code: {compactText(data.barcode)}
+            {compactText(data.barcode)}
           </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: '6mm 11mm 1fr',
+          minWidth: 0,
+          height: '100%',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1mm',
+            backgroundColor: '#000',
+            color: '#fff',
+            minWidth: 0,
+            padding: '0 1.2mm',
+            fontSize: '13px',
+            fontWeight: HEADER_WEIGHT,
+            lineHeight: 1,
+            letterSpacing: 0,
+          }}
+        >
+          <PalletIcon />
+          <span>PALLET</span>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            minWidth: 0,
+            borderBottom: OUTER_BORDER,
+            padding: '0.8mm 1mm',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={itemNameStyle(itemName)}>{itemName}</div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: 'repeat(5, 1fr)',
+            overflow: 'hidden',
+          }}
+        >
+          <DetailRow label="Pallet" value={compactText(data.barcode)} strong />
+          <DetailRow label="Batch" value={compactText(data.batch_number)} />
+          <DetailRow label="Boxes" value={boxCount} strong />
+          <DetailRow label="Total Qty" value={totalQty} strong />
+          <DetailRow label="Warehouse" value={compactText(data.warehouse)} />
         </div>
       </div>
     </div>
