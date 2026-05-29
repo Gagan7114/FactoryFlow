@@ -297,4 +297,99 @@
   .sales-dispatch-gatepass-page .rounded-md {
     border-radius: 2px !important;
   }
+
+  .sales-dispatch-reprint-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    padding: 0 !important;
+    font-size: 9px !important;
+    line-height: 1.18 !important;
+  }
+
+  .sales-dispatch-reprint-page,
+  .sales-dispatch-reprint-page * {
+    overflow: visible !important;
+  }
+
+  .sales-dispatch-reprint-page .space-y-5 > :not([hidden]) ~ :not([hidden]),
+  .sales-dispatch-reprint-page .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 7px !important;
+  }
+
+  .sales-dispatch-reprint-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .sales-dispatch-reprint-header h1 {
+    font-size: 15px !important;
+    line-height: 1.1 !important;
+  }
+
+  .sales-dispatch-reprint-header p,
+  .sales-dispatch-reprint-header div,
+  .sales-dispatch-reprint-fields div {
+    font-size: 8px !important;
+    line-height: 1.15 !important;
+  }
+
+  .sales-dispatch-reprint-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px 12px !important;
+  }
+
+  .sales-dispatch-reprint-table-wrap {
+    overflow: visible !important;
+  }
+
+  .sales-dispatch-reprint-items-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 7px !important;
+  }
+
+  .sales-dispatch-reprint-items-table th,
+  .sales-dispatch-reprint-items-table td {
+    padding: 3px !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: anywhere !important;
+    vertical-align: top !important;
+  }
+
+  .sales-dispatch-reprint-col-code {
+    width: 15mm !important;
+  }
+
+  .sales-dispatch-reprint-col-item {
+    width: 61mm !important;
+  }
+
+  .sales-dispatch-reprint-col-qty,
+  .sales-dispatch-reprint-col-actual {
+    width: 17mm !important;
+  }
+
+  .sales-dispatch-reprint-col-boxes {
+    width: 10mm !important;
+  }
+
+  .sales-dispatch-reprint-col-uom {
+    width: 10mm !important;
+  }
+
+  .sales-dispatch-reprint-col-weight {
+    width: 18mm !important;
+  }
+
+  .sales-dispatch-reprint-col-warehouse {
+    width: 16mm !important;
+  }
 }

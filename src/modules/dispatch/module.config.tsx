@@ -45,9 +45,6 @@ const DockingGatepassPage = lazy(
 const DockingReprintPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchReprintPage'),
 );
-const DockingReportsPage = lazy(
-  () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchReportsPage'),
-);
 const DockingDetailPage = lazy(
   () => import('@/modules/gate/pages/customerSalesFlow/SalesDispatchDetailPage'),
 );
@@ -151,6 +148,13 @@ export const dispatchModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Docking Gatepass' },
     },
     {
+      path: '/dispatch/docking/reprint',
+      element: <DockingReprintPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS],
+      breadcrumb: { label: 'Reprint Gatepass' },
+    },
+    {
       path: '/dispatch/docking/:entryId/reprint',
       element: <DockingReprintPage />,
       layout: 'main',
@@ -159,10 +163,10 @@ export const dispatchModuleConfig: ModuleConfig = {
     },
     {
       path: '/dispatch/docking/reports',
-      element: <DockingReportsPage />,
+      element: <RedirectWithSearch to="/dispatch/docking/reprint" />,
       layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS],
-      breadcrumb: { label: 'Docking Reports' },
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS],
+      breadcrumb: { label: 'Reprint Gatepass' },
     },
     {
       path: '/dispatch/docking/:entryId',
@@ -286,9 +290,9 @@ export const dispatchModuleConfig: ModuleConfig = {
           permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW],
         },
         {
-          path: '/dispatch/docking/reports',
-          title: 'Docking Reports',
-          permissions: [GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS],
+          path: '/dispatch/docking/reprint',
+          title: 'Reprint Gatepass',
+          permissions: [GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS],
         },
         {
           path: '/dispatch/bilty-grpo',

@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   CheckCircle2,
   Clock,
   Download,
@@ -7,6 +6,7 @@ import {
   List,
   Lock,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   Truck,
@@ -86,8 +86,7 @@ export default function SalesDispatchDashboardPage() {
     isGateOutMode: boolean;
     filter: DashboardFilter;
   }>({ isGateOutMode, filter: 'ALL' });
-  const [selectedDockingBucket, setSelectedDockingBucket] =
-    useState<DockingDateBucket>('today');
+  const [selectedDockingBucket, setSelectedDockingBucket] = useState<DockingDateBucket>('today');
   const selectedFilter =
     selectedFilterState.isGateOutMode === isGateOutMode ? selectedFilterState.filter : 'ALL';
   const listParams = useMemo(
@@ -111,6 +110,7 @@ export default function SalesDispatchDashboardPage() {
   const isDashboardFetching = isFetching || isPendingBookingsFetching;
   const canCreateDocking = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.CREATE);
   const canManageDockingLock = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.MANAGE_LOCK);
+  const canReprintGatepass = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS);
   const canViewDockingReports = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS);
 
   const displayEntries = useMemo(() => {
@@ -130,9 +130,7 @@ export default function SalesDispatchDashboardPage() {
         ? displayEntries.filter((entry) =>
             matchesSalesDispatchDashboardFilter(entry, selectedFilter),
           )
-        : displayEntries.filter((entry) =>
-            matchesDockingDateBucket(entry, selectedDockingBucket),
-          ),
+        : displayEntries.filter((entry) => matchesDockingDateBucket(entry, selectedDockingBucket)),
     [displayEntries, isGateOutMode, selectedDockingBucket, selectedFilter],
   );
 
@@ -266,10 +264,10 @@ export default function SalesDispatchDashboardPage() {
             <RefreshCw className="mr-2 h-4 w-4" />
             {isDashboardFetching ? 'Refreshing' : 'Refresh'}
           </Button>
-          {!isGateOutMode && canViewDockingReports ? (
+          {!isGateOutMode && canReprintGatepass ? (
             <Button type="button" variant="outline" onClick={() => navigate(routes.reports)}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Reports
+              <Printer className="mr-2 h-4 w-4" />
+              Reprint Gatepass
             </Button>
           ) : null}
           {canViewDockingReports ? (
@@ -411,7 +409,9 @@ function DispatchTable({
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Items</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Vehicle</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Dispatch Date</th>
-              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Actual Gate Out</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">
+                Actual Gate Out
+              </th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gatepass</th>
               <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Status</th>
             </tr>
@@ -469,9 +469,7 @@ function DispatchTable({
                   <td className="whitespace-nowrap p-3 text-sm">
                     {formatDate(plannedDispatchDate)}
                   </td>
-                  <td className="whitespace-nowrap p-3 text-sm">
-                    {actualGateOut}
-                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">{actualGateOut}</td>
                   <td className="whitespace-nowrap p-3 text-sm">
                     <GateStatusBadge
                       status={entry.gatepass_no ? 'PRINTED' : 'PENDING'}
@@ -1071,7 +1069,9 @@ function DockingDateBucketFilters({
             <span
               className={cn(
                 'inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
-                isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground',
+                isActive
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-foreground',
                 hasOverdueVehicles && !isActive && 'bg-red-100 text-red-700',
                 hasOverdueVehicles && isActive && 'bg-white/20 text-white',
               )}

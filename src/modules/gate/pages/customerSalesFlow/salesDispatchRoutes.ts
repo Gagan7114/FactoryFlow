@@ -8,7 +8,8 @@ function buildSalesDispatchRoutes(base: string) {
 
   return {
     dashboard: base,
-    reports: `${base}/reports`,
+    reports: `${base}/reprint`,
+    reprintSearch: `${base}/reprint`,
     newEntry: `${base}/new`,
     barcodeScan,
     weighment: barcodeScan,

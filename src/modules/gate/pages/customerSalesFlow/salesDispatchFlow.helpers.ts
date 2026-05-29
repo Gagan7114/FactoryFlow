@@ -100,6 +100,33 @@ export function summarizeSalesDispatchItems(items: SalesDispatchItem[]) {
   return `${firstItem.item_name || firstItem.item_code}${suffix}`;
 }
 
+export function buildSalesDispatchGatepassQrValue(entry: SalesDispatchGateOut) {
+  const documentNumbers = getSalesDispatchDocumentNumbers(entry);
+  const documentLabel = entry.document_type === 'STOCK_TRANSFER' ? 'SAP Document' : 'Invoice';
+
+  return [
+    'JIVO DISPATCH GATEPASS',
+    `Gatepass: ${entry.gatepass_no || '-'}`,
+    `Entry: ${entry.entry_no || '-'}`,
+    `Vehicle: ${entry.vehicle_no || '-'}`,
+    documentNumbers ? `${documentLabel}: ${documentNumbers}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+function getSalesDispatchDocumentNumbers(entry: SalesDispatchGateOut) {
+  const numbers = entry.document_numbers?.length
+    ? entry.document_numbers
+    : entry.documents?.length
+      ? entry.documents.map((document) => document.sap_doc_num).filter(Boolean)
+      : entry.sap_doc_num
+        ? [entry.sap_doc_num]
+        : [];
+
+  return numbers.join(', ');
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }

@@ -20,6 +20,7 @@ import { usePermission } from '@/core/auth';
 import {
   type SalesDispatchGateOut,
   type SalesDispatchGateOutDocument,
+  type SalesDispatchBoxScan,
   type SalesDispatchItem,
   useCommitSalesDispatchPrint,
   useMarkSalesDispatchDispatched,
@@ -47,6 +48,7 @@ import {
 import { cn, getErrorMessage } from '@/shared/utils';
 
 import {
+  buildSalesDispatchGatepassQrValue,
   DOCKING_TOTAL_STEPS,
   formatDateTime,
   formatDocumentType,
@@ -64,12 +66,16 @@ interface GatepassDraft {
 }
 
 function buildDraft(entry?: SalesDispatchGateOut | null): GatepassDraft {
+  const scannedQuantity = getScannedQuantity(entry);
+
   return {
-    uom: entry?.uom || '',
-    physicalQuantity: entry?.physical_quantity || '',
+    uom: entry?.uom || getScannedUom(entry) || getSingleItemUom(entry) || '',
+    physicalQuantity:
+      toDraftString(entry?.physical_quantity) ||
+      (scannedQuantity > 0 ? formatDraftNumber(scannedQuantity) : ''),
     sealNumber: entry?.seal_number || '',
     pgiReference: entry?.pgi_reference || '',
-    ewayBill: entry?.eway_bill || '',
+    ewayBill: entry?.eway_bill || getFirstDocumentValue(entry, 'eway_bill') || '',
   };
 }
 
@@ -81,6 +87,12 @@ interface GatepassReferenceField {
 interface PrintableGatepassDocument extends SalesDispatchGateOutDocument {
   key: string;
   items: SalesDispatchItem[];
+}
+
+interface ItemScanStats {
+  boxes: number;
+  quantity: number;
+  uom: string;
 }
 
 export default function SalesDispatchGatepassPage() {
@@ -308,7 +320,7 @@ export default function SalesDispatchGatepassPage() {
 
   const companyName =
     currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
-  const qrValue = entry.qr_payload || entry.gatepass_no || entry.random_code || entry.entry_no;
+  const qrValue = buildSalesDispatchGatepassQrValue(entry);
   const gatepassDocuments = getGatepassDocuments(entry);
   const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft);
   const gatepassSummaryFields = buildGatepassSummaryFields(entry);
@@ -366,7 +378,7 @@ export default function SalesDispatchGatepassPage() {
 
         <GatepassDocumentsPanel documents={gatepassDocuments} />
 
-        <GatepassItemsPanel documents={gatepassDocuments} itemSummary={entry.item_summary} />
+        <GatepassItemsPanel documents={gatepassDocuments} scans={entry.box_scans || []} />
 
         <div className="sales-dispatch-gatepass-grid grid gap-4 xl:grid-cols-[1fr_0.85fr]">
           <Card className="sales-dispatch-gatepass-print-card print-no-break">
@@ -624,6 +636,46 @@ function buildGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
   return `Gatepass ${reference}`;
 }
 
+function getScannedQuantity(entry?: SalesDispatchGateOut | null) {
+  return (entry?.box_scans || []).reduce((total, scan) => {
+    const quantity = Number(scan.quantity);
+    return Number.isFinite(quantity) && quantity > 0 ? total + quantity : total;
+  }, 0);
+}
+
+function getScannedUom(entry?: SalesDispatchGateOut | null) {
+  const uoms = new Set(
+    (entry?.box_scans || [])
+      .map((scan) => String(scan.uom || '').trim())
+      .filter(Boolean),
+  );
+  return uoms.size === 1 ? Array.from(uoms)[0] : '';
+}
+
+function getSingleItemUom(entry?: SalesDispatchGateOut | null) {
+  const items = entry?.items?.length
+    ? entry.items
+    : entry?.documents?.flatMap((document) => document.items || []) || [];
+  const uoms = new Set(items.map((item) => String(item.uom || '').trim()).filter(Boolean));
+  return uoms.size === 1 ? Array.from(uoms)[0] : '';
+}
+
+function getFirstDocumentValue<K extends keyof SalesDispatchGateOutDocument>(
+  entry: SalesDispatchGateOut | null | undefined,
+  key: K,
+) {
+  const value = entry?.documents?.find((document) => hasDisplayValue(document[key]))?.[key];
+  return hasDisplayValue(value as string | number | null) ? String(value) : '';
+}
+
+function toDraftString(value?: string | number | null) {
+  return hasDisplayValue(value) ? String(value) : '';
+}
+
+function formatDraftNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/\.?0+$/, '');
+}
+
 function buildGatepassSummaryFields(entry: SalesDispatchGateOut): GatepassReferenceField[] {
   return [
     { label: 'Gatepass No.', value: entry.gatepass_no },
@@ -769,7 +821,7 @@ function GatepassDocumentsPanel({ documents }: { documents: PrintableGatepassDoc
       <CardContent>
         <div className="overflow-hidden rounded-md border">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px]">
+            <table className="w-full min-w-[720px]">
               <thead className="bg-muted/60">
                 <tr>
                   <th className="w-[180px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
@@ -796,9 +848,6 @@ function GatepassDocumentsPanel({ documents }: { documents: PrintableGatepassDoc
                       SAP Weight
                     </th>
                   ) : null}
-                  <th className="w-[220px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                    Item Summary
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -835,9 +884,6 @@ function GatepassDocumentsPanel({ documents }: { documents: PrintableGatepassDoc
                         {formatValue(formatWeightValue(document.total_weight))}
                       </td>
                     ) : null}
-                    <td className="p-3 text-sm">
-                      {formatValue(document.item_summary || summarizeDocumentItems(document.items))}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -851,13 +897,14 @@ function GatepassDocumentsPanel({ documents }: { documents: PrintableGatepassDoc
 
 function GatepassItemsPanel({
   documents,
-  itemSummary,
+  scans,
 }: {
   documents: PrintableGatepassDocument[];
-  itemSummary?: string;
+  scans: SalesDispatchBoxScan[];
 }) {
   const itemGroups = documents.filter((document) => document.items.length > 0);
   const totalItemCount = itemGroups.reduce((total, document) => total + document.items.length, 0);
+  const scanStatsByItem = buildScanStatsByItem(scans);
 
   return (
     <Card className="sales-dispatch-gatepass-items print-no-break">
@@ -871,12 +918,16 @@ function GatepassItemsPanel({
       <CardContent>
         {itemGroups.length === 0 ? (
           <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-            {itemSummary || 'No document lines found'}
+            No document lines found
           </div>
         ) : (
           <div className="space-y-3">
             {itemGroups.map((document) => (
-              <DocumentItemsTable key={document.key} document={document} />
+              <DocumentItemsTable
+                key={document.key}
+                document={document}
+                scanStatsByItem={scanStatsByItem}
+              />
             ))}
           </div>
         )}
@@ -885,7 +936,13 @@ function GatepassItemsPanel({
   );
 }
 
-function DocumentItemsTable({ document }: { document: PrintableGatepassDocument }) {
+function DocumentItemsTable({
+  document,
+  scanStatsByItem,
+}: {
+  document: PrintableGatepassDocument;
+  scanStatsByItem: Map<string, ItemScanStats>;
+}) {
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="flex flex-col gap-1 border-b bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -897,7 +954,7 @@ function DocumentItemsTable({ document }: { document: PrintableGatepassDocument 
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px]">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-muted/60">
             <tr>
               <th className="w-[150px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
@@ -907,7 +964,13 @@ function DocumentItemsTable({ document }: { document: PrintableGatepassDocument 
                 Item Name
               </th>
               <th className="w-[130px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
-                Quantity
+                SAP Qty
+              </th>
+              <th className="w-[130px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
+                Actual Qty
+              </th>
+              <th className="w-[90px] p-3 text-right text-xs font-semibold uppercase text-muted-foreground">
+                Boxes
               </th>
               <th className="w-[100px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
                 UOM
@@ -915,38 +978,71 @@ function DocumentItemsTable({ document }: { document: PrintableGatepassDocument 
               <th className="w-[160px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
                 Warehouse
               </th>
-              <th className="w-[180px] p-3 text-left text-xs font-semibold uppercase text-muted-foreground">
-                Metrics
-              </th>
             </tr>
           </thead>
           <tbody>
-            {document.items.map((item, index) => (
-              <tr key={item.id || `${item.item_code}-${index}`} className="border-t align-top">
-                <td className="whitespace-nowrap p-3 text-sm font-semibold">
-                  {formatValue(item.item_code)}
-                </td>
-                <td className="p-3">
-                  <div className="text-sm font-medium leading-5">{formatValue(item.item_name)}</div>
-                  {item.base_ref ? (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      Base Ref: {item.base_ref}
+            {document.items.map((item, index) => {
+              const scanStats = scanStatsByItem.get(normalizeItemCode(item.item_code));
+              const actualUom = scanStats?.uom || item.uom;
+              return (
+                <tr key={item.id || `${item.item_code}-${index}`} className="border-t align-top">
+                  <td className="whitespace-nowrap p-3 text-sm font-semibold">
+                    {formatValue(item.item_code)}
+                  </td>
+                  <td className="p-3">
+                    <div className="text-sm font-medium leading-5">
+                      {formatValue(item.item_name)}
                     </div>
-                  ) : null}
-                </td>
-                <td className="whitespace-nowrap p-3 text-right text-sm font-semibold tabular-nums">
-                  {formatValue(item.quantity)}
-                </td>
-                <td className="whitespace-nowrap p-3 text-sm">{formatValue(item.uom)}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
-                <td className="p-3 text-sm text-muted-foreground">{formatItemMetrics(item)}</td>
-              </tr>
-            ))}
+                    {item.base_ref ? (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Base Ref: {item.base_ref}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                    {formatValue(item.quantity)}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-right text-sm font-semibold tabular-nums">
+                    {scanStats ? formatQuantityNumber(scanStats.quantity) : '-'}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-right text-sm tabular-nums">
+                    {scanStats?.boxes ? scanStats.boxes : '-'}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">{formatValue(actualUom)}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">{formatItemWarehouse(item)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
     </div>
   );
+}
+
+function buildScanStatsByItem(scans: SalesDispatchBoxScan[]) {
+  return scans.reduce((map, scan) => {
+    const itemCode = normalizeItemCode(scan.item_code);
+    if (!itemCode) return map;
+
+    const current = map.get(itemCode) || { boxes: 0, quantity: 0, uom: '' };
+    const quantity = Number(scan.quantity);
+    current.boxes += 1;
+    current.quantity += Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+    current.uom = current.uom || scan.uom || '';
+    map.set(itemCode, current);
+    return map;
+  }, new Map<string, ItemScanStats>());
+}
+
+function normalizeItemCode(value?: string | null) {
+  return String(value || '')
+    .trim()
+    .toUpperCase();
+}
+
+function formatQuantityNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/\.?0+$/, '');
 }
 
 function formatDocumentLineCount(documents: PrintableGatepassDocument[]) {
@@ -966,28 +1062,11 @@ function formatDocumentDestination(document: SalesDispatchGateOutDocument) {
   return document.ship_to_address || document.warehouses || warehouses || document.place_of_supply;
 }
 
-function summarizeDocumentItems(items: SalesDispatchItem[]) {
-  if (items.length === 0) return '';
-  const [firstItem] = items;
-  const suffix = items.length > 1 ? ` +${items.length - 1}` : '';
-  return `${firstItem.item_name || firstItem.item_code}${suffix}`;
-}
-
 function formatItemWarehouse(item: SalesDispatchItem) {
   const from = item.from_warehouse;
   const to = item.to_warehouse;
   if (from && to && from !== to) return `${from} -> ${to}`;
   return item.warehouse_code || from || to || '-';
-}
-
-function formatItemMetrics(item: SalesDispatchItem) {
-  const metrics = [
-    item.total_boxes ? `${item.total_boxes} boxes` : '',
-    item.total_litres ? `${item.total_litres} litres` : '',
-    item.total_weight ? formatWeightValue(item.total_weight) : '',
-  ].filter(Boolean);
-
-  return metrics.length ? metrics.join(' / ') : '-';
 }
 
 function TextField({
