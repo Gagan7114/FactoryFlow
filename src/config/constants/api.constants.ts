@@ -52,6 +52,8 @@ export const API_ENDPOINTS = {
   // Raw Material Gate In
   RAW_MATERIAL_GATEIN: {
     PO_RECEIPTS: (entryId: number) => `/raw-material-gatein/gate-entries/${entryId}/po-receipts/`,
+    PO_RECEIPT_DETAIL: (entryId: number, poReceiptId: number) =>
+      `/raw-material-gatein/gate-entries/${entryId}/po-receipts/${poReceiptId}/`,
     PO_RECEIPTS_VIEW: (entryId: number) =>
       `/raw-material-gatein/gate-entries/${entryId}/po-receipts/view`,
   },
