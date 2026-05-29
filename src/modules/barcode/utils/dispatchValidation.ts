@@ -1,11 +1,6 @@
 import type { DispatchScanLog, DispatchSession, DispatchSessionLine } from '../types';
 
-const CLOSED_STATUSES = new Set([
-  'COMPLETED',
-  'CLOSED',
-  'SAP_SYNC_FAILED',
-  'CANCELLED',
-]);
+const CLOSED_STATUSES = new Set(['COMPLETED', 'CLOSED', 'SAP_SYNC_FAILED', 'CANCELLED']);
 
 function toNumber(value: string | number | null | undefined) {
   const parsed = Number(value ?? 0);
@@ -78,18 +73,23 @@ export function canSubmitDispatchScan(session: DispatchSession | null | undefine
 
 export function canMarkDispatchComplete(session: DispatchSession | null | undefined) {
   if (!session || CLOSED_STATUSES.has(session.status)) return false;
-  return session.can_dispatch && !getDispatchActiveLine(session);
+  return session.can_dispatch;
 }
 
 export function formatDispatchScanMessage(scan: DispatchScanLog | null | undefined) {
   if (!scan) return '';
   if (scan.result === 'ACCEPTED') {
+    const successMessage = scan.parsed_barcode?.success_message;
+    if (typeof successMessage === 'string' && successMessage.trim()) {
+      return successMessage;
+    }
     const boxes = getAcceptedScanBoxes(scan);
     const qty = scan.qty ? `${formatNumber(scan.qty)} ${scan.uom}`.trim() : '';
-    const qtyWithBoxes = boxes > 0
-      ? [qty, `${formatNumber(boxes)} Boxes`].filter(Boolean).join(' / ')
-      : qty;
-    return qtyWithBoxes ? `Accepted ${scan.material_code} (${qtyWithBoxes})` : `Accepted ${scan.material_code}`;
+    const qtyWithBoxes =
+      boxes > 0 ? [qty, `${formatNumber(boxes)} Boxes`].filter(Boolean).join(' / ') : qty;
+    return qtyWithBoxes
+      ? `Accepted ${scan.material_code} (${qtyWithBoxes})`
+      : `Accepted ${scan.material_code}`;
   }
   return scan.reject_message || scan.reject_code || 'Scan rejected';
 }

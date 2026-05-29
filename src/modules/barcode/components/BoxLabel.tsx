@@ -139,6 +139,43 @@ function InfoCell({ label, value, strong = false }: LabelField) {
   );
 }
 
+function BoxIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: '4.8mm',
+        height: '4.8mm',
+        border: '0.45mm solid #fff',
+        display: 'inline-block',
+        position: 'relative',
+        flex: '0 0 auto',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          left: '1.9mm',
+          top: 0,
+          bottom: 0,
+          width: '0.35mm',
+          background: '#fff',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: '1.9mm',
+          height: '0.35mm',
+          background: '#fff',
+        }}
+      />
+    </span>
+  );
+}
+
 const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
   const qrValue = data.qr_payload || data.barcode;
   const itemName = compactText(data.item_name || data.item_code);
@@ -198,14 +235,16 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
               height: '100%',
               display: 'flex',
               alignItems: 'center',
+              gap: '1mm',
               justifyContent: 'flex-start',
-              fontSize: '10px',
+              fontSize: '13px',
               fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
             }}
           >
-            BOX BARCODE
+            <BoxIcon />
+            <span>BOX</span>
           </div>
         </div>
 
@@ -245,7 +284,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
               lineHeight: 1,
             }}
           >
-            Box: {boxSequence}
+            BOX {boxSequence}
           </div>
         </div>
 

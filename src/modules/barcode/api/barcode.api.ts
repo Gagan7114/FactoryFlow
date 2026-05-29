@@ -19,6 +19,7 @@ import type {
   DispatchReportFilters,
   DispatchSapSyncLog,
   DispatchScanLog,
+  DispatchScannedBoxQtyPayload,
   DispatchScanResponse,
   DispatchScanSubmitPayload,
   DispatchSession,
@@ -343,6 +344,26 @@ export const barcodeApi = {
     throw new Error('Unable to submit dispatch scan.');
   },
 
+  async updateDispatchScannedBoxQty(
+    sessionId: number,
+    unitId: number,
+    data: DispatchScannedBoxQtyPayload,
+  ): Promise<DispatchSession> {
+    const res = await apiClient.patch<DispatchSession>(
+      EP.DISPATCH_SCANNED_BOX(sessionId, unitId),
+      data,
+    );
+    return res.data;
+  },
+
+  async removeDispatchScannedBox(sessionId: number, unitId: number): Promise<DispatchSession> {
+    const res = await apiClient.post<DispatchSession>(
+      EP.DISPATCH_SCANNED_BOX_REMOVE(sessionId, unitId),
+      {},
+    );
+    return res.data;
+  },
+
   async dispatchSession(sessionId: number): Promise<DispatchSession> {
     const res = await apiClient.post<DispatchSession>(EP.DISPATCH_SESSION_COMPLETE(sessionId), {});
     return res.data;
@@ -386,9 +407,7 @@ export const barcodeApi = {
     return res.data;
   },
 
-  async getDispatchReport(
-    params?: DispatchReportFilters,
-  ): Promise<DispatchSummaryReportRow[]> {
+  async getDispatchReport(params?: DispatchReportFilters): Promise<DispatchSummaryReportRow[]> {
     const res = await apiClient.get<DispatchSummaryReportRow[]>(EP.DISPATCH_REPORTS, { params });
     return res.data;
   },

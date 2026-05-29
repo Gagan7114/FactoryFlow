@@ -73,8 +73,7 @@ export const BARCODE_QUERY_KEYS = {
   dispatchSettings: () => [...BARCODE_QUERY_KEYS.all, 'dispatch-settings'] as const,
   dispatchReport: (filters?: DispatchReportFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'dispatch-report', filters] as const,
-  dispatchDetailReport: (id: number) =>
-    [...BARCODE_QUERY_KEYS.all, 'dispatch-report', id] as const,
+  dispatchDetailReport: (id: number) => [...BARCODE_QUERY_KEYS.all, 'dispatch-report', id] as const,
   dispatchPalletReport: (filters?: DispatchReportFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'dispatch-pallet-report', filters] as const,
   dispatchBoxReport: (filters?: DispatchReportFilters) =>
@@ -477,6 +476,42 @@ export function useSubmitDispatchScan() {
       qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
       qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchScanLogs(session.id) });
       qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+    },
+  });
+}
+
+export function useUpdateDispatchScannedBoxQty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      unitId,
+      dispatchQty,
+    }: {
+      sessionId: number;
+      unitId: number;
+      dispatchQty: number;
+    }) =>
+      barcodeApi.updateDispatchScannedBoxQty(sessionId, unitId, {
+        dispatch_qty: dispatchQty,
+      }),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchScanLogs(session.id) });
+    },
+  });
+}
+
+export function useRemoveDispatchScannedBox() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, unitId }: { sessionId: number; unitId: number }) =>
+      barcodeApi.removeDispatchScannedBox(sessionId, unitId),
+    onSuccess: (session) => {
+      qc.setQueryData(BARCODE_QUERY_KEYS.dispatchSession(session.id), session);
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchSessions() });
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.dispatchScanLogs(session.id) });
     },
   });
 }

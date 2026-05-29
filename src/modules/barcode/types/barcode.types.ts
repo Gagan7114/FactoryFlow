@@ -441,6 +441,7 @@ export type DispatchSapSystemType = 'S4HANA' | 'ECC' | 'BUSINESS_ONE';
 export type DispatchSapObjectType = 'BILLING_DOCUMENT' | 'AR_INVOICE' | 'OUTBOUND_DELIVERY';
 export type DispatchScanResult = 'ACCEPTED' | 'REJECTED';
 export type DispatchScanEntityType = 'ITEM' | 'BOX' | 'PALLET' | 'SERIAL' | 'UNKNOWN';
+export type DispatchScannedUnitStatus = 'ACTIVE' | 'REMOVED' | 'DISPATCHED';
 
 export interface DispatchSettings {
   allow_partial_dispatch: boolean;
@@ -550,6 +551,40 @@ export interface DispatchSapSyncLog {
   created_at: string;
 }
 
+export interface DispatchScannedUnit {
+  id: number;
+  line: number;
+  scan_log: number;
+  barcode_value: string;
+  entity_type: DispatchScanEntityType;
+  box: number | null;
+  pallet: number | null;
+  serial_number: string;
+  barcode_type: DispatchScanEntityType;
+  box_barcode: string;
+  item_code: string;
+  item_name: string;
+  material_code: string;
+  batch_number: string;
+  original_qty: string;
+  available_qty: string;
+  required_pending_qty: string;
+  total_box_qty: string;
+  dispatch_qty: string;
+  remaining_qty: string;
+  qty: string;
+  uom: string;
+  warehouse: string;
+  scan_status: DispatchScannedUnitStatus;
+  status_after_scan: string;
+  dispatch_doc_no: string;
+  dispatch_date_time: string | null;
+  scanned_by_name: string;
+  customer_name: string;
+  created_at: string;
+  scanned_at: string;
+}
+
 export interface DispatchSession {
   id: number;
   bill_number: string;
@@ -568,6 +603,8 @@ export interface DispatchSession {
   total_expected_qty: string;
   total_scanned_qty: string;
   pending_qty: string;
+  total_remaining_qty: string;
+  removed_box_count: number;
   sap_dispatch_status: string;
   sap_update_status: DispatchSapUpdateStatus;
   sap_update_error: string;
@@ -600,6 +637,7 @@ export interface DispatchSession {
   can_dispatch: boolean;
   can_scan: boolean;
   lines: DispatchSessionLine[];
+  scanned_units: DispatchScannedUnit[];
 }
 
 export interface DispatchSessionFilters extends PaginationParams {
@@ -626,6 +664,10 @@ export interface DispatchScanSubmitPayload {
   line_id?: number | null;
   device_id?: string;
   request_id?: string;
+}
+
+export interface DispatchScannedBoxQtyPayload {
+  dispatch_qty: number;
 }
 
 export interface DispatchSessionCancelPayload {
