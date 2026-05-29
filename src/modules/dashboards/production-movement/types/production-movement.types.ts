@@ -29,6 +29,10 @@ export interface ProductionMovementItem {
   item_group: string;
   warehouse: string;
   warehouse_name: string;
+  from_warehouse: string;
+  from_warehouse_name: string;
+  to_warehouse: string;
+  to_warehouse_name: string;
   in_qty: number;
   out_qty: number;
   quantity: number;

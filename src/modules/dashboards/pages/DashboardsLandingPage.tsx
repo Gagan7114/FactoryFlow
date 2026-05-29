@@ -1,4 +1,4 @@
-import { ArrowLeftRight, BarChart3, CalendarClock, Package, PackageX } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, CalendarClock, Package, PackageX, Scale } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -55,6 +55,14 @@ const dashboardsModules: DashboardsModuleCard[] = [
     route: '/dashboards/production-movement',
     color: 'text-sky-600',
     permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT],
+  },
+  {
+    title: 'Inventory Reconciliation',
+    description: 'Expected versus actual quantity across transfers, production, and BOM issues',
+    icon: <Scale className="h-5 w-5" />,
+    route: '/dashboards/inventory-reconciliation',
+    color: 'text-rose-600',
+    permissions: [DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION],
   },
 ];
 

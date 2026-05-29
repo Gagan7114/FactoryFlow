@@ -7,6 +7,7 @@ export const DASHBOARDS_PERMISSIONS = {
   VIEW_INVENTORY_AGE: 'inventory_age.can_view_inventory_age',
   VIEW_NON_MOVING_RM: 'non_moving_rm.can_view_non_moving_rm',
   VIEW_PRODUCTION_MOVEMENT: 'production_execution.can_view_reports',
+  VIEW_INVENTORY_RECONCILIATION: 'production_execution.can_view_reports',
   VIEW_DISPATCH_PLANS: 'dispatch_plans.can_view_dispatch_plans',
   EDIT_DISPATCH_PLANS: 'dispatch_plans.can_edit_dispatch_plans',
 } as const;

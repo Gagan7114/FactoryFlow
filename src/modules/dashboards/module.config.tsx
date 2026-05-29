@@ -7,17 +7,16 @@ import type { ModuleConfig } from '@/core/types';
 
 const DashboardsLandingPage = lazy(() => import('./pages/DashboardsLandingPage'));
 const SAPPlanDashboardPage = lazy(() => import('./sap-plan/pages/SAPPlanDashboardPage'));
-const StockLevelDashboardPage = lazy(
-  () => import('./stock-level/pages/StockLevelDashboardPage'),
-);
+const StockLevelDashboardPage = lazy(() => import('./stock-level/pages/StockLevelDashboardPage'));
 const InventoryAgeDashboardPage = lazy(
   () => import('./inventory-age/pages/InventoryAgeDashboardPage'),
 );
-const NonMovingDashboardPage = lazy(
-  () => import('./non-moving/pages/NonMovingDashboardPage'),
-);
+const NonMovingDashboardPage = lazy(() => import('./non-moving/pages/NonMovingDashboardPage'));
 const ProductionMovementDashboardPage = lazy(
   () => import('./production-movement/pages/ProductionMovementDashboardPage'),
+);
+const InventoryReconciliationDashboardPage = lazy(
+  () => import('./inventory-reconciliation/pages/InventoryReconciliationDashboardPage'),
 );
 export const dashboardsModuleConfig: ModuleConfig = {
   name: 'dashboards',
@@ -32,6 +31,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
+        DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION,
       ],
     },
     {
@@ -70,6 +70,13 @@ export const dashboardsModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Production Movement' },
     },
     {
+      path: '/dashboards/inventory-reconciliation',
+      element: <InventoryReconciliationDashboardPage />,
+      layout: 'main',
+      permissions: [DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION],
+      breadcrumb: { label: 'Inventory Reconciliation' },
+    },
+    {
       path: '/dashboards/dispatch-plans',
       element: <Navigate to="/dispatch/plans" replace />,
       layout: 'main',
@@ -89,6 +96,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
+        DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION,
       ],
       hasSubmenu: true,
       children: [
@@ -116,6 +124,11 @@ export const dashboardsModuleConfig: ModuleConfig = {
           path: '/dashboards/production-movement',
           title: 'Production Movement',
           permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT],
+        },
+        {
+          path: '/dashboards/inventory-reconciliation',
+          title: 'Inventory Reconciliation',
+          permissions: [DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION],
         },
       ],
     },
