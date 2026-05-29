@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, ExternalLink, FileText, RefreshCw } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ExternalLink, FileText, Printer, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
@@ -44,6 +44,19 @@ const formatDateTime = (dateTime?: string | null) => {
   }
 };
 
+const formatDate = (date?: string | null) => {
+  if (!date) return '-';
+  try {
+    return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return date;
+  }
+};
+
 export default function ServiceGRPOHistoryDetailPage() {
   const navigate = useNavigate();
   const { postingId } = useParams<{ postingId: string }>();
@@ -51,6 +64,10 @@ export default function ServiceGRPOHistoryDetailPage() {
 
   const { data: posting, isLoading, error, refetch } = useServiceGRPODetail(id);
   const apiError = error as ApiError | null;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6">
@@ -66,15 +83,26 @@ export default function ServiceGRPOHistoryDetailPage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h2 className="text-3xl font-bold tracking-tight">
-              {posting?.dispatch_bill_no || 'Service GRPO Detail'}
+              {posting?.bilty_no || posting?.dispatch_bill_no || 'Service GRPO Detail'}
             </h2>
           </div>
           <p className="text-muted-foreground">Transport service GRPO posting details</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="w-full sm:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="flex-1 sm:flex-none">
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -109,8 +137,21 @@ export default function ServiceGRPOHistoryDetailPage() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">SAP Doc Number</p>
-                  <p className="text-sm font-medium">{posting.sap_doc_num || '-'}</p>
+                  <p className="text-xs text-muted-foreground">Bilty Number</p>
+                  <p className="text-sm font-medium">{posting.bilty_no || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Bilty Date</p>
+                  <p className="text-sm font-medium">{formatDate(posting.bilty_date)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Bilty / SAP Doc Number</p>
+                  <p className="text-sm font-medium">
+                    {posting.bilty_no ? `Bilty #${posting.bilty_no}` : posting.sap_doc_num || '-'}
+                  </p>
+                  {posting.sap_doc_num && posting.bilty_no && (
+                    <p className="text-xs text-muted-foreground">SAP #{posting.sap_doc_num}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">SAP Doc Entry</p>
@@ -177,9 +218,7 @@ export default function ServiceGRPOHistoryDetailPage() {
                           <td className="p-3 text-sm">{line.service_description}</td>
                           <td className="p-3 text-sm">{line.gl_account || '-'}</td>
                           <td className="p-3 text-sm">{line.tax_code || '-'}</td>
-                          <td className="p-3 text-sm text-right">
-                            {formatCurrency(line.amount)}
-                          </td>
+                          <td className="p-3 text-sm text-right">{formatCurrency(line.amount)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -217,9 +256,7 @@ export default function ServiceGRPOHistoryDetailPage() {
                               <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                             </a>
                           ) : (
-                            <span className="text-sm truncate">
-                              {attachment.original_filename}
-                            </span>
+                            <span className="text-sm truncate">{attachment.original_filename}</span>
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground">

@@ -126,7 +126,7 @@ export default function NonMovingDashboardPage() {
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Non-Moving"
-        description="Raw materials by movement age - identify recently moved, slow-moving, and non-moving inventory"
+        description="Inventory by movement age - identify recently moved, slow-moving, and non-moving stock"
       />
 
       <NonMovingFilters

@@ -42,7 +42,7 @@ const dashboardsModules: DashboardsModuleCard[] = [
   },
   {
     title: 'Non-Moving',
-    description: 'Identify dead stock and slow-moving raw materials by age and item group',
+    description: 'Identify dead stock and slow-moving inventory by age and item group',
     icon: <PackageX className="h-5 w-5" />,
     route: '/dashboards/non-moving',
     color: 'text-amber-600',

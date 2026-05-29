@@ -440,6 +440,8 @@ export interface ServiceGRPOHistoryEntry {
   id: number;
   dispatch_plan: number;
   dispatch_bill_no: string;
+  bilty_no: string;
+  bilty_date: string | null;
   sap_invoice_doc_entry: number;
   vehicle_no: string;
   transporter_name: string;

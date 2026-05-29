@@ -5,6 +5,7 @@ import {
   Eye,
   FileText,
   Paperclip,
+  Printer,
   RefreshCw,
   ShieldX,
   Truck,
@@ -180,10 +181,7 @@ const findTaxCode = (options: ServiceGRPOTaxCodeOption[], candidates: string[]) 
   return '';
 };
 
-const isReverseChargeTaxCode = (
-  options: ServiceGRPOTaxCodeOption[],
-  taxCode?: string | null,
-) => {
+const isReverseChargeTaxCode = (options: ServiceGRPOTaxCodeOption[], taxCode?: string | null) => {
   const code = (taxCode || '').trim().toUpperCase();
   if (!code) return false;
   const option = options.find((tax) => tax.tax_code.toUpperCase() === code);
@@ -213,7 +211,9 @@ const findDefaultTaxCode = (
     : findTaxCode(options, ['GST05R', 'RCGSG@5', 'CG+SG@5']);
   if (preferredCode) return preferredCode;
 
-  return options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || '';
+  return (
+    options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || ''
+  );
 };
 
 const findDefaultSac = (
@@ -231,7 +231,9 @@ const findDefaultSac = (
   const preferredCodes = productVariety.toLowerCase().includes('beverage')
     ? ['996812']
     : ['9967', '9965'];
-  return options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null;
+  return (
+    options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null
+  );
 };
 
 const findDefaultLocation = (
@@ -266,8 +268,7 @@ const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
 
 const sortExpenseCodeOptions = (
   options: ServiceGRPOExpenseCodeOption[],
-): ServiceGRPOExpenseCodeOption[] =>
-  [...options].sort((a, b) => a.expense_code - b.expense_code);
+): ServiceGRPOExpenseCodeOption[] => [...options].sort((a, b) => a.expense_code - b.expense_code);
 
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
@@ -378,8 +379,7 @@ export default function ServiceGRPOPreviewPage() {
   }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions]);
 
   const currentPlanId = preview?.dispatch_plan_id ?? null;
-  const form =
-    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
+  const form = formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
 
   const updateCurrentForm = useCallback(
     (updater: (current: ServiceFormState) => ServiceFormState) => {
@@ -591,6 +591,11 @@ export default function ServiceGRPOPreviewPage() {
   const biltyAttachmentName = preview?.bilty_attachment_name || 'Bilty attachment';
   const attachmentCount = (form?.attachments.length ?? 0) + (preview?.bilty_attachment ? 1 : 0);
   const isMultiInvoicePreview = (preview?.invoice_count || 1) > 1;
+  const canPrintPostedPreview = preview?.grpo_status === GRPO_STATUS.POSTED;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6 pb-32">
@@ -613,10 +618,28 @@ export default function ServiceGRPOPreviewPage() {
             Review transport booking details and post the service GRPO to SAP
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="w-full sm:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          {canPrintPostedPreview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              className="flex-1 sm:flex-none"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {isPermissionError && (
@@ -720,7 +743,8 @@ export default function ServiceGRPOPreviewPage() {
                   Service GRPO already posted
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  SAP Document Number: {preview.sap_doc_num}
+                  {preview.bilty_no ? `Bilty #${preview.bilty_no}` : 'Bilty -'}
+                  {preview.sap_doc_num ? ` / SAP #${preview.sap_doc_num}` : ''}
                 </p>
               </div>
             </div>
@@ -879,9 +903,7 @@ export default function ServiceGRPOPreviewPage() {
                       min={0}
                       step="any"
                       value={form.amount || ''}
-                      onChange={(e) =>
-                        updateFormField('amount', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateFormField('amount', parseFloat(e.target.value) || 0)}
                       className={`h-8 text-sm${apiErrors.amount ? ' border-destructive' : ''}`}
                     />
                     {apiErrors.amount && (
@@ -959,9 +981,7 @@ export default function ServiceGRPOPreviewPage() {
                     inputId="service-grpo-gl-account"
                     inputClassName="h-8 text-sm"
                     getItemKey={(account) => account.account_code}
-                    getItemLabel={(account) =>
-                      `${account.account_name} (${account.account_code})`
-                    }
+                    getItemLabel={(account) => `${account.account_name} (${account.account_code})`}
                     filterFn={(account, search) =>
                       account.account_code.toLowerCase().includes(search.toLowerCase()) ||
                       account.account_name.toLowerCase().includes(search.toLowerCase())
@@ -977,9 +997,7 @@ export default function ServiceGRPOPreviewPage() {
                     loadingText="Loading G/L accounts..."
                     emptyText="No G/L accounts available"
                     notFoundText="No G/L accounts found"
-                    onItemSelect={(account) =>
-                      updateFormField('glAccount', account.account_code)
-                    }
+                    onItemSelect={(account) => updateFormField('glAccount', account.account_code)}
                     onClear={() => updateFormField('glAccount', '')}
                   />
                   <SearchableSelect<ServiceGRPOLocationOption>
@@ -1415,6 +1433,10 @@ export default function ServiceGRPOPreviewPage() {
           </DialogHeader>
           {successResult && (
             <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bilty Number</span>
+                <span className="font-semibold">{preview?.bilty_no || '-'}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">SAP Document Number</span>
                 <span className="font-semibold">{successResult.sap_doc_num}</span>
