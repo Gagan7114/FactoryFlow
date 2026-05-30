@@ -3,12 +3,14 @@ import {
   Boxes,
   CheckCircle2,
   Download,
+  Eye,
   FileSpreadsheet,
   Filter,
   Loader2,
   Package,
   Search,
   Truck,
+  X,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
@@ -193,7 +195,6 @@ function FilterPanel({
             <SelectOption value="COMPLETED">Completed</SelectOption>
             <SelectOption value="CLOSED">Closed</SelectOption>
             <SelectOption value="CANCELLED">Cancelled</SelectOption>
-            <SelectOption value="SAP_SYNC_FAILED">SAP failed</SelectOption>
           </NativeSelect>
         </div>
         <div className="space-y-2">
@@ -270,20 +271,39 @@ function ReportShell({
   );
 }
 
-function DispatchSummaryList({ rows, loading }: { rows: DispatchSummaryReportRow[]; loading: boolean }) {
+function DispatchSummaryList({
+  rows,
+  loading,
+  selectedSessionId,
+  onSelect,
+}: {
+  rows: DispatchSummaryReportRow[];
+  loading: boolean;
+  selectedSessionId: number | null;
+  onSelect: (sessionId: number) => void;
+}) {
   if (loading) return <LoadingState />;
   if (!rows.length) return <EmptyState />;
 
   return (
     <div className="divide-y">
       {rows.map((row) => (
-        <div key={row.session_id} className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1.2fr)_420px]">
+        <button
+          key={row.session_id}
+          type="button"
+          onClick={() => onSelect(row.session_id)}
+          className={cn(
+            'grid w-full gap-4 p-4 text-left transition hover:bg-slate-50 xl:grid-cols-[minmax(0,1.2fr)_420px]',
+            selectedSessionId === row.session_id && 'bg-cyan-50/60 ring-1 ring-inset ring-cyan-200',
+          )}
+        >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-mono text-sm font-semibold">{row.bill_number}</p>
               <Badge>{row.status}</Badge>
-              <Badge className="border-slate-200 bg-slate-50 text-slate-700">
-                {row.sap_sync_status?.replaceAll('_', ' ') || '-'}
+              <Badge className="border-cyan-200 bg-cyan-50 text-cyan-800">
+                <Eye className="mr-1 h-3 w-3" />
+                Full report
               </Badge>
             </div>
             <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -298,7 +318,7 @@ function DispatchSummaryList({ rows, loading }: { rows: DispatchSummaryReportRow
             <SummaryTile label="Dispatched" value={formatQtyWithBoxes(row.total_dispatched_qty, row.total_dispatched_boxes)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
             <SummaryTile label="Pending" value={formatQtyWithBoxes(row.pending_qty, row.pending_boxes)} icon={<AlertTriangle className="h-4 w-4" />} tone="amber" />
           </div>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -390,9 +410,127 @@ function RejectedReportList({ rows, loading }: { rows: DispatchRejectedScanRepor
   );
 }
 
+function DispatchDetailPanel({
+  detail,
+  loading,
+  onClose,
+}: {
+  detail: ReturnType<typeof useDispatchDetailReport>['data'];
+  loading: boolean;
+  onClose: () => void;
+}) {
+  if (loading) {
+    return (
+      <Card className="rounded-md">
+        <LoadingState />
+      </Card>
+    );
+  }
+  if (!detail) return null;
+
+  const boxUnits = detail.scanned_units.filter((unit) => unit.barcode_type === 'BOX');
+  const palletUnits = detail.scanned_units.filter((unit) => unit.pallet_barcode);
+
+  return (
+    <Card className="rounded-md border-cyan-200">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold">Full dispatch report</h2>
+            <Badge>{detail.session.status}</Badge>
+            <Badge className="border-slate-200 bg-slate-50 text-slate-700">{detail.session.bill_number}</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {detail.session.customer_name || detail.session.customer_code || '-'} · Completed by{' '}
+            {detail.session.completed_by || '-'} · {formatDateTime(detail.session.completed_at)}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={onClose}>
+          <X className="h-4 w-4" />
+          Close
+        </Button>
+      </div>
+
+      <CardContent className="space-y-5 p-4">
+        <section className="grid gap-3 md:grid-cols-5">
+          <SummaryTile label="Expected" value={formatQtyWithBoxes(detail.session.total_expected_qty, detail.session.total_expected_boxes)} icon={<Package className="h-4 w-4" />} tone="cyan" />
+          <SummaryTile label="Dispatched" value={formatQtyWithBoxes(detail.session.total_dispatched_qty, detail.session.total_dispatched_boxes)} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+          <SummaryTile label="Pending" value={`${formatNumber(detail.session.pending_qty)} PCS`} icon={<AlertTriangle className="h-4 w-4" />} tone="amber" />
+          <SummaryTile label="Pallets" value={formatNumber(detail.session.total_pallets || 0)} icon={<Boxes className="h-4 w-4" />} />
+          <SummaryTile label="Boxes" value={formatNumber(detail.session.total_dispatched_boxes || 0)} icon={<Package className="h-4 w-4" />} />
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">Bill items</h3>
+          <div className="overflow-x-auto rounded-md border">
+            <div className="grid min-w-[760px] grid-cols-[120px_minmax(220px,1fr)_110px_110px_110px_80px] bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+              <span>Item Code</span>
+              <span>Item Name</span>
+              <span>Expected</span>
+              <span>Dispatched</span>
+              <span>Pending</span>
+              <span>Status</span>
+            </div>
+            {detail.lines.map((line) => (
+              <div key={line.line_id} className="grid min-w-[760px] grid-cols-[120px_minmax(220px,1fr)_110px_110px_110px_80px] border-t px-3 py-2 text-sm">
+                <span className="font-mono">{line.material_code}</span>
+                <span className="truncate">{line.material_description}</span>
+                <span>{formatNumber(line.expected_qty)} {line.uom}</span>
+                <span>{formatNumber(line.dispatched_qty)} {line.uom}</span>
+                <span>{formatNumber(line.pending_qty)} {line.uom}</span>
+                <Badge className="w-fit">{line.status}</Badge>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
+            Scanned pallets and boxes
+          </h3>
+          <div className="grid gap-3">
+            {detail.scanned_units.map((unit) => (
+              <div key={unit.id} className="rounded-md border bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className={unit.status_after_scan === 'Partial Dispatch' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}>
+                        {unit.status_after_scan}
+                      </Badge>
+                      <span className="font-mono text-sm font-semibold">
+                        {unit.box_barcode || unit.pallet_barcode || unit.barcode}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
+                      {unit.item_code} · {unit.item_name || '-'} · Batch {unit.batch_number || '-'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Pallet: {unit.pallet_barcode || '-'} · Warehouse: {unit.warehouse || '-'} · Scanned by {unit.scanned_by || '-'} at {formatDateTime(unit.scanned_at)}
+                    </p>
+                  </div>
+                  <div className="grid w-full gap-2 sm:min-w-[360px] sm:grid-cols-3">
+                    <SummaryTile label="Original" value={`${formatNumber(unit.original_qty)} ${unit.uom}`} icon={<Package className="h-4 w-4" />} />
+                    <SummaryTile label="Dispatch" value={`${formatNumber(unit.dispatch_qty)} ${unit.uom}`} icon={<CheckCircle2 className="h-4 w-4" />} tone="emerald" />
+                    <SummaryTile label="Remaining" value={`${formatNumber(unit.remaining_qty)} ${unit.uom}`} icon={<AlertTriangle className="h-4 w-4" />} tone="amber" />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!detail.scanned_units.length && <EmptyState />}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Showing {palletUnits.length.toLocaleString('en-IN')} pallet-linked rows and {boxUnits.length.toLocaleString('en-IN')} box rows.
+          </p>
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function BarcodeDispatchReportsPage() {
   const [searchParams] = useSearchParams();
-  const sessionId = Number(searchParams.get('session') || 0) || null;
+  const initialSessionId = Number(searchParams.get('session') || 0) || null;
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(initialSessionId);
   const [tab, setTab] = useState<ReportTab>('dispatch');
   const [filters, setFilters] = useState<DispatchReportFilters>({});
 
@@ -408,7 +546,7 @@ export default function BarcodeDispatchReportsPage() {
   const palletReport = useDispatchPalletReport(cleanFilters);
   const boxReport = useDispatchBoxReport(cleanFilters);
   const rejectedReport = useDispatchRejectedScanReport(cleanFilters);
-  const detailReport = useDispatchDetailReport(sessionId);
+  const detailReport = useDispatchDetailReport(selectedSessionId);
 
   const dispatchRows = dispatchReport.data ?? [];
   const palletRows = palletReport.data ?? [];
@@ -436,29 +574,11 @@ export default function BarcodeDispatchReportsPage() {
 
       <FilterPanel filters={filters} setFilters={setFilters} />
 
-      {detailReport.data && (
-        <Card className="rounded-md">
-          <div className="border-b p-4">
-            <h2 className="text-base font-semibold">Dispatch detail · {detailReport.data.session.bill_number}</h2>
-          </div>
-          <CardContent className="grid gap-3 p-4 md:grid-cols-4">
-            <SummaryTile label="Customer" value={detailReport.data.session.customer_name || '-'} icon={<Truck className="h-4 w-4" />} />
-            <SummaryTile label="Status" value={detailReport.data.session.status} icon={<FileSpreadsheet className="h-4 w-4" />} />
-            <SummaryTile
-              label="Expected"
-              value={formatQtyWithBoxes(detailReport.data.session.total_expected_qty, detailReport.data.session.total_expected_boxes)}
-              icon={<Package className="h-4 w-4" />}
-              tone="cyan"
-            />
-            <SummaryTile
-              label="Dispatched"
-              value={formatQtyWithBoxes(detailReport.data.session.total_dispatched_qty, detailReport.data.session.total_dispatched_boxes)}
-              icon={<CheckCircle2 className="h-4 w-4" />}
-              tone="emerald"
-            />
-          </CardContent>
-        </Card>
-      )}
+      <DispatchDetailPanel
+        detail={detailReport.data}
+        loading={detailReport.isLoading}
+        onClose={() => setSelectedSessionId(null)}
+      />
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as ReportTab)}>
         <TabsList className="grid h-auto w-full grid-cols-4 rounded-md">
@@ -474,7 +594,12 @@ export default function BarcodeDispatchReportsPage() {
             count={dispatchRows.length}
             onExport={() => downloadCsv('dispatch-summary-report', dispatchRows)}
           >
-            <DispatchSummaryList rows={dispatchRows} loading={dispatchReport.isLoading} />
+            <DispatchSummaryList
+              rows={dispatchRows}
+              loading={dispatchReport.isLoading}
+              selectedSessionId={selectedSessionId}
+              onSelect={setSelectedSessionId}
+            />
           </ReportShell>
         </TabsContent>
 
