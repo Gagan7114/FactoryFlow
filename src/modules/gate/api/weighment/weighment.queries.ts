@@ -17,6 +17,8 @@ export function useCreateWeighment(entryId: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weighment'] });
       queryClient.invalidateQueries({ queryKey: ['gateEntryFullView'] });
+      queryClient.invalidateQueries({ queryKey: ['salesDispatch'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicleEntries'] });
     },
   });
 }

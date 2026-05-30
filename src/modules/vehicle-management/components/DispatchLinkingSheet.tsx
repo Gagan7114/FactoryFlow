@@ -2,11 +2,9 @@ import { Eye, Loader2, Paperclip, Plus, Save, Upload, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
-import type { DriverName } from '@/modules/gate/api/driver/driver.api';
-import { useDriverById, useDriverNames } from '@/modules/gate/api/driver/driver.queries';
 import type { Vehicle, VehicleName } from '@/modules/gate/api/vehicle/vehicle.api';
 import { useVehicleById, useVehicleNames } from '@/modules/gate/api/vehicle/vehicle.queries';
-import { CreateDriverDialog, CreateVehicleDialog } from '@/modules/gate/components';
+import { CreateVehicleDialog } from '@/modules/gate/components';
 import { SearchableSelect } from '@/shared/components';
 import {
   Button,
@@ -36,31 +34,21 @@ interface DispatchLinkingSheetProps {
 interface FormState {
   invoice_number: string;
   eway_bill: string;
-  invoice_weight: string;
   invoice_amount: string;
   place_of_supply: string;
   budget_delivery_point: string;
   vehicle_id: number | null;
   transporter_id: number | null;
-  driver_id: number | null;
-  linked_vehicle_entry_id: string;
   transporter_name: string;
   transporter_gstin: string;
   contact_person: string;
   mobile_no: string;
   vehicle_no: string;
-  driver_name: string;
-  driver_mobile_no: string;
-  driver_license_no: string;
-  driver_id_proof_type: string;
-  driver_id_proof_number: string;
-  driver_photo: string | null;
   bilty_no: string;
   bilty_date: string;
   bilty_attachment: File | null;
   freight: string;
   total_freight: string;
-  kanta_weight: string;
   remarks: string;
 }
 
@@ -76,44 +64,24 @@ interface VehicleSelection {
   transporterMobile: string;
 }
 
-interface DriverSelection {
-  driverId: number;
-  driverName: string;
-  mobileNumber: string;
-  drivingLicenseNumber: string;
-  idProofType: string;
-  idProofNumber: string;
-  driverPhoto: string | null;
-}
-
 const EMPTY_FORM: FormState = {
   invoice_number: '',
   eway_bill: '',
-  invoice_weight: '',
   invoice_amount: '',
   place_of_supply: '',
   budget_delivery_point: '',
   vehicle_id: null,
   transporter_id: null,
-  driver_id: null,
-  linked_vehicle_entry_id: '',
   transporter_name: '',
   transporter_gstin: '',
   contact_person: '',
   mobile_no: '',
   vehicle_no: '',
-  driver_name: '',
-  driver_mobile_no: '',
-  driver_license_no: '',
-  driver_id_proof_type: '',
-  driver_id_proof_number: '',
-  driver_photo: null,
   bilty_no: '',
   bilty_date: '',
   bilty_attachment: null,
   freight: '',
   total_freight: '',
-  kanta_weight: '',
   remarks: '',
 };
 
@@ -125,33 +93,21 @@ function formFromBill(bill: DispatchBill | null): FormState {
   return {
     invoice_number: bill.plan.invoice_number || bill.doc_num || '',
     eway_bill: bill.plan.eway_bill || bill.sap_eway_bill || '',
-    invoice_weight: bill.plan.invoice_weight ?? '',
     invoice_amount: bill.plan.invoice_amount ?? numberToString(bill.doc_total),
     place_of_supply: bill.plan.place_of_supply || placeOfSupply,
     budget_delivery_point: bill.plan.budget_delivery_point || bill.city || '',
     vehicle_id: bill.plan.vehicle_id ?? null,
     transporter_id: bill.plan.transporter_id ?? null,
-    driver_id: bill.plan.driver_id ?? null,
-    linked_vehicle_entry_id: bill.plan.linked_vehicle_entry_id
-      ? String(bill.plan.linked_vehicle_entry_id)
-      : '',
     transporter_name: bill.plan.transporter_name || bill.sap_transporter_name || '',
     transporter_gstin: bill.plan.transporter_gstin ?? '',
     contact_person: bill.plan.contact_person ?? '',
     mobile_no: bill.plan.mobile_no ?? '',
     vehicle_no: bill.plan.vehicle_no || sapVehicleNo,
-    driver_name: bill.plan.driver_name ?? '',
-    driver_mobile_no: bill.plan.driver_mobile_no ?? '',
-    driver_license_no: bill.plan.driver_license_no ?? '',
-    driver_id_proof_type: bill.plan.driver_id_proof_type ?? '',
-    driver_id_proof_number: bill.plan.driver_id_proof_number ?? '',
-    driver_photo: null,
     bilty_no: bill.plan.bilty_no || bill.sap_bilty_no || bill.sap_lr_number || '',
     bilty_date: bill.plan.bilty_date || bill.sap_bilty_date || '',
     bilty_attachment: null,
     freight: bill.plan.freight ?? '',
     total_freight: bill.plan.total_freight ?? '',
-    kanta_weight: bill.plan.kanta_weight ?? '',
     remarks: bill.plan.remarks ?? '',
   };
 }
@@ -161,13 +117,15 @@ function stringOrNull(value: string): string | null {
   return trimmed || null;
 }
 
-function numberOrNull(value: string): number | null {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function numberToString(value: number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
+}
+
+function invoiceWeightForPayload(bill: DispatchBill): string | null {
+  if (bill.plan.invoice_weight !== null && bill.plan.invoice_weight !== undefined) {
+    return bill.plan.invoice_weight;
+  }
+  return bill.total_weight > 0 ? numberToString(bill.total_weight) : null;
 }
 
 function inferProductVariety(itemSummary: string): string {
@@ -293,20 +251,6 @@ export function DispatchLinkingSheet({
     setFormError('');
   }
 
-  function handleDriverSelect(driver: DriverSelection) {
-    setForm((prev) => ({
-      ...prev,
-      driver_id: driver.driverId || null,
-      driver_name: driver.driverName,
-      driver_mobile_no: driver.mobileNumber,
-      driver_license_no: driver.drivingLicenseNumber,
-      driver_id_proof_type: driver.idProofType,
-      driver_id_proof_number: driver.idProofNumber,
-      driver_photo: driver.driverPhoto,
-    }));
-    setFormError('');
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!bill) return;
@@ -317,10 +261,6 @@ export function DispatchLinkingSheet({
           ? `Vehicle ${sapVehicleNo} is coming from SAP but is not linked to Vehicle Master. Select an existing vehicle or add it before saving.`
           : 'Please select a vehicle.',
       );
-      return;
-    }
-    if (!form.driver_id) {
-      showFormError('Please select a driver.');
       return;
     }
     if (!form.bilty_no.trim()) {
@@ -337,7 +277,7 @@ export function DispatchLinkingSheet({
       linked_invoice_doc_entries: activeBills.map((selected) => selected.doc_entry),
       invoice_number: form.invoice_number.trim(),
       eway_bill: form.eway_bill.trim(),
-      invoice_weight: stringOrNull(form.invoice_weight),
+      invoice_weight: invoiceWeightForPayload(bill),
       invoice_amount: stringOrNull(form.invoice_amount),
       place_of_supply: form.place_of_supply.trim(),
       product_variety: bill.plan.product_variety || inferProductVariety(bill.item_summary),
@@ -350,8 +290,6 @@ export function DispatchLinkingSheet({
       sac_code: bill.plan.sac_code || '',
       vehicle_id: form.vehicle_id,
       transporter_id: form.transporter_id,
-      driver_id: form.driver_id,
-      linked_vehicle_entry_id: numberOrNull(form.linked_vehicle_entry_id),
       booking_status: 'BOOKED',
       dispatch_date: bill.plan.dispatch_date,
       transporter_name: form.transporter_name.trim(),
@@ -359,17 +297,11 @@ export function DispatchLinkingSheet({
       contact_person: form.contact_person.trim(),
       mobile_no: form.mobile_no.trim(),
       vehicle_no: form.vehicle_no.trim(),
-      driver_name: form.driver_name.trim(),
-      driver_mobile_no: form.driver_mobile_no.trim(),
-      driver_license_no: form.driver_license_no.trim(),
-      driver_id_proof_type: form.driver_id_proof_type.trim(),
-      driver_id_proof_number: form.driver_id_proof_number.trim(),
       bilty_no: form.bilty_no.trim(),
       bilty_date: stringOrNull(form.bilty_date),
       bilty_attachment: form.bilty_attachment || undefined,
       freight: stringOrNull(form.freight),
       total_freight: stringOrNull(form.total_freight),
-      kanta_weight: stringOrNull(form.kanta_weight),
       remarks: form.remarks.trim(),
     });
   }
@@ -463,6 +395,14 @@ export function DispatchLinkingSheet({
         )}
 
         <form className="mt-4 flex flex-1 flex-col gap-6" noValidate onSubmit={handleSubmit}>
+          <DispatchVehicleSelect
+            selectedId={form.vehicle_id}
+            value={form.vehicle_no}
+            sapTransporterDetails={sapTransporterDetails}
+            sheetOpen={open}
+            onChange={handleVehicleSelect}
+          />
+
           {!isBatchLink && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
@@ -480,19 +420,6 @@ export function DispatchLinkingSheet({
                   id="dispatch-link-eway-bill"
                   value={form.eway_bill}
                   onChange={(event) => updateField('eway_bill', event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="dispatch-link-invoice-weight">
-                  Invoice Weight <span className="text-muted-foreground">(Charged Kgs)</span>
-                </Label>
-                <Input
-                  id="dispatch-link-invoice-weight"
-                  type="number"
-                  step="0.001"
-                  value={form.invoice_weight}
-                  onChange={(event) => updateField('invoice_weight', event.target.value)}
                 />
               </div>
 
@@ -526,50 +453,6 @@ export function DispatchLinkingSheet({
               </div>
             </div>
           )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <DispatchVehicleSelect
-              selectedId={form.vehicle_id}
-              value={form.vehicle_no}
-              sapTransporterDetails={sapTransporterDetails}
-              sheetOpen={open}
-              onChange={handleVehicleSelect}
-            />
-
-            <DispatchDriverSelect
-              selectedId={form.driver_id}
-              value={form.driver_name}
-              sheetOpen={open}
-              onChange={handleDriverSelect}
-            />
-
-            <ReadOnlyField label="Transporter" value={form.transporter_name} />
-            <ReadOnlyField label="Transporter Mobile" value={form.mobile_no} />
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-entry-id">Linked Vehicle Entry ID</Label>
-              <Input
-                id="dispatch-link-entry-id"
-                type="number"
-                min="1"
-                value={form.linked_vehicle_entry_id}
-                onChange={(event) => updateField('linked_vehicle_entry_id', event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-kanta">
-                Kanta Weight <span className="text-muted-foreground">(Actual Kgs)</span>
-              </Label>
-              <Input
-                id="dispatch-link-kanta"
-                type="number"
-                step="0.001"
-                value={form.kanta_weight}
-                onChange={(event) => updateField('kanta_weight', event.target.value)}
-              />
-            </div>
-          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -685,6 +568,7 @@ function DispatchVehicleSelect({
   const sapVehicleNo = normalizeVehicleNumber(value);
   const hasUnlinkedSapVehicle = Boolean(sapVehicleNo && !localSelectedId);
 
+  const prevSelectedIdRef = useRef(selectedId);
   const prevVehicleDetailsRef = useRef(vehicleDetails);
   const onChangeRef = useRef(onChange);
 
@@ -693,14 +577,15 @@ function DispatchVehicleSelect({
   }, [onChange]);
 
   useEffect(() => {
-    if (selectedId === localSelectedId) return;
+    if (selectedId === prevSelectedIdRef.current) return;
+    prevSelectedIdRef.current = selectedId;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Sheet edit mode must sync selected id from the opened bill.
     setLocalSelectedId(selectedId);
     if (!selectedId) {
       setSelectedVehicleDetails(null);
       prevVehicleDetailsRef.current = undefined;
     }
-  }, [selectedId, localSelectedId]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (localSelectedId || !sapVehicleNo || vehicleNames.length === 0) return;
@@ -877,143 +762,6 @@ function DispatchVehicleSelect({
   );
 }
 
-interface DispatchDriverSelectProps {
-  selectedId: number | null;
-  value: string;
-  sheetOpen: boolean;
-  onChange: (driver: DriverSelection) => void;
-}
-
-function DispatchDriverSelect({
-  selectedId,
-  value,
-  sheetOpen,
-  onChange,
-}: DispatchDriverSelectProps) {
-  const [localSelectedId, setLocalSelectedId] = useState<number | null>(selectedId);
-
-  const { data: driverNames = [], isLoading } = useDriverNames(sheetOpen);
-  const { data: driverDetails } = useDriverById(
-    localSelectedId,
-    sheetOpen && localSelectedId !== null,
-  );
-
-  const prevDriverDetailsRef = useRef(driverDetails);
-  const onChangeRef = useRef(onChange);
-
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  useEffect(() => {
-    if (selectedId === localSelectedId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Sheet edit mode must sync selected id from the opened bill.
-    setLocalSelectedId(selectedId);
-    if (!selectedId) {
-      prevDriverDetailsRef.current = undefined;
-    }
-  }, [selectedId, localSelectedId]);
-
-  useEffect(() => {
-    if (!driverDetails || driverDetails === prevDriverDetailsRef.current) return;
-
-    prevDriverDetailsRef.current = driverDetails;
-    onChangeRef.current({
-      driverId: driverDetails.id,
-      driverName: driverDetails.name,
-      mobileNumber: driverDetails.mobile_no,
-      drivingLicenseNumber: driverDetails.license_no,
-      idProofType: driverDetails.id_proof_type,
-      idProofNumber: driverDetails.id_proof_number,
-      driverPhoto: driverDetails.photo,
-    });
-  }, [driverDetails]);
-
-  return (
-    <SearchableSelect<DriverName>
-      value={localSelectedId !== null ? String(localSelectedId) : value}
-      defaultDisplayText={driverDetails?.name || value}
-      items={driverNames}
-      isLoading={isLoading}
-      label="Driver"
-      required
-      placeholder="Select driver"
-      inputId="dispatch-link-driver-select"
-      getItemKey={(driver) => driver.id}
-      getItemLabel={(driver) => driver.name}
-      loadingText="Loading drivers..."
-      emptyText="No drivers available"
-      notFoundText="No drivers found"
-      addNewLabel="Add New Driver"
-      onSelectedKeyChange={(key) => {
-        setLocalSelectedId(key as number | null);
-        if (!key) prevDriverDetailsRef.current = undefined;
-      }}
-      onItemSelect={(driver) => {
-        setLocalSelectedId(driver.id);
-      }}
-      onClear={() => {
-        setLocalSelectedId(null);
-        prevDriverDetailsRef.current = undefined;
-        onChange({
-          driverId: 0,
-          driverName: '',
-          mobileNumber: '',
-          drivingLicenseNumber: '',
-          idProofType: '',
-          idProofNumber: '',
-          driverPhoto: null,
-        });
-      }}
-      renderPopoverContent={(activeKey) =>
-        driverDetails ? (
-          <div className="space-y-1.5 text-sm">
-            <div>
-              <span className="font-medium">Name:</span>{' '}
-              <span className="text-muted-foreground">{driverDetails.name}</span>
-            </div>
-            <div>
-              <span className="font-medium">Mobile Number:</span>{' '}
-              <span className="text-muted-foreground">{driverDetails.mobile_no}</span>
-            </div>
-            <div>
-              <span className="font-medium">License Number:</span>{' '}
-              <span className="text-muted-foreground">{driverDetails.license_no}</span>
-            </div>
-            <div>
-              <span className="font-medium">ID Proof Type:</span>{' '}
-              <span className="text-muted-foreground">{driverDetails.id_proof_type}</span>
-            </div>
-            <div>
-              <span className="font-medium">ID Proof Number:</span>{' '}
-              <span className="text-muted-foreground">{driverDetails.id_proof_number}</span>
-            </div>
-          </div>
-        ) : activeKey ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading driver details...
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">
-            Please select a driver to view details.
-          </div>
-        )
-      }
-      renderCreateDialog={(open, onOpenChange, updateSelection) => (
-        <CreateDriverDialog
-          open={open}
-          onOpenChange={onOpenChange}
-          onSuccess={(driver) => {
-            updateSelection(driver.id, driver.name);
-            setLocalSelectedId(driver.id);
-          }}
-        />
-      )}
-    />
-  );
-}
-
 function InfoItem({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
@@ -1112,11 +860,3 @@ function BiltyAttachmentField({
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <Input value={compactText(value)} readOnly disabled className="bg-muted/40 opacity-100" />
-    </div>
-  );
-}

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { CalendarClock, CheckCircle2, Clock, RefreshCw, Search, Truck } from 'lucide-react';
+import { RefreshCw, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -10,13 +10,12 @@ import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
   Button,
-  Card,
-  CardContent,
   Input,
   Label,
   NativeSelect,
   SelectOption,
 } from '@/shared/components/ui';
+import { cn } from '@/shared/utils';
 
 import { useDispatchLinkingPlans, useLinkDispatchVehicle } from '../api';
 import { DispatchLinkingSheet, DispatchLinkingTable } from '../components';
@@ -98,6 +97,12 @@ export default function DispatchVehicleLinkingPage() {
   };
 
   const meta = plansQuery.data?.meta;
+  const bucketCounts: Record<DispatchLinkingBucket, number> = {
+    today: meta?.today ?? 0,
+    overdue: meta?.overdue ?? 0,
+    upcoming: meta?.upcoming ?? 0,
+    all: meta?.total ?? 0,
+  };
   const selectedBills = useMemo(() => {
     const bills = plansQuery.data?.data ?? [];
     if (!selectedBill) return [];
@@ -125,96 +130,102 @@ export default function DispatchVehicleLinkingPage() {
         </Button>
       </DashboardHeader>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          icon={<Clock className="h-5 w-5 text-amber-600" />}
-          label="Today"
-          value={meta?.today ?? 0}
-        />
-        <StatCard
-          icon={<CalendarClock className="h-5 w-5 text-red-600" />}
-          label="Overdue"
-          value={meta?.overdue ?? 0}
-        />
-        <StatCard
-          icon={<Truck className="h-5 w-5 text-blue-600" />}
-          label="Pending"
-          value={meta?.pending ?? 0}
-        />
-        <StatCard
-          icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
-          label="Booked"
-          value={meta?.booked ?? 0}
-        />
-      </div>
+      <div className="rounded-lg border bg-card p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Label htmlFor="dispatch-linking-search" className="text-xs">
+              Search
+            </Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="dispatch-linking-search"
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
+                placeholder="Bill, customer, city, vehicle"
+                className="pl-9"
+              />
+            </div>
+          </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-card p-4">
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto">
-          <Label htmlFor="dispatch-linking-date" className="text-xs font-semibold">
-            Dispatch Date
-          </Label>
-          <Input
-            id="dispatch-linking-date"
-            type="date"
-            value={filters.date}
-            onChange={(event) =>
-              setFilters((current) => ({ ...current, date: event.target.value }))
-            }
-            className="w-full sm:w-40"
-          />
-        </div>
+          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="dispatch-linking-date" className="text-xs font-semibold">
+                Dispatch Date
+              </Label>
+              <Input
+                id="dispatch-linking-date"
+                type="date"
+                value={filters.date}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, date: event.target.value }))
+                }
+                className="w-full lg:w-40"
+              />
+            </div>
 
-        <div className="flex w-full flex-col gap-1.5 sm:w-auto">
-          <Label htmlFor="dispatch-linking-status" className="text-xs">
-            Status
-          </Label>
-          <NativeSelect
-            id="dispatch-linking-status"
-            value={filters.booking_status ?? 'all'}
-            onChange={(event) =>
-              setFilters((current) => ({
-                ...current,
-                booking_status: event.target.value as DispatchLinkingFilters['booking_status'],
-              }))
-            }
-            className="w-full sm:w-36"
-          >
-            <SelectOption value="all">All</SelectOption>
-            <SelectOption value="PENDING">Pending</SelectOption>
-            <SelectOption value="BOOKED">Booked</SelectOption>
-            <SelectOption value="DISPATCHED">Dispatched</SelectOption>
-            <SelectOption value="CANCELLED">Cancelled</SelectOption>
-          </NativeSelect>
-        </div>
-
-        <div className="flex min-w-0 flex-1 basis-full flex-col gap-1.5 sm:min-w-64">
-          <Label htmlFor="dispatch-linking-search" className="text-xs">
-            Search
-          </Label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="dispatch-linking-search"
-              value={searchDraft}
-              onChange={(event) => setSearchDraft(event.target.value)}
-              placeholder="Bill, customer, city, vehicle"
-              className="pl-9"
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="dispatch-linking-status" className="text-xs">
+                Status
+              </Label>
+              <NativeSelect
+                id="dispatch-linking-status"
+                value={filters.booking_status ?? 'all'}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    booking_status: event.target.value as DispatchLinkingFilters['booking_status'],
+                  }))
+                }
+                className="w-full lg:w-36"
+              >
+                <SelectOption value="all">All</SelectOption>
+                <SelectOption value="PENDING">Pending</SelectOption>
+                <SelectOption value="BOOKED">Booked</SelectOption>
+                <SelectOption value="DISPATCHED">Dispatched</SelectOption>
+                <SelectOption value="CANCELLED">Cancelled</SelectOption>
+              </NativeSelect>
+            </div>
           </div>
         </div>
 
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          {BUCKET_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              variant={filters.bucket === option.value ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilters((current) => ({ ...current, bucket: option.value }))}
-            >
-              {option.label}
-            </Button>
-          ))}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {BUCKET_OPTIONS.map((option) => {
+            const count = bucketCounts[option.value];
+            const isActive = filters.bucket === option.value;
+            const hasOverdueVehicles = option.value === 'overdue' && count > 0;
+
+            return (
+              <Button
+                key={option.value}
+                type="button"
+                variant={isActive ? 'default' : 'outline'}
+                size="sm"
+                className={cn(
+                  'gap-2',
+                  hasOverdueVehicles &&
+                    !isActive &&
+                    'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800',
+                  hasOverdueVehicles && isActive && 'bg-red-600 text-white hover:bg-red-700',
+                )}
+                onClick={() => setFilters((current) => ({ ...current, bucket: option.value }))}
+              >
+                <span>{option.label}</span>
+                <span
+                  className={cn(
+                    'inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                    isActive
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      : 'bg-muted text-foreground',
+                    hasOverdueVehicles && !isActive && 'bg-red-100 text-red-700',
+                    hasOverdueVehicles && isActive && 'bg-white/20 text-white',
+                  )}
+                >
+                  {count}
+                </span>
+              </Button>
+            );
+          })}
         </div>
       </div>
 
@@ -243,19 +254,5 @@ export default function DispatchVehicleLinkingPage() {
         onSave={handleSave}
       />
     </div>
-  );
-}
-
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          {icon}
-          <span className="text-2xl font-bold">{value}</span>
-        </div>
-        <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
   );
 }

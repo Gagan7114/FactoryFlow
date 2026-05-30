@@ -147,9 +147,6 @@ export function DispatchLinkingTable({
                 <td className="px-4 py-3 align-top">
                   <div className="font-medium">Vehicle {compactText(bill.plan.vehicle_no)}</div>
                   <div className="text-xs text-muted-foreground">
-                    Driver {compactText(bill.plan.driver_name)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
                     Bilty {compactText(bill.plan.bilty_no)}
                   </div>
                 </td>

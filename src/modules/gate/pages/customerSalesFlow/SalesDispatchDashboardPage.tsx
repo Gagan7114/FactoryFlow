@@ -1,63 +1,245 @@
-import { CheckCircle2, Clock, FileText, Plus, RefreshCw, Search, Truck } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  Download,
+  FileText,
+  List,
+  Lock,
+  Plus,
+  Printer,
+  RefreshCw,
+  Search,
+  Truck,
+  Unlock,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
+import { GATE_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth';
 import { useGlobalDateRange } from '@/core/store/hooks';
+import {
+  type SalesDispatchDashboardEntry,
+  type SalesDispatchDocument,
+  type SalesDispatchGateOut,
+  type SalesDispatchGateOutDocument,
+  type SalesDispatchLock,
+  useSalesDispatchEntries,
+  useSalesDispatchLock,
+  useSalesDispatchPendingBookings,
+  useUpdateSalesDispatchLock,
+} from '@/modules/gate/api';
 import { DateRangePicker, GateStatusBadge } from '@/modules/gate/components';
 import { Button, Card, CardContent, Input } from '@/shared/components/ui';
+import { cn, getErrorMessage } from '@/shared/utils';
 
-import {
-  buildCustomerFlowItemSummary,
-  buildCustomerFlowSearchText,
-  type CustomerFlowEntry,
-  formatCustomerFlowDateTime,
-  getCustomerFlowValue,
-  readCustomerFlowEntries,
-  SALES_DISPATCH_KEY,
-} from './customerSalesFlow.storage';
+import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
+
+const GATE_OUT_PENDING_STATUS = 'PRINT_COMMITTED';
+const GATE_OUT_COMPLETED_STATUS = 'DISPATCHED';
+const ACTIVE_SALES_DISPATCH_STATUSES = [
+  'DOCKED',
+  'PHOTO_ATTACHED',
+  'READY_FOR_GATEPASS',
+  'GATEPASS_PRINTED',
+  'PRINT_COMMITTED',
+];
+const GATEPASS_PENDING_STATUSES = ['DOCKED', 'PHOTO_ATTACHED', 'READY_FOR_GATEPASS'];
+
+type ExportCellValue = string | number;
+type ExportRow = Record<string, ExportCellValue>;
+type DashboardExportDocument = SalesDispatchDocument | SalesDispatchGateOutDocument;
+
+type DashboardFilter =
+  | 'ALL'
+  | 'PENDING_OUT'
+  | 'AWAITING_GATEPASS'
+  | 'PRINT_NOT_COMMITTED'
+  | 'MARKED_OUT'
+  | 'PENDING_DOCKING'
+  | 'WAITING_INSIDE'
+  | 'MISSING_PHOTO_GPS'
+  | 'GATEPASS_PENDING'
+  | 'DISPATCHED';
+
+type DockingDateBucket = 'today' | 'overdue' | 'upcoming' | 'all';
+type DockingBucketCounts = Record<DockingDateBucket, number>;
+
+const DOCKING_BUCKET_OPTIONS: Array<{ value: DockingDateBucket; label: string }> = [
+  { value: 'today', label: 'Today' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'all', label: 'All' },
+];
 
 export default function SalesDispatchDashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routes = getSalesDispatchRoutes(location.pathname);
+  const isGateOutMode = isSalesDispatchOutPath(location.pathname);
+  const { hasPermission } = usePermission();
   const { dateRange, dateRangeAsDateObjects, setDateRange } = useGlobalDateRange();
   const [searchTerm, setSearchTerm] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedFilterState, setSelectedFilterState] = useState<{
+    isGateOutMode: boolean;
+    filter: DashboardFilter;
+  }>({ isGateOutMode, filter: 'ALL' });
+  const [selectedDockingBucket, setSelectedDockingBucket] = useState<DockingDateBucket>('today');
+  const selectedFilter =
+    selectedFilterState.isGateOutMode === isGateOutMode ? selectedFilterState.filter : 'ALL';
+  const listParams = useMemo(
+    () => ({
+      from_date: dateRange.from,
+      to_date: dateRange.to,
+      search: searchTerm.trim() || undefined,
+      document_type: isGateOutMode ? ('INVOICE' as const) : undefined,
+    }),
+    [dateRange.from, dateRange.to, searchTerm, isGateOutMode],
+  );
 
-  const storedEntries = useMemo(() => {
-    void refreshKey;
-    return readCustomerFlowEntries(SALES_DISPATCH_KEY);
-  }, [refreshKey]);
+  const { data: entries = [], isFetching, refetch } = useSalesDispatchEntries(listParams);
+  const {
+    data: pendingBookings = [],
+    isFetching: isPendingBookingsFetching,
+    refetch: refetchPendingBookings,
+  } = useSalesDispatchPendingBookings(listParams, { enabled: !isGateOutMode });
+  const { data: dispatchLock } = useSalesDispatchLock();
+  const updateLock = useUpdateSalesDispatchLock();
+  const isDashboardFetching = isFetching || isPendingBookingsFetching;
+  const canCreateDocking = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.CREATE);
+  const canManageDockingLock = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.MANAGE_LOCK);
+  const canReprintGatepass = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.REPRINT_GATEPASS);
+  const canViewDockingReports = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.VIEW_REPORTS);
 
-  const entries = useMemo(() => {
-    return storedEntries.filter((entry) => {
-      const gateOutDate = getCustomerFlowValue(entry, 'gateOutDate');
-      const comparableDate = gateOutDate !== '-' ? gateOutDate : entry.createdAt.slice(0, 10);
+  const displayEntries = useMemo(() => {
+    if (isGateOutMode) return entries.slice().sort(sortSalesDispatchOutEntries);
 
-      if (dateRange.from && comparableDate < dateRange.from) return false;
-      if (dateRange.to && comparableDate > dateRange.to) return false;
-      return true;
-    });
-  }, [dateRange.from, dateRange.to, storedEntries]);
+    return [...pendingBookings, ...entries].sort(sortDockingDashboardEntries);
+  }, [entries, isGateOutMode, pendingBookings]);
+
+  const dockingBucketCounts = useMemo(
+    () => buildDockingDateBucketCounts(displayEntries),
+    [displayEntries],
+  );
+
+  const cardFilteredEntries = useMemo(
+    () =>
+      isGateOutMode
+        ? displayEntries.filter((entry) =>
+            matchesSalesDispatchDashboardFilter(entry, selectedFilter),
+          )
+        : displayEntries.filter((entry) => matchesDockingDateBucket(entry, selectedDockingBucket)),
+    [displayEntries, isGateOutMode, selectedDockingBucket, selectedFilter],
+  );
 
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
-    if (!query) return entries;
-    return entries.filter((entry) => buildCustomerFlowSearchText(entry).toLowerCase().includes(query));
-  }, [entries, searchTerm]);
+    if (!query) return cardFilteredEntries;
+    return cardFilteredEntries.filter((entry) =>
+      buildSalesDispatchSearchText(entry).includes(query),
+    );
+  }, [cardFilteredEntries, searchTerm]);
 
-  const completedCount = entries.filter((entry) => entry.status === 'COMPLETED').length;
-  const inProgressCount = entries.filter((entry) => entry.status === 'IN_PROGRESS').length;
-  const cancelledCount = entries.filter((entry) => entry.status === 'CANCELLED').length;
-  const pgiPostedCount = entries.filter(
-    (entry) => getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes',
-  ).length;
+  const allCount = countSalesDispatchDashboardEntries(displayEntries, 'ALL');
+  const pendingOutCount = countSalesDispatchDashboardEntries(displayEntries, 'PENDING_OUT');
+  const awaitingGatepassCount = countSalesDispatchDashboardEntries(
+    displayEntries,
+    'AWAITING_GATEPASS',
+  );
+  const printedNotCommittedCount = countSalesDispatchDashboardEntries(
+    displayEntries,
+    'PRINT_NOT_COMMITTED',
+  );
+  const markedOutCount = countSalesDispatchDashboardEntries(displayEntries, 'MARKED_OUT');
+
+  const statCards = [
+    {
+      filter: 'ALL' as const,
+      icon: <List className="h-5 w-5 text-slate-600" />,
+      label: 'All',
+      value: allCount,
+    },
+    {
+      filter: 'PENDING_OUT' as const,
+      icon: <Truck className="h-5 w-5 text-blue-600" />,
+      label: 'Pending Out',
+      value: pendingOutCount,
+    },
+    {
+      filter: 'AWAITING_GATEPASS' as const,
+      icon: <FileText className="h-5 w-5 text-violet-600" />,
+      label: 'Awaiting Gatepass',
+      value: awaitingGatepassCount,
+    },
+    {
+      filter: 'PRINT_NOT_COMMITTED' as const,
+      icon: <Clock className="h-5 w-5 text-amber-600" />,
+      label: 'Print Not Committed',
+      value: printedNotCommittedCount,
+    },
+    {
+      filter: 'MARKED_OUT' as const,
+      icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
+      label: 'Marked Out',
+      value: markedOutCount,
+    },
+  ];
+
+  const handleToggleLock = async () => {
+    if (!canManageDockingLock) {
+      toast.error('You do not have permission to manage Docking printing lock');
+      return;
+    }
+
+    const isLocked = Boolean(dispatchLock?.is_locked);
+    try {
+      if (isLocked) {
+        await updateLock.mutateAsync({ is_locked: false });
+        toast.success('Docking printing unlocked');
+        return;
+      }
+
+      const reason = window.prompt('Reason for locking Docking printing');
+      if (reason === null) return;
+      const trimmedReason = reason.trim();
+      if (!trimmedReason) {
+        toast.error('A reason is required to lock Docking printing');
+        return;
+      }
+      await updateLock.mutateAsync({ is_locked: true, reason: trimmedReason });
+      toast.success('Docking printing locked');
+    } catch (lockError) {
+      toast.error(getErrorMessage(lockError, 'Failed to update Docking lock'));
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const exportedRows = exportSalesDispatchDashboard(filteredEntries, {
+        dateRange,
+        isGateOutMode,
+        searchTerm,
+        selectedFilter: isGateOutMode ? selectedFilter : selectedDockingBucket.toUpperCase(),
+      });
+      toast.success(`${exportedRows} ${exportedRows === 1 ? 'row' : 'rows'} exported`);
+    } catch (exportError) {
+      toast.error(getErrorMessage(exportError, 'Failed to export dashboard'));
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Sales Dispatch Out</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            {isGateOutMode ? 'Sales Dispatch Out' : 'Docking'}
+          </h2>
           <p className="text-muted-foreground">
-            Verify outbound deliveries, truck documents, and customer dispatch gate-out
+            {isGateOutMode
+              ? 'View Docking-created invoice dispatches and mark vehicles out'
+              : 'Dock SAP invoices, verify truck documents, and print gatepasses'}
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
@@ -71,114 +253,883 @@ export default function SalesDispatchDashboardPage() {
               }
             }}
           />
-          <Button variant="outline" onClick={() => setRefreshKey((key) => key + 1)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              void refetch();
+              if (!isGateOutMode) void refetchPendingBookings();
+            }}
+            disabled={isDashboardFetching}
+          >
             <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+            {isDashboardFetching ? 'Refreshing' : 'Refresh'}
           </Button>
-          <Button onClick={() => navigate('/gate/sales-dispatch/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Entry
-          </Button>
+          {!isGateOutMode && canReprintGatepass ? (
+            <Button type="button" variant="outline" onClick={() => navigate(routes.reports)}>
+              <Printer className="mr-2 h-4 w-4" />
+              Reprint Gatepass
+            </Button>
+          ) : null}
+          {canViewDockingReports ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExport}
+              disabled={isDashboardFetching || filteredEntries.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          ) : null}
+          {!isGateOutMode && canCreateDocking && (
+            <Button onClick={() => navigate(routes.newEntry)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Entry
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="In Progress" value={inProgressCount} />
-        <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Completed" value={completedCount} />
-        <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="PGI Posted" value={pgiPostedCount} />
-        <StatCard icon={<Clock className="h-5 w-5 text-red-600" />} label="Cancelled" value={cancelledCount} />
-      </div>
+      {!isGateOutMode && (
+        <DockingLockPanel
+          lock={dispatchLock}
+          isSaving={updateLock.isPending}
+          canManage={canManageDockingLock}
+          onToggle={() => void handleToggleLock()}
+        />
+      )}
+
+      {isGateOutMode ? (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {statCards.map((card) => (
+            <StatCard
+              key={card.filter}
+              icon={card.icon}
+              label={card.label}
+              value={card.value}
+              isActive={selectedFilter === card.filter}
+              onClick={() => setSelectedFilterState({ isGateOutMode, filter: card.filter })}
+            />
+          ))}
+        </div>
+      ) : (
+        <DockingDateBucketFilters
+          selectedBucket={selectedDockingBucket}
+          counts={dockingBucketCounts}
+          onChange={setSelectedDockingBucket}
+        />
+      )}
 
       <section>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Truck className="h-4 w-4" />
-            Customer Dispatch Entries
+            {isGateOutMode ? 'Sales Dispatch Out Entries' : 'Docking Entries'}
           </h3>
           <div className="relative w-full lg:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search entry, delivery, customer, vehicle"
+              placeholder="Search entry, document, customer, vehicle"
               className="pl-9"
             />
           </div>
         </div>
 
-        {entries.length === 0 ? (
-          <EmptyState text="No sales dispatch entries yet" />
+        {isDashboardFetching && displayEntries.length === 0 ? (
+          <EmptyState
+            text={isGateOutMode ? 'Loading sales dispatch out entries' : 'Loading docking entries'}
+          />
+        ) : displayEntries.length === 0 ? (
+          <EmptyState
+            text={isGateOutMode ? 'No sales dispatch out entries yet' : 'No docking entries yet'}
+          />
         ) : filteredEntries.length === 0 ? (
-          <EmptyState text="No dispatch entries match this search" />
+          <EmptyState
+            text={
+              searchTerm.trim()
+                ? isGateOutMode
+                  ? 'No sales dispatch out entries match this search'
+                  : 'No docking entries match this search'
+                : isGateOutMode
+                  ? 'No sales dispatch out entries match this filter'
+                  : 'No docking entries match this filter'
+            }
+          />
         ) : (
-          <DispatchTable entries={filteredEntries} />
+          <DispatchTable
+            entries={filteredEntries}
+            newEntryPath={routes.newEntry}
+            detailPath={routes.detail}
+            weighmentPath={routes.weighment}
+            gatepassPath={routes.gatepass}
+            isGateOutMode={isGateOutMode}
+          />
         )}
       </section>
     </div>
   );
 }
 
-function DispatchTable({ entries }: { entries: CustomerFlowEntry[] }) {
+function DispatchTable({
+  entries,
+  newEntryPath,
+  detailPath,
+  weighmentPath,
+  gatepassPath,
+  isGateOutMode,
+}: {
+  entries: SalesDispatchDashboardEntry[];
+  newEntryPath: string;
+  detailPath: (entryId: string | number) => string;
+  weighmentPath: (entryId: string | number) => string;
+  gatepassPath: (entryId: string | number) => string;
+  isGateOutMode: boolean;
+}) {
   const navigate = useNavigate();
 
   return (
     <div className="overflow-hidden rounded-md border">
       <div className="max-h-[520px] overflow-auto">
-        <table className="w-full min-w-[1100px]">
+        <table className="w-full min-w-[1905px] table-fixed">
+          <colgroup>
+            <col className="w-[180px]" />
+            <col className="w-[280px]" />
+            <col className="w-[240px]" />
+            <col className="w-[320px]" />
+            <col className="w-[130px]" />
+            <col className="w-[165px]" />
+            <col className="w-[165px]" />
+            <col className="w-[280px]" />
+            <col className="w-[145px]" />
+          </colgroup>
           <thead className="bg-muted/50">
             <tr>
-              <th className="p-3 text-left text-sm font-medium">Entry No.</th>
-              <th className="p-3 text-left text-sm font-medium">Delivery</th>
-              <th className="p-3 text-left text-sm font-medium">Customer</th>
-              <th className="p-3 text-left text-sm font-medium">Items</th>
-              <th className="p-3 text-left text-sm font-medium">Vehicle</th>
-              <th className="p-3 text-left text-sm font-medium">Gate Out</th>
-              <th className="p-3 text-left text-sm font-medium">PGI</th>
-              <th className="p-3 text-left text-sm font-medium">Status</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Entry No.</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">SAP Document</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Customer</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Items</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Vehicle</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Dispatch Date</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">
+                Actual Gate Out
+              </th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Gatepass</th>
+              <th className="whitespace-nowrap p-3 text-left text-sm font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry) => (
-              <tr
-                key={entry.id}
-                className="cursor-pointer border-t transition-colors hover:bg-muted/50"
-                onClick={() => {
-                  if (entry.status === 'IN_PROGRESS') {
-                    navigate(`/gate/sales-dispatch/new/attachments?entryId=${encodeURIComponent(entry.id)}`);
-                    return;
-                  }
+            {entries.map((entry) => {
+              const itemSummary = entry.item_summary || summarizeItems(getEntryItems(entry));
+              const plannedDispatchDate = getPlannedDispatchDate(entry);
+              const actualGateOut = getActualGateOut(entry);
 
-                  navigate(`/gate/sales-dispatch/${entry.id}`);
-                }}
-              >
-                <td className="whitespace-nowrap p-3 text-sm font-medium">{entry.entryNo}</td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  {getCustomerFlowValue(entry, 'outboundDeliveryNo')}
-                </td>
-                <td className="p-3 text-sm">
-                  <div className="font-medium">{getCustomerFlowValue(entry, 'customerName')}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {getCustomerFlowValue(entry, 'customerCode')}
-                  </div>
-                </td>
-                <td className="p-3 text-sm">{buildCustomerFlowItemSummary(entry.items)}</td>
-                <td className="whitespace-nowrap p-3 text-sm">{getCustomerFlowValue(entry, 'vehicleNo')}</td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  {formatCustomerFlowDateTime(entry.values.gateOutDate, entry.values.outTime)}
-                </td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  <GateStatusBadge
-                    status={getCustomerFlowValue(entry, 'goodsIssuePosted') === 'Yes' ? 'POSTED' : 'PENDING'}
-                  />
-                </td>
-                <td className="whitespace-nowrap p-3 text-sm">
-                  <GateStatusBadge status={entry.status} />
-                </td>
-              </tr>
-            ))}
+              return (
+                <tr
+                  key={entry.id}
+                  className={cn(
+                    'cursor-pointer border-t align-top transition-colors',
+                    getSalesDispatchDashboardRowClassName(entry),
+                  )}
+                  onClick={() => {
+                    navigate(
+                      getSalesDispatchDashboardEntryPath(
+                        entry,
+                        newEntryPath,
+                        detailPath,
+                        weighmentPath,
+                        gatepassPath,
+                        isGateOutMode,
+                      ),
+                    );
+                  }}
+                >
+                  <td className="whitespace-nowrap p-3 text-sm font-medium">
+                    {isPendingBookingEntry(entry) ? 'Pending' : entry.entry_no}
+                  </td>
+                  <td className="p-3 text-sm" title={formatDocumentNumbers(entry)}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium leading-5">{formatDocumentNumbers(entry)}</span>
+                      {getDocumentCount(entry) > 1 ? (
+                        <span className="inline-flex whitespace-nowrap rounded-full border bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          {getDocumentCount(entry)} docs
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatDocumentType(entry.document_type)}
+                    </div>
+                  </td>
+                  <td className="p-3 text-sm">
+                    <div className="truncate whitespace-nowrap font-medium">
+                      {entry.customer_name || '-'}
+                    </div>
+                    <div className="truncate whitespace-nowrap text-xs text-muted-foreground">
+                      {entry.customer_code || entry.place_of_supply || '-'}
+                    </div>
+                  </td>
+                  <td className="p-3 text-sm" title={itemSummary}>
+                    <div className="truncate whitespace-nowrap">{itemSummary}</div>
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">{entry.vehicle_no}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    {formatDate(plannedDispatchDate)}
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">{actualGateOut}</td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    <GateStatusBadge
+                      status={entry.gatepass_no ? 'PRINTED' : 'PENDING'}
+                      label={entry.gatepass_no || 'Pending'}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-sm">
+                    <GateStatusBadge
+                      status={entry.status}
+                      label={getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode)}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function getSalesDispatchDashboardRowClassName(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) {
+    return 'bg-slate-50 hover:bg-slate-100/80';
+  }
+
+  switch (entry.status) {
+    case 'PENDING_DOCKING':
+    case 'DOCKED':
+      return 'bg-blue-50/70 hover:bg-blue-100/80';
+    case 'PHOTO_ATTACHED':
+    case 'READY_FOR_GATEPASS':
+      return 'bg-violet-50/70 hover:bg-violet-100/80';
+    case 'GATEPASS_PRINTED':
+      return 'bg-amber-50/80 hover:bg-amber-100/80';
+    case 'PRINT_COMMITTED':
+      return 'bg-sky-50/80 hover:bg-sky-100/80';
+    case 'DISPATCHED':
+      return 'bg-emerald-50/75 hover:bg-emerald-100/80';
+    case 'REJECTED':
+    case 'CANCELLED':
+      return 'bg-red-50/75 hover:bg-red-100/80';
+    default:
+      return 'hover:bg-muted/50';
+  }
+}
+
+function DockingLockPanel({
+  lock,
+  isSaving,
+  canManage,
+  onToggle,
+}: {
+  lock?: SalesDispatchLock;
+  isSaving: boolean;
+  canManage: boolean;
+  onToggle: () => void;
+}) {
+  const isLocked = Boolean(lock?.is_locked);
+
+  return (
+    <Card className={isLocked ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}>
+      <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-start gap-3">
+          {isLocked ? (
+            <Lock className="mt-0.5 h-5 w-5 text-red-600" />
+          ) : (
+            <Unlock className="mt-0.5 h-5 w-5 text-emerald-600" />
+          )}
+          <div>
+            <p className="font-medium">
+              {isLocked ? 'Docking printing is locked' : 'Docking printing is open'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {isLocked
+                ? lock?.reason || 'No reason recorded'
+                : 'Gatepass print and commit are available'}
+            </p>
+            {lock?.changed_at ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Last changed {formatDashboardTimestamp(lock.changed_at)}
+                {lock.changed_by_name ? ` by ${lock.changed_by_name}` : ''}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {canManage ? (
+          <Button
+            type="button"
+            variant={isLocked ? 'default' : 'destructive'}
+            onClick={onToggle}
+            disabled={isSaving}
+          >
+            {isLocked ? <Unlock className="mr-2 h-4 w-4" /> : <Lock className="mr-2 h-4 w-4" />}
+            {isSaving ? 'Saving' : isLocked ? 'Unlock' : 'Lock Printing'}
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function buildSalesDispatchSearchText(entry: SalesDispatchDashboardEntry) {
+  return [
+    isPendingBookingEntry(entry) ? 'pending docking booked' : entry.entry_no,
+    entry.sap_doc_num,
+    getDashboardDocumentNumbers(entry).join(' '),
+    entry.document_count,
+    entry.sap_doc_entry,
+    entry.customer_name,
+    entry.customer_code,
+    entry.vehicle_no,
+    entry.driver_name,
+    entry.transporter_name,
+    entry.gatepass_no,
+    entry.item_summary,
+    entry.status,
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+function countSalesDispatchDashboardEntries(
+  entries: SalesDispatchDashboardEntry[],
+  filter: DashboardFilter,
+) {
+  return entries.filter((entry) => matchesSalesDispatchDashboardFilter(entry, filter)).length;
+}
+
+function matchesSalesDispatchDashboardFilter(
+  entry: SalesDispatchDashboardEntry,
+  filter: DashboardFilter,
+) {
+  switch (filter) {
+    case 'ALL':
+      return true;
+    case 'PENDING_DOCKING':
+      return isPendingBookingEntry(entry);
+    case 'PENDING_OUT':
+      return entry.status === GATE_OUT_PENDING_STATUS;
+    case 'AWAITING_GATEPASS':
+    case 'GATEPASS_PENDING':
+      return GATEPASS_PENDING_STATUSES.includes(entry.status);
+    case 'PRINT_NOT_COMMITTED':
+      return entry.status === 'GATEPASS_PRINTED';
+    case 'MARKED_OUT':
+    case 'DISPATCHED':
+      return entry.status === GATE_OUT_COMPLETED_STATUS;
+    case 'WAITING_INSIDE':
+      return ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status);
+    case 'MISSING_PHOTO_GPS':
+      if (isPendingBookingEntry(entry)) return false;
+      return (
+        ACTIVE_SALES_DISPATCH_STATUSES.includes(entry.status) &&
+        (!entry.truck_photo || !entry.photo_latitude || !entry.photo_longitude)
+      );
+    default:
+      return true;
+  }
+}
+
+function buildDockingDateBucketCounts(entries: SalesDispatchDashboardEntry[]): DockingBucketCounts {
+  const todayKey = getLocalDateKey(new Date());
+  return {
+    today: entries.filter((entry) => matchesDockingDateBucket(entry, 'today', todayKey)).length,
+    overdue: entries.filter((entry) => matchesDockingDateBucket(entry, 'overdue', todayKey)).length,
+    upcoming: entries.filter((entry) => matchesDockingDateBucket(entry, 'upcoming', todayKey))
+      .length,
+    all: entries.length,
+  };
+}
+
+function matchesDockingDateBucket(
+  entry: SalesDispatchDashboardEntry,
+  bucket: DockingDateBucket,
+  todayKey = getLocalDateKey(new Date()),
+) {
+  if (bucket === 'all') return true;
+
+  const comparison = compareDateToKey(getPlannedDispatchDate(entry), todayKey);
+  if (comparison === null) return false;
+
+  if (bucket === 'today') return comparison === 0;
+  if (bucket === 'overdue') return comparison < 0 && !isClosedDockingDashboardEntry(entry);
+  return comparison > 0;
+}
+
+function compareDateToKey(value: string | null | undefined, todayKey: string) {
+  const dateKey = normalizeDateKey(value);
+  if (!dateKey) return null;
+  if (dateKey === todayKey) return 0;
+  return dateKey < todayKey ? -1 : 1;
+}
+
+function normalizeDateKey(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return '';
+
+  const yearFirst = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (yearFirst) return `${yearFirst[1]}-${yearFirst[2]}-${yearFirst[3]}`;
+
+  const dayFirst = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})/);
+  if (dayFirst) return `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}`;
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? '' : getLocalDateKey(parsed);
+}
+
+function getLocalDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function isClosedDockingDashboardEntry(entry: SalesDispatchDashboardEntry) {
+  return ['DISPATCHED', 'REJECTED', 'CANCELLED'].includes(entry.status);
+}
+
+function exportSalesDispatchDashboard(
+  entries: SalesDispatchDashboardEntry[],
+  context: {
+    dateRange: { from?: string; to?: string };
+    isGateOutMode: boolean;
+    searchTerm: string;
+    selectedFilter: string;
+  },
+) {
+  const workbook = XLSX.utils.book_new();
+  appendDashboardExportSheet(workbook, buildDashboardExportSummary(entries, context), 'Summary');
+  appendDashboardExportSheet(
+    workbook,
+    entries.map((entry) => buildDashboardEntryExportRow(entry, context.isGateOutMode)),
+    'Entries',
+  );
+
+  const documentRows = buildDashboardDocumentExportRows(entries);
+  if (documentRows.length) {
+    appendDashboardExportSheet(workbook, documentRows, 'Documents');
+  }
+
+  const itemRows = buildDashboardItemExportRows(entries);
+  if (itemRows.length) {
+    appendDashboardExportSheet(workbook, itemRows, 'Items');
+  }
+
+  XLSX.writeFile(workbook, buildDashboardExportFileName(context));
+  return entries.length;
+}
+
+function buildDashboardExportSummary(
+  entries: SalesDispatchDashboardEntry[],
+  context: {
+    dateRange: { from?: string; to?: string };
+    isGateOutMode: boolean;
+    searchTerm: string;
+    selectedFilter: string;
+  },
+): ExportRow[] {
+  return [
+    {
+      Field: 'Dashboard',
+      Value: context.isGateOutMode ? 'Sales Dispatch Out' : 'Docking',
+    },
+    {
+      Field: 'Date From',
+      Value: exportValue(context.dateRange.from),
+    },
+    {
+      Field: 'Date To',
+      Value: exportValue(context.dateRange.to),
+    },
+    {
+      Field: 'Filter',
+      Value: context.selectedFilter,
+    },
+    {
+      Field: 'Search',
+      Value: exportValue(context.searchTerm.trim()),
+    },
+    {
+      Field: 'Visible Rows',
+      Value: entries.length,
+    },
+    {
+      Field: 'Exported At',
+      Value: formatExportTimestamp(new Date().toISOString()),
+    },
+  ];
+}
+
+function buildDashboardEntryExportRow(
+  entry: SalesDispatchDashboardEntry,
+  isGateOutMode: boolean,
+): ExportRow {
+  const isPending = isPendingBookingEntry(entry);
+
+  return {
+    'Entry No.': isPending ? 'Pending' : exportValue(entry.entry_no),
+    'Pending Booking': isPending ? 'Yes' : 'No',
+    'Dispatch Plan IDs': isPending
+      ? entry.dispatch_plan_ids.join(', ')
+      : exportValue('dispatch_plan' in entry ? entry.dispatch_plan : undefined),
+    'SAP Documents': formatDocumentNumbers(entry),
+    'Document Count': getDocumentCount(entry),
+    'Document Type': formatDocumentType(entry.document_type),
+    Customer: exportValue(entry.customer_name),
+    'Customer Code / Place': exportValue(entry.customer_code || entry.place_of_supply),
+    Items: exportValue(entry.item_summary || summarizeItems(getEntryItems(entry))),
+    Vehicle: exportValue(entry.vehicle_no),
+    Driver: exportValue(entry.driver_name),
+    'Driver Mobile': exportValue(entry.driver_mobile_no),
+    Transporter: exportValue(entry.transporter_name),
+    'Bilty No.': exportValue(entry.bilty_no),
+    'Bilty Date': exportValue(entry.bilty_date),
+    'Dispatch Date': formatDate(getPlannedDispatchDate(entry)),
+    'Actual Gate Out': getActualGateOut(entry),
+    Gatepass: exportValue(entry.gatepass_no || 'Pending'),
+    Status: getSalesDispatchDashboardStatusLabel(entry.status, isGateOutMode),
+    'Gross Weight': isPending ? '-' : exportValue(entry.gross_weight),
+    'Net Weight': isPending ? '-' : exportValue(entry.net_weight),
+    'Printed At': isPending ? '-' : formatExportTimestamp(entry.printed_at),
+    'Print Committed At': isPending ? '-' : formatExportTimestamp(entry.print_committed_at),
+    'Dispatched At': isPending ? '-' : formatExportTimestamp(entry.dispatched_at),
+    'Created At': formatExportTimestamp(entry.created_at),
+    'Updated At': formatExportTimestamp(entry.updated_at),
+  };
+}
+
+function buildDashboardDocumentExportRows(entries: SalesDispatchDashboardEntry[]): ExportRow[] {
+  return entries.flatMap((entry) => {
+    const documents = getDashboardDocuments(entry);
+    if (!documents.length) {
+      return [
+        {
+          'Entry No.': isPendingBookingEntry(entry) ? 'Pending' : exportValue(entry.entry_no),
+          'SAP Document': formatDocumentNumbers(entry),
+          'Document Type': formatDocumentType(entry.document_type),
+          Customer: exportValue(entry.customer_name),
+          'Customer Code': exportValue(entry.customer_code),
+          'Document Date': exportValue(entry.sap_doc_date),
+          'Document Total': exportValue(entry.sap_doc_total),
+          'E-way Bill': exportValue(entry.eway_bill),
+          Warehouses: exportValue(entry.warehouses),
+          'Item Summary': exportValue(entry.item_summary),
+        },
+      ];
+    }
+
+    return documents.map((document) => ({
+      'Entry No.': isPendingBookingEntry(entry) ? 'Pending' : exportValue(entry.entry_no),
+      'SAP Document': exportValue(getExportDocumentNumber(document)),
+      'Document Type': formatDocumentType(getExportDocumentType(document)),
+      Customer: exportValue(getExportDocumentCustomerName(document)),
+      'Customer Code': exportValue(getExportDocumentCustomerCode(document)),
+      'Document Date': exportValue(getExportDocumentDate(document)),
+      'Document Total': exportValue(getExportDocumentTotal(document)),
+      'E-way Bill': exportValue(document.eway_bill),
+      Warehouses: exportValue(document.warehouses),
+      'From Warehouse': exportValue(document.from_warehouse),
+      'To Warehouse': exportValue(document.to_warehouse),
+      'Total Quantity': exportValue(document.total_quantity),
+      'Total Boxes': exportValue(document.total_boxes),
+      'Total Litres': exportValue(document.total_litres),
+      'Total Weight': exportValue(document.total_weight),
+      'Item Summary': exportValue(document.item_summary),
+    }));
+  });
+}
+
+function buildDashboardItemExportRows(entries: SalesDispatchDashboardEntry[]): ExportRow[] {
+  return entries.flatMap((entry) =>
+    getEntryItems(entry).map((item) => ({
+      'Entry No.': exportValue(entry.entry_no),
+      'SAP Document': exportValue(item.document_sap_doc_num || entry.sap_doc_num),
+      'Line No.': item.line_num,
+      'Item Code': exportValue(item.item_code),
+      'Item Name': exportValue(item.item_name),
+      Quantity: exportValue(item.quantity),
+      UOM: exportValue(item.uom),
+      Warehouse: exportValue(item.warehouse_code),
+      'From Warehouse': exportValue(item.from_warehouse),
+      'To Warehouse': exportValue(item.to_warehouse),
+      'Base Ref': exportValue(item.base_ref),
+      'Total Boxes': exportValue(item.total_boxes),
+      'Total Litres': exportValue(item.total_litres),
+      'Total Weight': exportValue(item.total_weight),
+    })),
+  );
+}
+
+function appendDashboardExportSheet(workbook: XLSX.WorkBook, rows: ExportRow[], sheetName: string) {
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const columns = Object.keys(rows[0] || {});
+  worksheet['!cols'] = columns.map((column) => {
+    const contentWidth = Math.max(
+      column.length,
+      ...rows.map((row) => String(row[column] ?? '').length),
+    );
+    return { wch: Math.min(Math.max(contentWidth + 2, 12), 60) };
+  });
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+}
+
+function buildDashboardExportFileName(context: {
+  dateRange: { from?: string; to?: string };
+  isGateOutMode: boolean;
+  selectedFilter: string;
+}) {
+  const dashboardName = context.isGateOutMode ? 'Sales_Dispatch_Out' : 'Docking';
+  const fromDate = context.dateRange.from || 'all';
+  const toDate = context.dateRange.to || 'all';
+  return `${dashboardName}_${fromDate}_to_${toDate}_${slugExportPart(context.selectedFilter)}.xlsx`;
+}
+
+function getDashboardDocuments(entry: SalesDispatchDashboardEntry): DashboardExportDocument[] {
+  return (entry.documents || []) as DashboardExportDocument[];
+}
+
+function getExportDocumentNumber(document: DashboardExportDocument) {
+  return 'sap_doc_num' in document ? document.sap_doc_num : document.doc_num;
+}
+
+function getExportDocumentType(document: DashboardExportDocument) {
+  return document.document_type;
+}
+
+function getExportDocumentCustomerName(document: DashboardExportDocument) {
+  return 'customer_name' in document ? document.customer_name : document.card_name;
+}
+
+function getExportDocumentCustomerCode(document: DashboardExportDocument) {
+  return 'customer_code' in document ? document.customer_code : document.card_code;
+}
+
+function getExportDocumentDate(document: DashboardExportDocument) {
+  return 'sap_doc_date' in document ? document.sap_doc_date : document.doc_date;
+}
+
+function getExportDocumentTotal(document: DashboardExportDocument) {
+  return 'sap_doc_total' in document ? document.sap_doc_total : document.doc_total;
+}
+
+function exportValue(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
+}
+
+function formatExportTimestamp(value?: string | null) {
+  if (!value) return '-';
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) return value;
+  return timestamp.toLocaleString();
+}
+
+function slugExportPart(value: string) {
+  return value.replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '') || 'all';
+}
+
+function sortDockingDashboardEntries(
+  first: SalesDispatchDashboardEntry,
+  second: SalesDispatchDashboardEntry,
+) {
+  const firstPriority = isPendingBookingEntry(first) ? 0 : 1;
+  const secondPriority = isPendingBookingEntry(second) ? 0 : 1;
+
+  if (firstPriority !== secondPriority) {
+    return firstPriority - secondPriority;
+  }
+
+  return (
+    timestampValue(second.updated_at || second.created_at) -
+    timestampValue(first.updated_at || first.created_at)
+  );
+}
+
+function sortSalesDispatchOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGateOut) {
+  const firstPriority = first.status === GATE_OUT_PENDING_STATUS ? 0 : 1;
+  const secondPriority = second.status === GATE_OUT_PENDING_STATUS ? 0 : 1;
+
+  if (firstPriority !== secondPriority) {
+    return firstPriority - secondPriority;
+  }
+
+  return (
+    timestampValue(second.updated_at || second.created_at) -
+    timestampValue(first.updated_at || first.created_at)
+  );
+}
+
+function timestampValue(value?: string | null) {
+  if (!value) return 0;
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function getSalesDispatchDashboardEntryPath(
+  entry: SalesDispatchDashboardEntry,
+  newEntryPath: string,
+  detailPath: (entryId: string | number) => string,
+  weighmentPath: (entryId: string | number) => string,
+  gatepassPath: (entryId: string | number) => string,
+  isGateOutMode: boolean,
+) {
+  if (isPendingBookingEntry(entry)) {
+    return `${newEntryPath}?dispatchPlanIds=${entry.dispatch_plan_ids.join(',')}`;
+  }
+  if (isGateOutMode && entry.status === GATE_OUT_PENDING_STATUS) {
+    return hasCompleteGateOutWeighment(entry)
+      ? gatepassPath(entry.vehicle_entry)
+      : weighmentPath(entry.vehicle_entry);
+  }
+  return detailPath(entry.id);
+}
+
+function hasCompleteGateOutWeighment(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) return false;
+  const gross = toFiniteNumber(entry.gross_weight);
+  const tare = toFiniteNumber(entry.tare_weight);
+  return gross !== null && gross > 0 && tare !== null && tare >= 0 && gross >= tare;
+}
+
+function toFiniteNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function getSalesDispatchDashboardStatusLabel(status: string, isGateOutMode: boolean) {
+  if (status === 'PENDING_DOCKING') return 'PENDING';
+  if (!isGateOutMode) return status;
+  if (status === GATE_OUT_PENDING_STATUS) return 'PENDING OUT';
+  if (status === GATE_OUT_COMPLETED_STATUS) return 'MARKED OUT';
+  return status;
+}
+
+function getDashboardDocumentNumbers(entry: SalesDispatchDashboardEntry) {
+  if (entry.document_numbers?.length) return entry.document_numbers;
+  if (entry.sap_doc_num) return [entry.sap_doc_num];
+  if (entry.sap_doc_entry) return [String(entry.sap_doc_entry)];
+  return [];
+}
+
+function formatDocumentNumbers(entry: SalesDispatchDashboardEntry) {
+  return getDashboardDocumentNumbers(entry).join(', ') || '-';
+}
+
+function getDocumentCount(entry: SalesDispatchDashboardEntry) {
+  return (
+    entry.document_count ||
+    getDashboardDocumentNumbers(entry).length ||
+    entry.documents?.length ||
+    0
+  );
+}
+
+function formatDocumentType(value: string) {
+  return value === 'STOCK_TRANSFER' ? 'Stock Transfer' : 'A/R Invoice';
+}
+
+function formatDate(date?: string | null) {
+  return date || '-';
+}
+
+function formatDateTime(date?: string | null, time?: string | null) {
+  if (!date && !time) return '-';
+  return [date, time].filter(Boolean).join(' ');
+}
+
+function getPlannedDispatchDate(entry: SalesDispatchDashboardEntry) {
+  return entry.dispatch_date || (isPendingBookingEntry(entry) ? entry.gate_out_date : null);
+}
+
+function getActualGateOut(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) return '-';
+  if (entry.status !== GATE_OUT_COMPLETED_STATUS) return '-';
+  if (!entry.gate_out_date && !entry.out_time) {
+    return formatDashboardTimestamp(entry.dispatched_at);
+  }
+  return formatDateTime(entry.gate_out_date, entry.out_time);
+}
+
+function formatDashboardTimestamp(value?: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+}
+
+function summarizeItems(items: SalesDispatchGateOut['items']) {
+  if (!items.length) return '-';
+  return items
+    .slice(0, 2)
+    .map((item) => `${item.item_code} (${item.quantity} ${item.uom})`)
+    .join(', ');
+}
+
+function isPendingBookingEntry(
+  entry: SalesDispatchDashboardEntry,
+): entry is Extract<SalesDispatchDashboardEntry, { row_type: 'PENDING_BOOKING' }> {
+  return 'row_type' in entry && entry.row_type === 'PENDING_BOOKING';
+}
+
+function getEntryItems(entry: SalesDispatchDashboardEntry) {
+  return isPendingBookingEntry(entry) ? [] : entry.items;
+}
+
+function DockingDateBucketFilters({
+  selectedBucket,
+  counts,
+  onChange,
+}: {
+  selectedBucket: DockingDateBucket;
+  counts: DockingBucketCounts;
+  onChange: (bucket: DockingDateBucket) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-4">
+      <span className="mr-1 text-sm font-medium text-muted-foreground">Dispatch Date</span>
+      {DOCKING_BUCKET_OPTIONS.map((option) => {
+        const count = counts[option.value];
+        const isActive = selectedBucket === option.value;
+        const hasOverdueVehicles = option.value === 'overdue' && count > 0;
+
+        return (
+          <Button
+            key={option.value}
+            type="button"
+            variant={isActive ? 'default' : 'outline'}
+            className={cn(
+              'gap-2',
+              hasOverdueVehicles &&
+                !isActive &&
+                'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800',
+              hasOverdueVehicles && isActive && 'bg-red-600 text-white hover:bg-red-700',
+            )}
+            onClick={() => onChange(option.value)}
+          >
+            <span>{option.label}</span>
+            <span
+              className={cn(
+                'inline-flex min-w-6 justify-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums',
+                isActive
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
+                  : 'bg-muted text-foreground',
+                hasOverdueVehicles && !isActive && 'bg-red-100 text-red-700',
+                hasOverdueVehicles && isActive && 'bg-white/20 text-white',
+              )}
+            >
+              {count}
+            </span>
+          </Button>
+        );
+      })}
     </div>
   );
 }
@@ -187,21 +1138,38 @@ function StatCard({
   icon,
   label,
   value,
+  isActive,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
+  isActive: boolean;
+  onClick: () => void;
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          {icon}
-          <span className="text-2xl font-bold">{value}</span>
-        </div>
-        <p className="mt-2 text-sm font-medium text-muted-foreground">{label}</p>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      aria-pressed={isActive}
+      onClick={onClick}
+      className={cn(
+        'rounded-lg border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        isActive && 'border-primary/60 bg-primary/5 ring-1 ring-primary/30',
+      )}
+    >
+      <span className="flex items-center justify-between">
+        <span>{icon}</span>
+        <span className="text-2xl font-bold">{value}</span>
+      </span>
+      <span
+        className={cn(
+          'mt-2 block text-sm font-medium text-muted-foreground',
+          isActive && 'text-foreground',
+        )}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 

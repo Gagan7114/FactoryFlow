@@ -41,12 +41,13 @@ export interface BSTGateOutItem {
 
 export interface BSTGateOutEntry {
   id: number;
+  source_type?: 'LEGACY_BST_OUT' | 'DOCKING_STOCK_TRANSFER' | string;
   entry_no: string;
   vehicle_entry: number;
   vehicle_entry_no: string;
   vehicle_entry_status: string;
-  empty_vehicle_gate_in: number;
-  empty_vehicle_gate_in_entry_no: string;
+  empty_vehicle_gate_in?: number | null;
+  empty_vehicle_gate_in_entry_no?: string | null;
   empty_vehicle_gate_in_date?: string | null;
   empty_vehicle_in_time?: string | null;
   vehicle: number;
@@ -141,10 +142,7 @@ export const bstOutApi = {
   },
 
   async create(data: BSTGateOutCreateRequest): Promise<BSTGateOutEntry> {
-    const response = await apiClient.post<BSTGateOutEntry>(
-      API_ENDPOINTS.GATE_CORE.BST_OUTS,
-      data,
-    );
+    const response = await apiClient.post<BSTGateOutEntry>(API_ENDPOINTS.GATE_CORE.BST_OUTS, data);
     return response.data;
   },
 

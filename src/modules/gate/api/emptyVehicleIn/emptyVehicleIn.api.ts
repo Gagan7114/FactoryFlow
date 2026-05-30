@@ -159,4 +159,11 @@ export const emptyVehicleInApi = {
     );
     return response.data;
   },
+
+  async complete(id: number): Promise<EmptyVehicleGateInEntry> {
+    const response = await apiClient.post<EmptyVehicleGateInEntry>(
+      API_ENDPOINTS.GATE_CORE.EMPTY_VEHICLE_IN_COMPLETE_BY_ID(id),
+    );
+    return response.data;
+  },
 };

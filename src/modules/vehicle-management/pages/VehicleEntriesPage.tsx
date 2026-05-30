@@ -13,6 +13,7 @@ const VEHICLE_ENTRY_TYPE_OPTIONS = [
   { value: ENTRY_TYPES.CONSTRUCTION, label: 'Construction' },
   { value: ENTRY_TYPES.DAILY_NEED, label: 'Daily Needs' },
   { value: ENTRY_TYPES.MAINTENANCE, label: 'Maintenance' },
+  { value: ENTRY_TYPES.SALES_DISPATCH, label: 'Docking' },
 ] as const;
 
 type VehicleEntryType = (typeof VEHICLE_ENTRY_TYPE_OPTIONS)[number]['value'];

@@ -49,7 +49,7 @@ function matchesStatus(bill: DispatchBill, status: DispatchPlanStatus | 'all' | 
 
 function buildMeta(allDispatchDated: DispatchBill[], visible: DispatchBill[], targetDate: string) {
   return {
-    total: visible.length,
+    total: allDispatchDated.length,
     today: allDispatchDated.filter((bill) => bill.plan.dispatch_date === targetDate).length,
     overdue: allDispatchDated.filter(
       (bill) =>

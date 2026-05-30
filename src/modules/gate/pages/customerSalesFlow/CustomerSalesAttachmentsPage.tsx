@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { StepFooter, StepHeader } from '@/modules/gate/components';
-import { type RequiredWeighmentValues, validateRequiredWeighment } from '@/modules/gate/utils';
 import {
   Button,
   Card,
@@ -46,8 +45,8 @@ const FLOW_CONFIG: Record<CustomerSalesAttachmentFlow, AttachmentFlowConfig> = {
   dispatch: {
     storageKey: SALES_DISPATCH_KEY,
     title: 'Sales Dispatch Out',
-    previousPath: '/gate/sales-dispatch/new/weighment',
-    dashboardPath: '/gate/sales-dispatch',
+    previousPath: '/dispatch/docking/new/barcode-scan',
+    dashboardPath: '/dispatch/docking',
     completeStatus: 'COMPLETED',
     completeLabel: 'Complete Dispatch',
     successMessage: 'Sales dispatch gate-out completed',
@@ -70,24 +69,18 @@ function getRawString(entry: CustomerFlowEntry, key: string) {
   return typeof value === 'string' ? value : '';
 }
 
-function getDispatchWeighmentValues(entry: CustomerFlowEntry): RequiredWeighmentValues {
-  return {
-    grossWeight: getRawString(entry, 'grossWeight'),
-    tareWeight: getRawString(entry, 'tareWeight'),
-    weighbridgeSlipNo: getRawString(entry, 'weighbridgeSlipNo'),
-    firstWeighmentTime: getRawString(entry, 'firstWeighmentTime'),
-    secondWeighmentTime: getRawString(entry, 'secondWeighmentTime'),
-  };
-}
-
 function parseFileNames(value?: CustomerFlowValue) {
   if (typeof value !== 'string' || !value.trim()) return [];
 
   try {
     const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed.filter((item): item is string => typeof item === 'string');
+    if (Array.isArray(parsed))
+      return parsed.filter((item): item is string => typeof item === 'string');
   } catch {
-    return value.split(',').map((item) => item.trim()).filter(Boolean);
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
   return [];
@@ -98,22 +91,22 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const entryId = searchParams.get('entryId') || '';
-  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() => (
-    entryId ? findCustomerFlowEntry(config.storageKey, entryId) : null
-  ));
-  const [attachmentNotes, setAttachmentNotes] = useState(() => (
-    entry ? getRawString(entry, 'attachmentNotes') : ''
-  ));
+  const [entry, setEntry] = useState<CustomerFlowEntry | null>(() =>
+    entryId ? findCustomerFlowEntry(config.storageKey, entryId) : null,
+  );
+  const [attachmentNotes, setAttachmentNotes] = useState(() =>
+    entry ? getRawString(entry, 'attachmentNotes') : '',
+  );
   const [remarks, setRemarks] = useState(() => (entry ? getRawString(entry, 'remarks') : ''));
-  const [gatepassFileNames, setGatepassFileNames] = useState<string[]>(() => (
-    entry ? parseFileNames(entry.values.attachmentFileNames) : []
-  ));
-  const [invoiceFileNames, setInvoiceFileNames] = useState<string[]>(() => (
-    entry ? parseFileNames(entry.values.invoiceFileNames) : []
-  ));
-  const [deliveryNoteFileNames, setDeliveryNoteFileNames] = useState<string[]>(() => (
-    entry ? parseFileNames(entry.values.deliveryNoteFileNames) : []
-  ));
+  const [gatepassFileNames, setGatepassFileNames] = useState<string[]>(() =>
+    entry ? parseFileNames(entry.values.attachmentFileNames) : [],
+  );
+  const [invoiceFileNames, setInvoiceFileNames] = useState<string[]>(() =>
+    entry ? parseFileNames(entry.values.invoiceFileNames) : [],
+  );
+  const [deliveryNoteFileNames, setDeliveryNoteFileNames] = useState<string[]>(() =>
+    entry ? parseFileNames(entry.values.deliveryNoteFileNames) : [],
+  );
   const [error, setError] = useState<string | null>(null);
   const gatepassInputRef = useRef<HTMLInputElement>(null);
   const invoiceInputRef = useRef<HTMLInputElement>(null);
@@ -130,10 +123,7 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
-    setFiles((current) => Array.from(new Set([
-      ...current,
-      ...files.map((file) => file.name),
-    ])));
+    setFiles((current) => Array.from(new Set([...current, ...files.map((file) => file.name)])));
     setError(null);
 
     if (inputRef.current) {
@@ -160,12 +150,6 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
     }
 
     if (flow === 'dispatch') {
-      const validationError = validateRequiredWeighment(getDispatchWeighmentValues(entry));
-      if (validationError) {
-        setError('Weighment is required before completing sales dispatch.');
-        return;
-      }
-
       if (gatepassFileNames.length === 0) {
         setError('Gatepass document upload is required before completing sales dispatch.');
         return;
@@ -210,7 +194,12 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
   if (!entry) {
     return (
       <div className="space-y-6 pb-6">
-        <StepHeader currentStep={currentStep} totalSteps={totalSteps} title={config.title} error={error} />
+        <StepHeader
+          currentStep={currentStep}
+          totalSteps={totalSteps}
+          title={config.title}
+          error={error}
+        />
         <div className="flex items-center justify-between gap-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
           <div className="flex items-center gap-3">
             <AlertCircle className="h-5 w-5" />
@@ -226,7 +215,12 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader currentStep={currentStep} totalSteps={totalSteps} title={config.title} error={error} />
+      <StepHeader
+        currentStep={currentStep}
+        totalSteps={totalSteps}
+        title={config.title}
+        error={error}
+      />
 
       <Card>
         <CardHeader>
@@ -244,7 +238,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
                 required
                 inputRef={gatepassInputRef}
                 fileNames={gatepassFileNames}
-                onFileSelect={(event) => handleFileSelect(event, setGatepassFileNames, gatepassInputRef)}
+                onFileSelect={(event) =>
+                  handleFileSelect(event, setGatepassFileNames, gatepassInputRef)
+                }
                 onRemoveFile={(fileName) => handleRemoveFile(fileName, setGatepassFileNames)}
               />
               <DocumentUploadPanel
@@ -253,7 +249,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
                 required
                 inputRef={invoiceInputRef}
                 fileNames={invoiceFileNames}
-                onFileSelect={(event) => handleFileSelect(event, setInvoiceFileNames, invoiceInputRef)}
+                onFileSelect={(event) =>
+                  handleFileSelect(event, setInvoiceFileNames, invoiceInputRef)
+                }
                 onRemoveFile={(fileName) => handleRemoveFile(fileName, setInvoiceFileNames)}
               />
               <DocumentUploadPanel
@@ -262,7 +260,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
                 required
                 inputRef={deliveryNoteInputRef}
                 fileNames={deliveryNoteFileNames}
-                onFileSelect={(event) => handleFileSelect(event, setDeliveryNoteFileNames, deliveryNoteInputRef)}
+                onFileSelect={(event) =>
+                  handleFileSelect(event, setDeliveryNoteFileNames, deliveryNoteInputRef)
+                }
                 onRemoveFile={(fileName) => handleRemoveFile(fileName, setDeliveryNoteFileNames)}
               />
             </div>
@@ -272,7 +272,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
               description="Images, invoices, delivery notes, LR, e-way bill, and other documents"
               inputRef={gatepassInputRef}
               fileNames={gatepassFileNames}
-              onFileSelect={(event) => handleFileSelect(event, setGatepassFileNames, gatepassInputRef)}
+              onFileSelect={(event) =>
+                handleFileSelect(event, setGatepassFileNames, gatepassInputRef)
+              }
               onRemoveFile={(fileName) => handleRemoveFile(fileName, setGatepassFileNames)}
             />
           )}
@@ -309,7 +311,9 @@ export default function CustomerSalesAttachmentsPage({ flow }: CustomerSalesAtta
       </section>
 
       <StepFooter
-        onPrevious={() => navigate(`${config.previousPath}?entryId=${encodeURIComponent(entry.id)}`)}
+        onPrevious={() =>
+          navigate(`${config.previousPath}?entryId=${encodeURIComponent(entry.id)}`)
+        }
         onCancel={() => navigate(config.dashboardPath)}
         onNext={handleComplete}
         nextLabel={config.completeLabel}
@@ -349,13 +353,7 @@ function DocumentUploadPanel({
         <span className="text-xs text-muted-foreground">{description}</span>
       </button>
 
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={onFileSelect}
-      />
+      <input ref={inputRef} type="file" multiple className="hidden" onChange={onFileSelect} />
 
       {fileNames.length > 0 ? (
         <div className="space-y-2">

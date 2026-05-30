@@ -23,12 +23,14 @@ export interface BSTGateInItemRequest {
 
 export interface BSTGateInEntry {
   id: number;
+  source_type?: 'LEGACY_BST_OUT' | 'DOCKING_STOCK_TRANSFER' | string;
   entry_no: string;
   company: number;
   vehicle_entry: number;
   vehicle_entry_no: string;
   vehicle_entry_status: string;
-  bst_gate_out: number;
+  bst_gate_out?: number | null;
+  sales_dispatch_gate_out?: number | null;
   bst_gate_out_entry_no: string;
   bst_gate_out_vehicle_entry: number;
   bst_gate_out_date?: string | null;
@@ -67,7 +69,8 @@ export interface BSTGateInParams {
 }
 
 export interface BSTGateInCreateRequest {
-  bst_gate_out_id: number;
+  bst_gate_out_id?: number;
+  sales_dispatch_gate_out_id?: number;
   gate_in_date: string;
   in_time: string;
   sap_receipt_doc_num?: string;
@@ -107,9 +110,7 @@ export const bstInApi = {
   },
 
   async get(id: number): Promise<BSTGateInEntry> {
-    const response = await apiClient.get<BSTGateInEntry>(
-      API_ENDPOINTS.GATE_CORE.BST_IN_BY_ID(id),
-    );
+    const response = await apiClient.get<BSTGateInEntry>(API_ENDPOINTS.GATE_CORE.BST_IN_BY_ID(id));
     return response.data;
   },
 
@@ -121,10 +122,7 @@ export const bstInApi = {
   },
 
   async create(data: BSTGateInCreateRequest): Promise<BSTGateInEntry> {
-    const response = await apiClient.post<BSTGateInEntry>(
-      API_ENDPOINTS.GATE_CORE.BST_INS,
-      data,
-    );
+    const response = await apiClient.post<BSTGateInEntry>(API_ENDPOINTS.GATE_CORE.BST_INS, data);
     return response.data;
   },
 

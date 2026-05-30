@@ -11,6 +11,7 @@ export const ENTRY_TYPES = {
   BST_IN: 'BST_IN',
   BST_RETURN: 'BST_RETURN',
   JOB_WORK: 'JOB_WORK',
+  SALES_DISPATCH: 'SALES_DISPATCH',
 } as const;
 
 export type EntryType = (typeof ENTRY_TYPES)[keyof typeof ENTRY_TYPES];
@@ -27,6 +28,7 @@ export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
   BST_IN: 'BST In',
   BST_RETURN: 'BST Return',
   JOB_WORK: 'Job Work',
+  SALES_DISPATCH: 'Docking',
 };
 
 // ============================================================================
@@ -102,6 +104,10 @@ export const WIZARD_CONFIGS: Record<EntryType, WizardStepConfig> = {
   BST_RETURN: {
     totalSteps: 2,
     stepLabels: ['Vehicle Return', 'Review'],
+  },
+  SALES_DISPATCH: {
+    totalSteps: 4,
+    stepLabels: ['Docking', 'Weighment', 'Photo & Documents', 'Gatepass'],
   },
 };
 

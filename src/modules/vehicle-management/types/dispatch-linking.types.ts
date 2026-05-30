@@ -42,8 +42,8 @@ export interface DispatchVehicleLinkPayload {
   sac_code: string;
   vehicle_id: number | null;
   transporter_id: number | null;
-  driver_id: number | null;
-  linked_vehicle_entry_id: number | null;
+  driver_id?: number | null;
+  linked_vehicle_entry_id?: number | null;
   booking_status: DispatchPlanStatus;
   dispatch_date: string | null;
   transporter_name: string;
@@ -51,16 +51,16 @@ export interface DispatchVehicleLinkPayload {
   contact_person: string;
   mobile_no: string;
   vehicle_no: string;
-  driver_name: string;
-  driver_mobile_no: string;
-  driver_license_no: string;
-  driver_id_proof_type: string;
-  driver_id_proof_number: string;
+  driver_name?: string;
+  driver_mobile_no?: string;
+  driver_license_no?: string;
+  driver_id_proof_type?: string;
+  driver_id_proof_number?: string;
   bilty_no: string;
   bilty_date: string | null;
   bilty_attachment?: File | null;
   freight: string | null;
   total_freight: string | null;
-  kanta_weight: string | null;
+  kanta_weight?: string | null;
   remarks: string;
 }

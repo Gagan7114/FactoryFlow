@@ -49,7 +49,9 @@ function buildOutLabel(entry: BSTGateOutEntry) {
     `BST ${entry.sap_doc_num}`,
     entry.vehicle_number,
     `${entry.sap_from_warehouse || '-'} -> ${entry.sap_to_warehouse || '-'}`,
-  ].filter(Boolean).join(' - ');
+  ]
+    .filter(Boolean)
+    .join(' - ');
 }
 
 function buildExistingOutLabel(entry: BSTGateInEntry) {
@@ -58,7 +60,13 @@ function buildExistingOutLabel(entry: BSTGateInEntry) {
     `BST ${entry.sap_doc_num}`,
     entry.vehicle_number,
     `${entry.sap_from_warehouse || '-'} -> ${entry.sap_to_warehouse || '-'}`,
-  ].filter(Boolean).join(' - ');
+  ]
+    .filter(Boolean)
+    .join(' - ');
+}
+
+function isDockingStockTransferSource(entry?: { source_type?: string } | null) {
+  return entry?.source_type === 'DOCKING_STOCK_TRANSFER';
 }
 
 const lockedDateTimeInputClassName =
@@ -110,7 +118,9 @@ export default function BSTInNewPage() {
     if (!existingEntry) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Sync edit form from loaded BST in draft
-    setSelectedOutId(String(existingEntry.bst_gate_out));
+    setSelectedOutId(
+      String(existingEntry.sales_dispatch_gate_out || existingEntry.bst_gate_out || ''),
+    );
     setGateInDate(existingEntry.gate_in_date || toDateInputValue());
     setInTime(existingEntry.in_time?.slice(0, 5) || toTimeInputValue());
     setSapReceiptDocNum(existingEntry.sap_receipt_doc_num || '');
@@ -231,7 +241,9 @@ export default function BSTInNewPage() {
     const detailItems = selectedDetails?.items || [];
     const invalidItem = detailItems.find((item) => {
       const value = receivingQuantities[item.line_num];
-      return value === undefined || value === '' || Number(value) < 0 || Number.isNaN(Number(value));
+      return (
+        value === undefined || value === '' || Number(value) < 0 || Number.isNaN(Number(value))
+      );
     });
     if (invalidItem) {
       setFormError(`Please enter receiving quantity for line ${invalidItem.line_num}`);
@@ -241,8 +253,14 @@ export default function BSTInNewPage() {
     setFormError('');
 
     try {
+      const isDockingSource =
+        isDockingStockTransferSource(selectedOut) ||
+        (!selectedOut && isDockingStockTransferSource(existingEntry));
+      const sourcePayload = isDockingSource
+        ? { sales_dispatch_gate_out_id: Number(selectedOutId) }
+        : { bst_gate_out_id: Number(selectedOutId) };
       const payload = {
-        bst_gate_out_id: Number(selectedOutId),
+        ...sourcePayload,
         gate_in_date: gateInDate,
         in_time: inTime,
         sap_receipt_doc_num: sapReceiptDocNum.trim(),
@@ -274,7 +292,12 @@ export default function BSTInNewPage() {
 
   return (
     <div className="space-y-6 pb-6">
-      <StepHeader currentStep={1} totalSteps={2} title="BST In" error={formError || loadError || null} />
+      <StepHeader
+        currentStep={1}
+        totalSteps={2}
+        title="BST In"
+        error={formError || loadError || null}
+      />
 
       {isReadOnlyExisting && existingEntry ? (
         <Card>
@@ -293,7 +316,10 @@ export default function BSTInNewPage() {
             <InfoItem label="SAP Receiving Doc" value={existingEntry.sap_receipt_doc_num || ''} />
             <InfoItem label="From" value={existingEntry.sap_from_warehouse} />
             <InfoItem label="To" value={existingEntry.sap_to_warehouse} />
-            <InfoItem label="Gate In" value={formatDateTime(existingEntry.gate_in_date, existingEntry.in_time)} />
+            <InfoItem
+              label="Gate In"
+              value={formatDateTime(existingEntry.gate_in_date, existingEntry.in_time)}
+            />
             <InfoItem label="Status" value={existingEntry.status} />
           </CardContent>
         </Card>
@@ -357,7 +383,9 @@ export default function BSTInNewPage() {
                             `BST ${entry.sap_doc_num}`,
                             `${entry.sap_from_warehouse || '-'} -> ${entry.sap_to_warehouse || '-'}`,
                             formatDateTime(entry.gate_out_date, entry.out_time),
-                          ].filter(Boolean).join(' - ')}
+                          ]
+                            .filter(Boolean)
+                            .join(' - ')}
                         </div>
                       </div>
                     )}
@@ -543,11 +571,7 @@ export default function BSTInNewPage() {
         showPrevious={false}
         isSaving={isSaving}
         nextLabel={
-          isReadOnlyExisting
-            ? 'Continue to Attachments'
-            : isSaving
-              ? 'Saving...'
-              : 'Save and Next'
+          isReadOnlyExisting ? 'Continue to Attachments' : isSaving ? 'Saving...' : 'Save and Next'
         }
       />
     </div>

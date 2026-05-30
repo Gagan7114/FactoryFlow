@@ -202,11 +202,19 @@ export const ROUTES = {
       },
       SALES_DISPATCH_NEW: {
         path: '/gate/sales-dispatch/new',
-        title: 'New Sales Dispatch Out',
+        title: 'New Sales Dispatch Out Entry',
+      },
+      SALES_DISPATCH_BARCODE_SCAN: {
+        path: '/gate/sales-dispatch/new/barcode-scan',
+        title: 'Sales Dispatch Out Box Scanning',
       },
       SALES_DISPATCH_ATTACHMENTS: {
         path: '/gate/sales-dispatch/new/attachments',
-        title: 'Sales Dispatch Attachments',
+        title: 'Sales Dispatch Out Attachments',
+      },
+      SALES_DISPATCH_GATEPASS: {
+        path: '/gate/sales-dispatch/new/gatepass',
+        title: 'Sales Dispatch Out Gatepass',
       },
       REPAIR_MOVEMENT: {
         path: '/gate/repair-movement',

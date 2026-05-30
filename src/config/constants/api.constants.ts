@@ -81,11 +81,11 @@ export const API_ENDPOINTS = {
     EMPTY_VEHICLE_IN_ELIGIBLE: '/gate-core/empty-vehicle-ins/eligible/',
     EMPTY_VEHICLE_INS: '/gate-core/empty-vehicle-ins/',
     EMPTY_VEHICLE_IN_BY_ID: (id: number) => `/gate-core/empty-vehicle-ins/${id}/`,
+    EMPTY_VEHICLE_IN_COMPLETE_BY_ID: (id: number) => `/gate-core/empty-vehicle-ins/${id}/complete/`,
     EMPTY_VEHICLE_ELIGIBLE_ENTRIES: '/gate-core/empty-vehicle-outs/eligible-entries/',
     EMPTY_VEHICLE_OUTS: '/gate-core/empty-vehicle-outs/',
     EMPTY_VEHICLE_OUT_BY_ID: (id: number) => `/gate-core/empty-vehicle-outs/${id}/`,
-    EMPTY_VEHICLE_OUT_CANCEL_BY_ID: (id: number) =>
-      `/gate-core/empty-vehicle-outs/${id}/cancel/`,
+    EMPTY_VEHICLE_OUT_CANCEL_BY_ID: (id: number) => `/gate-core/empty-vehicle-outs/${id}/cancel/`,
     BST_OUT_SAP_TRANSFERS: '/gate-core/bst-outs/sap-transfers/',
     BST_OUT_SAP_TRANSFER_BY_DOC_ENTRY: (docEntry: number) =>
       `/gate-core/bst-outs/sap-transfers/${docEntry}/`,
@@ -96,6 +96,32 @@ export const API_ENDPOINTS = {
       `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/`,
     BST_OUT_COMPLETE_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
       `/gate-core/bst-outs/by-vehicle-entry/${vehicleEntryId}/complete/`,
+    SALES_DISPATCH_DOCUMENTS: '/gate-core/sales-dispatch/documents/',
+    SALES_DISPATCH_DOCUMENT_BY_DOC_ENTRY: (documentType: string, docEntry: number) =>
+      `/gate-core/sales-dispatch/documents/${documentType}/${docEntry}/`,
+    SALES_DISPATCH_LOCK: '/gate-core/sales-dispatch/lock/',
+    SALES_DISPATCH_REPORTS: '/gate-core/sales-dispatch/reports/',
+    SALES_DISPATCH_PENDING_BOOKINGS: '/gate-core/sales-dispatch/pending-bookings/',
+    SALES_DISPATCHES: '/gate-core/sales-dispatch/',
+    SALES_DISPATCH_BY_ID: (id: number) => `/gate-core/sales-dispatch/${id}/`,
+    SALES_DISPATCH_BY_VEHICLE_ENTRY: (vehicleEntryId: number) =>
+      `/gate-core/sales-dispatch/by-vehicle-entry/${vehicleEntryId}/`,
+    SALES_DISPATCH_ATTACHMENTS: (id: number) => `/gate-core/sales-dispatch/${id}/attachments/`,
+    SALES_DISPATCH_BOX_SCANS: (id: number) => `/gate-core/sales-dispatch/${id}/box-scans/`,
+    SALES_DISPATCH_BOX_SCAN: (id: number, scanId: number) =>
+      `/gate-core/sales-dispatch/${id}/box-scans/${scanId}/`,
+    SALES_DISPATCH_GATEPASS_PREVIEW: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/preview/`,
+    SALES_DISPATCH_GATEPASS_PRINT: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/print/`,
+    SALES_DISPATCH_GATEPASS_REPRINT: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/reprint/`,
+    SALES_DISPATCH_GATEPASS_PRINTS: (id: number) =>
+      `/gate-core/sales-dispatch/${id}/gatepass/prints/`,
+    SALES_DISPATCH_COMMIT_PRINT: (id: number) => `/gate-core/sales-dispatch/${id}/commit-print/`,
+    SALES_DISPATCH_MARK_DISPATCHED: (id: number) => `/gate-core/sales-dispatch/${id}/dispatch/`,
+    SALES_DISPATCH_REJECT: (id: number) => `/gate-core/sales-dispatch/${id}/reject/`,
+    SALES_DISPATCH_CANCEL: (id: number) => `/gate-core/sales-dispatch/${id}/cancel/`,
     BST_IN_ELIGIBLE_OUTS: '/gate-core/bst-ins/eligible-outs/',
     BST_INS: '/gate-core/bst-ins/',
     BST_IN_BY_ID: (id: number) => `/gate-core/bst-ins/${id}/`,
@@ -161,7 +187,8 @@ export const API_ENDPOINTS = {
       `/quality-control/po-items/${poItemReceiptId}/arrival-slip/`,
     ARRIVAL_SLIP_BY_ID: (slipId: number) => `/quality-control/arrival-slips/${slipId}/`,
     ARRIVAL_SLIP_SUBMIT: (slipId: number) => `/quality-control/arrival-slips/${slipId}/submit/`,
-    ARRIVAL_SLIP_SEND_BACK: (slipId: number) => `/quality-control/arrival-slips/${slipId}/send-back/`,
+    ARRIVAL_SLIP_SEND_BACK: (slipId: number) =>
+      `/quality-control/arrival-slips/${slipId}/send-back/`,
 
     // Material Types
     MATERIAL_TYPES: '/quality-control/material-types/',
@@ -250,8 +277,7 @@ export const API_ENDPOINTS = {
     WEEKLY_PLANS: (planId: number) => `/production-planning/${planId}/weekly-plans/`,
     WEEKLY_PLAN_DETAIL: (planId: number, weekId: number) =>
       `/production-planning/${planId}/weekly-plans/${weekId}/`,
-    DAILY_ENTRIES: (weekId: number) =>
-      `/production-planning/weekly-plans/${weekId}/daily-entries/`,
+    DAILY_ENTRIES: (weekId: number) => `/production-planning/weekly-plans/${weekId}/daily-entries/`,
     DAILY_ENTRY_DETAIL: (weekId: number, entryId: number) =>
       `/production-planning/weekly-plans/${weekId}/daily-entries/${entryId}/`,
     DAILY_ENTRIES_ALL: '/production-planning/daily-entries/',
@@ -302,8 +328,7 @@ export const API_ENDPOINTS = {
     BILTY_GRPO_DETAIL: (postingId: number) => `/dispatch/bilty-grpo/${postingId}/`,
     TRANSPORTER_INVOICE_PREVIEW: '/dispatch/transporter-invoices/preview/',
     TRANSPORTER_INVOICE_SUBMIT: '/dispatch/transporter-invoices/submit/',
-    TRANSPORTER_INVOICE_POST_AP_INVOICE:
-      '/dispatch/transporter-invoices/post-ap-invoice/',
+    TRANSPORTER_INVOICE_POST_AP_INVOICE: '/dispatch/transporter-invoices/post-ap-invoice/',
     TRANSPORTER_INVOICE_POST_SUBMITTED: (postingId: number) =>
       `/dispatch/transporter-invoices/${postingId}/post-ap-invoice/`,
     TRANSPORTER_INVOICE_HISTORY: '/dispatch/transporter-invoices/history/',
@@ -343,8 +368,7 @@ export const API_ENDPOINTS = {
     RUN_MATERIAL_DETAIL: (runId: number, materialId: number) =>
       `/production-execution/runs/${runId}/materials/${materialId}/`,
     // Machine Runtime
-    RUN_MACHINE_RUNTIME: (runId: number) =>
-      `/production-execution/runs/${runId}/machine-runtime/`,
+    RUN_MACHINE_RUNTIME: (runId: number) => `/production-execution/runs/${runId}/machine-runtime/`,
     RUN_MACHINE_RUNTIME_DETAIL: (runId: number, runtimeId: number) =>
       `/production-execution/runs/${runId}/machine-runtime/${runtimeId}/`,
     // Manpower
@@ -367,59 +391,49 @@ export const API_ENDPOINTS = {
     // Waste Management
     WASTE: '/production-execution/waste/',
     WASTE_DETAIL: (wasteId: number) => `/production-execution/waste/${wasteId}/`,
-    WASTE_APPROVE: (wasteId: number) =>
-      `/production-execution/waste/${wasteId}/approve/`,
+    WASTE_APPROVE: (wasteId: number) => `/production-execution/waste/${wasteId}/approve/`,
     WASTE_APPROVE_ENGINEER: (wasteId: number) =>
       `/production-execution/waste/${wasteId}/approve/engineer/`,
-    WASTE_APPROVE_AM: (wasteId: number) =>
-      `/production-execution/waste/${wasteId}/approve/am/`,
+    WASTE_APPROVE_AM: (wasteId: number) => `/production-execution/waste/${wasteId}/approve/am/`,
     WASTE_APPROVE_STORE: (wasteId: number) =>
       `/production-execution/waste/${wasteId}/approve/store/`,
-    WASTE_APPROVE_HOD: (wasteId: number) =>
-      `/production-execution/waste/${wasteId}/approve/hod/`,
+    WASTE_APPROVE_HOD: (wasteId: number) => `/production-execution/waste/${wasteId}/approve/hod/`,
     // Resources
     RUN_ELECTRICITY: (runId: number) =>
       `/production-execution/runs/${runId}/resources/electricity/`,
     RUN_ELECTRICITY_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/electricity/${entryId}/`,
-    RUN_WATER: (runId: number) =>
-      `/production-execution/runs/${runId}/resources/water/`,
+    RUN_WATER: (runId: number) => `/production-execution/runs/${runId}/resources/water/`,
     RUN_WATER_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/water/${entryId}/`,
-    RUN_GAS: (runId: number) =>
-      `/production-execution/runs/${runId}/resources/gas/`,
+    RUN_GAS: (runId: number) => `/production-execution/runs/${runId}/resources/gas/`,
     RUN_GAS_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/gas/${entryId}/`,
     RUN_COMPRESSED_AIR: (runId: number) =>
       `/production-execution/runs/${runId}/resources/compressed-air/`,
     RUN_COMPRESSED_AIR_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/compressed-air/${entryId}/`,
-    RUN_LABOUR: (runId: number) =>
-      `/production-execution/runs/${runId}/resources/labour/`,
+    RUN_LABOUR: (runId: number) => `/production-execution/runs/${runId}/resources/labour/`,
     RUN_LABOUR_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/labour/${entryId}/`,
     RUN_MACHINE_COSTS: (runId: number) =>
       `/production-execution/runs/${runId}/resources/machine-costs/`,
     RUN_MACHINE_COSTS_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/machine-costs/${entryId}/`,
-    RUN_OVERHEAD: (runId: number) =>
-      `/production-execution/runs/${runId}/resources/overhead/`,
+    RUN_OVERHEAD: (runId: number) => `/production-execution/runs/${runId}/resources/overhead/`,
     RUN_OVERHEAD_DETAIL: (runId: number, entryId: number) =>
       `/production-execution/runs/${runId}/resources/overhead/${entryId}/`,
     // Cost
     RUN_COST: (runId: number) => `/production-execution/runs/${runId}/cost/`,
     COST_ANALYTICS: '/production-execution/costs/analytics/',
     // QC
-    RUN_QC_INPROCESS: (runId: number) =>
-      `/production-execution/runs/${runId}/qc/inprocess/`,
+    RUN_QC_INPROCESS: (runId: number) => `/production-execution/runs/${runId}/qc/inprocess/`,
     RUN_QC_INPROCESS_DETAIL: (runId: number, checkId: number) =>
       `/production-execution/runs/${runId}/qc/inprocess/${checkId}/`,
-    RUN_QC_FINAL: (runId: number) =>
-      `/production-execution/runs/${runId}/qc/final/`,
+    RUN_QC_FINAL: (runId: number) => `/production-execution/runs/${runId}/qc/final/`,
     // SAP Orders & BOM
     SAP_ORDERS: '/production-execution/sap/orders/',
-    SAP_ORDER_DETAIL: (docEntry: number) =>
-      `/production-execution/sap/orders/${docEntry}/`,
+    SAP_ORDER_DETAIL: (docEntry: number) => `/production-execution/sap/orders/${docEntry}/`,
     SAP_ITEMS: '/production-execution/sap/items/',
     SAP_BOM: '/production-execution/sap/bom/',
     // Reports
@@ -433,7 +447,8 @@ export const API_ENDPOINTS = {
     REPORTS_RESOURCE_CONSUMPTION: '/production-execution/reports/analytics/resource-consumption/',
     REPORTS_MONTHLY_SUMMARY: '/production-execution/reports/analytics/monthly-summary/',
     REPORTS_PLAN_VS_PRODUCTION: '/production-execution/reports/analytics/plan-vs-production/',
-    REPORTS_PROCUREMENT_VS_PLANNED: '/production-execution/reports/analytics/procurement-vs-planned/',
+    REPORTS_PROCUREMENT_VS_PLANNED:
+      '/production-execution/reports/analytics/procurement-vs-planned/',
     REPORTS_OEE_TREND: '/production-execution/reports/analytics/oee-trend/',
     REPORTS_DOWNTIME_PARETO: '/production-execution/reports/analytics/downtime-pareto/',
     REPORTS_COST_ANALYSIS: '/production-execution/reports/analytics/cost-analysis/',
@@ -442,12 +457,9 @@ export const API_ENDPOINTS = {
     REPORTS_PRODUCTION_MOVEMENT_FILTER_OPTIONS:
       '/production-execution/reports/production-movement/filter-options/',
     // Timeline Actions
-    START_PRODUCTION: (runId: number) =>
-      `/production-execution/runs/${runId}/start-production/`,
-    STOP_PRODUCTION: (runId: number) =>
-      `/production-execution/runs/${runId}/stop-production/`,
-    ADD_BREAKDOWN: (runId: number) =>
-      `/production-execution/runs/${runId}/add-breakdown/`,
+    START_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/start-production/`,
+    STOP_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/stop-production/`,
+    ADD_BREAKDOWN: (runId: number) => `/production-execution/runs/${runId}/add-breakdown/`,
     RESOLVE_BREAKDOWN: (runId: number, breakdownId: number) =>
       `/production-execution/runs/${runId}/breakdowns/${breakdownId}/resolve/`,
     SEGMENT_UPDATE: (runId: number, segmentId: number) =>
