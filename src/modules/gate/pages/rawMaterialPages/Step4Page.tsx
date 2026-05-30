@@ -23,12 +23,67 @@ import { FillDataAlert, StepFooter, StepHeader, StepLoadingSpinner } from '../..
 import { WIZARD_CONFIG } from '../../constants';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
 
+interface WeighmentFormData {
+  grossWeight: string;
+  tareWeight: string;
+  weighbridgeTicketNo: string;
+  firstWeighmentTime: string;
+  secondWeighmentTime: string;
+}
+
+function createEmptyWeighmentFormData(): WeighmentFormData {
+  return {
+    grossWeight: '',
+    tareWeight: '',
+    weighbridgeTicketNo: '',
+    firstWeighmentTime: '',
+    secondWeighmentTime: '',
+  };
+}
+
+function hasWeighmentInput(values: WeighmentFormData) {
+  return Object.values(values).some((value) => value.trim() !== '');
+}
+
+function validateWeighmentDetails(values: WeighmentFormData) {
+  const grossWeight = parseFloat(values.grossWeight);
+  const tareWeight = parseFloat(values.tareWeight);
+  const hasTareWeight = values.tareWeight.trim() !== '';
+  const errors: Record<string, string> = {};
+
+  if (!hasWeighmentInput(values)) {
+    return errors;
+  }
+
+  if (!Number.isFinite(grossWeight) || grossWeight <= 0) {
+    errors.grossWeight = 'Gross weight is required.';
+  }
+
+  if (hasTareWeight && (!Number.isFinite(tareWeight) || tareWeight < 0)) {
+    errors.tareWeight = 'Tare weight cannot be negative.';
+  }
+
+  if (!errors.grossWeight && hasTareWeight && !errors.tareWeight && tareWeight > grossWeight) {
+    errors.tareWeight = 'Tare weight cannot be greater than gross weight.';
+  }
+
+  return errors;
+}
+
+const API_FIELD_TO_FORM_FIELD: Partial<Record<string, keyof WeighmentFormData>> = {
+  gross_weight: 'grossWeight',
+  tare_weight: 'tareWeight',
+  weighbridge_slip_no: 'weighbridgeTicketNo',
+  first_weighment_time: 'firstWeighmentTime',
+  second_weighment_time: 'secondWeighmentTime',
+};
+
 export default function Step4Page() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
   useEntryStepTracker();
-  const currentStep = WIZARD_CONFIG.STEPS.WEIGHMENT;
+  const currentStep = WIZARD_CONFIG.STEPS.ATTACHMENTS;
   const createWeighment = useCreateWeighment(entryIdNumber || 0);
   const {
     data: weighmentData,
@@ -40,16 +95,13 @@ export default function Step4Page() {
   );
 
   // Form state
-  const [formData, setFormData] = useState({
-    grossWeight: '0',
-    tareWeight: '0',
-    weighbridgeTicketNo: '',
-    firstWeighmentTime: '',
-    secondWeighmentTime: '',
-  });
+  const [formData, setFormData] = useState<WeighmentFormData>(createEmptyWeighmentFormData);
 
   // Calculate net weight as derived value (not stored in state)
   const netWeight = useMemo(() => {
+    if (!formData.grossWeight.trim() || !formData.tareWeight.trim()) {
+      return '';
+    }
     const gross = parseFloat(formData.grossWeight) || 0;
     const tare = parseFloat(formData.tareWeight) || 0;
     return Math.max(0, gross - tare).toFixed(3);
@@ -120,13 +172,7 @@ export default function Step4Page() {
   const handleFillData = () => {
     setFillDataMode(true);
     // Clear form data to start fresh
-    setFormData({
-      grossWeight: '0',
-      tareWeight: '0',
-      weighbridgeTicketNo: '',
-      firstWeighmentTime: '',
-      secondWeighmentTime: '',
-    });
+    setFormData(createEmptyWeighmentFormData());
     setApiErrors({});
   };
 
@@ -144,18 +190,34 @@ export default function Step4Page() {
       return;
     }
 
+    setApiErrors({});
+
     // In edit mode (and not fillDataMode and not updateMode), just navigate without API call
     if (effectiveEditMode && !updateMode) {
       navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
       return;
     }
 
-    setApiErrors({});
-
     try {
+      const validationErrors = validateWeighmentDetails(formData);
+      if (Object.keys(validationErrors).length > 0) {
+        setApiErrors(validationErrors);
+        return;
+      }
+
+      if (!hasWeighmentInput(formData)) {
+        setIsNavigating(true);
+        if (isEditMode) {
+          navigate(`/gate/raw-materials/edit/${entryId}/attachments`);
+        } else {
+          navigate(`/gate/raw-materials/new/attachments?entryId=${entryId}`);
+        }
+        return;
+      }
+
       const requestData: CreateWeighmentRequest = {
-        gross_weight: parseFloat(formData.grossWeight) || 0,
-        tare_weight: parseFloat(formData.tareWeight) || 0,
+        gross_weight: parseFloat(formData.grossWeight),
+        tare_weight: formData.tareWeight.trim() ? parseFloat(formData.tareWeight) : 0,
         weighbridge_slip_no: formData.weighbridgeTicketNo || '',
         first_weighment_time: formData.firstWeighmentTime
           ? `${new Date().toISOString().slice(0, 10)}T${formData.firstWeighmentTime}:00`
@@ -180,7 +242,7 @@ export default function Step4Page() {
         const fieldErrors: Record<string, string> = {};
         Object.entries(apiError.errors).forEach(([field, messages]) => {
           if (Array.isArray(messages) && messages.length > 0) {
-            fieldErrors[field] = messages[0];
+            fieldErrors[API_FIELD_TO_FORM_FIELD[field] || field] = messages[0];
           }
         });
         setApiErrors(fieldErrors);
@@ -220,6 +282,7 @@ export default function Step4Page() {
     <div className="space-y-6 pb-6">
       <StepHeader
         currentStep={currentStep}
+        title="Optional Weighment"
         error={
           hasServerError
             ? getServerErrorMessage()
@@ -235,7 +298,7 @@ export default function Step4Page() {
         <FillDataAlert
           message={
             isNotFoundError
-              ? getErrorMessage(weighmentError, 'Weighment not found')
+              ? getErrorMessage(weighmentError, 'Optional weighment not found')
               : 'No weighment data found for this entry.'
           }
           onFillData={handleFillData}
@@ -255,9 +318,7 @@ export default function Step4Page() {
             <div className="grid gap-4 md:grid-cols-3">
               {/* First Row */}
               <div className="space-y-2">
-                <Label htmlFor="grossWeight">
-                  Gross Weight
-                </Label>
+                <Label htmlFor="grossWeight">Gross Weight</Label>
                 <Input
                   id="grossWeight"
                   type="number"
@@ -278,9 +339,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tareWeight">
-                  Tare Weight
-                </Label>
+                <Label htmlFor="tareWeight">Tare Weight</Label>
                 <Input
                   id="tareWeight"
                   type="number"
@@ -316,9 +375,7 @@ export default function Step4Page() {
 
               {/* Second Row */}
               <div className="space-y-2">
-                <Label htmlFor="weighbridgeTicketNo">
-                  Weighbridge Ticket No.
-                </Label>
+                <Label htmlFor="weighbridgeTicketNo">Weighbridge Ticket No.</Label>
                 <Input
                   id="weighbridgeTicketNo"
                   placeholder="WB-2026-001"
@@ -336,9 +393,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firstWeighmentTime">
-                  First Weighment Time
-                </Label>
+                <Label htmlFor="firstWeighmentTime">First Weighment Time</Label>
                 <Input
                   id="firstWeighmentTime"
                   type="time"
@@ -357,9 +412,7 @@ export default function Step4Page() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="secondWeighmentTime">
-                  Second Weighment Time
-                </Label>
+                <Label htmlFor="secondWeighmentTime">Second Weighment Time</Label>
                 <Input
                   id="secondWeighmentTime"
                   type="time"

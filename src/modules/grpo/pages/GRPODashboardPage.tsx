@@ -16,36 +16,48 @@ import { useNavigate } from 'react-router-dom';
 import type { ApiError } from '@/core/api/types';
 import { Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePendingGRPOEntries } from '../api';
-import { useGRPOHistory } from '../api';
-import { GRPO_STATUS } from '../constants';
+import { useGRPODashboardSummary, usePendingGRPOEntries } from '../api';
 
-// Status configuration for overview grid
-const STATUS_CONFIG = {
+// Insight configuration for overview grid
+const INSIGHT_CONFIG = {
   pending: {
-    label: 'Pending',
+    label: 'Pending POs',
     color: 'text-yellow-600 dark:text-yellow-400',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
     icon: Clock,
-    link: '/grpo/material/history?status=pending',
+    link: '/grpo/material/pending',
   },
-  posted: {
-    label: 'Posted',
+  accepted: {
+    label: 'QC Accepted',
     color: 'text-green-600 dark:text-green-400',
     bgColor: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
     icon: CheckCircle2,
-    link: '/grpo/material/history?status=posted',
+    link: '/grpo/material/all-entries',
   },
-  failed: {
-    label: 'Failed',
+  rejected: {
+    label: 'QC Rejected',
     color: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
     icon: XCircle,
-    link: '/grpo/material/history?status=failed',
+    link: '/grpo/material/all-entries',
+  },
+  posted: {
+    label: 'SAP Posted',
+    color: 'text-primary',
+    bgColor: 'bg-primary/5 border-primary/20',
+    icon: PackageCheck,
+    link: '/grpo/material/history?status=posted',
   },
 };
 
-const STATUS_ORDER = ['pending', 'posted', 'failed'] as const;
+const INSIGHT_ORDER = ['pending', 'accepted', 'rejected', 'posted'] as const;
+
+const formatQuantity = (value?: string | number | null) => {
+  const amount = Number(value ?? 0);
+  return Number.isFinite(amount)
+    ? amount.toLocaleString('en-IN', { maximumFractionDigits: 3 })
+    : '0';
+};
 
 // Format date/time for display
 const formatDateTime = (dateTime?: string) => {
@@ -82,20 +94,31 @@ export default function GRPODashboardPage() {
   const navigate = useNavigate();
 
   const { data: pendingEntries = [], isLoading, error, refetch } = usePendingGRPOEntries();
-  const { data: historyEntries = [] } = useGRPOHistory();
+  const {
+    data: summary,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useGRPODashboardSummary();
 
-  const apiError = error as ApiError | null;
+  const dashboardError = error || summaryError;
+  const apiError = dashboardError as ApiError | null;
   const isPermissionError = apiError?.status === 403;
 
-  // Calculate counts
-  const totalPendingPOs = pendingEntries.reduce((sum, e) => sum + e.pending_po_count, 0);
+  const totalPendingPOs =
+    summary?.pending_po_count ?? pendingEntries.reduce((sum, e) => sum + e.pending_po_count, 0);
+  const pendingEntryCount = summary?.pending_entry_count ?? pendingEntries.length;
 
-  const historyCounts = {
-    pending: historyEntries.filter((h) => h.status === GRPO_STATUS.PENDING).length,
-    posted: historyEntries.filter((h) => h.status === GRPO_STATUS.POSTED).length,
-    failed: historyEntries.filter(
-      (h) => h.status === GRPO_STATUS.FAILED || h.status === GRPO_STATUS.PARTIALLY_POSTED,
-    ).length,
+  const insightValues = {
+    pending: formatQuantity(totalPendingPOs),
+    accepted: formatQuantity(summary?.qc_accepted_qty),
+    rejected: formatQuantity(summary?.qc_rejected_qty),
+    posted: formatQuantity(summary?.posted_count),
+  };
+
+  const handleRefresh = () => {
+    refetch();
+    refetchSummary();
   };
 
   return (
@@ -114,7 +137,7 @@ export default function GRPODashboardPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isLoading || isSummaryLoading ? (
         <div className="flex items-center justify-center h-48">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
@@ -130,14 +153,14 @@ export default function GRPODashboardPage() {
                   {apiError?.message || 'You do not have permission to view this data.'}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
           )}
 
           {/* General API Error */}
-          {error && !isPermissionError && (
+          {dashboardError && !isPermissionError && (
             <div className="flex items-start gap-3 p-4 rounded-lg border border-yellow-500/50 bg-yellow-50 dark:bg-yellow-900/10">
               <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
@@ -146,7 +169,7 @@ export default function GRPODashboardPage() {
                   {apiError?.message || 'An error occurred while loading the dashboard.'}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <Button variant="outline" size="sm" onClick={handleRefresh}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
@@ -163,7 +186,7 @@ export default function GRPODashboardPage() {
                   <PackageCheck className="h-5 w-5 text-primary" />
                   <span className="text-sm font-medium text-primary">Pending GRPO</span>
                 </div>
-                <span className="text-3xl font-bold text-primary">{pendingEntries.length}</span>
+                <span className="text-3xl font-bold text-primary">{pendingEntryCount}</span>
               </div>
               <div className="mt-3 pt-3 border-t border-primary/20 flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center gap-4">
@@ -174,7 +197,7 @@ export default function GRPODashboardPage() {
                     POs pending
                   </span>
                   <span>
-                    <span className="font-semibold text-primary">{pendingEntries.length}</span>{' '}
+                    <span className="font-semibold text-primary">{pendingEntryCount}</span>{' '}
                     Entries
                   </span>
                 </div>
@@ -230,14 +253,14 @@ export default function GRPODashboardPage() {
             )}
           </div>
 
-          {/* Status Overview */}
+          {/* Insight Overview */}
           <div>
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">Posting History</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {STATUS_ORDER.map((statusKey) => {
-                const config = STATUS_CONFIG[statusKey];
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">GRPO Insights</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {INSIGHT_ORDER.map((statusKey) => {
+                const config = INSIGHT_CONFIG[statusKey];
                 const Icon = config.icon;
-                const count = historyCounts[statusKey] || 0;
+                const value = insightValues[statusKey];
 
                 return (
                   <Card
@@ -248,7 +271,7 @@ export default function GRPODashboardPage() {
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between">
                         <Icon className={`h-4 w-4 ${config.color}`} />
-                        <span className={`text-xl font-bold ${config.color}`}>{count}</span>
+                        <span className={`text-xl font-bold ${config.color}`}>{value}</span>
                       </div>
                       <p className={`mt-1 text-xs font-medium ${config.color}`}>{config.label}</p>
                     </CardContent>

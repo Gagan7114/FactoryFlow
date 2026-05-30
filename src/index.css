@@ -382,4 +382,96 @@
   .sales-dispatch-reprint-col-warehouse {
     width: 16mm !important;
   }
+
+  .service-grpo-history-page {
+    font-size: 10px !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .service-grpo-history-page h2 {
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .service-grpo-history-page p,
+  .service-grpo-history-page h3 {
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+  }
+
+  .service-grpo-history-print-table {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .service-grpo-history-print-table table {
+    border-collapse: collapse !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  .service-grpo-history-print-table thead {
+    display: table-header-group;
+  }
+
+  .service-grpo-history-print-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .service-grpo-history-print-table th,
+  .service-grpo-history-print-table td {
+    border-color: #cbd5e1 !important;
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere !important;
+    padding: 4px 5px !important;
+    vertical-align: top !important;
+    white-space: normal !important;
+  }
+
+  .service-grpo-history-print-table th:nth-child(1),
+  .service-grpo-history-print-table td:nth-child(1) {
+    width: 9%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(2),
+  .service-grpo-history-print-table td:nth-child(2) {
+    width: 11%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(3),
+  .service-grpo-history-print-table td:nth-child(3) {
+    width: 12%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(4),
+  .service-grpo-history-print-table td:nth-child(4) {
+    width: 21%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(5),
+  .service-grpo-history-print-table td:nth-child(5) {
+    width: 8%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(6),
+  .service-grpo-history-print-table td:nth-child(6) {
+    width: 14%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(7),
+  .service-grpo-history-print-table td:nth-child(7) {
+    width: 11%;
+  }
+
+  .service-grpo-history-print-table th:nth-child(8),
+  .service-grpo-history-print-table td:nth-child(8) {
+    width: 14%;
+  }
 }

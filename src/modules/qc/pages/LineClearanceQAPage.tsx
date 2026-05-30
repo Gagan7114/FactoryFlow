@@ -1,20 +1,23 @@
+import { CheckCircle2, Clock, Shield, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Clock, Shield, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { QC_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth/hooks/usePermission';
+import {
+  useApproveLineClearance,
+  useLineClearanceDetail,
+  useLineClearances,
+} from '@/modules/production/execution/api';
+import { ClearanceStatusBadge } from '@/modules/production/execution/components/ClearanceStatusBadge';
+import type { LineClearance } from '@/modules/production/execution/types';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import {
   Button, Card, CardContent,
   Dialog, DialogContent, DialogHeader, DialogTitle,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/shared/components/ui';
-
-import {
-  useLineClearances, useLineClearanceDetail, useApproveLineClearance,
-} from '@/modules/production/execution/api';
-import { ClearanceStatusBadge } from '@/modules/production/execution/components/ClearanceStatusBadge';
-import type { LineClearance } from '@/modules/production/execution/types';
 
 function LineClearanceQAPage() {
   const [statusFilter, setStatusFilter] = useState<string>('SUBMITTED');
@@ -23,9 +26,13 @@ function LineClearanceQAPage() {
   const { data: detail, isLoading: detailLoading } = useLineClearanceDetail(selectedId);
   const approveMutation = useApproveLineClearance(selectedId || 0);
   const navigate = useNavigate();
+  const { hasAnyPermission } = usePermission();
+  const canApproveLineClearance = hasAnyPermission([
+    QC_PERMISSIONS.LINE_CLEARANCE_QC.APPROVE,
+  ]);
 
   const handleApprove = async (approved: boolean) => {
-    if (!selectedId) return;
+    if (!selectedId || !canApproveLineClearance) return;
     try {
       await approveMutation.mutateAsync({ approved });
       toast.success(approved ? 'Clearance approved' : 'Clearance rejected');
@@ -146,7 +153,7 @@ function LineClearanceQAPage() {
               </div>
 
               {/* Approve / Reject buttons */}
-              {detail.status === 'SUBMITTED' && (
+              {detail.status === 'SUBMITTED' && canApproveLineClearance && (
                 <div className="flex justify-end gap-2 pt-2 border-t">
                   <Button variant="destructive" onClick={() => handleApprove(false)} disabled={approveMutation.isPending}>
                     <XCircle className="h-4 w-4 mr-1" /> Reject

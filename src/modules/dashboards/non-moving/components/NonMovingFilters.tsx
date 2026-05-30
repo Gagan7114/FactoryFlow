@@ -28,25 +28,34 @@ interface NonMovingFiltersProps {
   defaultValues: NonMovingFiltersType;
   itemGroups: ItemGroup[];
   isLoadingGroups?: boolean;
-  warehouses?: string[];
   subGroups?: string[];
+  externalResetSignal?: number;
 }
 
 interface FiltersForm {
   age: string;
   item_group: string;
-  warehouse: string[];
   sub_group: string[];
   search: string;
 }
 
 function buildFilters(values: Partial<FiltersForm>): NonMovingFiltersType {
+  const age = values.age !== undefined && values.age !== '' ? Number(values.age) : 45;
+
   return {
-    age: Number(values.age) || 45,
+    age: Number.isFinite(age) ? age : 45,
     item_group: Number(values.item_group) || 0,
-    warehouse: values.warehouse?.length ? values.warehouse : undefined,
     sub_group: values.sub_group?.length ? values.sub_group : undefined,
     search: normalizeSearch(values.search),
+  };
+}
+
+function formDefaultsFromFilters(defaultValues: NonMovingFiltersType): FiltersForm {
+  return {
+    age: String(defaultValues.age),
+    item_group: String(defaultValues.item_group),
+    sub_group: defaultValues.sub_group ?? [],
+    search: defaultValues.search ?? '',
   };
 }
 
@@ -56,18 +65,23 @@ export function NonMovingFilters({
   defaultValues,
   itemGroups,
   isLoadingGroups,
-  warehouses = [],
   subGroups = [],
+  externalResetSignal = 0,
 }: NonMovingFiltersProps) {
   const { register, watch, reset, setValue, control } = useForm<FiltersForm>({
-    defaultValues: {
-      age: String(defaultValues.age),
-      item_group: String(defaultValues.item_group),
-      warehouse: defaultValues.warehouse ?? [],
-      sub_group: defaultValues.sub_group ?? [],
-      search: defaultValues.search ?? '',
-    },
+    defaultValues: formDefaultsFromFilters(defaultValues),
   });
+  const latestFormDefaultsRef = useRef<FiltersForm>(formDefaultsFromFilters(defaultValues));
+  const selectedAge = watch('age');
+
+  useEffect(() => {
+    latestFormDefaultsRef.current = formDefaultsFromFilters(defaultValues);
+  }, [defaultValues]);
+
+  useEffect(() => {
+    if (externalResetSignal === 0) return;
+    reset(latestFormDefaultsRef.current);
+  }, [externalResetSignal, reset]);
 
   // Sync form when parent resolves the default item group
   useEffect(() => {
@@ -102,11 +116,16 @@ export function NonMovingFilters({
     reset({
       age: '45',
       item_group: String(defaultGroup),
-      warehouse: [],
       sub_group: [],
       search: '',
     });
     onFiltersChange({ age: 45, item_group: defaultGroup });
+  }
+
+  function handleAgeClick(age: number) {
+    const nextAge = String(age);
+    if (selectedAge === nextAge) return;
+    setValue('age', nextAge, { shouldDirty: true, shouldTouch: true });
   }
 
   return (
@@ -116,13 +135,26 @@ export function NonMovingFilters({
         <Label htmlFor="nm-filter-age" className="text-xs">
           Age (Days)
         </Label>
-        <Select id="nm-filter-age" className="w-40" {...register('age')}>
+        <input type="hidden" id="nm-filter-age" {...register('age')} />
+        <div
+          className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+          role="group"
+          aria-label="Age filter"
+        >
           {NON_MOVING_AGE_OPTIONS.map((opt) => (
-            <SelectOption key={opt.value} value={String(opt.value)}>
+            <Button
+              key={opt.value}
+              type="button"
+              size="sm"
+              variant={selectedAge === String(opt.value) ? 'default' : 'ghost'}
+              className="h-8 px-3 text-xs"
+              aria-pressed={selectedAge === String(opt.value)}
+              onClick={() => handleAgeClick(opt.value)}
+            >
               {opt.label}
-            </SelectOption>
+            </Button>
           ))}
-        </Select>
+        </div>
       </div>
 
       {/* Material Type */}
@@ -149,27 +181,6 @@ export function NonMovingFilters({
             </>
           )}
         </Select>
-      </div>
-
-      {/* Warehouse */}
-      <div className="order-3 flex flex-col gap-1.5">
-        <Label htmlFor="nm-filter-warehouse" className="text-xs">
-          Warehouse
-        </Label>
-        <Controller
-          name="warehouse"
-          control={control}
-          render={({ field }) => (
-            <MultiSelect
-              id="nm-filter-warehouse"
-              options={warehouses.map((w) => ({ label: w, value: w }))}
-              selected={field.value}
-              onChange={field.onChange}
-              placeholder="All"
-              className="w-44"
-            />
-          )}
-        />
       </div>
 
       {/* Sub Group */}

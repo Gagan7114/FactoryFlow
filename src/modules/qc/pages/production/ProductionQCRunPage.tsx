@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -10,7 +7,13 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
+import { QC_PERMISSIONS } from '@/config/permissions';
+import { usePermission } from '@/core/auth/hooks/usePermission';
+import { useRunDetail } from '@/modules/production/execution/api';
 import {
   Button,
   Card,
@@ -28,20 +31,17 @@ import {
   SelectValue,
 } from '@/shared/components/ui';
 
-import { MaterialTypeSelect } from '../../components';
 import {
-  useProductionQCRunSessions,
   useCreateProductionQCSession,
   useDeleteProductionQCSession,
+  useProductionQCRunSessions,
 } from '../../api/productionQC';
+import { MaterialTypeSelect } from '../../components';
 import type {
   ProductionQCSessionListItem,
   ProductionQCSessionType,
   ProductionQCWorkflowStatus,
 } from '../../types';
-
-// We need the run detail from production execution module
-import { useRunDetail } from '@/modules/production/execution/api';
 
 const WORKFLOW_BADGE: Record<
   ProductionQCWorkflowStatus | 'PENDING',
@@ -65,6 +65,8 @@ export default function ProductionQCRunPage() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const numRunId = Number(runId);
+  const { hasAnyPermission } = usePermission();
+  const canCreateProductionQC = hasAnyPermission([QC_PERMISSIONS.PRODUCTION_QC.CREATE]);
 
   const { data: run } = useRunDetail(numRunId || null);
   const { data: sessions = [], isLoading } = useProductionQCRunSessions(numRunId || null);
@@ -143,9 +145,11 @@ export default function ProductionQCRunPage() {
             </p>
           )}
         </div>
-        <Button onClick={() => openCreateDialog()}>
-          <Plus className="h-4 w-4 mr-2" /> New QC Round
-        </Button>
+        {canCreateProductionQC && (
+          <Button onClick={() => openCreateDialog()}>
+            <Plus className="h-4 w-4 mr-2" /> New QC Round
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -209,7 +213,7 @@ export default function ProductionQCRunPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            {session.workflow_status === 'DRAFT' && (
+                            {session.workflow_status === 'DRAFT' && canCreateProductionQC && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -247,7 +251,7 @@ export default function ProductionQCRunPage() {
                     key={session.id}
                     className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-purple-500"
                     onClick={() => {
-                      if (needsParameterSetup) {
+                      if (needsParameterSetup && canCreateProductionQC) {
                         openCreateDialog('FINAL');
                         return;
                       }
@@ -303,74 +307,75 @@ export default function ProductionQCRunPage() {
         </>
       )}
 
-      {/* Create Session Dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {sessionType === 'FINAL' && finalNeedsParameterSetup
-                ? 'Select Final QC Parameters'
-                : 'New QC Round'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Material Type (Product)</Label>
-              <MaterialTypeSelect
-                value={materialTypeId ?? undefined}
-                onChange={(mt) => setMaterialTypeId(mt?.id ?? null)}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Select the product type to load its QC parameters
-              </p>
+      {canCreateProductionQC && (
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {sessionType === 'FINAL' && finalNeedsParameterSetup
+                  ? 'Select Final QC Parameters'
+                  : 'New QC Round'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Material Type (Product)</Label>
+                <MaterialTypeSelect
+                  value={materialTypeId ?? undefined}
+                  onChange={(mt) => setMaterialTypeId(mt?.id ?? null)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select the product type to load its QC parameters
+                </p>
+              </div>
+              <div>
+                <Label>Session Type</Label>
+                <Select
+                  value={sessionType}
+                  onValueChange={(v) => setSessionType(v as ProductionQCSessionType)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_PROCESS">In-Process</SelectItem>
+                    <SelectItem value="FINAL" disabled={!canSelectFinalInDialog}>
+                      Final {!canSelectFinalInDialog ? '(already exists)' : finalNeedsParameterSetup ? '(requested)' : ''}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Check Time</Label>
+                <Input
+                  type="datetime-local"
+                  value={checkedAt}
+                  onChange={(e) => setCheckedAt(e.target.value)}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  disabled={createSession.isPending}
+                >
+                  {createSession.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {createSession.isPending
+                    ? 'Creating...'
+                    : sessionType === 'FINAL' && finalNeedsParameterSetup
+                      ? 'Load Parameters'
+                      : 'Create & Fill Results'}
+                </Button>
+              </div>
             </div>
-            <div>
-              <Label>Session Type</Label>
-              <Select
-                value={sessionType}
-                onValueChange={(v) => setSessionType(v as ProductionQCSessionType)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="IN_PROCESS">In-Process</SelectItem>
-                  <SelectItem value="FINAL" disabled={!canSelectFinalInDialog}>
-                    Final {!canSelectFinalInDialog ? '(already exists)' : finalNeedsParameterSetup ? '(requested)' : ''}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Check Time</Label>
-              <Input
-                type="datetime-local"
-                value={checkedAt}
-                onChange={(e) => setCheckedAt(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowCreateDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={createSession.isPending}
-              >
-                {createSession.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {createSession.isPending
-                  ? 'Creating...'
-                  : sessionType === 'FINAL' && finalNeedsParameterSetup
-                    ? 'Load Parameters'
-                    : 'Create & Fill Results'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

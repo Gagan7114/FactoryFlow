@@ -283,7 +283,9 @@ export default function ReviewPage() {
             <FileCheck className="h-8 w-8" />
             Final Review
           </h2>
-          <p className="text-muted-foreground">Review all details before completing the gate entry</p>
+          <p className="text-muted-foreground">
+            Review all details before completing the gate entry
+          </p>
         </div>
         <Button
           type="button"
@@ -434,32 +436,38 @@ export default function ReviewPage() {
         )}
 
         {/* Weighment */}
-        {gateEntry.weighment && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5" />
-                Weighment Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="h-5 w-5" />
+              Weighment Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {gateEntry.weighment ? (
               <div className="grid gap-4 md:grid-cols-4">
                 <div>
                   <Label className="text-muted-foreground text-xs">Gross Weight</Label>
                   <p className="font-medium text-lg">
-                    {gateEntry.weighment.gross_weight != null ? `${gateEntry.weighment.gross_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.gross_weight != null
+                      ? `${gateEntry.weighment.gross_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Tare Weight</Label>
                   <p className="font-medium text-lg">
-                    {gateEntry.weighment.tare_weight != null ? `${gateEntry.weighment.tare_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.tare_weight != null
+                      ? `${gateEntry.weighment.tare_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Net Weight</Label>
                   <p className="font-medium text-lg text-primary">
-                    {gateEntry.weighment.net_weight != null ? `${gateEntry.weighment.net_weight.toLocaleString()} kg` : '—'}
+                    {gateEntry.weighment.net_weight != null
+                      ? `${gateEntry.weighment.net_weight.toLocaleString()} kg`
+                      : '—'}
                   </p>
                 </div>
                 <div>
@@ -467,9 +475,15 @@ export default function ReviewPage() {
                   <p className="font-medium">{gateEntry.weighment.weighbridge_slip_no || '—'}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="rounded-md border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">
+                  No weighment recorded for this entry.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* PO Receipts */}
         {gateEntry.po_receipts.length > 0 && (
@@ -579,9 +593,14 @@ export default function ReviewPage() {
         return (
           <EntryTimeSummary
             startedAt={gateEntry.gate_entry.created_at}
-            completedAt={gateEntry.weighment?.created_at || gateEntry.po_receipts[0]?.created_at || gateEntry.security_check?.created_at || gateEntry.gate_entry.created_at}
+            completedAt={
+              gateEntry.weighment?.created_at ||
+              gateEntry.po_receipts[0]?.created_at ||
+              gateEntry.security_check?.created_at ||
+              gateEntry.gate_entry.created_at
+            }
           />
-        )
+        );
       })()}
 
       {/* Footer Actions */}

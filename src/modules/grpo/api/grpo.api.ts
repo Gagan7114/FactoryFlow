@@ -4,6 +4,7 @@ import { apiClient } from '@/core/api';
 import type {
   AllGRPOEntry,
   GRPOAttachment,
+  GRPODashboardSummary,
   GRPOHistoryEntry,
   PendingGRPOEntryWithSuppliers,
   PostGRPORequest,
@@ -21,6 +22,12 @@ import type {
 const SAP_SERVICE_GRPO_POST_TIMEOUT_MS = 5 * 60 * 1000;
 
 export const grpoApi = {
+  // Get dashboard insight totals
+  async getSummary(): Promise<GRPODashboardSummary> {
+    const response = await apiClient.get<GRPODashboardSummary>(API_ENDPOINTS.GRPO.SUMMARY);
+    return response.data;
+  },
+
   // Get list of pending gate entries for GRPO posting
   async getPendingEntries(): Promise<PendingGRPOEntryWithSuppliers[]> {
     const response = await apiClient.get<PendingGRPOEntryWithSuppliers[]>(

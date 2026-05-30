@@ -246,6 +246,7 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | Method | Endpoint | Description | Constants Key |
 |--------|----------|-------------|---------------|
 | GET | `/dashboards/stock/` | Stock benchmark rows and meta counts | `STOCK_DASHBOARD.LIST` |
+| GET | `/dashboards/stock/as-of/` | Experimental SAP movement reconstruction for a prior posting date | `STOCK_DASHBOARD.AS_OF` |
 | GET | `/dashboards/stock/:itemCode/warehouses/` | Per-warehouse detail for an expanded item row | `STOCK_DASHBOARD.ITEM_DETAIL(itemCode)` |
 
 ### Stock Query Parameters
@@ -261,9 +262,12 @@ Complete reference of all API endpoints used in the Factory Management System. A
 | `sort_dir` | string | `asc` or `desc`. |
 | `page` | integer | Page number. |
 | `page_size` | integer | Page size, maximum 200. |
+| `as_of_date` | date | Required only for `/dashboards/stock/as-of/`. Reconstructs on-hand and movement age through this SAP posting date. |
 
 The Stock Benchmark page defaults to Packing Material, warehouses `BH-BS` and `BH-PM`, statuses `healthy,low,critical`, and movements `planned,recent`. Its top stats are intentionally pinned to those defaults and are not changed by table filtering.
 The frontend Total Items stat is rendered as `healthy_count + low_stock_count + critical_stock_count`; backend `total_items` still represents the filtered table row total for pagination.
+
+The experimental as-of endpoint reconstructs `on_hand`, last consumption, movement status, health ratio, and stock status from SAP `OINM` movement history. Benchmark (`MinStock`), item name, UOM, and item group still come from current SAP master data.
 
 Backend status rules:
 

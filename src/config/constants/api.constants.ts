@@ -52,6 +52,8 @@ export const API_ENDPOINTS = {
   // Raw Material Gate In
   RAW_MATERIAL_GATEIN: {
     PO_RECEIPTS: (entryId: number) => `/raw-material-gatein/gate-entries/${entryId}/po-receipts/`,
+    PO_RECEIPT_DETAIL: (entryId: number, poReceiptId: number) =>
+      `/raw-material-gatein/gate-entries/${entryId}/po-receipts/${poReceiptId}/`,
     PO_RECEIPTS_VIEW: (entryId: number) =>
       `/raw-material-gatein/gate-entries/${entryId}/po-receipts/view`,
   },
@@ -242,6 +244,7 @@ export const API_ENDPOINTS = {
   },
   // GRPO (Goods Receipt Purchase Order)
   GRPO: {
+    SUMMARY: '/grpo/summary/',
     ALL_ENTRIES: '/grpo/all-entries/',
     PENDING: '/grpo/pending/',
     PREVIEW: (vehicleEntryId: number) => `/grpo/preview/${vehicleEntryId}/`,
@@ -293,6 +296,7 @@ export const API_ENDPOINTS = {
   // Stock Dashboard
   STOCK_DASHBOARD: {
     LIST: '/dashboards/stock/',
+    AS_OF: '/dashboards/stock/as-of/',
     ITEM_DETAIL: (itemCode: string) => `/dashboards/stock/${itemCode}/warehouses/`,
   },
   // Inventory Age & Value Dashboard
@@ -449,6 +453,9 @@ export const API_ENDPOINTS = {
     REPORTS_DOWNTIME_PARETO: '/production-execution/reports/analytics/downtime-pareto/',
     REPORTS_COST_ANALYSIS: '/production-execution/reports/analytics/cost-analysis/',
     REPORTS_WASTE_TREND: '/production-execution/reports/analytics/waste-trend/',
+    REPORTS_PRODUCTION_MOVEMENT: '/production-execution/reports/production-movement/',
+    REPORTS_PRODUCTION_MOVEMENT_FILTER_OPTIONS:
+      '/production-execution/reports/production-movement/filter-options/',
     // Timeline Actions
     START_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/start-production/`,
     STOP_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/stop-production/`,
@@ -503,6 +510,7 @@ export const API_ENDPOINTS = {
     BOXES: '/barcode/boxes/',
     BOX_DETAIL: (boxId: number) => `/barcode/boxes/${boxId}/`,
     BOX_VOID: (boxId: number) => `/barcode/boxes/${boxId}/void/`,
+    BOX_HISTORY: (boxId: number) => `/barcode/boxes/${boxId}/history/`,
     // Pallets
     PALLET_CREATE: '/barcode/pallets/create/',
     PALLETS: '/barcode/pallets/',
@@ -513,6 +521,7 @@ export const API_ENDPOINTS = {
     PALLET_SPLIT: (palletId: number) => `/barcode/pallets/${palletId}/split/`,
     PALLET_ADD_BOXES: (palletId: number) => `/barcode/pallets/${palletId}/add-boxes/`,
     PALLET_REMOVE_BOXES: (palletId: number) => `/barcode/pallets/${palletId}/remove-boxes/`,
+    PALLET_HISTORY: (palletId: number) => `/barcode/pallets/${palletId}/history/`,
     TRANSFER_BOX: '/barcode/transfers/box/',
     // Print
     PRINT_BOX: (boxId: number) => `/barcode/print/box/${boxId}/`,
@@ -530,6 +539,42 @@ export const API_ENDPOINTS = {
     SCAN: '/barcode/scan/',
     SCAN_HISTORY: '/barcode/scan/history/',
     LOOKUP: (barcode: string) => `/barcode/lookup/${encodeURIComponent(barcode)}/`,
+    // Dispatch scanning
+    DISPATCH_BILL_LOOKUP: '/barcode/dispatch/bills/lookup/',
+    DISPATCH_SETTINGS: '/barcode/dispatch/settings/',
+    DISPATCH_SESSIONS: '/barcode/dispatch/sessions/',
+    DISPATCH_SESSIONS_FROM_BILL: '/barcode/dispatch/sessions/from-bill/',
+    DISPATCH_SESSIONS_ACTIVE: '/barcode/dispatch/sessions/active/',
+    DISPATCH_SESSIONS_COMPLETED: '/barcode/dispatch/sessions/completed/',
+    DISPATCH_SESSIONS_CLOSED: '/barcode/dispatch/sessions/closed/',
+    DISPATCH_SESSION_DETAIL: (sessionId: number) => `/barcode/dispatch/sessions/${sessionId}/`,
+    DISPATCH_SESSION_SCANS: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scans/`,
+    DISPATCH_SESSION_SCAN: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scan/`,
+    DISPATCH_SCANNED_BOX: (sessionId: number, unitId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scanned-boxes/${unitId}/`,
+    DISPATCH_SCANNED_BOX_REMOVE: (sessionId: number, unitId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scanned-boxes/${unitId}/remove/`,
+    DISPATCH_SESSION_DISPATCH: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/dispatch/`,
+    DISPATCH_SESSION_COMPLETE: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/complete/`,
+    DISPATCH_SESSION_CLOSE: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/close/`,
+    DISPATCH_SESSION_CANCEL: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/cancel/`,
+    DISPATCH_SESSION_RETRY_SAP_SYNC: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/retry-sap-sync/`,
+    DISPATCH_SESSION_SCAN_LOGS: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/scan-logs/`,
+    DISPATCH_SESSION_SAP_SYNC_LOGS: (sessionId: number) =>
+      `/barcode/dispatch/sessions/${sessionId}/sap-sync-logs/`,
+    DISPATCH_REPORTS: '/barcode/dispatch/reports/',
+    DISPATCH_REPORT_DETAIL: (sessionId: number) => `/barcode/dispatch/reports/${sessionId}/`,
+    DISPATCH_REPORT_PALLETS: '/barcode/dispatch/reports/pallets/',
+    DISPATCH_REPORT_BOXES: '/barcode/dispatch/reports/boxes/',
+    DISPATCH_REPORT_REJECTED_SCANS: '/barcode/dispatch/reports/rejected-scans/',
     // Production Integration
     PRODUCTION_RELEASE_OIL: '/barcode/production-release-oil/',
     PRODUCTION_LABELS: (runId: number) => `/barcode/production/${runId}/generate-labels/`,

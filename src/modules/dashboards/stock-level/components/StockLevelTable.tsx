@@ -25,6 +25,7 @@ interface StockLevelTableProps {
   sortCol: StockSortCol;
   sortDir: 'asc' | 'desc';
   onSortChange: (col: StockSortCol, dir: 'asc' | 'desc') => void;
+  onSearchSelect?: (term: string) => void;
 }
 
 function rowStatusClasses(status: StockItem['stock_status']): string {
@@ -47,18 +48,18 @@ function stockDifferenceClasses(difference: number): string {
 }
 
 function formatStockDifference(difference: number): string {
-  const formatted = Math.abs(difference).toLocaleString();
+  const formatted = Math.abs(difference).toLocaleString('en-IN');
   if (difference > 0) return `+${formatted}`;
   if (difference < 0) return `-${formatted}`;
   return formatted;
 }
 
-function plannedQty(item: StockItem): number {
-  return item.planned_qty ?? 0;
+function stockDifference(item: StockItem): number {
+  return item.on_hand - item.min_stock;
 }
 
-function stockDifference(item: StockItem): number {
-  return item.on_hand - item.min_stock - plannedQty(item);
+function firstSearchWord(value: string): string {
+  return value.trim().split(/\s+/)[0] ?? '';
 }
 
 function SortIcon({
@@ -90,11 +91,12 @@ export function StockLevelTable({
   sortCol,
   sortDir,
   onSortChange,
+  onSearchSelect,
 }: StockLevelTableProps) {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const isGrouped = selectedWarehouses.length >= 2;
-  const colCount = isGrouped ? 12 : 11;
+  const colCount = 10;
 
   function toggleSort(col: StockSortCol) {
     if (sortCol === col) {
@@ -102,6 +104,11 @@ export function StockLevelTable({
     } else {
       onSortChange(col, 'asc');
     }
+  }
+
+  function toggleExpandedItem(itemCode: string, canExpand: boolean) {
+    if (!canExpand) return;
+    setExpandedItem((current) => (current === itemCode ? null : itemCode));
   }
 
   if (isLoading) {
@@ -168,12 +175,6 @@ export function StockLevelTable({
                 >
                   Benchmark <SortIcon col="min_stock" sortCol={sortCol} sortDir={sortDir} />
                 </th>
-                <th
-                  className="cursor-pointer px-4 py-3 text-right font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => toggleSort('planned_qty')}
-                >
-                  Planned Qty <SortIcon col="planned_qty" sortCol={sortCol} sortDir={sortDir} />
-                </th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">
                   Difference
                 </th>
@@ -186,14 +187,12 @@ export function StockLevelTable({
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Movement</th>
-                {isGrouped && <th className="w-10 px-4 py-3" />}
               </tr>
             </thead>
             <tbody>
               {items.map((item) => {
                 const canExpand = isGrouped && (item.warehouse_count ?? 1) > 1;
                 const isExpanded = canExpand && expandedItem === item.item_code;
-                const planned = plannedQty(item);
                 const difference = stockDifference(item);
 
                 return (
@@ -202,21 +201,60 @@ export function StockLevelTable({
                       className={cn(
                         'border-b transition-colors',
                         rowStatusClasses(item.stock_status),
+                        canExpand && 'cursor-pointer',
                       )}
+                      onClick={() => toggleExpandedItem(item.item_code, canExpand)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleExpandedItem(item.item_code, canExpand);
+                        }
+                      }}
+                      tabIndex={canExpand ? 0 : undefined}
+                      aria-expanded={canExpand ? isExpanded : undefined}
                     >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                      <td
+                        className="cursor-pointer px-4 py-3 font-mono text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSearchSelect?.(item.item_code);
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSearchSelect?.(item.item_code);
+                          }
+                        }}
+                      >
                         {item.item_code}
                       </td>
-                      <td className="px-4 py-3 font-medium">{item.item_name}</td>
+                      <td
+                        className="cursor-pointer px-4 py-3 font-medium underline-offset-2 hover:text-primary hover:underline"
+                        role="button"
+                        tabIndex={0}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSearchSelect?.(firstSearchWord(item.item_name));
+                        }}
+                        onKeyDown={(event) => {
+                          event.stopPropagation();
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSearchSelect?.(firstSearchWord(item.item_name));
+                          }
+                        }}
+                      >
+                        {item.item_name}
+                      </td>
                       <td className="px-4 py-3">{item.warehouse}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {item.on_hand.toLocaleString()}
+                        {item.on_hand.toLocaleString('en-IN')}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {item.min_stock.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {planned.toLocaleString()}
+                        {item.min_stock.toLocaleString('en-IN')}
                       </td>
                       <td
                         className={cn(
@@ -241,23 +279,6 @@ export function StockLevelTable({
                       <td className="px-4 py-3">
                         <StockMovementBadge item={item} />
                       </td>
-                      {isGrouped && (
-                        <td className="px-4 py-3">
-                          {canExpand && (
-                            <button
-                              className="rounded p-1 hover:bg-muted"
-                              onClick={() => setExpandedItem(isExpanded ? null : item.item_code)}
-                              aria-label={isExpanded ? 'Collapse' : 'Expand'}
-                            >
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
-                            </button>
-                          )}
-                        </td>
-                      )}
                     </tr>
                     {isExpanded && (
                       <tr className="bg-muted/20">
@@ -279,7 +300,7 @@ export function StockLevelTable({
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t px-4 py-3">
             <p className="text-sm text-muted-foreground">
-              {totalItems.toLocaleString()} items &mdash; page {page} of {totalPages}
+              {totalItems.toLocaleString('en-IN')} items &mdash; page {page} of {totalPages}
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -308,10 +329,6 @@ export function StockLevelTable({
 
 function StockMovementBadge({ item }: { item: StockItem }) {
   const config = {
-    planned: {
-      label: 'Planned',
-      classes: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-    },
     recent: {
       label: 'Recently Used',
       classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
@@ -333,8 +350,7 @@ function StockMovementBadge({ item }: { item: StockItem }) {
         {label}
       </span>
       {item.days_since_last_consumption !== null &&
-        item.days_since_last_consumption !== undefined &&
-        status !== 'planned' && (
+        item.days_since_last_consumption !== undefined && (
           <span className="whitespace-nowrap text-xs text-muted-foreground">
             {item.days_since_last_consumption}d since use
           </span>

@@ -4,6 +4,7 @@ export {
   useAllGRPOEntries,
   useDeleteGRPOAttachment,
   useGRPOAttachments,
+  useGRPODashboardSummary,
   useGRPODetail,
   useGRPOHistory,
   useGRPOPreview,

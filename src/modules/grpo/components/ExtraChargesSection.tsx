@@ -1,16 +1,25 @@
 import { Plus, Trash2 } from 'lucide-react';
 
-import { Button, Input, Label } from '@/shared/components/ui';
+import { Button, Input, Label, NativeSelect, SelectOption } from '@/shared/components/ui';
 
-import type { ExtraCharge } from '../types';
+import type { ExtraCharge, ServiceGRPOExpenseCodeOption } from '../types';
 
 interface ExtraChargesSectionProps {
   charges: ExtraCharge[];
   onChange: (charges: ExtraCharge[]) => void;
   disabled?: boolean;
+  expenseCodeOptions?: ServiceGRPOExpenseCodeOption[];
 }
 
-export function ExtraChargesSection({ charges, onChange, disabled }: ExtraChargesSectionProps) {
+const expenseCodeLabel = (option: ServiceGRPOExpenseCodeOption) =>
+  `${option.expense_code} - ${option.expense_name}`;
+
+export function ExtraChargesSection({
+  charges,
+  onChange,
+  disabled,
+  expenseCodeOptions = [],
+}: ExtraChargesSectionProps) {
   const addCharge = () => {
     onChange([...charges, { expense_code: 0, amount: 0, remarks: '', tax_code: '' }]);
   };
@@ -57,23 +66,42 @@ export function ExtraChargesSection({ charges, onChange, disabled }: ExtraCharge
         >
           <div className="space-y-1">
             <Label className="text-xs">Expense Code</Label>
-            <Input
-              type="number"
-              min={0}
-              value={charge.expense_code || ''}
-              onChange={(e) =>
-                updateCharge(index, 'expense_code', parseInt(e.target.value) || 0)
-              }
-              placeholder="Code"
-              className="h-8 text-sm"
-              disabled={disabled}
-            />
+            {expenseCodeOptions.length > 0 ? (
+              <NativeSelect
+                value={charge.expense_code ? String(charge.expense_code) : ''}
+                onChange={(e) =>
+                  updateCharge(index, 'expense_code', parseInt(e.target.value, 10) || 0)
+                }
+                placeholder="Select expense"
+                className="h-8 text-sm"
+                disabled={disabled}
+              >
+                {expenseCodeOptions.map((option) => (
+                  <SelectOption key={option.expense_code} value={String(option.expense_code)}>
+                    {expenseCodeLabel(option)}
+                  </SelectOption>
+                ))}
+              </NativeSelect>
+            ) : (
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={charge.expense_code || ''}
+                onChange={(e) =>
+                  updateCharge(index, 'expense_code', parseInt(e.target.value, 10) || 0)
+                }
+                placeholder="SAP code"
+                className="h-8 text-sm"
+                disabled={disabled}
+              />
+            )}
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Amount</Label>
             <Input
               type="number"
-              min={0}
+              min={0.01}
               step="any"
               value={charge.amount || ''}
               onChange={(e) =>

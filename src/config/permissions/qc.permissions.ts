@@ -73,6 +73,16 @@ export const QC_PERMISSIONS = {
     /** Approve/reject production QC sessions */
     APPROVE: 'quality_control.can_approve_production_qc',
   },
+
+  // ============================================
+  // LINE CLEARANCE QC PERMISSIONS
+  // ============================================
+  LINE_CLEARANCE_QC: {
+    /** View line clearance QA records from the QC module */
+    VIEW: 'quality_control.can_view_line_clearance_qc',
+    /** Approve/reject line clearance QA records from the QC module */
+    APPROVE: 'quality_control.can_approve_line_clearance_qc',
+  },
 } as const;
 
 /** Module prefix for sidebar filtering */
@@ -87,4 +97,5 @@ export type QCPermission =
   | (typeof QC_PERMISSIONS.INSPECTION)[keyof typeof QC_PERMISSIONS.INSPECTION]
   | (typeof QC_PERMISSIONS.APPROVAL)[keyof typeof QC_PERMISSIONS.APPROVAL]
   | (typeof QC_PERMISSIONS.MASTER_DATA)[keyof typeof QC_PERMISSIONS.MASTER_DATA]
-  | (typeof QC_PERMISSIONS.PRODUCTION_QC)[keyof typeof QC_PERMISSIONS.PRODUCTION_QC];
+  | (typeof QC_PERMISSIONS.PRODUCTION_QC)[keyof typeof QC_PERMISSIONS.PRODUCTION_QC]
+  | (typeof QC_PERMISSIONS.LINE_CLEARANCE_QC)[keyof typeof QC_PERMISSIONS.LINE_CLEARANCE_QC];

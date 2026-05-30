@@ -1,4 +1,4 @@
-import { Building2, IndianRupee, Package } from 'lucide-react';
+import { Boxes, Building2, IndianRupee, Package } from 'lucide-react';
 
 import { Card, CardContent } from '@/shared/components/ui';
 
@@ -20,23 +20,28 @@ export function NonMovingMetaCards({ summary }: NonMovingMetaCardsProps) {
   const cards = [
     {
       label: 'Total Items',
-      value: summary?.total_items?.toLocaleString() ?? '—',
+      value: summary?.total_items?.toLocaleString('en-IN') ?? '-',
       icon: Package,
     },
     {
+      label: 'Total Quantity',
+      value: summary?.total_quantity?.toLocaleString('en-IN') ?? '-',
+      icon: Boxes,
+    },
+    {
       label: 'Total Value',
-      value: summary ? formatCurrency(summary.total_value) : '—',
+      value: summary ? formatCurrency(summary.total_value) : '-',
       icon: IndianRupee,
     },
     {
       label: 'Branches',
-      value: summary?.by_branch?.length?.toString() ?? '—',
+      value: summary?.by_branch?.length?.toString() ?? '-',
       icon: Building2,
     },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardContent className="flex items-center gap-3 p-4">

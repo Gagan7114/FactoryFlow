@@ -1,12 +1,4 @@
-import {
-  AlertCircle,
-  CheckCircle2,
-  Eye,
-  Paperclip,
-  RefreshCw,
-  Send,
-  X,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, Eye, Paperclip, RefreshCw, Send, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -21,11 +13,7 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 
-import {
-  useOpenBilties,
-  usePreviewTransporterInvoice,
-  useSubmitTransporterInvoice,
-} from '../api';
+import { useOpenBilties, usePreviewTransporterInvoice, useSubmitTransporterInvoice } from '../api';
 import type { OpenBilty, TransporterAPInvoicePreview } from '../types';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -252,7 +240,7 @@ export default function OpenBiltiesPage() {
                       <th className="w-10 p-3" aria-label="Select" />
                       <th className="p-3 text-left text-sm font-medium">Bilty</th>
                       <th className="p-3 text-left text-sm font-medium">Dispatch Bill</th>
-                      <th className="p-3 text-left text-sm font-medium">SAP GRPO Doc No.</th>
+                      <th className="p-3 text-left text-sm font-medium">Bilty / SAP GRPO</th>
                       <th className="p-3 text-left text-sm font-medium">Transporter</th>
                       <th className="p-3 text-left text-sm font-medium">Vehicle</th>
                       <th className="p-3 text-left text-sm font-medium">Branch</th>
@@ -284,9 +272,9 @@ export default function OpenBiltiesPage() {
                             {bilty.sap_invoice_doc_num || bilty.sap_invoice_doc_entry}
                           </td>
                           <td className="p-3 text-sm">
-                            <div className="font-medium">{bilty.grpo_doc_num || '-'}</div>
+                            <div className="font-medium">Bilty #{bilty.bilty_no || '-'}</div>
                             <div className="text-xs text-muted-foreground">
-                              DocEntry {bilty.grpo_doc_entry}
+                              SAP {bilty.grpo_doc_num || '-'} / DocEntry {bilty.grpo_doc_entry}
                             </div>
                           </td>
                           <td className="p-3 text-sm">
@@ -297,7 +285,9 @@ export default function OpenBiltiesPage() {
                           </td>
                           <td className="p-3 text-sm">
                             <div>{bilty.vehicle_no || '-'}</div>
-                            <div className="text-xs text-muted-foreground">{bilty.driver_name || '-'}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {bilty.driver_name || '-'}
+                            </div>
                           </td>
                           <td className="p-3 text-sm">{bilty.branch_id ?? '-'}</td>
                           <td className="p-3 text-right text-sm font-medium">
@@ -357,9 +347,9 @@ export default function OpenBiltiesPage() {
                       {formatCurrency(preview.selected_grpo_total)}
                     </p>
                     <p className="text-xs">
-                      GRPO Doc No.{' '}
+                      Bilty No.{' '}
                       {preview.lines
-                        .map((line) => line.grpo_doc_num || line.grpo_doc_entry)
+                        .map((line) => line.bilty_no || line.grpo_doc_num || line.grpo_doc_entry)
                         .filter((value, index, values) => values.indexOf(value) === index)
                         .join(', ')}
                     </p>
@@ -487,7 +477,7 @@ export default function OpenBiltiesPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="p-3 text-left text-sm font-medium">Bilty</th>
-                    <th className="p-3 text-left text-sm font-medium">SAP GRPO Doc No.</th>
+                    <th className="p-3 text-left text-sm font-medium">Bilty / SAP GRPO</th>
                     <th className="p-3 text-left text-sm font-medium">Line</th>
                     <th className="p-3 text-left text-sm font-medium">Description</th>
                     <th className="p-3 text-left text-sm font-medium">Tax</th>
@@ -496,15 +486,12 @@ export default function OpenBiltiesPage() {
                 </thead>
                 <tbody>
                   {preview.lines.map((line) => (
-                    <tr
-                      key={`${line.grpo_doc_entry}-${line.grpo_line_num}`}
-                      className="border-t"
-                    >
+                    <tr key={`${line.grpo_doc_entry}-${line.grpo_line_num}`} className="border-t">
                       <td className="p-3 text-sm">{line.bilty_no || '-'}</td>
                       <td className="p-3 text-sm">
-                        <div className="font-medium">{line.grpo_doc_num || '-'}</div>
+                        <div className="font-medium">Bilty #{line.bilty_no || '-'}</div>
                         <div className="text-xs text-muted-foreground">
-                          DocEntry {line.grpo_doc_entry}
+                          SAP {line.grpo_doc_num || '-'} / DocEntry {line.grpo_doc_entry}
                         </div>
                       </td>
                       <td className="p-3 text-sm">{line.grpo_line_num}</td>

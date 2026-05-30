@@ -17,11 +17,15 @@ const PrintHistoryPage = lazy(() => import('./pages/PrintHistoryPage'));
 
 // Scan
 const ScanPage = lazy(() => import('./pages/ScanPage'));
+const BarcodeDispatchPage = lazy(() => import('./pages/BarcodeDispatchPage'));
+const BarcodeDispatchReportsPage = lazy(() => import('./pages/BarcodeDispatchReportsPage'));
+const BarcodeDispatchSummaryPage = lazy(() => import('./pages/BarcodeDispatchSummaryPage'));
 
 // Pallet Operations
 const PalletMovePage = lazy(() => import('./pages/PalletMovePage'));
 const PalletTransferPage = lazy(() => import('./pages/PalletTransferPage'));
 const PalletSplitPage = lazy(() => import('./pages/PalletSplitPage'));
+const BoxTransferPage = lazy(() => import('./pages/BoxTransferPage'));
 
 // Loose & Dismantle
 const DismantlePage = lazy(() => import('./pages/DismantlePage'));
@@ -87,6 +91,24 @@ export const barcodeModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [BARCODE_PERMISSIONS.VIEW_BOX],
     },
+    {
+      path: '/barcode/dispatch',
+      element: <BarcodeDispatchPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+    },
+    {
+      path: '/barcode/dispatch/reports',
+      element: <BarcodeDispatchReportsPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+    },
+    {
+      path: '/barcode/dispatch/summary/:sessionId',
+      element: <BarcodeDispatchSummaryPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+    },
     // Pallet Operations
     {
       path: '/barcode/move',
@@ -105,6 +127,12 @@ export const barcodeModuleConfig: ModuleConfig = {
       element: <PalletSplitPage />,
       layout: 'main',
       permissions: [BARCODE_PERMISSIONS.MANAGE_PALLET],
+    },
+    {
+      path: '/barcode/box-transfer',
+      element: <BoxTransferPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.MANAGE_BOX],
     },
     // Loose & Dismantle
     {
@@ -156,6 +184,16 @@ export const barcodeModuleConfig: ModuleConfig = {
           permissions: [BARCODE_PERMISSIONS.VIEW_BOX],
         },
         {
+          path: '/barcode/dispatch',
+          title: 'Dispatch',
+          permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+        },
+        {
+          path: '/barcode/dispatch/reports',
+          title: 'Dispatch Reports',
+          permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+        },
+        {
           path: '/barcode/generate',
           title: 'Pallet QR Print',
           permissions: [BARCODE_PERMISSIONS.CREATE_BOX],
@@ -184,6 +222,11 @@ export const barcodeModuleConfig: ModuleConfig = {
           path: '/barcode/split',
           title: 'Split Pallet',
           permissions: [BARCODE_PERMISSIONS.MANAGE_PALLET],
+        },
+        {
+          path: '/barcode/box-transfer',
+          title: 'Box Transfer',
+          permissions: [BARCODE_PERMISSIONS.MANAGE_BOX],
         },
         {
           path: '/barcode/dismantle',

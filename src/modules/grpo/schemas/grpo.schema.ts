@@ -10,8 +10,12 @@ export const grpoPostItemSchema = z.object({
 });
 
 export const extraChargeSchema = z.object({
-  expense_code: z.number({ required_error: 'Expense code is required' }),
-  amount: z.number({ required_error: 'Amount is required' }).min(0, 'Amount cannot be negative'),
+  expense_code: z
+    .number({ required_error: 'Expense code is required' })
+    .min(1, 'Select a valid SAP expense code'),
+  amount: z
+    .number({ required_error: 'Amount is required' })
+    .min(0.01, 'Amount must be greater than zero'),
   remarks: z.string().optional(),
   tax_code: z.string().optional(),
 });

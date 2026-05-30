@@ -3,7 +3,7 @@
 // ============================================================================
 
 export type StockHealthStatus = 'healthy' | 'low' | 'critical' | 'unset' | 'none';
-export type StockMovementStatus = 'planned' | 'recent' | 'slow';
+export type StockMovementStatus = 'recent' | 'slow';
 
 // ============================================================================
 // Filters
@@ -15,7 +15,6 @@ export type StockSortCol =
   | 'warehouse'
   | 'on_hand'
   | 'min_stock'
-  | 'planned_qty'
   | 'health_ratio';
 
 export interface StockDashboardFilters {
@@ -24,6 +23,7 @@ export interface StockDashboardFilters {
   warehouse?: string[];
   status?: StockHealthStatus[];
   movement_status?: StockMovementStatus[];
+  as_of_date?: string;
   sort_by?: StockSortCol;
   sort_dir?: 'asc' | 'desc';
   page?: number;
@@ -40,14 +40,12 @@ export interface StockItem {
   warehouse: string;
   on_hand: number;
   min_stock: number;
-  planned_qty: number;
   uom: string;
   stock_status: StockHealthStatus;
   health_ratio: number;
   movement_status: StockMovementStatus;
   last_consumption_date?: string | null;
   days_since_last_consumption?: number | null;
-  has_open_plan?: boolean;
   /** Number of warehouses in this group (>1 = grouped row) */
   warehouse_count?: number;
   /** True when any child warehouse has a worse status than the aggregate */
@@ -65,6 +63,8 @@ export interface StockDashboardMeta {
   critical_stock_count: number;
   warehouses: string[];
   fetched_at: string;
+  as_of_date?: string;
+  reconstruction_note?: string;
   page: number;
   page_size: number;
   total_pages: number;

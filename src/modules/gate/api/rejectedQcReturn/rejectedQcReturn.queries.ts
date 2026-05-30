@@ -1,16 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { type RejectedQCReturnCreateRequest, rejectedQCReturnApi } from './rejectedQcReturn.api';
+import {
+  type RejectedQCReturnCreateRequest,
+  type RejectedQCReturnParams,
+  rejectedQCReturnApi,
+} from './rejectedQcReturn.api';
 
 export const REJECTED_QC_RETURN_QUERY_KEYS = {
   all: ['rejectedQcReturns'] as const,
-  list: () => [...REJECTED_QC_RETURN_QUERY_KEYS.all, 'list'] as const,
+  list: (params?: RejectedQCReturnParams) =>
+    [...REJECTED_QC_RETURN_QUERY_KEYS.all, 'list', params] as const,
 };
 
-export function useRejectedQCReturnEntries(options?: { enabled?: boolean }) {
+export function useRejectedQCReturnEntries(
+  params?: RejectedQCReturnParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
-    queryKey: REJECTED_QC_RETURN_QUERY_KEYS.list(),
-    queryFn: () => rejectedQCReturnApi.list(),
+    queryKey: REJECTED_QC_RETURN_QUERY_KEYS.list(params),
+    queryFn: () => rejectedQCReturnApi.list(params),
     staleTime: 30 * 1000,
     enabled: options?.enabled ?? true,
   });

@@ -7,16 +7,17 @@ import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBa
 import { findDefaultMaterialGroup } from '../../utils/itemGroupDefaults';
 import { useItemGroups, useNonMovingReport } from '../api';
 import {
-  NonMovingBranchSummary,
   NonMovingFilters,
   NonMovingMetaCards,
   NonMovingTable,
+  NonMovingWarehouseSummary,
 } from '../components';
 import type {
   BranchSummary,
   NonMovingFilters as NonMovingFiltersType,
   ReportSummary,
 } from '../types';
+import { groupNonMovingItemsBySku } from '../utils/nonMovingGrouping';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
@@ -30,6 +31,7 @@ export default function NonMovingDashboardPage() {
     age: 45,
     item_group: 0,
   });
+  const [filterResetSignal, setFilterResetSignal] = useState(0);
   const [hasSelectedMaterialType, setHasSelectedMaterialType] = useState(false);
 
   const materialTypesResolved = Boolean(itemGroupsQuery.data) || itemGroupsQuery.isError;
@@ -49,11 +51,6 @@ export default function NonMovingDashboardPage() {
 
   const reportQuery = useNonMovingReport(effectiveFilters, materialTypesResolved);
 
-  const warehouses = useMemo(() => {
-    const items = reportQuery.data?.data ?? [];
-    return [...new Set(items.map((item) => item.warehouse).filter(Boolean))].sort();
-  }, [reportQuery.data]);
-
   const subGroups = useMemo(() => {
     const items = reportQuery.data?.data ?? [];
     return [...new Set(items.map((item) => item.sub_group).filter(Boolean))].sort();
@@ -62,11 +59,9 @@ export default function NonMovingDashboardPage() {
   const filteredItems = useMemo(() => {
     let result = reportQuery.data?.data ?? [];
     result = result.filter(
-      (item) => item.days_since_last_movement >= effectiveFilters.age,
+      (item) =>
+        effectiveFilters.age <= 0 || item.days_since_last_movement > effectiveFilters.age,
     );
-    if (effectiveFilters.warehouse?.length) {
-      result = result.filter((item) => effectiveFilters.warehouse!.includes(item.warehouse));
-    }
     if (effectiveFilters.sub_group?.length) {
       result = result.filter((item) => effectiveFilters.sub_group!.includes(item.sub_group));
     }
@@ -76,23 +71,23 @@ export default function NonMovingDashboardPage() {
         (item) =>
           item.item_code.toLowerCase().includes(term) ||
           item.item_name.toLowerCase().includes(term) ||
-          item.branch.toLowerCase().includes(term) ||
-          item.warehouse.toLowerCase().includes(term),
+          item.branch.toLowerCase().includes(term),
       );
     }
     return result;
   }, [
     reportQuery.data,
     effectiveFilters.age,
-    effectiveFilters.warehouse,
     effectiveFilters.sub_group,
     effectiveFilters.search,
   ]);
 
+  const groupedItems = useMemo(() => groupNonMovingItemsBySku(filteredItems), [filteredItems]);
+
   const filteredSummary = useMemo((): ReportSummary | undefined => {
     if (!reportQuery.data) return undefined;
     const branchMap = new Map<string, BranchSummary>();
-    for (const item of filteredItems) {
+    for (const item of groupedItems) {
       const existing = branchMap.get(item.branch);
       if (existing) {
         existing.item_count += 1;
@@ -108,23 +103,30 @@ export default function NonMovingDashboardPage() {
       }
     }
     return {
-      total_items: filteredItems.length,
-      total_value: filteredItems.reduce((s, i) => s + i.value, 0),
-      total_quantity: filteredItems.reduce((s, i) => s + i.quantity, 0),
+      total_items: groupedItems.length,
+      total_value: groupedItems.reduce((s, i) => s + i.value, 0),
+      total_quantity: groupedItems.reduce((s, i) => s + i.quantity, 0),
       by_branch: [...branchMap.values()],
     };
-  }, [reportQuery.data, filteredItems]);
+  }, [reportQuery.data, groupedItems]);
 
   const handleFiltersChange = useCallback((f: NonMovingFiltersType) => {
     setHasSelectedMaterialType(true);
     setFilters(f);
   }, []);
 
+  const handleItemSearchSelect = useCallback((term: string) => {
+    const search = term.trim().toUpperCase();
+    if (!search) return;
+    setFilters((current) => ({ ...current, search }));
+    setFilterResetSignal((current) => current + 1);
+  }, []);
+
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Non-Moving"
-        description="Raw materials with no movement beyond the specified age threshold — identify dead stock and slow-moving inventory"
+        description="Inventory by movement age - identify recently moved, slow-moving, and non-moving stock"
       />
 
       <NonMovingFilters
@@ -133,8 +135,8 @@ export default function NonMovingDashboardPage() {
         defaultValues={effectiveFilters}
         itemGroups={itemGroupsQuery.data?.data ?? []}
         isLoadingGroups={itemGroupsQuery.isLoading}
-        warehouses={warehouses}
         subGroups={subGroups}
+        externalResetSignal={filterResetSignal}
       />
 
       {reportQuery.error && isSAPError(reportQuery.error) && (
@@ -144,10 +146,11 @@ export default function NonMovingDashboardPage() {
       {!(reportQuery.error && isSAPError(reportQuery.error)) && materialTypesResolved && (
         <>
           <NonMovingMetaCards summary={filteredSummary} />
-          <NonMovingBranchSummary branches={filteredSummary?.by_branch ?? []} />
+          <NonMovingWarehouseSummary warehouses={reportQuery.data?.warehouse_summary ?? []} />
           <NonMovingTable
-            items={filteredItems}
+            items={groupedItems}
             isLoading={reportQuery.isLoading || reportQuery.isFetching}
+            onSearchSelect={handleItemSearchSelect}
           />
         </>
       )}

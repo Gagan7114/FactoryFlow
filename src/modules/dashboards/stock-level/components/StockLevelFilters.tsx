@@ -35,6 +35,7 @@ interface StockLevelFiltersProps {
   warehouses?: string[];
   itemGroups?: string[];
   defaultItemGroup?: string;
+  externalResetSignal?: number;
 }
 
 interface FiltersForm {
@@ -43,6 +44,7 @@ interface FiltersForm {
   warehouse: string[];
   status: string[];
   movement_status: string[];
+  as_of_date: string;
 }
 
 function buildFilters(values: Partial<FiltersForm>): StockDashboardFilters {
@@ -54,7 +56,30 @@ function buildFilters(values: Partial<FiltersForm>): StockDashboardFilters {
   filters.status = (values.status ?? []) as StockDashboardFilters['status'];
   filters.movement_status = (values.movement_status ??
     []) as StockDashboardFilters['movement_status'];
+  if (values.as_of_date) filters.as_of_date = values.as_of_date;
   return filters;
+}
+
+function formDefaultsFromFilters(
+  defaultValues?: StockDashboardFilters,
+  defaultItemGroup?: string,
+): FiltersForm {
+  return {
+    search: defaultValues?.search ?? '',
+    item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
+    warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
+    status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
+    movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
+    as_of_date: defaultValues?.as_of_date ?? '',
+  };
+}
+
+function todayLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function StockLevelFilters({
@@ -64,18 +89,25 @@ export function StockLevelFilters({
   warehouses = [],
   itemGroups = [],
   defaultItemGroup,
+  externalResetSignal = 0,
 }: StockLevelFiltersProps) {
   const { register, watch, reset, control, setValue } = useForm<FiltersForm>({
-    defaultValues: {
-      search: defaultValues?.search ?? '',
-      item_group: defaultValues?.item_group ?? defaultItemGroup ?? ALL_MATERIAL_TYPES_VALUE,
-      warehouse: defaultValues?.warehouse ?? [...DEFAULT_STOCK_WAREHOUSE_FILTER],
-      status: defaultValues?.status ?? [...DEFAULT_STOCK_STATUS_FILTER],
-      movement_status: defaultValues?.movement_status ?? [...DEFAULT_STOCK_MOVEMENT_FILTER],
-    },
+    defaultValues: formDefaultsFromFilters(defaultValues, defaultItemGroup),
   });
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestFormDefaultsRef = useRef<FiltersForm>(
+    formDefaultsFromFilters(defaultValues, defaultItemGroup),
+  );
+
+  useEffect(() => {
+    latestFormDefaultsRef.current = formDefaultsFromFilters(defaultValues, defaultItemGroup);
+  }, [defaultItemGroup, defaultValues]);
+
+  useEffect(() => {
+    if (externalResetSignal === 0) return;
+    reset(latestFormDefaultsRef.current);
+  }, [externalResetSignal, reset]);
 
   useEffect(() => {
     setValue(
@@ -111,6 +143,7 @@ export function StockLevelFilters({
       warehouse: [...DEFAULT_STOCK_WAREHOUSE_FILTER],
       status: [...DEFAULT_STOCK_STATUS_FILTER],
       movement_status: [...DEFAULT_STOCK_MOVEMENT_FILTER],
+      as_of_date: '',
     };
     reset(resetValues);
     onFiltersChange(buildFilters(resetValues));
@@ -213,6 +246,20 @@ export function StockLevelFilters({
               className="w-44"
             />
           )}
+        />
+      </div>
+
+      {/* As of date */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="stock-filter-as-of-date" className="text-xs">
+          As of Date
+        </Label>
+        <Input
+          id="stock-filter-as-of-date"
+          type="date"
+          max={todayLocalDate()}
+          className="w-40"
+          {...register('as_of_date')}
         />
       </div>
 

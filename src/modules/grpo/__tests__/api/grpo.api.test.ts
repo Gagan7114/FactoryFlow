@@ -5,7 +5,7 @@
 // expected method names for managing GRPO operations.
 // ═══════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/core/api', () => ({
   apiClient: {
@@ -20,11 +20,28 @@ vi.mock('@/core/api', () => ({
 vi.mock('@/config/constants', () => ({
   API_ENDPOINTS: {
     GRPO: {
+      SUMMARY: '/grpo/summary/',
       PENDING: '/grpo/pending/',
+      ALL_ENTRIES: '/grpo/all-entries/',
       PREVIEW: vi.fn((id: number) => `/grpo/preview/${id}/`),
       POST: '/grpo/post/',
       HISTORY: '/grpo/history/',
       DETAIL: vi.fn((id: number) => `/grpo/history/${id}/`),
+      ATTACHMENTS: vi.fn((id: number) => `/grpo/${id}/attachments/`),
+      ATTACHMENT_DELETE: vi.fn((postingId: number, attachmentId: number) =>
+        `/grpo/${postingId}/attachments/${attachmentId}/`,
+      ),
+      ATTACHMENT_RETRY: vi.fn((postingId: number, attachmentId: number) =>
+        `/grpo/${postingId}/attachments/${attachmentId}/retry/`,
+      ),
+    },
+    DISPATCH: {
+      BILTY_GRPO_PENDING: '/dispatch/bilty-grpo/pending/',
+      BILTY_GRPO_OPTIONS: '/dispatch/bilty-grpo/options/',
+      BILTY_GRPO_PREVIEW: vi.fn((id: number) => `/dispatch/bilty-grpo/preview/${id}/`),
+      BILTY_GRPO_POST: '/dispatch/bilty-grpo/post/',
+      BILTY_GRPO_HISTORY: '/dispatch/bilty-grpo/history/',
+      BILTY_GRPO_DETAIL: vi.fn((id: number) => `/dispatch/bilty-grpo/${id}/`),
     },
     PO: {
       WAREHOUSES: '/po/warehouses/',
@@ -50,6 +67,10 @@ describe('grpoApi', () => {
 
   it('has a getPendingEntries method', () => {
     expect(typeof grpoApi.getPendingEntries).toBe('function');
+  });
+
+  it('has a getSummary method', () => {
+    expect(typeof grpoApi.getSummary).toBe('function');
   });
 
   it('has a getPreview method', () => {
@@ -79,12 +100,24 @@ describe('grpoApi', () => {
   it('exposes exactly the expected methods', () => {
     const methodNames = Object.keys(grpoApi).sort();
     expect(methodNames).toEqual([
+      'deleteAttachment',
+      'getAllEntries',
+      'getAttachments',
       'getDetail',
       'getHistory',
       'getPendingEntries',
       'getPreview',
+      'getServiceDetail',
+      'getServiceHistory',
+      'getServiceOptions',
+      'getServicePendingEntries',
+      'getServicePreview',
+      'getSummary',
       'getWarehouses',
       'post',
+      'postService',
+      'retryAttachment',
+      'uploadAttachment',
     ]);
   });
 });

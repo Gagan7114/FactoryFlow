@@ -10,7 +10,9 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { QC_PERMISSIONS } from '@/config/permissions';
 import type { ApiError } from '@/core/api/types';
+import { usePermission } from '@/core/auth/hooks/usePermission';
 import { Button, Input } from '@/shared/components/ui';
 
 import { useProductionQCList } from '../../api/productionQC';
@@ -68,15 +70,15 @@ function getDisplayStatus(session: ProductionQCSessionListItem): DisplayStatus {
   return session.workflow_status;
 }
 
-function getNavigateTo(session: ProductionQCSessionListItem): string {
-  return getDisplayStatus(session) === 'PENDING'
+function getNavigateTo(session: ProductionQCSessionListItem, canCreateProductionQC: boolean): string {
+  return getDisplayStatus(session) === 'PENDING' && canCreateProductionQC
     ? `/qc/production/runs/${session.production_run}`
     : `/qc/production/sessions/${session.id}`;
 }
 
-function getActionLabel(status: DisplayStatus) {
-  if (status === 'PENDING') return 'Select Parameters';
-  if (status === 'DRAFT') return 'Continue';
+function getActionLabel(status: DisplayStatus, canCreateProductionQC: boolean) {
+  if (status === 'PENDING') return canCreateProductionQC ? 'Select Parameters' : 'Open';
+  if (status === 'DRAFT') return canCreateProductionQC ? 'Continue' : 'Open';
   if (status === 'SUBMITTED') return 'Review';
   return 'Open';
 }
@@ -97,6 +99,8 @@ function formatDateTime(value?: string | null) {
 
 export default function ProductionQCDashboardPage() {
   const navigate = useNavigate();
+  const { hasAnyPermission } = usePermission();
+  const canCreateProductionQC = hasAnyPermission([QC_PERMISSIONS.PRODUCTION_QC.CREATE]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
   const { data: sessions = [], isLoading, error, refetch } = useProductionQCList();
@@ -244,7 +248,7 @@ export default function ProductionQCDashboardPage() {
                   {filteredSessions.map((session) => {
                     const displayStatus = getDisplayStatus(session);
                     const statusBadge = STATUS_BADGE[displayStatus];
-                    const route = getNavigateTo(session);
+                    const route = getNavigateTo(session, canCreateProductionQC);
 
                     return (
                       <tr
@@ -303,7 +307,7 @@ export default function ProductionQCDashboardPage() {
                               navigate(route);
                             }}
                           >
-                            {getActionLabel(displayStatus)}
+                            {getActionLabel(displayStatus, canCreateProductionQC)}
                             <ChevronRight className="ml-1 h-3.5 w-3.5" />
                           </Button>
                         </td>

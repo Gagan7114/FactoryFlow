@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 
 import { getAllNavigation } from '@/app/registry';
-import { APP_NAME, SIDEBAR_CONFIG } from '@/config/constants';
+import { SIDEBAR_CONFIG } from '@/config/constants';
 import { usePermission } from '@/core/auth';
 import type { ModuleNavItem } from '@/core/types';
 import { Button, Collapsible, CollapsibleContent } from '@/shared/components/ui';
@@ -125,13 +125,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         )}
       >
         <img
-          src="/factoryLogoNew.png"
-          alt="Jivo Info Logo"
-          className={cn('transition-all object-contain', isCollapsed ? 'h-8 w-8' : 'h-10 w-auto')}
+          src="/JivoWellnessLogo.png"
+          alt="Jivo Wellness Logo"
+          className={cn(
+            'dark:brightness-0 dark:invert transition-all object-contain',
+            isCollapsed ? 'h-8 w-8' : 'h-10 w-auto',
+          )}
         />
-        {!isCollapsed && (
-          <span className="text-xl font-semibold tracking-normal text-foreground">{APP_NAME}</span>
-        )}
       </Link>
 
       {/* Navigation */}

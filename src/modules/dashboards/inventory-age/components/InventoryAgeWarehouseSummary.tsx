@@ -45,7 +45,7 @@ export function InventoryAgeWarehouseSummary({ data }: InventoryAgeWarehouseSumm
                 <tr key={row.warehouse} className="border-b transition-colors hover:bg-muted/30">
                   <td className="px-4 py-2.5 font-medium">{row.warehouse}</td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
-                    {row.item_count.toLocaleString()}
+                    {row.item_count.toLocaleString('en-IN')}
                   </td>
                   <td className="px-4 py-2.5 text-right tabular-nums">
                     {row.total_quantity.toLocaleString('en-IN')}

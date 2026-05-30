@@ -16,7 +16,8 @@ function normalizeSearchParam(value?: string): string | undefined {
 
 export const stockLevelApi = {
   async getStockLevels(filters?: StockDashboardFilters): Promise<StockDashboardResponse> {
-    const response = await apiClient.get<StockDashboardResponse>(EP.LIST, {
+    const endpoint = filters?.as_of_date ? EP.AS_OF : EP.LIST;
+    const response = await apiClient.get<StockDashboardResponse>(endpoint, {
       params: buildParams(filters),
     });
     return response.data;
@@ -43,5 +44,6 @@ function buildParams(filters?: StockDashboardFilters): Record<string, string | n
   if (filters.page_size) p.page_size = filters.page_size;
   if (filters.status?.length) p.status = filters.status.join(',');
   if (filters.movement_status?.length) p.movement_status = filters.movement_status.join(',');
+  if (filters.as_of_date) p.as_of_date = filters.as_of_date;
   return p;
 }

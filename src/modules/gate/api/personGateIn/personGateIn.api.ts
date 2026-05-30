@@ -201,6 +201,7 @@ export interface DashboardPersonTypeWise {
 export interface DashboardResponse {
   current: DashboardCurrentStats;
   today: DashboardTodayStats;
+  range?: DashboardTodayStats;
   gate_wise: DashboardGateWise[];
   person_type_wise: DashboardPersonTypeWise[];
   recent_entries: EntryLog[];
@@ -558,8 +559,10 @@ export const personGateInApi = {
   },
 
   // GET /dashboard/ - Get dashboard statistics
-  getDashboard: async (): Promise<DashboardResponse> => {
-    const response = await apiClient.get<DashboardResponse>('/person-gatein/dashboard/');
+  getDashboard: async (filters?: EntryFilters): Promise<DashboardResponse> => {
+    const response = await apiClient.get<DashboardResponse>('/person-gatein/dashboard/', {
+      params: filters,
+    });
     return response.data;
   },
 

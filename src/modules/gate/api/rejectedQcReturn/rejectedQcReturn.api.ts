@@ -20,6 +20,11 @@ export interface RejectedQCReturnCreateRequest {
   inspection_ids: number[];
 }
 
+export interface RejectedQCReturnParams {
+  from_date?: string;
+  to_date?: string;
+}
+
 export interface RejectedQCReturnEntryResponse {
   id: number;
   entry_no: string;
@@ -53,11 +58,20 @@ export interface RejectedQCReturnEntryResponse {
   updated_at: string;
 }
 
+function buildQuery(params?: RejectedQCReturnParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.from_date) queryParams.append('from_date', params.from_date);
+  if (params?.to_date) queryParams.append('to_date', params.to_date);
+  return queryParams.toString();
+}
+
 export const rejectedQCReturnApi = {
-  async list(): Promise<RejectedQCReturnEntryResponse[]> {
-    const response = await apiClient.get<RejectedQCReturnEntryResponse[]>(
-      API_ENDPOINTS.GATE_CORE.REJECTED_QC_RETURNS,
-    );
+  async list(params?: RejectedQCReturnParams): Promise<RejectedQCReturnEntryResponse[]> {
+    const query = buildQuery(params);
+    const url = query
+      ? `${API_ENDPOINTS.GATE_CORE.REJECTED_QC_RETURNS}?${query}`
+      : API_ENDPOINTS.GATE_CORE.REJECTED_QC_RETURNS;
+    const response = await apiClient.get<RejectedQCReturnEntryResponse[]>(url);
     return response.data;
   },
 

@@ -449,7 +449,7 @@ function BaseLineSummary({ lines }: { lines: TransporterAPInvoiceLine[] }) {
           <thead className="bg-muted/40">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-medium">Bilty</th>
-              <th className="px-3 py-2 text-left text-xs font-medium">Doc No.</th>
+              <th className="px-3 py-2 text-left text-xs font-medium">Bilty / Doc No.</th>
               <th className="px-3 py-2 text-left text-xs font-medium">DocEntry</th>
               <th className="px-3 py-2 text-left text-xs font-medium">Line</th>
             </tr>
@@ -458,7 +458,10 @@ function BaseLineSummary({ lines }: { lines: TransporterAPInvoiceLine[] }) {
             {lines.map((line) => (
               <tr key={line.id} className="border-t">
                 <td className="px-3 py-2 text-xs">{line.bilty_no || '-'}</td>
-                <td className="px-3 py-2 text-xs">{line.base_doc_num || '-'}</td>
+                <td className="px-3 py-2 text-xs">
+                  <div className="font-medium">Bilty #{line.bilty_no || '-'}</div>
+                  <div className="text-muted-foreground">SAP {line.base_doc_num || '-'}</div>
+                </td>
                 <td className="px-3 py-2 text-xs">{line.base_entry}</td>
                 <td className="px-3 py-2 text-xs">{line.base_line}</td>
               </tr>

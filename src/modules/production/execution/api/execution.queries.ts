@@ -594,10 +594,11 @@ export function useDeleteManpower(runId: number) {
 // Line Clearance
 // ============================================================================
 
-export function useLineClearances(lineId?: number, status?: string) {
+export function useLineClearances(lineId?: number, status?: string, enabled = true) {
   return useQuery({
     queryKey: EXECUTION_QUERY_KEYS.clearances(lineId, status),
     queryFn: () => executionApi.getLineClearances(lineId, status),
+    enabled,
     staleTime: 30 * 1000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,

@@ -10,13 +10,16 @@ export interface POReceipt {
   supplier_name: string;
   created_at?: string;
   updated_at?: string;
+  is_editable?: boolean;
+  lock_reason?: string | null;
   items: Array<{
-    id?: number; // PO item ID for API calls
-    sap_line_num: number; // SAP PO LineNum — unique identifier for this row
+    id?: number;
+    sap_line_num: number;
     po_item_code: string;
     item_name: string;
     ordered_qty: number;
     received_qty: number;
+    unit_price?: number | null;
     uom: string;
   }>;
 }
@@ -30,9 +33,20 @@ export const poReceiptApi = {
   },
 
   async create(entryId: number, data: CreatePOReceiptRequest): Promise<POReceipt> {
-    // API expects JSON format
-    const response = await apiClient.post<POReceipt>(
+    const response = await apiClient.post<POReceipt | { po_receipt: POReceipt }>(
       API_ENDPOINTS.RAW_MATERIAL_GATEIN.PO_RECEIPTS(entryId),
+      data,
+    );
+    return 'po_receipt' in response.data ? response.data.po_receipt : response.data;
+  },
+
+  async update(
+    entryId: number,
+    poReceiptId: number,
+    data: CreatePOReceiptRequest,
+  ): Promise<POReceipt> {
+    const response = await apiClient.put<POReceipt>(
+      API_ENDPOINTS.RAW_MATERIAL_GATEIN.PO_RECEIPT_DETAIL(entryId, poReceiptId),
       data,
     );
     return response.data;

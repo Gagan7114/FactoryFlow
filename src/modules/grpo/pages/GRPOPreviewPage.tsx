@@ -88,6 +88,7 @@ export default function GRPOPreviewPage() {
 
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
+  const isPosting = postGRPO.isPending;
 
   // Separate posted and unposted POs
   const unpostedPOs = useMemo(
@@ -138,6 +139,7 @@ export default function GRPOPreviewPage() {
   // Initialize / update merged form when selection changes
   useEffect(() => {
     if (selectedPOs.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Selection changes own this local form lifecycle.
       setMergedForm(null);
       return;
     }
@@ -311,8 +313,7 @@ export default function GRPOPreviewPage() {
         po.items.reduce((poSum, item) => {
           const itemForm = mergedForm.items[item.po_item_receipt_id];
           const qty = itemForm?.accepted_qty ?? item.received_qty;
-          const price =
-            itemForm?.unit_price ?? (item.unit_price ? parseFloat(item.unit_price) : 0);
+          const price = itemForm?.unit_price ?? (item.unit_price ? parseFloat(item.unit_price) : 0);
           const lineTotal = qty * price;
           const taxPercent = parseTaxPercent(itemForm?.tax_code ?? item.tax_code);
           return poSum + lineTotal + (lineTotal * taxPercent) / 100;
@@ -366,6 +367,11 @@ export default function GRPOPreviewPage() {
     if (mergedForm.attachments.length === 0) {
       errors.attachments = 'At least one attachment is required';
     }
+    if (mergedForm.extraCharges.some((charge) => (charge.expense_code || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge needs a valid SAP expense code.';
+    } else if (mergedForm.extraCharges.some((charge) => (charge.amount || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge amount must be greater than zero.';
+    }
 
     setApiErrors(errors);
     return Object.keys(errors).length === 0;
@@ -381,6 +387,7 @@ export default function GRPOPreviewPage() {
   // Confirm and submit
   const handleConfirmPost = async () => {
     if (!mergedForm || !entryId || selectedPOs.length === 0) return;
+    if (!validateMergedPost()) return;
 
     const items = selectedPOs.flatMap((po) =>
       po.items.map((item) => {
@@ -924,8 +931,20 @@ export default function GRPOPreviewPage() {
             <div className="border-t pt-4">
               <ExtraChargesSection
                 charges={mergedForm.extraCharges}
-                onChange={(charges) => updateFormField('extraCharges', charges)}
+                onChange={(charges) => {
+                  updateFormField('extraCharges', charges);
+                  if (apiErrors.extraCharges) {
+                    setApiErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.extraCharges;
+                      return next;
+                    });
+                  }
+                }}
               />
+              {apiErrors.extraCharges && (
+                <p className="mt-2 text-xs text-destructive">{apiErrors.extraCharges}</p>
+              )}
             </div>
 
             {/* Attachments */}
@@ -1029,8 +1048,8 @@ export default function GRPOPreviewPage() {
               >
                 Cancel
               </Button>
-              <Button size="sm" onClick={handlePostClick} disabled={postGRPO.isPending}>
-                {postGRPO.isPending
+              <Button size="sm" onClick={handlePostClick} disabled={isPosting}>
+                {isPosting
                   ? 'Posting...'
                   : selectedPOs.length > 1
                     ? `Post Merged GRPO (${selectedPOs.length} POs)`
@@ -1057,7 +1076,9 @@ export default function GRPOPreviewPage() {
           {mergedForm && (
             <div className="space-y-3">
               <div className="text-sm">
-                <span className="text-muted-foreground">PO{selectedPOs.length > 1 ? 's' : ''}:</span>{' '}
+                <span className="text-muted-foreground">
+                  PO{selectedPOs.length > 1 ? 's' : ''}:
+                </span>{' '}
                 <span className="font-medium">
                   {selectedPOs.map((po) => po.po_number).join(', ')}
                 </span>
@@ -1160,8 +1181,8 @@ export default function GRPOPreviewPage() {
             <Button variant="outline" onClick={() => setShowConfirm(false)}>
               Cancel
             </Button>
-            <Button onClick={handleConfirmPost} disabled={postGRPO.isPending}>
-              {postGRPO.isPending ? 'Posting...' : 'Confirm Post'}
+            <Button onClick={handleConfirmPost} disabled={isPosting}>
+              {isPosting ? 'Posting...' : 'Confirm Post'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -84,9 +84,9 @@ describe('LoginPage', () => {
 
   it('renders the brand logo', () => {
     render(<LoginPage />);
-    const logo = screen.getByAltText('Jivo Info Logo');
+    const logo = screen.getByAltText('Jivo Wellness Logo');
     expect(logo).toBeInTheDocument();
-    expect(logo).toHaveAttribute('src', '/factoryLogoNew.png');
+    expect(logo).toHaveAttribute('src', '/JivoWellnessLogo.png');
   });
 
   it('renders the LoginForm component', () => {

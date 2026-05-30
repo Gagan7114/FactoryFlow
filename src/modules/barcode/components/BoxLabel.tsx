@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { forwardRef } from 'react';
+import { type CSSProperties, forwardRef } from 'react';
 
 import { LABEL_HEIGHT, LABEL_WIDTH } from './labelPrint';
 
@@ -28,43 +28,168 @@ interface BoxLabelProps {
   data: BoxLabelData;
 }
 
+const EMPTY_VALUE = '-';
+const LABEL_BORDER = '0.25mm solid #111';
+const OUTER_BORDER = '0.35mm solid #000';
+const TEXT_WEIGHT = 600;
+const EMPHASIS_WEIGHT = 700;
+const HEADER_WEIGHT = 800;
+
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return EMPTY_VALUE;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${dd}/${mm}/${yy}`;
+};
+
+const formatNumber = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return String(value);
+  return numericValue.toLocaleString('en-IN', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: numericValue % 1 === 0 ? 0 : 2,
+  });
+};
+
+const compactText = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === '') return EMPTY_VALUE;
+  return String(value).trim() || EMPTY_VALUE;
+};
+
+const joinValue = (...parts: Array<string | number | null | undefined>) =>
+  parts
+    .map((part) => compactText(part))
+    .filter((part) => part !== EMPTY_VALUE)
+    .join(' ') || EMPTY_VALUE;
+
+const getItemNameFontSize = (name: string) => {
+  if (name.length > 74) return '9px';
+  if (name.length > 54) return '10px';
+  if (name.length > 34) return '10.8px';
+  return '11.8px';
+};
+
+const itemNameStyle = (name: string): CSSProperties => ({
+  display: '-webkit-box',
+  overflow: 'hidden',
+  WebkitBoxOrient: 'vertical',
+  WebkitLineClamp: 2,
+  wordBreak: 'break-word',
+  fontSize: getItemNameFontSize(name),
+  fontWeight: EMPHASIS_WEIGHT,
+  lineHeight: 1.08,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+});
+
+interface LabelField {
+  label: string;
+  value: string;
+  strong?: boolean;
+}
+
+function InfoCell({ label, value, strong = false }: LabelField) {
+  return (
+    <div
+      style={{
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.8mm',
+        borderRight: LABEL_BORDER,
+        borderBottom: LABEL_BORDER,
+        padding: '0.55mm 0.9mm',
+        overflow: 'hidden',
+      }}
+    >
+      <span
+        style={{
+          flex: '0 0 auto',
+          fontSize: '7px',
+          fontWeight: TEXT_WEIGHT,
+          lineHeight: 1,
+          letterSpacing: 0,
+          color: '#111',
+        }}
+      >
+        {label}:
+      </span>
+      <div
+        style={{
+          minWidth: 0,
+          flex: '1 1 auto',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          fontSize: strong ? '8.2px' : '7.4px',
+          fontWeight: strong ? EMPHASIS_WEIGHT : TEXT_WEIGHT,
+          lineHeight: 1,
+          letterSpacing: 0,
+          color: '#000',
+          textTransform: 'uppercase',
+        }}
+      >
+        {value || EMPTY_VALUE}
+      </div>
+    </div>
+  );
+}
+
+function BoxIcon() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: '4.8mm',
+        height: '4.8mm',
+        border: '0.45mm solid #fff',
+        display: 'inline-block',
+        position: 'relative',
+        flex: '0 0 auto',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          left: '1.9mm',
+          top: 0,
+          bottom: 0,
+          width: '0.35mm',
+          background: '#fff',
+        }}
+      />
+      <span
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: '1.9mm',
+          height: '0.35mm',
+          background: '#fff',
+        }}
+      />
+    </span>
+  );
+}
+
 const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
   const qrValue = data.qr_payload || data.barcode;
-  const textStyle = {
-    fontFamily: '"Courier New", Consolas, monospace',
-    fontSize: '7.7px',
-    fontWeight: 800,
-    lineHeight: '1.12',
-    letterSpacing: 0,
-    textTransform: 'uppercase',
-  } as const;
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yy = String(d.getFullYear()).slice(2);
-    return `${dd}/${mm}/${yy}`;
-  };
-
-  const rowStyle = {
-    minWidth: 0,
-    display: 'grid',
-    gridTemplateColumns: '25mm 2mm 1fr',
-    alignItems: 'baseline',
-    overflow: 'hidden',
-    textAlign: 'left',
-    ...textStyle,
-  } as const;
-
-  const valueStyle = {
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  } as const;
+  const itemName = compactText(data.item_name || data.item_code);
+  const boxSequence =
+    data.box_number && data.box_count ? `${data.box_number}/${data.box_count}` : 'ITEM';
+  const boxCount = data.box_count ? compactText(data.box_count) : compactText(data.box_number);
+  const fields: LabelField[] = [
+    { label: 'Batch', value: compactText(data.batch_number) },
+    { label: 'Total Qty', value: joinValue(formatNumber(data.qty), data.uom), strong: true },
+    { label: 'Boxes', value: boxCount },
+    { label: 'MFG', value: formatDate(data.mfg_date) },
+    { label: 'EXP', value: formatDate(data.exp_date) },
+    { label: 'Warehouse', value: compactText(data.warehouse) },
+  ];
 
   return (
     <div
@@ -73,91 +198,190 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
       style={{
         width: LABEL_WIDTH,
         height: LABEL_HEIGHT,
-        padding: '1mm 2mm',
+        padding: 0,
         boxSizing: 'border-box',
         backgroundColor: '#fff',
         color: '#000',
         overflow: 'hidden',
-        fontFamily: '"Courier New", Consolas, monospace',
+        fontFamily: 'Arial, Helvetica, sans-serif',
         lineHeight: 1,
         display: 'grid',
-        gridTemplateColumns: '1fr 34mm',
-        columnGap: '1.6mm',
-        alignItems: 'center',
+        gridTemplateColumns: '66mm 34mm',
+        alignItems: 'stretch',
+        border: OUTER_BORDER,
       }}
     >
       <div
         style={{
-          display: 'flex',
+          display: 'grid',
+          gridTemplateRows: '6mm 6.2mm 10.2mm 1fr',
           minWidth: 0,
           height: '100%',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          gap: '0.45mm',
           overflow: 'hidden',
         }}
       >
         <div
           style={{
-            overflow: 'hidden',
-            textAlign: 'left',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-            ...textStyle,
+            display: 'grid',
+            alignItems: 'center',
+            backgroundColor: '#000',
+            color: '#fff',
+            minWidth: 0,
+            padding: '0 1.2mm',
           }}
         >
-          JIVO WELLNESS
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1mm',
+              justifyContent: 'flex-start',
+              fontSize: '13px',
+              fontWeight: HEADER_WEIGHT,
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            <BoxIcon />
+            <span>BOX</span>
+          </div>
         </div>
 
         <div
           style={{
-            overflow: 'hidden',
-            textAlign: 'left',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-            ...textStyle,
+            display: 'grid',
+            gridTemplateColumns: '1fr 17mm',
+            alignItems: 'center',
+            minWidth: 0,
+            borderBottom: LABEL_BORDER,
           }}
         >
-          {data.item_name || data.item_code}
+          <div
+            style={{
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              padding: '0 1mm',
+              fontSize: '8px',
+              fontWeight: HEADER_WEIGHT,
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            Box Code: {compactText(data.barcode)}
+          </div>
+          <div
+            style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderLeft: LABEL_BORDER,
+              fontSize: '8px',
+              fontWeight: HEADER_WEIGHT,
+              lineHeight: 1,
+            }}
+          >
+            BOX {boxSequence}
+          </div>
         </div>
 
-        {[
-          ['LABEL TYPE', 'BOX'],
-          ['PALLET ID', data.pallet_id || '-'],
-          ['BOX NO', data.box_number && data.box_count ? `${data.box_number}/${data.box_count}` : '-'],
-          ['QUANTITY', `${data.qty} ${data.uom}`],
-          ['ITEM CODE', data.item_code],
-          ['BATCH NUMBER', data.batch_number],
-          ['MANUFACTURE DATE', formatDate(data.mfg_date)],
-          ['GROSS WEIGHT', data.g_weight || '0'],
-          ['NET WEIGHT', data.n_weight || '0'],
-          ['WAREHOUSE', data.warehouse],
-          ['BARCODE', data.barcode],
-        ].map(([label, value]) => (
-          <div key={label} style={rowStyle}>
-            <span>{label}</span>
-            <span>:</span>
-            <span style={valueStyle}>{value}</span>
-          </div>
-        ))}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            minWidth: 0,
+            borderBottom: LABEL_BORDER,
+            padding: '0.8mm 1mm',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={itemNameStyle(itemName)}>{itemName}</div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gridAutoRows: '1fr',
+            borderTop: 0,
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+        >
+          {fields.map((field) => (
+            <InfoCell key={field.label} {...field} />
+          ))}
+        </div>
       </div>
 
       <div
         style={{
           minWidth: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: 'grid',
+          gridTemplateRows: '30mm 1fr',
+          borderLeft: OUTER_BORDER,
+          overflow: 'hidden',
         }}
       >
-        <div style={{ backgroundColor: '#fff' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#fff',
+            padding: '0.9mm',
+          }}
+        >
           <QRCodeSVG
             value={qrValue}
-            size={132}
-            level="M"
+            size={148}
+            level="H"
             includeMargin={false}
-            style={{ width: '32mm', height: '32mm', display: 'block' }}
+            style={{ width: '28mm', height: '28mm', display: 'block' }}
           />
+        </div>
+        <div
+          style={{
+            minWidth: 0,
+            borderTop: OUTER_BORDER,
+            padding: '0.55mm 0.8mm',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.35mm',
+            textAlign: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '5.4px',
+              fontWeight: HEADER_WEIGHT,
+              lineHeight: 1,
+              color: '#000',
+            }}
+          >
+            Scan Box Barcode
+          </div>
+          <div
+            style={{
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              fontFamily: 'Consolas, monospace',
+              fontSize: '6.4px',
+              fontWeight: EMPHASIS_WEIGHT,
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            Box Code: {compactText(data.barcode)}
+          </div>
         </div>
       </div>
     </div>

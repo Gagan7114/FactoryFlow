@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // Step4Page — File Content Verification
@@ -12,7 +13,7 @@ import { resolve } from 'node:path';
 
 describe('Step4Page', () => {
   const content = readFileSync(
-    resolve(process.cwd(), 'src/modules/gate/pages/rawmaterialpages/Step4Page.tsx'),
+    resolve(process.cwd(), 'src/modules/gate/pages/rawMaterialPages/Step4Page.tsx'),
     'utf-8',
   );
 
@@ -30,5 +31,20 @@ describe('Step4Page', () => {
 
   it('has a return statement with JSX', () => {
     expect(content).toContain('return (');
+  });
+
+  it('keeps weighment validation optional before moving to attachments', () => {
+    expect(content).toContain('hasWeighmentInput(formData)');
+    expect(content).toContain('if (!hasWeighmentInput(formData))');
+    expect(content).toContain('validateWeighmentDetails(formData)');
+    expect(content).toContain('Gross weight is required.');
+    expect(content).toContain('Tare weight cannot be negative.');
+    expect(content).toContain('Tare weight cannot be greater than gross weight.');
+    expect(content).toContain('formData.tareWeight.trim() ? parseFloat(formData.tareWeight) : 0');
+  });
+
+  it('does not mark gross or tare weight as required', () => {
+    expect(content).toContain('<Label htmlFor="grossWeight">Gross Weight</Label>');
+    expect(content).toContain('<Label htmlFor="tareWeight">Tare Weight</Label>');
   });
 });

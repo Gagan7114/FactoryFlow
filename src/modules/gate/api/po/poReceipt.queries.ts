@@ -22,3 +22,16 @@ export function useCreatePOReceipt(entryId: number) {
     },
   });
 }
+
+export function useUpdatePOReceipt(entryId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ poReceiptId, data }: { poReceiptId: number; data: CreatePOReceiptRequest }) =>
+      poReceiptApi.update(entryId, poReceiptId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['poReceipts'] });
+      queryClient.invalidateQueries({ queryKey: ['gateEntryFullView'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicleEntry'] });
+    },
+  });
+}

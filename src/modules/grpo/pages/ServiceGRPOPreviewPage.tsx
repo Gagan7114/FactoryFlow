@@ -5,6 +5,7 @@ import {
   Eye,
   FileText,
   Paperclip,
+  Printer,
   RefreshCw,
   ShieldX,
   Truck,
@@ -42,6 +43,7 @@ import type {
   ExtraCharge,
   PostServiceGRPOResponse,
   ServiceGRPOBranchOption,
+  ServiceGRPOExpenseCodeOption,
   ServiceGRPOGLAccountOption,
   ServiceGRPOLocationOption,
   ServiceGRPOProjectOption,
@@ -179,10 +181,7 @@ const findTaxCode = (options: ServiceGRPOTaxCodeOption[], candidates: string[]) 
   return '';
 };
 
-const isReverseChargeTaxCode = (
-  options: ServiceGRPOTaxCodeOption[],
-  taxCode?: string | null,
-) => {
+const isReverseChargeTaxCode = (options: ServiceGRPOTaxCodeOption[], taxCode?: string | null) => {
   const code = (taxCode || '').trim().toUpperCase();
   if (!code) return false;
   const option = options.find((tax) => tax.tax_code.toUpperCase() === code);
@@ -212,7 +211,9 @@ const findDefaultTaxCode = (
     : findTaxCode(options, ['GST05R', 'RCGSG@5', 'CG+SG@5']);
   if (preferredCode) return preferredCode;
 
-  return options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || '';
+  return (
+    options.find((tax) => /gst\s*0?5r/i.test(`${tax.tax_code} ${tax.tax_name}`))?.tax_code || ''
+  );
 };
 
 const findDefaultSac = (
@@ -230,7 +231,9 @@ const findDefaultSac = (
   const preferredCodes = productVariety.toLowerCase().includes('beverage')
     ? ['996812']
     : ['9967', '9965'];
-  return options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null;
+  return (
+    options.find((sac) => preferredCodes.some((code) => sac.sac_code.startsWith(code))) || null
+  );
 };
 
 const findDefaultLocation = (
@@ -262,6 +265,10 @@ const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
   subAccount.sub_account_code === subAccount.sub_account_name
     ? subAccount.sub_account_code
     : `${subAccount.sub_account_code} - ${subAccount.sub_account_name}`;
+
+const sortExpenseCodeOptions = (
+  options: ServiceGRPOExpenseCodeOption[],
+): ServiceGRPOExpenseCodeOption[] => [...options].sort((a, b) => a.expense_code - b.expense_code);
 
 export default function ServiceGRPOPreviewPage() {
   const navigate = useNavigate();
@@ -297,6 +304,10 @@ export default function ServiceGRPOPreviewPage() {
   const locationOptions = serviceOptions?.locations ?? [];
   const sapProjectOptions = serviceOptions?.projects ?? [];
   const subAccountOptions = serviceOptions?.sub_accounts ?? [];
+  const expenseCodeOptions = useMemo(
+    () => sortExpenseCodeOptions(serviceOptions?.expense_codes ?? []),
+    [serviceOptions?.expense_codes],
+  );
   const projectOptions = useMemo<ServiceGRPOProjectOption[]>(() => {
     const deliveryPoint = (preview?.default_budget_delivery_point || '').trim();
     if (!deliveryPoint) return sapProjectOptions;
@@ -368,8 +379,7 @@ export default function ServiceGRPOPreviewPage() {
   }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions]);
 
   const currentPlanId = preview?.dispatch_plan_id ?? null;
-  const form =
-    formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
+  const form = formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
 
   const updateCurrentForm = useCallback(
     (updater: (current: ServiceFormState) => ServiceFormState) => {
@@ -512,6 +522,11 @@ export default function ServiceGRPOPreviewPage() {
     if (form.attachments.length === 0 && !preview.bilty_attachment) {
       errors.attachments = 'At least one attachment is required';
     }
+    if (form.extraCharges.some((charge) => (charge.expense_code || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge needs a valid SAP expense code.';
+    } else if (form.extraCharges.some((charge) => (charge.amount || 0) <= 0)) {
+      errors.extraCharges = 'Every extra charge amount must be greater than zero.';
+    }
 
     setApiErrors(errors);
     return Object.keys(errors).length === 0;
@@ -576,6 +591,11 @@ export default function ServiceGRPOPreviewPage() {
   const biltyAttachmentName = preview?.bilty_attachment_name || 'Bilty attachment';
   const attachmentCount = (form?.attachments.length ?? 0) + (preview?.bilty_attachment ? 1 : 0);
   const isMultiInvoicePreview = (preview?.invoice_count || 1) > 1;
+  const canPrintPostedPreview = preview?.grpo_status === GRPO_STATUS.POSTED;
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   return (
     <div className="space-y-6 pb-32">
@@ -598,10 +618,28 @@ export default function ServiceGRPOPreviewPage() {
             Review transport booking details and post the service GRPO to SAP
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="w-full sm:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          {canPrintPostedPreview && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrint}
+              className="flex-1 sm:flex-none"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {isPermissionError && (
@@ -705,7 +743,8 @@ export default function ServiceGRPOPreviewPage() {
                   Service GRPO already posted
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  SAP Document Number: {preview.sap_doc_num}
+                  {preview.bilty_no ? `Bilty #${preview.bilty_no}` : 'Bilty -'}
+                  {preview.sap_doc_num ? ` / SAP #${preview.sap_doc_num}` : ''}
                 </p>
               </div>
             </div>
@@ -864,9 +903,7 @@ export default function ServiceGRPOPreviewPage() {
                       min={0}
                       step="any"
                       value={form.amount || ''}
-                      onChange={(e) =>
-                        updateFormField('amount', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateFormField('amount', parseFloat(e.target.value) || 0)}
                       className={`h-8 text-sm${apiErrors.amount ? ' border-destructive' : ''}`}
                     />
                     {apiErrors.amount && (
@@ -944,9 +981,7 @@ export default function ServiceGRPOPreviewPage() {
                     inputId="service-grpo-gl-account"
                     inputClassName="h-8 text-sm"
                     getItemKey={(account) => account.account_code}
-                    getItemLabel={(account) =>
-                      `${account.account_name} (${account.account_code})`
-                    }
+                    getItemLabel={(account) => `${account.account_name} (${account.account_code})`}
                     filterFn={(account, search) =>
                       account.account_code.toLowerCase().includes(search.toLowerCase()) ||
                       account.account_name.toLowerCase().includes(search.toLowerCase())
@@ -962,9 +997,7 @@ export default function ServiceGRPOPreviewPage() {
                     loadingText="Loading G/L accounts..."
                     emptyText="No G/L accounts available"
                     notFoundText="No G/L accounts found"
-                    onItemSelect={(account) =>
-                      updateFormField('glAccount', account.account_code)
-                    }
+                    onItemSelect={(account) => updateFormField('glAccount', account.account_code)}
                     onClear={() => updateFormField('glAccount', '')}
                   />
                   <SearchableSelect<ServiceGRPOLocationOption>
@@ -1194,8 +1227,21 @@ export default function ServiceGRPOPreviewPage() {
                 <div className="border-t pt-4">
                   <ExtraChargesSection
                     charges={form.extraCharges}
-                    onChange={(charges) => updateFormField('extraCharges', charges)}
+                    expenseCodeOptions={expenseCodeOptions}
+                    onChange={(charges) => {
+                      updateFormField('extraCharges', charges);
+                      if (apiErrors.extraCharges) {
+                        setApiErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.extraCharges;
+                          return next;
+                        });
+                      }
+                    }}
                   />
+                  {apiErrors.extraCharges && (
+                    <p className="mt-2 text-xs text-destructive">{apiErrors.extraCharges}</p>
+                  )}
                 </div>
 
                 <div className="border-t pt-4 space-y-2">
@@ -1387,6 +1433,10 @@ export default function ServiceGRPOPreviewPage() {
           </DialogHeader>
           {successResult && (
             <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bilty Number</span>
+                <span className="font-semibold">{preview?.bilty_no || '-'}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">SAP Document Number</span>
                 <span className="font-semibold">{successResult.sap_doc_num}</span>

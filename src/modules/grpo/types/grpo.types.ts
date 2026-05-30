@@ -19,6 +19,18 @@ export type QCStatus =
 // SAP Attachment Status
 export type AttachmentStatus = 'PENDING' | 'UPLOADED' | 'LINKED' | 'FAILED';
 
+// Dashboard summary (GET /summary/)
+export interface GRPODashboardSummary {
+  pending_entry_count: number;
+  pending_po_count: number;
+  qc_accepted_qty: string;
+  qc_rejected_qty: string;
+  posting_pending_count: number;
+  posted_count: number;
+  failed_count: number;
+  partially_posted_count: number;
+}
+
 // GRPO Attachment (linked to a posted GRPO)
 export interface GRPOAttachment {
   id: number;
@@ -112,6 +124,7 @@ export interface PostGRPORequest {
   warehouse_code?: string;
   comments?: string;
   vendor_ref?: string;
+  tare_weight?: number;
   extra_charges?: ExtraCharge[];
   attachments?: File[];
   doc_date?: string;
@@ -386,6 +399,14 @@ export interface ServiceGRPOSubAccountOption {
   sub_account_name: string;
 }
 
+export interface ServiceGRPOExpenseCodeOption {
+  expense_code: number;
+  expense_name: string;
+  expense_account: string;
+  revenue_account: string;
+  sac_code: string;
+}
+
 export interface ServiceGRPOOptions {
   branches: ServiceGRPOBranchOption[];
   tax_codes: ServiceGRPOTaxCodeOption[];
@@ -394,6 +415,7 @@ export interface ServiceGRPOOptions {
   locations: ServiceGRPOLocationOption[];
   projects: ServiceGRPOProjectOption[];
   sub_accounts: ServiceGRPOSubAccountOption[];
+  expense_codes: ServiceGRPOExpenseCodeOption[];
 }
 
 export interface ServiceGRPOHistoryLine {
@@ -418,6 +440,8 @@ export interface ServiceGRPOHistoryEntry {
   id: number;
   dispatch_plan: number;
   dispatch_bill_no: string;
+  bilty_no: string;
+  bilty_date: string | null;
   sap_invoice_doc_entry: number;
   vehicle_no: string;
   transporter_name: string;

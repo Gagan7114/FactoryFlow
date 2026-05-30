@@ -1,4 +1,4 @@
-import { BarChart3, CalendarClock, Package, PackageX } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, CalendarClock, Package, PackageX } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -42,11 +42,19 @@ const dashboardsModules: DashboardsModuleCard[] = [
   },
   {
     title: 'Non-Moving',
-    description: 'Identify dead stock and slow-moving raw materials by age and item group',
+    description: 'Identify dead stock and slow-moving inventory by age and item group',
     icon: <PackageX className="h-5 w-5" />,
     route: '/dashboards/non-moving',
     color: 'text-amber-600',
     permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
+  },
+  {
+    title: 'Production Movement',
+    description: 'Track inventory entries moving in and out of production warehouses',
+    icon: <ArrowLeftRight className="h-5 w-5" />,
+    route: '/dashboards/production-movement',
+    color: 'text-sky-600',
+    permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT],
   },
 ];
 

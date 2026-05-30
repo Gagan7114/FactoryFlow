@@ -44,18 +44,14 @@ function stockDifferenceClasses(difference: number): string {
 }
 
 function formatStockDifference(difference: number): string {
-  const formatted = Math.abs(difference).toLocaleString();
+  const formatted = Math.abs(difference).toLocaleString('en-IN');
   if (difference > 0) return `+${formatted}`;
   if (difference < 0) return `-${formatted}`;
   return formatted;
 }
 
-function plannedQty(item: StockItem): number {
-  return item.planned_qty ?? 0;
-}
-
 function stockDifference(item: StockItem): number {
-  return item.on_hand - item.min_stock - plannedQty(item);
+  return item.on_hand - item.min_stock;
 }
 
 export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPanelProps) {
@@ -94,7 +90,6 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
             <th className="pb-2 pr-3 text-left font-medium">Warehouse</th>
             <th className="pb-2 pr-3 text-right font-medium">On Hand</th>
             <th className="pb-2 pr-3 text-right font-medium">Benchmark</th>
-            <th className="pb-2 pr-3 text-right font-medium">Planned Qty</th>
             <th className="pb-2 pr-3 text-right font-medium">Difference</th>
             <th className="pb-2 pr-3 text-right font-medium">Health</th>
             <th className="pb-2 pr-3 text-left font-medium">UOM</th>
@@ -103,19 +98,17 @@ export function StockItemDetailPanel({ itemCode, warehouses }: StockItemDetailPa
         </thead>
         <tbody>
           {items.map((item) => {
-            const planned = plannedQty(item);
             const difference = stockDifference(item);
 
             return (
               <tr key={item.warehouse} className="border-b last:border-0">
                 <td className="py-2 pr-3 font-medium">{item.warehouse}</td>
                 <td className="py-2 pr-3 text-right tabular-nums">
-                  {item.on_hand.toLocaleString()}
+                  {item.on_hand.toLocaleString('en-IN')}
                 </td>
                 <td className="py-2 pr-3 text-right tabular-nums">
-                  {item.min_stock.toLocaleString()}
+                  {item.min_stock.toLocaleString('en-IN')}
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums">{planned.toLocaleString()}</td>
                 <td
                   className={cn(
                     'py-2 pr-3 text-right tabular-nums',

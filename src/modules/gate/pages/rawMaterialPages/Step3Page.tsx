@@ -9,7 +9,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { PointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { RecordTimestamps } from '@/shared/components';
 import {
@@ -32,9 +34,9 @@ import {
   isServerError as checkServerError,
 } from '@/shared/utils';
 
-import type { PurchaseOrder, Vendor } from '../../api/po/po.api';
+import type { CreatePOReceiptRequest, PurchaseOrder, Vendor } from '../../api/po/po.api';
 import { useOpenPOs } from '../../api/po/po.queries';
-import { useCreatePOReceipt, usePOReceipts } from '../../api/po/poReceipt.queries';
+import { useCreatePOReceipt, usePOReceipts, useUpdatePOReceipt } from '../../api/po/poReceipt.queries';
 import { FillDataAlert, StepFooter, StepHeader, StepLoadingSpinner, VendorSelect } from '../../components';
 import { WIZARD_CONFIG } from '../../constants';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
@@ -54,6 +56,9 @@ interface POItemFormData {
 
 interface POFormData {
   id: string; // Unique ID for this PO form
+  receiptId?: number;
+  isEditable?: boolean;
+  lockReason?: string | null;
   supplierName: string;
   supplierCode: string;
   poNumber: string;
@@ -76,15 +81,14 @@ export default function Step3Page() {
     data: existingPOReceipts = [],
     isLoading: isLoadingPOReceipts,
     error: poReceiptsError,
-  } = usePOReceipts(isEditMode && entryIdNumber ? entryIdNumber : null);
+  } = usePOReceipts(entryIdNumber);
 
   // State to track if we should behave like create mode (when Fill Data is clicked)
   const [fillDataMode, setFillDataMode] = useState(false);
-  // State to track if Update button has been clicked (enables editing)
-  const [updateMode, _setUpdateMode] = useState(false);
   // State to keep button disabled after API success until navigation completes
   const [isNavigating, setIsNavigating] = useState(false);
   const effectiveEditMode = isEditMode && !fillDataMode;
+  const initialFormPayloadsRef = useRef<Record<string, string>>({});
 
   // State for multiple PO forms - start with one empty form
   // Note: We use baseId with initial counter of 1 for stable initial ID
@@ -110,8 +114,42 @@ export default function Step3Page() {
   // Track which PO forms have fill data mode enabled (for handling API errors)
   const [fillDataModeForPO, setFillDataModeForPO] = useState<Record<string, boolean>>({});
 
+  const buildPOReceiptPayload = (form: POFormData): CreatePOReceiptRequest => ({
+    po_number: form.poNumber,
+    supplier_code: form.supplierCode,
+    supplier_name: form.supplierName,
+    items: form.items
+      .filter((item) => item.received_qty_now > 0)
+      .map((item) => ({
+        line_num: item.line_num,
+        po_item_code: item.po_item_code,
+        item_name: item.item_name,
+        ordered_qty: item.ordered_qty,
+        received_qty: item.received_qty_now,
+        uom: item.uom,
+      })),
+  });
+
+  const getPayloadSnapshot = (form: POFormData) => JSON.stringify(buildPOReceiptPayload(form));
+
+  const getPOFormLockReason = (poFormId: string) =>
+    poForms.find((form) => form.id === poFormId)?.lockReason ||
+    'This PO cannot be edited after its arrival slip is submitted to QC.';
+
+  const isPOFormLocked = (poFormId: string) => {
+    const form = poForms.find((item) => item.id === poFormId);
+    return effectiveEditMode && Boolean(form?.receiptId) && form?.isEditable === false;
+  };
+
+  const notifyLockedPO = (poFormId: string) => {
+    toast.warning(getPOFormLockReason(poFormId));
+  };
+
   const handleSupplierNameChange = (poFormId: string, value: string) => {
-    if (effectiveEditMode && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
     setPoForms((prev) =>
       prev.map((form) => (form.id === poFormId ? { ...form, supplierName: value } : form)),
     );
@@ -126,7 +164,10 @@ export default function Step3Page() {
   };
 
   const handleSupplierCodeChange = (poFormId: string, value: string) => {
-    if (effectiveEditMode && !fillDataModeForPO[poFormId] && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
     setPoForms((prev) =>
       prev.map((form) => (form.id === poFormId ? { ...form, supplierCode: value } : form)),
     );
@@ -141,7 +182,10 @@ export default function Step3Page() {
   };
 
   const handleVendorSelect = (poFormId: string, vendor: Vendor | null) => {
-    if (effectiveEditMode && !fillDataModeForPO[poFormId] && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
     setPoForms((prev) =>
       prev.map((form) =>
         form.id === poFormId
@@ -170,7 +214,10 @@ export default function Step3Page() {
   };
 
   const handlePOFocus = (poFormId: string) => {
-    if (effectiveEditMode && !fillDataModeForPO[poFormId] && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
     const form = poForms.find((f) => f.id === poFormId);
     if (form?.supplierCode) {
       setOpenPODropdown(poFormId);
@@ -178,7 +225,10 @@ export default function Step3Page() {
   };
 
   const handlePOSelect = (poFormId: string, po: PurchaseOrder) => {
-    if (effectiveEditMode && !fillDataModeForPO[poFormId] && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
 
     setPoForms((prev) =>
       prev.map((form) => {
@@ -215,7 +265,10 @@ export default function Step3Page() {
   };
 
   const handleReceivedQtyChange = (poFormId: string, lineNum: number, value: string) => {
-    if (effectiveEditMode && !fillDataModeForPO[poFormId] && !updateMode) return;
+    if (isPOFormLocked(poFormId)) {
+      notifyLockedPO(poFormId);
+      return;
+    }
 
     const receivedQtyNow = parseFloat(value) || 0;
     setPoForms((prev) =>
@@ -258,10 +311,6 @@ export default function Step3Page() {
   };
 
   const handleAddPO = () => {
-    // Don't allow adding in edit mode unless fillDataMode is active or any PO has fill data mode
-    const hasAnyFillDataMode = Object.values(fillDataModeForPO).some((mode) => mode === true);
-    if (effectiveEditMode && !fillDataMode && !hasAnyFillDataMode) return;
-
     // Generate unique ID using counter
     poFormCounterRef.current += 1;
     const newId = `${baseId}-po-${poFormCounterRef.current}`;
@@ -282,18 +331,11 @@ export default function Step3Page() {
   };
 
   const handleRemovePO = (poFormId: string) => {
-    // Don't allow removing in edit mode unless fillDataMode is active or this PO has fill data mode
-    const hasAnyFillDataMode = Object.values(fillDataModeForPO).some((mode) => mode === true);
-    const thisPOFillDataMode = fillDataModeForPO[poFormId] || false;
-
-    if (
-      effectiveEditMode &&
-      !fillDataMode &&
-      !hasAnyFillDataMode &&
-      !thisPOFillDataMode &&
-      !updateMode
-    )
+    const form = poForms.find((item) => item.id === poFormId);
+    if (form?.receiptId) {
+      toast.info('Existing PO receipts cannot be removed here. Add a new PO for extra material.');
       return;
+    }
     if (poForms.length === 1) return; // Don't allow removing the last one
 
     setPoForms((prev) => prev.filter((form) => form.id !== poFormId));
@@ -338,6 +380,9 @@ export default function Step3Page() {
         form.id === poFormId
           ? {
               ...form,
+              receiptId: undefined,
+              isEditable: true,
+              lockReason: null,
               supplierName: '',
               supplierCode: '',
               poNumber: '',
@@ -351,9 +396,12 @@ export default function Step3Page() {
 
   // Load existing PO receipts when in edit mode
   useEffect(() => {
-    if (effectiveEditMode && existingPOReceipts.length > 0) {
+    if (existingPOReceipts.length > 0) {
       const forms: POFormData[] = existingPOReceipts.map((receipt, index) => ({
         id: `po-${receipt.po_number}-${index}`,
+        receiptId: receipt.id,
+        isEditable: receipt.is_editable ?? true,
+        lockReason: receipt.lock_reason,
         supplierName: receipt.supplier_name,
         supplierCode: receipt.supplier_code,
         poNumber: receipt.po_number,
@@ -374,14 +422,17 @@ export default function Step3Page() {
             remaining_qty_initial: orderedQty, // Placeholder - would need PO data
             remaining_qty: orderedQty - receivedQtyNow,
             uom: item.uom,
-            rate: 0,
+            rate: item.unit_price || 0,
           };
         }),
       }));
+      initialFormPayloadsRef.current = Object.fromEntries(
+        forms.map((form) => [form.id, getPayloadSnapshot(form)]),
+      );
       // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing form state with fetched data is a valid pattern
       setPoForms(forms);
     }
-  }, [effectiveEditMode, existingPOReceipts]);
+  }, [existingPOReceipts]);
 
   const handlePrevious = () => {
     if (isEditMode && entryId) {
@@ -397,6 +448,7 @@ export default function Step3Page() {
   };
 
   const createPOReceipt = useCreatePOReceipt(entryIdNumber || 0);
+  const updatePOReceipt = useUpdatePOReceipt(entryIdNumber || 0);
 
   const handleNext = async () => {
     if (!entryId) {
@@ -404,14 +456,19 @@ export default function Step3Page() {
       return;
     }
 
-    // In edit mode (and not fill data mode and not update mode), just navigate without API call
-    if (effectiveEditMode && !updateMode) {
+    const formsToSave = poForms.filter((form) => {
+      if (form.receiptId && form.isEditable === false) return false;
+      if (!form.receiptId) return true;
+      return initialFormPayloadsRef.current[form.id] !== getPayloadSnapshot(form);
+    });
+
+    if (effectiveEditMode && formsToSave.length === 0) {
       navigate(`/gate/raw-materials/edit/${entryId}/step4`);
       return;
     }
 
     // Validation
-    for (const form of poForms) {
+    for (const form of formsToSave) {
       if (!form.supplierName.trim()) {
         setApiErrors({ [`${form.id}_supplierName`]: 'Please enter supplier name' });
         return;
@@ -462,25 +519,22 @@ export default function Step3Page() {
 
     try {
       // Submit all PO receipts
-      for (const poForm of poForms) {
-        await createPOReceipt.mutateAsync({
-          po_number: poForm.poNumber,
-          supplier_code: poForm.supplierCode,
-          supplier_name: poForm.supplierName,
-          items: poForm.items
-            .filter((item) => item.received_qty_now > 0)
-            .map((item) => ({
-              line_num: item.line_num,
-              po_item_code: item.po_item_code,
-              item_name: item.item_name,
-              ordered_qty: item.ordered_qty,
-              received_qty: item.received_qty_now, // Send the new received quantity
-              uom: item.uom,
-            })),
-        });
+      for (const poForm of formsToSave) {
+        const payload = buildPOReceiptPayload(poForm);
+        if (poForm.receiptId) {
+          await updatePOReceipt.mutateAsync({
+            poReceiptId: poForm.receiptId,
+            data: payload,
+          });
+        } else {
+          await createPOReceipt.mutateAsync(payload);
+        }
       }
 
       // Navigate to step 4
+      if (formsToSave.length > 0) {
+        toast.success('Purchase order details saved');
+      }
       setIsNavigating(true);
       if (isEditMode) {
         navigate(`/gate/raw-materials/edit/${entryId}/step4`);
@@ -514,12 +568,11 @@ export default function Step3Page() {
   const hasNoPOReceiptsData =
     effectiveEditMode && !isLoadingPOReceipts && (!hasPOReceiptsData || isNotFoundError);
 
-  // Fields are read-only when in edit mode and there's an error and fill data mode is not active
-  // OR when data exists and updateMode is not active
-  const isReadOnly =
-    (effectiveEditMode && hasPOReceiptsData && !updateMode && !fillDataMode) ||
-    (effectiveEditMode && hasNoPOReceiptsData && !fillDataMode);
-  // PO receipts are immutable once submitted — no update allowed
+  // Page-level read-only applies only when edit mode has no PO receipt data to load.
+  const isPageReadOnly = effectiveEditMode && hasNoPOReceiptsData && !fillDataMode;
+  const hasWritableForms = poForms.some(
+    (form) => !isPageReadOnly && (!form.receiptId || form.isEditable !== false),
+  );
 
   if (effectiveEditMode && isLoadingPOReceipts) {
     return <StepLoadingSpinner />;
@@ -557,7 +610,9 @@ export default function Step3Page() {
           <POCard
             key={poForm.id}
             poForm={poForm}
-            isReadOnly={isReadOnly}
+            isReadOnly={
+              isPageReadOnly || (Boolean(poForm.receiptId) && poForm.isEditable === false)
+            }
             fillDataMode={fillDataModeForPO[poForm.id] || false}
             onSupplierNameChange={(value) => handleSupplierNameChange(poForm.id, value)}
             onSupplierCodeChange={(value) => handleSupplierCodeChange(poForm.id, value)}
@@ -568,7 +623,7 @@ export default function Step3Page() {
               handleReceivedQtyChange(poForm.id, lineNum, value)
             }
             onRemove={() => handleRemovePO(poForm.id)}
-            canRemove={poForms.length > 1}
+            canRemove={poForms.length > 1 && !poForm.receiptId}
             apiErrors={apiErrors}
             openPODropdown={openPODropdown === poForm.id}
             onClosePODropdown={() => setOpenPODropdown(null)}
@@ -577,18 +632,13 @@ export default function Step3Page() {
               setPOSearchTerms((prev) => ({ ...prev, [poForm.id]: value }))
             }
             onFillData={() => handleFillDataForPO(poForm.id)}
+            lockReason={poForm.lockReason}
+            onLockedAttempt={() => notifyLockedPO(poForm.id)}
           />
         ))}
 
         {/* Add New PO Button */}
-        {(() => {
-          // Show button if:
-          // 1. Not in edit mode (create mode)
-          // 2. Page-level fill data mode is active
-          // 3. Any PO form has fill data mode enabled
-          const hasAnyFillDataMode = Object.values(fillDataModeForPO).some((mode) => mode === true);
-          return !effectiveEditMode || fillDataMode || hasAnyFillDataMode;
-        })() && (
+        {(!hasNoPOReceiptsData || fillDataMode) && !hasServerError && (
           <div className="flex justify-center">
             <Button type="button" variant="outline" onClick={handleAddPO}>
               <Plus className="h-4 w-4 mr-2" />
@@ -610,13 +660,11 @@ export default function Step3Page() {
         onPrevious={handlePrevious}
         onCancel={handleCancel}
         onNext={handleNext}
-        isSaving={createPOReceipt.isPending || isNavigating}
+        isSaving={createPOReceipt.isPending || updatePOReceipt.isPending || isNavigating}
         isEditMode={effectiveEditMode}
-        isUpdateMode={updateMode}
+        isUpdateMode={hasWritableForms}
         nextLabel={
-          effectiveEditMode && !updateMode && !fillDataMode
-            ? 'Next →'
-            : undefined
+          effectiveEditMode && !hasWritableForms && !fillDataMode ? 'Next ->' : undefined
         }
       />
     </div>
@@ -641,6 +689,8 @@ interface POCardProps {
   poSearchTerm: string;
   onPOSearchChange: (value: string) => void;
   onFillData: () => void;
+  lockReason?: string | null;
+  onLockedAttempt: () => void;
 }
 
 function POCard({
@@ -661,6 +711,8 @@ function POCard({
   poSearchTerm,
   onPOSearchChange,
   onFillData,
+  lockReason,
+  onLockedAttempt,
 }: POCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const debouncedPOSearch = useDebounce(poSearchTerm, 100);
@@ -691,8 +743,16 @@ function POCard({
   );
 
   // Effective read-only: true if isReadOnly OR (there's a PO error and fillDataMode is false)
-  // Also check updateMode from parent
   const effectiveReadOnly = isReadOnly || (isPOError && !fillDataMode);
+  const isLockedPO = Boolean(isReadOnly && lockReason);
+
+  const handleLockedPointerDownCapture = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isLockedPO) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('input, button, [role="combobox"], [role="button"], select, textarea')) {
+      onLockedAttempt();
+    }
+  };
 
   // Filter POs based on search
   const filteredPOs = useMemo(() => {
@@ -720,7 +780,7 @@ function POCard({
   }, [openPODropdown, onClosePODropdown]);
 
   return (
-    <Card>
+    <Card onPointerDownCapture={handleLockedPointerDownCapture}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -737,6 +797,16 @@ function POCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Show locked PO message */}
+          {isLockedPO && (
+            <div className="rounded-md bg-amber-50 p-4 text-sm text-amber-800 border border-amber-200">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{lockReason}</span>
+              </div>
+            </div>
+          )}
+
           {/* Show PO API error with Fill Data button */}
           {isPOError && !fillDataMode && (
             <div className="rounded-md bg-destructive/15 p-4 text-sm text-destructive">

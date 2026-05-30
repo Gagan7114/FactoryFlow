@@ -153,8 +153,8 @@ export function SKUSummaryTable({ orders, isLoading, statusFilter }: SKUSummaryT
                         <div className="font-medium">{order.sku_code}</div>
                         <div className="text-xs text-muted-foreground">{order.sku_name}</div>
                       </td>
-                      <td className="px-4 py-3 text-right">{order.planned_qty.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right">{order.completed_qty.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">{order.planned_qty.toLocaleString('en-IN')}</td>
+                      <td className="px-4 py-3 text-right">{order.completed_qty.toLocaleString('en-IN')}</td>
                       <td className="px-4 py-3">
                         {order.components_with_shortfall > 0 ? (
                           <span className="text-red-600">

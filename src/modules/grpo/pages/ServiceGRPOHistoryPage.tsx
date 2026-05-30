@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, ChevronRight, RefreshCw, ShieldX } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Printer, RefreshCw, ShieldX } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -59,6 +59,19 @@ const formatDateTime = (dateTime?: string | null) => {
   }
 };
 
+const formatDate = (date?: string | null) => {
+  if (!date) return '-';
+  try {
+    return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return date;
+  }
+};
+
 const formatCurrency = (value?: string | null) => {
   const amount = parseFloat(value || '0');
   if (!amount) return '-';
@@ -86,11 +99,15 @@ export default function ServiceGRPOHistoryPage() {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const apiError = error as ApiError | null;
   const isPermissionError = apiError?.status === 403;
 
   return (
-    <div className="space-y-6">
+    <div className="service-grpo-history-page space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -106,10 +123,21 @@ export default function ServiceGRPOHistoryPage() {
           </div>
           <p className="text-muted-foreground">View transport service GRPO postings to SAP</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} className="w-full sm:w-auto">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="flex-1 sm:flex-none">
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            className="flex-1 sm:flex-none"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -176,41 +204,74 @@ export default function ServiceGRPOHistoryPage() {
             </h3>
           </div>
 
-          <div className="space-y-2">
-            {filteredEntries.map((entry) => {
-              const statusConfig = GRPO_STATUS_CONFIG[entry.status];
-              return (
-                <div
-                  key={entry.id}
-                  className="flex items-center justify-between px-3 py-2 rounded-md border bg-card hover:bg-muted/50 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/dispatch/bilty-grpo/history/${entry.id}`)}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="font-medium text-sm">{entry.dispatch_bill_no}</span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {entry.vehicle_no || '-'} - {entry.transporter_name || entry.vendor_name}
-                    </span>
-                    <span
-                      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium flex-shrink-0 ${getStatusBadgeClass(entry.status)}`}
+          <div className="service-grpo-history-print-table overflow-x-auto rounded-md border bg-card">
+            <table className="w-full min-w-[1040px]">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="p-3 text-left text-sm font-medium">Bilty</th>
+                  <th className="p-3 text-left text-sm font-medium">Dispatch Bill</th>
+                  <th className="p-3 text-left text-sm font-medium">Vehicle</th>
+                  <th className="p-3 text-left text-sm font-medium">Transporter</th>
+                  <th className="p-3 text-left text-sm font-medium">Status</th>
+                  <th className="p-3 text-left text-sm font-medium">SAP GRPO</th>
+                  <th className="p-3 text-right text-sm font-medium">Total</th>
+                  <th className="p-3 text-right text-sm font-medium">Posted At</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEntries.map((entry) => {
+                  const statusConfig = GRPO_STATUS_CONFIG[entry.status];
+                  const detailPath = `/dispatch/bilty-grpo/history/${entry.id}`;
+
+                  return (
+                    <tr
+                      key={entry.id}
+                      role="button"
+                      tabIndex={0}
+                      className="border-t transition-colors hover:bg-muted/40 cursor-pointer"
+                      onClick={() => navigate(detailPath)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          navigate(detailPath);
+                        }
+                      }}
                     >
-                      {statusConfig?.label || entry.status}
-                    </span>
-                    {entry.sap_doc_num && (
-                      <span className="text-xs text-muted-foreground hidden md:inline">
-                        SAP #{entry.sap_doc_num}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex flex-col items-end text-xs text-muted-foreground">
-                      <span>{formatCurrency(entry.total_amount || entry.sap_doc_total)}</span>
-                      <span>{formatDateTime(entry.posted_at || entry.created_at)}</span>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              );
-            })}
+                      <td className="p-3 text-sm">
+                        <div className="font-medium">{entry.bilty_no || '-'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDate(entry.bilty_date)}
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm">{entry.dispatch_bill_no || '-'}</td>
+                      <td className="p-3 text-sm">{entry.vehicle_no || '-'}</td>
+                      <td className="p-3 text-sm">{entry.transporter_name || entry.vendor_name}</td>
+                      <td className="p-3 text-sm">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(entry.status)}`}
+                        >
+                          {statusConfig?.label || entry.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-sm">
+                        <div className="font-medium">
+                          {entry.bilty_no ? `Bilty #${entry.bilty_no}` : '-'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          SAP {entry.sap_doc_num || '-'}
+                        </div>
+                      </td>
+                      <td className="p-3 text-right text-sm font-medium">
+                        {formatCurrency(entry.total_amount || entry.sap_doc_total)}
+                      </td>
+                      <td className="p-3 text-right text-sm text-muted-foreground">
+                        {formatDateTime(entry.posted_at || entry.created_at)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

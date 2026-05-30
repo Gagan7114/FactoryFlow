@@ -21,12 +21,11 @@ export const STOCK_BENCHMARK_STATS_STATUS_FILTER: StockHealthStatus[] = [
 ];
 
 export const STOCK_MOVEMENT_FILTER_OPTIONS = [
-  { value: 'planned', label: 'Planned' },
   { value: 'recent', label: 'Recently Used' },
   { value: 'slow', label: 'Slow Moving' },
 ] as const;
 
-export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = ['planned', 'recent'];
+export const DEFAULT_STOCK_MOVEMENT_FILTER: StockMovementStatus[] = ['recent'];
 
 // ============================================================================
 // Query Config
