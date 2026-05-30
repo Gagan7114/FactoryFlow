@@ -35,6 +35,7 @@ import type {
   LookupResponse,
   LooseStock,
   LooseStockFilters,
+  OitmItemRow,
   PaginatedResponse,
   Pallet,
   PalletAddBoxesPayload,
@@ -232,6 +233,11 @@ export const barcodeApi = {
     const res = await apiClient.get<ProductionReleaseOilRow[]>(EP.PRODUCTION_RELEASE_OIL, {
       params,
     });
+    return res.data;
+  },
+
+  async getOitmItems(params?: { search?: string; limit?: number }): Promise<OitmItemRow[]> {
+    const res = await apiClient.get<OitmItemRow[]>(EP.OITM_ITEMS, { params });
     return res.data;
   },
 

@@ -16,6 +16,7 @@ import type {
   DispatchSettings,
   GenerateBoxesPayload,
   LooseStockFilters,
+  OitmItemRow,
   PalletAddBoxesPayload,
   PalletClearPayload,
   PalletFilters,
@@ -54,6 +55,7 @@ export const BARCODE_QUERY_KEYS = {
     [...BARCODE_QUERY_KEYS.all, 'print-history-page', filters] as const,
   productionReleaseOil: (search?: string) =>
     [...BARCODE_QUERY_KEYS.all, 'production-release-oil', search] as const,
+  oitmItems: (search?: string) => [...BARCODE_QUERY_KEYS.all, 'oitm-items', search] as const,
   looseStock: (filters?: LooseStockFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'loose', filters] as const,
   looseStockPage: (filters?: LooseStockFilters) =>
@@ -331,6 +333,17 @@ export function useProductionReleaseOil(search = '') {
     queryKey: BARCODE_QUERY_KEYS.productionReleaseOil(search),
     queryFn: () =>
       barcodeApi.getProductionReleaseOil({
+        search: search.trim() || undefined,
+        limit: 100,
+      }),
+  });
+}
+
+export function useOitmItems(search = '') {
+  return useQuery<OitmItemRow[]>({
+    queryKey: BARCODE_QUERY_KEYS.oitmItems(search),
+    queryFn: () =>
+      barcodeApi.getOitmItems({
         search: search.trim() || undefined,
         limit: 100,
       }),

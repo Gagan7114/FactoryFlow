@@ -234,6 +234,22 @@ export interface ProductionReleaseOilRow {
   status: string;
 }
 
+export interface OitmItemRow {
+  item_code: string;
+  item_name: string;
+  inventory_uom: string;
+  sales_uom: string;
+  purchase_uom: string;
+  item_group_code: number | null;
+  manage_batch_numbers: boolean;
+  manage_serial_numbers: boolean;
+  is_inventory_item: boolean;
+  is_sales_item: boolean;
+  is_purchase_item: boolean;
+  valid_for: boolean;
+  frozen_for: boolean;
+}
+
 export interface VoidPayload {
   reason?: string;
 }
