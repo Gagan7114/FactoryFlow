@@ -151,6 +151,11 @@ export const barcodeApi = {
     return res.data;
   },
 
+  async deleteEmptyPallet(palletId: number): Promise<{ message: string }> {
+    const res = await apiClient.delete<{ message: string }>(EP.PALLET_DETAIL(palletId));
+    return res.data;
+  },
+
   async getPalletHistory(palletId: number): Promise<PalletBoxHistory[]> {
     const res = await apiClient.get<ListResponse<PalletBoxHistory>>(EP.PALLET_HISTORY(palletId));
     return unwrapList(res.data);

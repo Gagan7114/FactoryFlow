@@ -1,11 +1,13 @@
-import { ArrowLeft, Boxes, Clock, Printer, Scissors, XCircle } from 'lucide-react';
+import { ArrowLeft, Boxes, Clock, Printer, Scissors, Trash2, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { usePalletDetail, useVoidPallet } from '../api';
+import { useDeleteEmptyPallet, usePalletDetail, useVoidPallet } from '../api';
 import type { BoxStatus, PalletMovementType, PalletStatus } from '../types';
+import { toastBarcodeError } from '../utils/errors';
 
 const STATUS_COLORS: Record<PalletStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
@@ -41,6 +43,7 @@ export default function PalletDetailPage() {
   const navigate = useNavigate();
   const { data: pallet, isLoading } = usePalletDetail(palletId ? Number(palletId) : null);
   const voidMutation = useVoidPallet();
+  const deleteEmptyPalletMutation = useDeleteEmptyPallet();
 
   const handleVoid = () => {
     if (
@@ -50,6 +53,19 @@ export default function PalletDetailPage() {
       return;
     }
     voidMutation.mutate({ palletId: pallet.id, data: { reason: 'Voided from detail page' } });
+  };
+
+  const handleDeleteEmptyPallet = async () => {
+    if (!pallet) return;
+    if (!confirm(`Delete empty pallet ${pallet.pallet_id}? This cannot be undone.`)) return;
+
+    try {
+      await deleteEmptyPalletMutation.mutateAsync(pallet.id);
+      toast.success(`Deleted empty pallet ${pallet.pallet_id}`);
+      navigate('/barcode/pallets');
+    } catch (err: unknown) {
+      toastBarcodeError(err, 'Unable to delete pallet. Only empty pallets can be deleted.');
+    }
   };
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
@@ -135,6 +151,17 @@ export default function PalletDetailPage() {
           {isEmpty && (
             <Button size="sm" onClick={() => navigate('/barcode/generate')}>
               <Printer className="h-4 w-4 mr-1" /> Pallet QR Print
+            </Button>
+          )}
+          {isEmpty && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => void handleDeleteEmptyPallet()}
+              disabled={deleteEmptyPalletMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {deleteEmptyPalletMutation.isPending ? 'Deleting...' : 'Delete Empty Pallet'}
             </Button>
           )}
           {pallet.status === 'ACTIVE' && (
