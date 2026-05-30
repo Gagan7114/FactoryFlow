@@ -41,6 +41,10 @@ export function validateRequiredWeighment(values: RequiredWeighmentValues) {
 
 export function buildRequiredWeighmentDateTime(time: string) {
   if (!time) return undefined;
-  const today = new Date().toISOString().slice(0, 10);
-  return `${today}T${time}:00`;
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const date = `${year}-${month}-${day}`;
+  return `${date}T${time}:00`;
 }

@@ -253,6 +253,9 @@ export interface SalesDispatchGateOut {
   gross_weight?: string | null;
   tare_weight?: string | null;
   net_weight?: string | null;
+  weighbridge_slip_no?: string | null;
+  first_weighment_time?: string | null;
+  second_weighment_time?: string | null;
   gatepass_readiness: SalesDispatchGatepassReadiness;
   items: SalesDispatchItem[];
   attachments: SalesDispatchAttachment[];

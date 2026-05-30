@@ -125,6 +125,9 @@ const CustomerReturnDetailPage = lazy(
 const SalesDispatchDashboardPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchDashboardPage'),
 );
+const SalesDispatchGateOutWeighmentPage = lazy(
+  () => import('./pages/customerSalesFlow/SalesDispatchGateOutWeighmentPage'),
+);
 const SalesDispatchGatepassPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchGatepassPage'),
 );
@@ -739,6 +742,13 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'BST Out' },
     },
     {
+      path: '/gate/bst-out/new/weighment',
+      element: <SalesDispatchGateOutWeighmentPage />,
+      layout: 'main',
+      permissions: [GATE_PERMISSIONS.BST_OUT.VIEW],
+      breadcrumb: { label: 'BST Out Weighment' },
+    },
+    {
       path: '/gate/bst-out/new',
       element: <Navigate to="/dispatch/docking/new?documentType=STOCK_TRANSFER" replace />,
       layout: 'main',
@@ -880,10 +890,10 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/sales-dispatch/new/weighment',
-      element: <RedirectWithSearch to="/dispatch/docking/new/barcode-scan" />,
+      element: <SalesDispatchGateOutWeighmentPage />,
       layout: 'main',
-      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.CREATE],
-      breadcrumb: { label: 'Docking Box Scanning' },
+      permissions: [GATE_PERMISSIONS.SALES_DISPATCH.DISPATCH],
+      breadcrumb: { label: 'Sales Dispatch Out Weighment' },
     },
     {
       path: '/gate/sales-dispatch/new/barcode-scan',

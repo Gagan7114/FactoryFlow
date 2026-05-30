@@ -33,9 +33,13 @@ export default function BSTOutDashboardPage() {
     refetch,
   } = useSalesDispatchEntries(queryParams);
 
-  const gateOutEntries = useMemo(() => dockingEntries
-    .filter((entry) => [PENDING_OUT_STATUS, MARKED_OUT_STATUS].includes(entry.status))
-    .sort(sortBstOutEntries), [dockingEntries]);
+  const gateOutEntries = useMemo(
+    () =>
+      dockingEntries
+        .filter((entry) => [PENDING_OUT_STATUS, MARKED_OUT_STATUS].includes(entry.status))
+        .sort(sortBstOutEntries),
+    [dockingEntries],
+  );
 
   const filteredEntries = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -45,10 +49,13 @@ export default function BSTOutDashboardPage() {
   }, [gateOutEntries, searchTerm]);
 
   const pendingCount = dockingEntries.filter((entry) => entry.status === PENDING_OUT_STATUS).length;
-  const markedOutCount = dockingEntries.filter((entry) => entry.status === MARKED_OUT_STATUS).length;
-  const awaitingDockingCount = dockingEntries.filter((entry) => (
-    ![PENDING_OUT_STATUS, MARKED_OUT_STATUS, 'CANCELLED', 'REJECTED'].includes(entry.status)
-  )).length;
+  const markedOutCount = dockingEntries.filter(
+    (entry) => entry.status === MARKED_OUT_STATUS,
+  ).length;
+  const awaitingDockingCount = dockingEntries.filter(
+    (entry) =>
+      ![PENDING_OUT_STATUS, MARKED_OUT_STATUS, 'CANCELLED', 'REJECTED'].includes(entry.status),
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -78,10 +85,26 @@ export default function BSTOutDashboardPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
-        <StatCard icon={<Truck className="h-5 w-5 text-blue-600" />} label="Pending Out" value={pendingCount} />
-        <StatCard icon={<CheckCircle2 className="h-5 w-5 text-green-600" />} label="Marked Out" value={markedOutCount} />
-        <StatCard icon={<Clock className="h-5 w-5 text-amber-600" />} label="Awaiting Docking" value={awaitingDockingCount} />
-        <StatCard icon={<FileText className="h-5 w-5 text-violet-600" />} label="Total BST Docking" value={dockingEntries.length} />
+        <StatCard
+          icon={<Truck className="h-5 w-5 text-blue-600" />}
+          label="Pending Out"
+          value={pendingCount}
+        />
+        <StatCard
+          icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
+          label="Marked Out"
+          value={markedOutCount}
+        />
+        <StatCard
+          icon={<Clock className="h-5 w-5 text-amber-600" />}
+          label="Awaiting Docking"
+          value={awaitingDockingCount}
+        />
+        <StatCard
+          icon={<FileText className="h-5 w-5 text-violet-600" />}
+          label="Total BST Docking"
+          value={dockingEntries.length}
+        />
       </div>
 
       <section>
@@ -128,7 +151,13 @@ export default function BSTOutDashboardPage() {
                     <tr
                       key={entry.id}
                       className="cursor-pointer border-t transition-colors hover:bg-muted/50"
-                      onClick={() => navigate(GATE_OUT_ROUTES.bstOutGatepass(entry.vehicle_entry))}
+                      onClick={() =>
+                        navigate(
+                          hasCompleteGateOutWeighment(entry)
+                            ? GATE_OUT_ROUTES.bstOutGatepass(entry.vehicle_entry)
+                            : GATE_OUT_ROUTES.bstOutWeighment(entry.vehicle_entry),
+                        )
+                      }
                     >
                       <td className="whitespace-nowrap p-3 text-sm font-medium">
                         {entry.entry_no}
@@ -152,7 +181,10 @@ export default function BSTOutDashboardPage() {
                         />
                       </td>
                       <td className="whitespace-nowrap p-3 text-sm">
-                        <GateStatusBadge status={entry.status} label={formatBstOutStatus(entry.status)} />
+                        <GateStatusBadge
+                          status={entry.status}
+                          label={formatBstOutStatus(entry.status)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -174,8 +206,10 @@ function sortBstOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGat
     return firstPriority - secondPriority;
   }
 
-  return timestampValue(second.updated_at || second.created_at)
-    - timestampValue(first.updated_at || first.created_at);
+  return (
+    timestampValue(second.updated_at || second.created_at) -
+    timestampValue(first.updated_at || first.created_at)
+  );
 }
 
 function timestampValue(value?: string | null) {
@@ -198,13 +232,27 @@ function buildBstOutSearchText(entry: SalesDispatchGateOut) {
     entry.gatepass_no,
     entry.item_summary,
     entry.status,
-  ].join(' ').toLowerCase();
+  ]
+    .join(' ')
+    .toLowerCase();
 }
 
 function formatBstOutStatus(status: string) {
   if (status === PENDING_OUT_STATUS) return 'PENDING OUT';
   if (status === MARKED_OUT_STATUS) return 'MARKED OUT';
   return status;
+}
+
+function hasCompleteGateOutWeighment(entry: SalesDispatchGateOut) {
+  const gross = toFiniteNumber(entry.gross_weight);
+  const tare = toFiniteNumber(entry.tare_weight);
+  return gross !== null && gross > 0 && tare !== null && tare >= 0 && gross >= tare;
+}
+
+function toFiniteNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function formatDateTime(date?: string | null, time?: string | null) {
@@ -219,15 +267,7 @@ function summarizeItems(entry: SalesDispatchGateOut) {
   return `${firstItem.item_name || firstItem.item_code}${suffix}`;
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-}) {
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
     <Card>
       <CardContent className="p-4">

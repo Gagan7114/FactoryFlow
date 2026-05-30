@@ -415,6 +415,13 @@ function DockingOverviewCard({
           <InfoItem label="Vehicle Entry" value={entry.vehicle_entry_no} />
           <InfoItem label="Docked At" value={formatTimestamp(entry.docked_at)} />
           <InfoItem label="Box Scan Progress" value={formatScanProgress(entry)} />
+          <InfoItem label="Tare Weight" value={formatWeightValue(entry.tare_weight)} />
+          {hasDisplayValue(entry.gross_weight) ? (
+            <InfoItem label="Gross Weight" value={formatWeightValue(entry.gross_weight)} />
+          ) : null}
+          {hasDisplayValue(entry.net_weight) ? (
+            <InfoItem label="Net Weight" value={formatWeightValue(entry.net_weight)} />
+          ) : null}
           <InfoItem label="Security" value={entry.security_name} />
           {showGatepass ? <InfoItem label="Gatepass No." value={entry.gatepass_no} /> : null}
           {showActualGateOut ? (
@@ -825,7 +832,9 @@ function formatCount(value: number) {
 }
 
 function getPrimaryActionLabel(entry: SalesDispatchGateOut, isGateOutMode: boolean) {
-  if (isGateOutMode) return 'Open Gate Out';
+  if (isGateOutMode) {
+    return hasCompleteGateOutWeighment(entry) ? 'Open Gate Out' : 'Record Gross Weight';
+  }
 
   if (entry.status === 'DOCKED') return 'Continue Barcode Scan';
   if (entry.status === 'PHOTO_ATTACHED' || entry.status === 'READY_FOR_GATEPASS') {
@@ -842,7 +851,11 @@ function getPrimaryActionPath(
   isGateOutMode: boolean,
   routes: ReturnType<typeof getSalesDispatchRoutes>,
 ) {
-  if (isGateOutMode) return routes.gatepass(entry.vehicle_entry);
+  if (isGateOutMode) {
+    return hasCompleteGateOutWeighment(entry)
+      ? routes.gatepass(entry.vehicle_entry)
+      : routes.weighment(entry.vehicle_entry);
+  }
   if (entry.status === 'DOCKED') return routes.barcodeScan(entry.vehicle_entry);
   if (entry.status === 'PHOTO_ATTACHED' || entry.status === 'READY_FOR_GATEPASS') {
     return routes.gatepass(entry.vehicle_entry);
@@ -851,6 +864,18 @@ function getPrimaryActionPath(
     return routes.gatepass(entry.vehicle_entry);
   }
   return `${routes.newEntry}?entryId=${entry.vehicle_entry}`;
+}
+
+function hasCompleteGateOutWeighment(entry: SalesDispatchGateOut) {
+  const gross = toFiniteNumber(entry.gross_weight);
+  const tare = toFiniteNumber(entry.tare_weight);
+  return gross !== null && gross > 0 && tare !== null && tare >= 0 && gross >= tare;
+}
+
+function toFiniteNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function buildAuditEvents(entry: SalesDispatchGateOut): AuditEvent[] {

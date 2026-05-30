@@ -5,6 +5,7 @@ import {
   FileText,
   Lock,
   Printer,
+  Scale,
   Send,
   Truck,
 } from 'lucide-react';
@@ -272,6 +273,10 @@ export default function SalesDispatchGatepassPage() {
     }
 
     if (isGateOutMode && action !== 'dispatch' && action !== 'done') {
+      if (action === 'weighment') {
+        navigate(routes.weighment(entry.vehicle_entry));
+        return;
+      }
       setError('This entry can be marked out after Docking commits the gatepass print.');
       return;
     }
@@ -280,6 +285,8 @@ export default function SalesDispatchGatepassPage() {
       await handlePrintGatepass();
     } else if (action === 'commit') {
       await handleCommitPrint();
+    } else if (action === 'weighment') {
+      navigate(routes.weighment(entry.vehicle_entry));
     } else if (action === 'dispatch') {
       await handleMarkDispatched();
     } else {
@@ -371,6 +378,13 @@ export default function SalesDispatchGatepassPage() {
             ))}
           </CardContent>
         </Card>
+
+        {isGateOutMode ? (
+          <GateOutWeighmentPanel
+            entry={entry}
+            onEdit={() => navigate(routes.weighment(entry.vehicle_entry))}
+          />
+        ) : null}
 
         <GatepassDocumentsPanel documents={gatepassDocuments} />
 
@@ -539,14 +553,27 @@ export default function SalesDispatchGatepassPage() {
             </>
           )}
           {isGateOutMode && (
-            <Button
-              type="button"
-              onClick={handleMarkDispatched}
-              disabled={isSaving || action !== 'dispatch' || !canDispatchGatepass}
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Mark Dispatched
-            </Button>
+            <>
+              {entry.status === 'PRINT_COMMITTED' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(routes.weighment(entry.vehicle_entry))}
+                  disabled={isSaving}
+                >
+                  <Scale className="mr-2 h-4 w-4" />
+                  {hasCompleteGateOutWeighment(entry) ? 'Edit Weighment' : 'Record Weighment'}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                onClick={handleMarkDispatched}
+                disabled={isSaving || action !== 'dispatch' || !canDispatchGatepass}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                Mark Dispatched
+              </Button>
+            </>
           )}
         </div>
 
@@ -557,7 +584,9 @@ export default function SalesDispatchGatepassPage() {
             onNext={handleNextAction}
             showPrevious={!isGateOutMode}
             isSaving={isSaving}
-            isNextDisabled={isGateOutMode && action !== 'dispatch' && action !== 'done'}
+            isNextDisabled={
+              isGateOutMode && action !== 'weighment' && action !== 'dispatch' && action !== 'done'
+            }
             nextLabel={
               isGateOutMode
                 ? getGateOutActionLabel(entry, isSaving)
@@ -581,7 +610,10 @@ function getGatepassPageTitle(entry: SalesDispatchGateOut, isGateOutMode: boolea
 function getNextAction(entry?: SalesDispatchGateOut | null, isGateOutMode = false) {
   if (!entry) return 'done';
   if (entry.status === 'GATEPASS_PRINTED') return isGateOutMode ? 'waiting' : 'commit';
-  if (entry.status === 'PRINT_COMMITTED') return isGateOutMode ? 'dispatch' : 'done';
+  if (entry.status === 'PRINT_COMMITTED') {
+    if (!isGateOutMode) return 'done';
+    return hasCompleteGateOutWeighment(entry) ? 'dispatch' : 'weighment';
+  }
   if (entry.status === 'DISPATCHED') return 'done';
   if (entry.status === 'CANCELLED' || entry.status === 'REJECTED') return 'done';
   return isGateOutMode ? 'waiting' : 'print';
@@ -599,9 +631,22 @@ function getNextActionLabel(entry: SalesDispatchGateOut, isSaving: boolean) {
 function getGateOutActionLabel(entry: SalesDispatchGateOut, isSaving: boolean) {
   if (isSaving) return 'Saving...';
   const action = getNextAction(entry, true);
+  if (action === 'weighment') return 'Record Gross Weight';
   if (action === 'dispatch') return 'Mark Dispatched';
   if (action === 'done') return 'Back to Dashboard';
   return 'Waiting for Docking';
+}
+
+function hasCompleteGateOutWeighment(entry: SalesDispatchGateOut) {
+  const gross = toFiniteNumber(entry.gross_weight);
+  const tare = toFiniteNumber(entry.tare_weight);
+  return gross !== null && gross > 0 && tare !== null && tare >= 0 && gross >= tare;
+}
+
+function toFiniteNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function buildReadinessError(entry: SalesDispatchGateOut) {
@@ -677,6 +722,53 @@ function formatActualGateOut(entry: SalesDispatchGateOut) {
   return entry.gate_out_date || entry.out_time
     ? formatDateTime(entry.gate_out_date, entry.out_time)
     : formatTimestamp(entry.dispatched_at);
+}
+
+function GateOutWeighmentPanel({
+  entry,
+  onEdit,
+}: {
+  entry: SalesDispatchGateOut;
+  onEdit: () => void;
+}) {
+  const hasWeighment = hasCompleteGateOutWeighment(entry);
+  const canEdit = entry.status === 'PRINT_COMMITTED';
+
+  return (
+    <Card className="print-hide">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5" />
+            Gate Out Weighment
+          </CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Gross minus tare is used as the vehicle net weight before dispatch out.
+          </p>
+        </div>
+        {canEdit ? (
+          <Button type="button" variant="outline" onClick={onEdit}>
+            <Scale className="mr-2 h-4 w-4" />
+            {hasWeighment ? 'Edit Weighment' : 'Record Weighment'}
+          </Button>
+        ) : null}
+      </CardHeader>
+      <CardContent className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+        <InfoItem label="Gross Weight" value={formatWeightValue(entry.gross_weight)} />
+        <InfoItem label="Tare Weight" value={formatWeightValue(entry.tare_weight)} />
+        <InfoItem label="Net Weight" value={formatWeightValue(entry.net_weight)} />
+        <InfoItem label="Weighbridge Ticket No." value={entry.weighbridge_slip_no} />
+        <InfoItem
+          label="First Weighment Time"
+          value={formatTimestamp(entry.first_weighment_time)}
+        />
+        <InfoItem
+          label="Second Weighment Time"
+          value={formatTimestamp(entry.second_weighment_time)}
+        />
+      </CardContent>
+    </Card>
+  );
 }
 
 function buildGatepassReferenceFields(

@@ -5,6 +5,8 @@ const GATE_BST_OUT_BASE = '/gate/bst-out';
 function buildSalesDispatchRoutes(base: string) {
   const barcodeScan = (entryId: string | number) =>
     `${base}/new/barcode-scan?entryId=${encodeURIComponent(String(entryId))}`;
+  const weighment = (entryId: string | number) =>
+    `${base}/new/weighment?entryId=${encodeURIComponent(String(entryId))}`;
 
   return {
     dashboard: base,
@@ -12,7 +14,7 @@ function buildSalesDispatchRoutes(base: string) {
     reprintSearch: `${base}/reprint`,
     newEntry: `${base}/new`,
     barcodeScan,
-    weighment: barcodeScan,
+    weighment,
     attachments: (entryId: string | number) =>
       `${base}/new/attachments?entryId=${encodeURIComponent(String(entryId))}`,
     gatepass: (entryId: string | number) =>
@@ -45,10 +47,14 @@ export const SALES_DISPATCH_BASE_ROUTES = {
 export const GATE_OUT_ROUTES = {
   bstOutDashboard: '/gate/bst-out',
   bstOutNew: '/dispatch/docking/new',
+  bstOutWeighment: (vehicleEntryId: string | number) =>
+    `${GATE_BST_OUT_BASE}/new/weighment?entryId=${encodeURIComponent(String(vehicleEntryId))}`,
   bstOutGatepass: (vehicleEntryId: string | number) =>
     `${GATE_BST_OUT_BASE}/new/gatepass?entryId=${encodeURIComponent(String(vehicleEntryId))}`,
   salesDispatchOutDashboard: '/gate/sales-dispatch',
   salesDispatchOutEntry: (entryId: string | number) => `/gate/sales-dispatch/${entryId}`,
+  salesDispatchOutWeighment: (vehicleEntryId: string | number) =>
+    `/gate/sales-dispatch/new/weighment?entryId=${encodeURIComponent(String(vehicleEntryId))}`,
   salesDispatchOutGatepass: (vehicleEntryId: string | number) =>
     `/gate/sales-dispatch/new/gatepass?entryId=${encodeURIComponent(String(vehicleEntryId))}`,
 };

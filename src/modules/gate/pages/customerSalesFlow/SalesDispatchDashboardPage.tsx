@@ -362,6 +362,7 @@ export default function SalesDispatchDashboardPage() {
             entries={filteredEntries}
             newEntryPath={routes.newEntry}
             detailPath={routes.detail}
+            weighmentPath={routes.weighment}
             gatepassPath={routes.gatepass}
             isGateOutMode={isGateOutMode}
           />
@@ -375,12 +376,14 @@ function DispatchTable({
   entries,
   newEntryPath,
   detailPath,
+  weighmentPath,
   gatepassPath,
   isGateOutMode,
 }: {
   entries: SalesDispatchDashboardEntry[];
   newEntryPath: string;
   detailPath: (entryId: string | number) => string;
+  weighmentPath: (entryId: string | number) => string;
   gatepassPath: (entryId: string | number) => string;
   isGateOutMode: boolean;
 }) {
@@ -425,13 +428,17 @@ function DispatchTable({
               return (
                 <tr
                   key={entry.id}
-                  className="cursor-pointer border-t align-top transition-colors hover:bg-muted/50"
+                  className={cn(
+                    'cursor-pointer border-t align-top transition-colors',
+                    getSalesDispatchDashboardRowClassName(entry),
+                  )}
                   onClick={() => {
                     navigate(
                       getSalesDispatchDashboardEntryPath(
                         entry,
                         newEntryPath,
                         detailPath,
+                        weighmentPath,
                         gatepassPath,
                         isGateOutMode,
                       ),
@@ -490,6 +497,32 @@ function DispatchTable({
       </div>
     </div>
   );
+}
+
+function getSalesDispatchDashboardRowClassName(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) {
+    return 'bg-slate-50 hover:bg-slate-100/80';
+  }
+
+  switch (entry.status) {
+    case 'PENDING_DOCKING':
+    case 'DOCKED':
+      return 'bg-blue-50/70 hover:bg-blue-100/80';
+    case 'PHOTO_ATTACHED':
+    case 'READY_FOR_GATEPASS':
+      return 'bg-violet-50/70 hover:bg-violet-100/80';
+    case 'GATEPASS_PRINTED':
+      return 'bg-amber-50/80 hover:bg-amber-100/80';
+    case 'PRINT_COMMITTED':
+      return 'bg-sky-50/80 hover:bg-sky-100/80';
+    case 'DISPATCHED':
+      return 'bg-emerald-50/75 hover:bg-emerald-100/80';
+    case 'REJECTED':
+    case 'CANCELLED':
+      return 'bg-red-50/75 hover:bg-red-100/80';
+    default:
+      return 'hover:bg-muted/50';
+  }
 }
 
 function DockingLockPanel({
@@ -945,6 +978,7 @@ function getSalesDispatchDashboardEntryPath(
   entry: SalesDispatchDashboardEntry,
   newEntryPath: string,
   detailPath: (entryId: string | number) => string,
+  weighmentPath: (entryId: string | number) => string,
   gatepassPath: (entryId: string | number) => string,
   isGateOutMode: boolean,
 ) {
@@ -952,9 +986,24 @@ function getSalesDispatchDashboardEntryPath(
     return `${newEntryPath}?dispatchPlanIds=${entry.dispatch_plan_ids.join(',')}`;
   }
   if (isGateOutMode && entry.status === GATE_OUT_PENDING_STATUS) {
-    return gatepassPath(entry.vehicle_entry);
+    return hasCompleteGateOutWeighment(entry)
+      ? gatepassPath(entry.vehicle_entry)
+      : weighmentPath(entry.vehicle_entry);
   }
   return detailPath(entry.id);
+}
+
+function hasCompleteGateOutWeighment(entry: SalesDispatchDashboardEntry) {
+  if (isPendingBookingEntry(entry)) return false;
+  const gross = toFiniteNumber(entry.gross_weight);
+  const tare = toFiniteNumber(entry.tare_weight);
+  return gross !== null && gross > 0 && tare !== null && tare >= 0 && gross >= tare;
+}
+
+function toFiniteNumber(value?: string | number | null) {
+  if (value === null || value === undefined || value === '') return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
 }
 
 function getSalesDispatchDashboardStatusLabel(status: string, isGateOutMode: boolean) {
