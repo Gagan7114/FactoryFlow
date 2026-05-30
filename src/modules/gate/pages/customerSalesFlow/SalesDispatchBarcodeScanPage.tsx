@@ -9,7 +9,7 @@ import {
   Trash2,
   Truck,
 } from 'lucide-react';
-import { type FormEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -50,6 +50,14 @@ import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 type ScanSource = 'camera' | 'manual';
 
+const SCAN_CLOSED_STATUSES = [
+  'GATEPASS_PRINTED',
+  'PRINT_COMMITTED',
+  'DISPATCHED',
+  'REJECTED',
+  'CANCELLED',
+] as const;
+
 export default function SalesDispatchBarcodeScanPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermission();
@@ -68,11 +76,8 @@ export default function SalesDispatchBarcodeScanPage() {
   const scanBox = useScanSalesDispatchBox();
   const removeScan = useRemoveSalesDispatchBoxScan();
 
-  const isReadOnly = entry
-    ? ['GATEPASS_PRINTED', 'PRINT_COMMITTED', 'DISPATCHED', 'REJECTED', 'CANCELLED'].includes(
-        entry.status,
-      )
-    : false;
+  const isReadOnly = entry ? SCAN_CLOSED_STATUSES.includes(entry.status) : false;
+  const closedScanRedirectPath = getClosedScanRedirectPath(entry);
   const canEditDocking = hasAnyPermission([
     GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
     GATE_PERMISSIONS.SALES_DISPATCH.EDIT,
@@ -87,6 +92,12 @@ export default function SalesDispatchBarcodeScanPage() {
   const itemScanSummary = useMemo(() => buildItemScanSummary(entry, scans), [entry, scans]);
   const progressPercent =
     expectedBoxes > 0 ? Math.min(100, Math.round((scans.length / expectedBoxes) * 100)) : 0;
+
+  useEffect(() => {
+    if (!closedScanRedirectPath || !entry) return;
+    toast.info(getScanClosedMessage(entry.status));
+    navigate(closedScanRedirectPath, { replace: true });
+  }, [closedScanRedirectPath, entry, navigate]);
 
   const processBarcode = useCallback(
     async (rawBarcode: string, source: ScanSource) => {
@@ -201,6 +212,10 @@ export default function SalesDispatchBarcodeScanPage() {
         </div>
       </div>
     );
+  }
+
+  if (closedScanRedirectPath) {
+    return <StepLoadingSpinner label="Opening the current Docking step..." />;
   }
 
   return (
@@ -475,9 +490,7 @@ function ItemsToScanCard({
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant={openCount > 0 ? 'outline' : 'success'}>{openCount} open</Badge>
-            <Badge variant={scannedCount > 0 ? 'success' : 'outline'}>
-              {scannedCount} scanned
-            </Badge>
+            <Badge variant={scannedCount > 0 ? 'success' : 'outline'}>{scannedCount} scanned</Badge>
             {unplannedScanCount > 0 ? (
               <Badge className="border-red-200 bg-red-50 text-red-700">
                 {unplannedScanCount} outside list
@@ -590,6 +603,21 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
       <p className="mt-1 font-medium">{formatValue(value)}</p>
     </div>
   );
+}
+
+function getClosedScanRedirectPath(entry?: SalesDispatchGateOut) {
+  if (!entry || !SCAN_CLOSED_STATUSES.includes(entry.status)) return '';
+  if (entry.status === 'GATEPASS_PRINTED' || entry.status === 'PRINT_COMMITTED') {
+    return DOCKING_ROUTES.gatepass(entry.vehicle_entry);
+  }
+  return DOCKING_ROUTES.detail(entry.id);
+}
+
+function getScanClosedMessage(status: SalesDispatchGateOut['status']) {
+  if (status === 'GATEPASS_PRINTED' || status === 'PRINT_COMMITTED') {
+    return 'Box scanning is closed after gatepass printing.';
+  }
+  return 'Box scanning is closed for this Docking entry.';
 }
 
 function buildItemScanSummary(

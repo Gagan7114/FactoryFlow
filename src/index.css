@@ -244,12 +244,6 @@
     display: none !important;
   }
 
-  .sales-dispatch-gatepass-page .sales-dispatch-gatepass-qr-code {
-    display: block !important;
-    height: 24mm !important;
-    width: 24mm !important;
-  }
-
   .sales-dispatch-gatepass-page label,
   .sales-dispatch-gatepass-page p,
   .sales-dispatch-gatepass-page input,
@@ -287,10 +281,6 @@
 
   .sales-dispatch-gatepass-reference {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  }
-
-  .sales-dispatch-gatepass-qr {
-    padding: 4px !important;
   }
 
   .sales-dispatch-gatepass-page .rounded-lg,

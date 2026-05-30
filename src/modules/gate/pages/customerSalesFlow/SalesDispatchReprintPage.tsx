@@ -5,11 +5,9 @@ import {
   FileText,
   History,
   Printer,
-  QrCode,
   Search,
   Truck,
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import type { Ref } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,7 +43,6 @@ import {
 import { getErrorMessage } from '@/shared/utils';
 
 import {
-  buildSalesDispatchGatepassQrValue,
   formatDateTime,
   formatDocumentType,
   formatTimestamp,
@@ -734,7 +731,6 @@ const PrintableGatepass = ({
   companyName: string;
   printLog?: SalesDispatchGatepassPrintLog | null;
 }) => {
-  const qrValue = buildSalesDispatchGatepassQrValue(entry);
   const documents = getPrintableDocuments(entry);
   const scanStatsByItem = buildScanStatsByItem(entry.box_scans || []);
   const showDocumentCustomer = hasDistinctDocumentValues(
@@ -797,21 +793,14 @@ const PrintableGatepass = ({
           </div>
         </div>
 
-        <footer className="grid gap-4 border-t pt-4 text-sm md:grid-cols-[1fr_auto]">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <footer className="border-t pt-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-3">
             <PrintField label="Reprint Reason" value={printLog?.reprint_reason} />
             <PrintField
               label="Printed By"
               value={printLog?.printed_by_name || printLog?.printed_by}
             />
             <PrintField label="Printer" value={printLog?.printer_name} />
-          </div>
-          <div className="flex flex-col items-center justify-center rounded-md border p-3">
-            <QRCodeSVG value={qrValue} size={112} level="M" includeMargin={false} />
-            <div className="mt-2 flex items-center gap-1 text-xs text-slate-600">
-              <QrCode className="h-3 w-3" />
-              Gatepass QR
-            </div>
           </div>
         </footer>
       </div>

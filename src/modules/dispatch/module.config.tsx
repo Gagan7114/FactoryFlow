@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { DISPATCH_PERMISSIONS, GATE_PERMISSIONS, GRPO_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
+const DispatchDashboardPage = lazy(() => import('./pages/DispatchDashboardPage'));
 const DispatchPlansDashboardPage = lazy(
   () => import('@/modules/dashboards/dispatch-plans/pages/DispatchPlansDashboardPage'),
 );
@@ -86,7 +87,7 @@ export const dispatchModuleConfig: ModuleConfig = {
   routes: [
     {
       path: '/dispatch',
-      element: <Navigate to="/dispatch/plans" replace />,
+      element: <DispatchDashboardPage />,
       layout: 'main',
       permissions: dispatchViewPermissions,
       breadcrumb: { label: 'Dispatch' },

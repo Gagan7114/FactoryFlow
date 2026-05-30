@@ -5,11 +5,9 @@ import {
   FileText,
   Lock,
   Printer,
-  QrCode,
   Send,
   Truck,
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
@@ -48,7 +46,6 @@ import {
 import { cn, getErrorMessage } from '@/shared/utils';
 
 import {
-  buildSalesDispatchGatepassQrValue,
   DOCKING_TOTAL_STEPS,
   formatDateTime,
   formatDocumentType,
@@ -320,7 +317,6 @@ export default function SalesDispatchGatepassPage() {
 
   const companyName =
     currentCompany?.company_name || entry.sap_branch_name || String(entry.company);
-  const qrValue = buildSalesDispatchGatepassQrValue(entry);
   const gatepassDocuments = getGatepassDocuments(entry);
   const gatepassReferenceFields = buildGatepassReferenceFields(entry, draft);
   const gatepassSummaryFields = buildGatepassSummaryFields(entry);
@@ -431,33 +427,19 @@ export default function SalesDispatchGatepassPage() {
 
               {entry.gatepass_no ? (
                 <div className="rounded-md border p-4">
+                  {gatepassReferenceFields.length ? (
+                    <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
+                      {gatepassReferenceFields.map((field) => (
+                        <InfoItem key={field.label} label={field.label} value={field.value} />
+                      ))}
+                    </div>
+                  ) : null}
                   <div
                     className={cn(
-                      'grid gap-4',
-                      gatepassReferenceFields.length
-                        ? 'lg:grid-cols-[1fr_auto]'
-                        : 'justify-items-center',
+                      'print-hide rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900',
+                      gatepassReferenceFields.length && 'mt-4',
                     )}
                   >
-                    {gatepassReferenceFields.length ? (
-                      <div className="sales-dispatch-gatepass-reference grid gap-3 text-sm md:grid-cols-2">
-                        {gatepassReferenceFields.map((field) => (
-                          <InfoItem key={field.label} label={field.label} value={field.value} />
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="sales-dispatch-gatepass-qr flex flex-col items-center justify-center rounded-md border bg-white p-3">
-                      <QRCodeSVG
-                        value={qrValue}
-                        size={128}
-                        level="M"
-                        includeMargin={false}
-                        className="sales-dispatch-gatepass-qr-code"
-                      />
-                      <p className="mt-2 text-center text-xs text-muted-foreground">Gatepass QR</p>
-                    </div>
-                  </div>
-                  <div className="print-hide mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-medium">Original gatepass print is already recorded</p>
@@ -485,7 +467,7 @@ export default function SalesDispatchGatepassPage() {
           <Card className="print-hide">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
-                <QrCode className="h-5 w-5" />
+                <CheckCircle2 className="h-5 w-5" />
                 Readiness
               </CardTitle>
               {!isGateOutMode && (
@@ -645,9 +627,7 @@ function getScannedQuantity(entry?: SalesDispatchGateOut | null) {
 
 function getScannedUom(entry?: SalesDispatchGateOut | null) {
   const uoms = new Set(
-    (entry?.box_scans || [])
-      .map((scan) => String(scan.uom || '').trim())
-      .filter(Boolean),
+    (entry?.box_scans || []).map((scan) => String(scan.uom || '').trim()).filter(Boolean),
   );
   return uoms.size === 1 ? Array.from(uoms)[0] : '';
 }

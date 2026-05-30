@@ -46,7 +46,9 @@ export function buildDocumentLabel(document: SalesDispatchDocument) {
     document.doc_date,
     document.card_name || document.to_warehouse || document.warehouses,
     document.item_summary,
-  ].filter(Boolean).join(' - ');
+  ]
+    .filter(Boolean)
+    .join(' - ');
 }
 
 export function buildEntryDocumentLabel(entry: SalesDispatchGateOut) {
@@ -56,7 +58,9 @@ export function buildEntryDocumentLabel(entry: SalesDispatchGateOut) {
     entry.sap_doc_date,
     entry.customer_name || entry.to_warehouse || entry.warehouses,
     entry.item_summary,
-  ].filter(Boolean).join(' - ');
+  ]
+    .filter(Boolean)
+    .join(' - ');
 }
 
 export function formatDateTime(date?: string | null, time?: string | null) {
@@ -78,9 +82,7 @@ export function formatTimestamp(value?: string | null) {
 }
 
 export function getDocumentLines(document?: SalesDispatchDocument | null) {
-  return Array.isArray(document?.items)
-    ? document.items.filter(isRecord)
-    : [];
+  return Array.isArray(document?.items) ? document.items.filter(isRecord) : [];
 }
 
 export function getLineText(line: Record<string, unknown>, keys: string[]) {
@@ -98,33 +100,6 @@ export function summarizeSalesDispatchItems(items: SalesDispatchItem[]) {
   const [firstItem] = items;
   const suffix = items.length > 1 ? ` +${items.length - 1}` : '';
   return `${firstItem.item_name || firstItem.item_code}${suffix}`;
-}
-
-export function buildSalesDispatchGatepassQrValue(entry: SalesDispatchGateOut) {
-  const documentNumbers = getSalesDispatchDocumentNumbers(entry);
-  const documentLabel = entry.document_type === 'STOCK_TRANSFER' ? 'SAP Document' : 'Invoice';
-
-  return [
-    'JIVO DISPATCH GATEPASS',
-    `Gatepass: ${entry.gatepass_no || '-'}`,
-    `Entry: ${entry.entry_no || '-'}`,
-    `Vehicle: ${entry.vehicle_no || '-'}`,
-    documentNumbers ? `${documentLabel}: ${documentNumbers}` : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
-}
-
-function getSalesDispatchDocumentNumbers(entry: SalesDispatchGateOut) {
-  const numbers = entry.document_numbers?.length
-    ? entry.document_numbers
-    : entry.documents?.length
-      ? entry.documents.map((document) => document.sap_doc_num).filter(Boolean)
-      : entry.sap_doc_num
-        ? [entry.sap_doc_num]
-        : [];
-
-  return numbers.join(', ');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
