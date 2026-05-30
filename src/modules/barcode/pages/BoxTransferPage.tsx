@@ -36,24 +36,22 @@ export default function BoxTransferPage() {
   const [targetPalletId, setTargetPalletId] = useState<number | null>(null);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
 
-  const canSearchSource = sourceSearch.trim().length >= 2;
-  const canSearchTarget = targetSearch.trim().length >= 2;
-
   const { data: sourcePallets = [], isLoading: loadingSourcePallets } = usePallets(
-    { search: sourceSearch, status: 'ACTIVE' },
-    { enabled: canSearchSource },
-  );
-  const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
-    { search: targetSearch },
-    { enabled: canSearchTarget && selectedBoxIds.length > 0 && !!sourcePallet },
+    { search: sourceSearch.trim() || undefined, status: 'ACTIVE' },
   );
   const { data: sourcePallet } = usePalletDetail(sourcePalletId);
+  const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
+    { search: targetSearch.trim() || undefined },
+    { enabled: selectedBoxIds.length > 0 && !!sourcePallet },
+  );
+  const { data: selectedTargetPallet } = usePalletDetail(targetPalletId);
   const transferMutation = useTransferBoxes();
 
   const activeBoxes =
     sourcePallet?.boxes?.filter((box) => box.status === 'ACTIVE' || box.status === 'PARTIAL') ?? [];
   const selectedBoxes = activeBoxes.filter((box) => selectedBoxIds.includes(box.id));
-  const targetPallet = targetPallets.find((pallet) => pallet.id === targetPalletId);
+  const targetPallet =
+    selectedTargetPallet ?? targetPallets.find((pallet) => pallet.id === targetPalletId);
 
   const eligibleTargetPallets = targetPallets.filter((pallet) => {
     if (!sourcePallet || pallet.id === sourcePalletId) {
@@ -86,7 +84,7 @@ export default function BoxTransferPage() {
   }, []);
 
   useEffect(() => {
-    if (!canSearchSource || sourcePallets.length !== 1) return;
+    if (!sourceSearch.trim() || sourcePallets.length !== 1) return;
     const [pallet] = sourcePallets;
     if (pallet.pallet_id.toLowerCase() !== sourceSearch.trim().toLowerCase()) return;
     if (sourcePalletId === pallet.id) return;
@@ -94,16 +92,16 @@ export default function BoxTransferPage() {
     setSourcePalletId(pallet.id);
     setTargetPalletId(null);
     setSelectedBoxIds([]);
-  }, [canSearchSource, sourcePalletId, sourcePallets, sourceSearch]);
+  }, [sourcePalletId, sourcePallets, sourceSearch]);
 
   useEffect(() => {
-    if (!canSearchTarget || eligibleTargetPallets.length !== 1) return;
+    if (!targetSearch.trim() || eligibleTargetPallets.length !== 1) return;
     const [pallet] = eligibleTargetPallets;
     if (pallet.pallet_id.toLowerCase() !== targetSearch.trim().toLowerCase()) return;
     if (targetPalletId === pallet.id) return;
 
     setTargetPalletId(pallet.id);
-  }, [canSearchTarget, eligibleTargetPallets, targetPalletId, targetSearch]);
+  }, [eligibleTargetPallets, targetPalletId, targetSearch]);
 
   const toggleBox = (id: number) => {
     setSelectedBoxIds((prev) =>
@@ -147,7 +145,7 @@ export default function BoxTransferPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SearchableSelect<Pallet>
               items={sourcePallets}
-              isLoading={loadingSourcePallets && sourceSearch.length >= 2}
+              isLoading={loadingSourcePallets}
               getItemKey={(pallet) => pallet.id}
               getItemLabel={(pallet) => pallet.pallet_id}
               filterFn={() => true}
@@ -171,8 +169,10 @@ export default function BoxTransferPage() {
               required
               inputId="box-transfer-source"
               loadingText="Searching..."
-              emptyText="Type at least 2 characters"
+              emptyText="No active pallets available"
               notFoundText="No active pallets found"
+              value={sourcePallet?.pallet_id || ''}
+              defaultDisplayText={sourcePallet?.pallet_id || ''}
               onSearchChange={handleSourceSearchChange}
               onItemSelect={(pallet) => {
                 setSourcePalletId(pallet.id);
@@ -188,7 +188,7 @@ export default function BoxTransferPage() {
 
             <SearchableSelect<Pallet>
               items={eligibleTargetPallets}
-              isLoading={loadingTargetPallets && targetSearch.length >= 2}
+              isLoading={loadingTargetPallets}
               getItemKey={(pallet) => pallet.id}
               getItemLabel={(pallet) => pallet.pallet_id}
               filterFn={() => true}
@@ -216,10 +216,12 @@ export default function BoxTransferPage() {
               loadingText="Searching..."
               emptyText={
                 selectedBoxIds.length > 0
-                  ? 'Search for a pallet with matching item and space'
+                  ? 'No compatible target pallets available'
                   : 'Select boxes before choosing target'
               }
               notFoundText="No matching pallet with enough space"
+              value={targetPallet?.pallet_id || ''}
+              defaultDisplayText={targetPallet?.pallet_id || ''}
               onSearchChange={handleTargetSearchChange}
               onItemSelect={(pallet) => setTargetPalletId(pallet.id)}
               onClear={() => setTargetPalletId(null)}
