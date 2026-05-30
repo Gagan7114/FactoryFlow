@@ -201,6 +201,16 @@ export function useVoidPallet() {
   });
 }
 
+export function useDeleteEmptyPallet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (palletId: number) => barcodeApi.deleteEmptyPallet(palletId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.all });
+    },
+  });
+}
+
 export function useMovePallet() {
   const qc = useQueryClient();
   return useMutation({

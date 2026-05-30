@@ -1,4 +1,4 @@
-import { PackageOpen, Plus, Search } from 'lucide-react';
+import { PackageOpen, Plus, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -8,7 +8,7 @@ import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
 import { PaginationControls } from '@/shared/components/PaginationControls';
 import { Badge, Button, Card, CardContent } from '@/shared/components/ui';
 
-import { useCreatePallet, usePalletsPage } from '../api';
+import { useCreatePallet, useDeleteEmptyPallet, usePalletsPage } from '../api';
 import ScanSearchButton from '../components/ScanSearchButton';
 import type { PalletStatus } from '../types';
 import { toastBarcodeError } from '../utils/errors';
@@ -35,6 +35,7 @@ export default function PalletListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const createPalletMutation = useCreatePallet();
+  const deleteEmptyPalletMutation = useDeleteEmptyPallet();
   const {
     data: whList,
     isError: warehouseLoadFailed,
@@ -76,6 +77,17 @@ export default function PalletListPage() {
       navigate(`/barcode/pallets/${pallet.id}`);
     } catch (err: unknown) {
       toastBarcodeError(err, 'Unable to create pallet. Please check the warehouse.');
+    }
+  };
+
+  const handleDeleteEmptyPallet = async (palletId: number, palletCode: string) => {
+    if (!confirm(`Delete empty pallet ${palletCode}? This cannot be undone.`)) return;
+
+    try {
+      await deleteEmptyPalletMutation.mutateAsync(palletId);
+      toast.success(`Deleted empty pallet ${palletCode}`);
+    } catch (err: unknown) {
+      toastBarcodeError(err, 'Unable to delete pallet. Only empty pallets can be deleted.');
     }
   };
 
@@ -165,6 +177,7 @@ export default function PalletListPage() {
                     <th className="text-left p-3 font-medium">Warehouse</th>
                     <th className="text-left p-3 font-medium">Status</th>
                     <th className="text-left p-3 font-medium">Created</th>
+                    <th className="text-right p-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -196,6 +209,24 @@ export default function PalletListPage() {
                         </td>
                         <td className="p-3 text-xs text-muted-foreground">
                           {new Date(p.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="p-3 text-right">
+                          {isEmpty ? (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDeleteEmptyPallet(p.id, p.pallet_id);
+                              }}
+                              disabled={deleteEmptyPalletMutation.isPending}
+                              title="Delete empty pallet"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">In use</span>
+                          )}
                         </td>
                       </tr>
                     );
