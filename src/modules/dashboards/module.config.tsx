@@ -18,6 +18,9 @@ const ProductionMovementDashboardPage = lazy(
 const InventoryReconciliationDashboardPage = lazy(
   () => import('./inventory-reconciliation/pages/InventoryReconciliationDashboardPage'),
 );
+const ProductionFlowDashboardPage = lazy(
+  () => import('./production-flow/pages/ProductionFlowDashboardPage'),
+);
 export const dashboardsModuleConfig: ModuleConfig = {
   name: 'dashboards',
   routes: [
@@ -32,6 +35,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION,
+        DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_FLOW,
       ],
     },
     {
@@ -77,6 +81,13 @@ export const dashboardsModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Inventory Reconciliation' },
     },
     {
+      path: '/dashboards/production-flow',
+      element: <ProductionFlowDashboardPage />,
+      layout: 'main',
+      permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_FLOW],
+      breadcrumb: { label: 'Production Flow' },
+    },
+    {
       path: '/dashboards/dispatch-plans',
       element: <Navigate to="/dispatch/plans" replace />,
       layout: 'main',
@@ -97,6 +108,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION,
+        DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_FLOW,
       ],
       hasSubmenu: true,
       children: [
@@ -129,6 +141,11 @@ export const dashboardsModuleConfig: ModuleConfig = {
           path: '/dashboards/inventory-reconciliation',
           title: 'Inventory Reconciliation',
           permissions: [DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_RECONCILIATION],
+        },
+        {
+          path: '/dashboards/production-flow',
+          title: 'Production Flow',
+          permissions: [DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_FLOW],
         },
       ],
     },

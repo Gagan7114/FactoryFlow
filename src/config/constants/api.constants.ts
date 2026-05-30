@@ -430,6 +430,7 @@ export const API_ENDPOINTS = {
     REPORTS_PRODUCTION_MOVEMENT_FILTER_OPTIONS:
       '/production-execution/reports/production-movement/filter-options/',
     REPORTS_INVENTORY_RECONCILIATION: '/production-execution/reports/inventory-reconciliation/',
+    REPORTS_PRODUCTION_FLOW: '/production-execution/reports/production-flow/',
     // Timeline Actions
     START_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/start-production/`,
     STOP_PRODUCTION: (runId: number) => `/production-execution/runs/${runId}/stop-production/`,
