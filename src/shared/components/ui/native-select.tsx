@@ -12,7 +12,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <select
         ref={ref}
         className={cn(
-          'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm transition-colors',
+          'flex h-9 w-full rounded-md border border-input bg-background bg-card px-3 py-1 text-sm text-foreground shadow-sm transition-colors hover:border-primary/30',
           'focus:outline-none focus:ring-1 focus:ring-ring',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className,
@@ -35,7 +35,7 @@ export interface SelectOptionProps extends React.OptionHTMLAttributes<HTMLOption
 
 const SelectOption = React.forwardRef<HTMLOptionElement, SelectOptionProps>(
   ({ children, ...props }, ref) => (
-    <option ref={ref} className="bg-background text-foreground" {...props}>
+    <option ref={ref} className="bg-popover text-popover-foreground" {...props}>
       {children}
     </option>
   ),

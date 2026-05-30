@@ -245,7 +245,7 @@ export function useDeleteLabour() {
 
 // ===== Entry Logs =====
 
-export function usePersonEntries(filters?: EntryFilters) {
+export function usePersonEntries(filters?: EntryFilters, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['personEntries', filters],
     queryFn: async () => {
@@ -253,6 +253,7 @@ export function usePersonEntries(filters?: EntryFilters) {
       return response.results; // Extract results array from paginated response
     },
     staleTime: 30 * 1000, // 30 seconds for entry data
+    enabled: options?.enabled ?? true,
   });
 }
 

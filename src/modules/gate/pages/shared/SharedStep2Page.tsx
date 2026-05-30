@@ -25,7 +25,6 @@ import {
 } from '../../api/securityCheck/securityCheck.queries';
 import { useVehicleEntry } from '../../api/vehicle/vehicleEntry.queries';
 import { type SecurityCheckFormData, SecurityCheckFormShell } from '../../components';
-import { WIZARD_CONFIG } from '../../constants';
 import type { EntryFlowConfig } from '../../constants/entryFlowConfig';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
 
@@ -38,7 +37,7 @@ export default function SharedStep2Page({ config }: SharedStep2PageProps) {
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
   useEntryStepTracker();
-  const currentStep = config.totalSteps === 5 ? WIZARD_CONFIG.STEPS.SECURITY_CHECK : 2;
+  const currentStep = 2;
   const createSecurityCheck = useCreateSecurityCheck(entryIdNumber || 0);
   const {
     data: securityCheckData,

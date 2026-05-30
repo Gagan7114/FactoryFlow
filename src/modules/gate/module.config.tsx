@@ -1,6 +1,7 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Truck } from 'lucide-react';
 import { lazy } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
@@ -18,7 +19,6 @@ const RawMaterialsPage = lazy(() => import('./pages/RawMaterialsPage'));
 
 // Raw Materials wizard pages
 const RMStep1Page = lazy(() => import('./pages/rawMaterialPages/Step1Page'));
-const RMStep2Page = lazy(() => import('./pages/rawMaterialPages/Step2Page'));
 const RMStep3Page = lazy(() => import('./pages/rawMaterialPages/Step3Page'));
 const RMArrivalSlipPage = lazy(() => import('./pages/rawMaterialPages/ArrivalSlipPage'));
 const RMWeighmentPage = lazy(() => import('./pages/rawMaterialPages/Step4Page'));
@@ -27,7 +27,6 @@ const RMReviewPage = lazy(() => import('./pages/rawMaterialPages/ReviewPage'));
 
 // Daily Needs wizard pages
 const DNStep1Page = lazy(() => import('./pages/dailyNeedsPages/Step1Page'));
-const DNStep2Page = lazy(() => import('./pages/dailyNeedsPages/Step2Page'));
 const DNStep3Page = lazy(() => import('./pages/dailyNeedsPages/Step3Page'));
 const DNAttachmentsPage = lazy(() => import('./pages/dailyNeedsPages/AttachmentsPage'));
 const DNReviewPage = lazy(() => import('./pages/dailyNeedsPages/ReviewPage'));
@@ -36,7 +35,6 @@ const DNReviewPage = lazy(() => import('./pages/dailyNeedsPages/ReviewPage'));
 const MaintenanceDashboard = lazy(() => import('./pages/maintenancePages/MaintenanceDashboard'));
 const MaintenanceAllPage = lazy(() => import('./pages/maintenancePages/MaintenanceAllPage'));
 const MNStep1Page = lazy(() => import('./pages/maintenancePages/Step1Page'));
-const MNStep2Page = lazy(() => import('./pages/maintenancePages/Step2Page'));
 const MNStep3Page = lazy(() => import('./pages/maintenancePages/Step3Page'));
 const MNAttachmentsPage = lazy(() => import('./pages/maintenancePages/AttachmentsPage'));
 const MNReviewPage = lazy(() => import('./pages/maintenancePages/ReviewPage'));
@@ -45,7 +43,6 @@ const MNReviewPage = lazy(() => import('./pages/maintenancePages/ReviewPage'));
 const ConstructionDashboard = lazy(() => import('./pages/constructionPages/ConstructionDashboard'));
 const ConstructionAllPage = lazy(() => import('./pages/constructionPages/ConstructionAllPage'));
 const COStep1Page = lazy(() => import('./pages/constructionPages/Step1Page'));
-const COStep2Page = lazy(() => import('./pages/constructionPages/Step2Page'));
 const COStep3Page = lazy(() => import('./pages/constructionPages/Step3Page'));
 const COAttachmentsPage = lazy(() => import('./pages/constructionPages/AttachmentsPage'));
 const COReviewPage = lazy(() => import('./pages/constructionPages/ReviewPage'));
@@ -98,7 +95,6 @@ const EmptyVehicleInReviewPage = lazy(
   () => import('./pages/emptyVehicleInPages/EmptyVehicleInReviewPage'),
 );
 const BSTOutDashboardPage = lazy(() => import('./pages/bstOutPages/BSTOutDashboardPage'));
-const BSTOutNewPage = lazy(() => import('./pages/bstOutPages/BSTOutNewPage'));
 const BSTOutWeighmentPage = lazy(() => import('./pages/bstOutPages/BSTOutWeighmentPage'));
 const BSTOutAttachmentsPage = lazy(() => import('./pages/bstOutPages/BSTOutAttachmentsPage'));
 const BSTOutReviewPage = lazy(() => import('./pages/bstOutPages/BSTOutReviewPage'));
@@ -176,6 +172,17 @@ function RedirectWithSearch({ to }: { to: string }) {
   return <Navigate to={`${to}${location.search}`} replace />;
 }
 
+function RedirectStep2ToDetails({ routePrefix }: { routePrefix: string }) {
+  const location = useLocation();
+  const { entryId } = useParams<{ entryId?: string }>();
+
+  if (entryId) {
+    return <Navigate to={`${routePrefix}/edit/${entryId}/step3`} replace />;
+  }
+
+  return <Navigate to={`${routePrefix}/new/step3${location.search}`} replace />;
+}
+
 /**
  * Gate module configuration
  */
@@ -221,7 +228,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/raw-materials/new/step2',
-      element: <RMStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/raw-materials" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.RAW_MATERIAL.CREATE, GATE_PERMISSIONS.RAW_MATERIAL.RECEIVE_PO],
     },
@@ -264,7 +271,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/raw-materials/edit/:entryId/step2',
-      element: <RMStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/raw-materials" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.RAW_MATERIAL.EDIT],
     },
@@ -322,7 +329,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/daily-needs/new/step2',
-      element: <DNStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/daily-needs" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.DAILY_NEEDS.CREATE],
     },
@@ -353,7 +360,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/daily-needs/edit/:entryId/step2',
-      element: <DNStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/daily-needs" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.DAILY_NEEDS.EDIT],
     },
@@ -399,7 +406,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/maintenance/new/step2',
-      element: <MNStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/maintenance" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.MAINTENANCE.CREATE],
     },
@@ -430,7 +437,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/maintenance/edit/:entryId/step2',
-      element: <MNStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/maintenance" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.MAINTENANCE.EDIT],
     },
@@ -462,7 +469,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/construction/new/step2',
-      element: <COStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/construction" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.CONSTRUCTION.CREATE],
     },
@@ -493,7 +500,7 @@ export const gateModuleConfig: ModuleConfig = {
     },
     {
       path: '/gate/construction/edit/:entryId/step2',
-      element: <COStep2Page />,
+      element: <RedirectStep2ToDetails routePrefix="/gate/construction" />,
       layout: 'main',
       permissions: [GATE_PERMISSIONS.CONSTRUCTION.EDIT],
     },

@@ -65,8 +65,8 @@ export default function Step3Page() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
-  const currentStep = 3;
-  const totalSteps = 4;
+  const currentStep = 2;
+  const totalSteps = 3;
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   // API hooks
@@ -132,6 +132,7 @@ export default function Step3Page() {
           ? constructionData.material_category.id.toString()
           : constructionData.material_category?.toString() || '';
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing form state with fetched data is a valid pattern
       setFormData({
         projectName: constructionData.project_name || '',
         workOrderNumber: constructionData.work_order_number || '',
@@ -172,9 +173,9 @@ export default function Step3Page() {
 
   const handlePrevious = () => {
     if (isEditMode && entryId) {
-      navigate(`/gate/construction/edit/${entryId}/step2`);
+      navigate(`/gate/construction/edit/${entryId}/step1`);
     } else {
-      navigate(`/gate/construction/new/step2?entryId=${entryId}`);
+      navigate(`/gate/construction/edit/${entryId}/step1`);
     }
   };
 

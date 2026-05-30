@@ -95,8 +95,11 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="left" className="w-64 p-0 flex flex-col overflow-hidden">
-        <SheetHeader className="border-b p-4">
+      <SheetContent
+        side="left"
+        className="w-64 border-border/70 bg-sidebar p-0 text-sidebar-foreground flex flex-col overflow-hidden"
+      >
+        <SheetHeader className="border-b border-border/70 bg-card/70 p-4">
           <SheetTitle className="flex items-center gap-2">
             <img
               src="/JivoWellnessLogo.png"
@@ -129,8 +132,8 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                       className={cn(
                         'flex-1 flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
-                          : 'hover:bg-accent hover:text-accent-foreground',
+                          ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary hover:text-primary-foreground'
+                          : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -139,7 +142,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 border-l border-border"
+                      className="h-8 w-8 border-l border-border/70 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -153,7 +156,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                       )}
                     </Button>
                   </div>
-                  <CollapsibleContent className="ml-4 space-y-1 border-l pl-3">
+                  <CollapsibleContent className="ml-4 space-y-1 border-l border-primary/20 pl-3">
                     {item.children!.map((child) => {
                       const childIsActive = location.pathname === child.path;
                       return (
@@ -165,8 +168,8 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                             cn(
                               'flex items-center rounded-md px-3 py-2 text-sm transition-colors',
                               isActive || childIsActive
-                                ? 'bg-accent text-accent-foreground font-medium'
-                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                                ? 'bg-accent text-accent-foreground font-medium shadow-sm'
+                                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                             )
                           }
                         >
@@ -188,8 +191,8 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                   cn(
                     'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-accent hover:text-accent-foreground',
+                      ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+                      : 'text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   )
                 }
               >
@@ -201,7 +204,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
         </nav>
 
         {/* Settings Button */}
-        <div className="border-t px-2 py-2">
+        <div className="border-t border-border/70 px-2 py-2">
           <SettingsDialog isCollapsed={false} />
         </div>
       </SheetContent>

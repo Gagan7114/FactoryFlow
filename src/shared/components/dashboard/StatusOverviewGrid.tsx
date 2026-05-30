@@ -74,7 +74,7 @@ export function StatusOverviewGrid({
             tabIndex={0}
             aria-label={`${config.label}: ${count}`}
             className={cn(
-              'border cursor-pointer hover:shadow-md transition-shadow',
+              'border cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md',
               config.bgColor,
             )}
             onClick={() => navigate(config.link)}

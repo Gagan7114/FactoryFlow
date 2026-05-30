@@ -7,7 +7,10 @@ import {
   vehicleEntryApi,
 } from './vehicleEntry.api';
 
-export function useVehicleEntries(params?: VehicleEntriesParams) {
+export function useVehicleEntries(
+  params?: VehicleEntriesParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: [
       'vehicleEntries',
@@ -17,6 +20,7 @@ export function useVehicleEntries(params?: VehicleEntriesParams) {
       params?.status,
     ],
     queryFn: () => vehicleEntryApi.getList(params),
+    enabled: options?.enabled ?? true,
   });
 }
 

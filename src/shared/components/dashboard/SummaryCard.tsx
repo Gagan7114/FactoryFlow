@@ -53,8 +53,9 @@ export function SummaryCard({
   return (
     <Card
       className={cn(
-        'bg-primary/5 border-primary/20',
-        onClick && 'cursor-pointer hover:shadow-md transition-shadow',
+        'bg-primary/5 border-primary/20 border-l-4 border-l-primary/60',
+        onClick &&
+          'cursor-pointer transition-all hover:-translate-y-0.5 hover:border-l-primary hover:bg-primary/10 hover:shadow-md',
         className,
       )}
       role={onClick ? 'button' : undefined}

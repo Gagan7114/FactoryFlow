@@ -8,8 +8,8 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -143,42 +143,6 @@ export default function Step3Page() {
 
   const notifyLockedPO = (poFormId: string) => {
     toast.warning(getPOFormLockReason(poFormId));
-  };
-
-  const handleSupplierNameChange = (poFormId: string, value: string) => {
-    if (isPOFormLocked(poFormId)) {
-      notifyLockedPO(poFormId);
-      return;
-    }
-    setPoForms((prev) =>
-      prev.map((form) => (form.id === poFormId ? { ...form, supplierName: value } : form)),
-    );
-    // Clear errors
-    if (apiErrors[`${poFormId}_supplierName`]) {
-      setApiErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[`${poFormId}_supplierName`];
-        return newErrors;
-      });
-    }
-  };
-
-  const handleSupplierCodeChange = (poFormId: string, value: string) => {
-    if (isPOFormLocked(poFormId)) {
-      notifyLockedPO(poFormId);
-      return;
-    }
-    setPoForms((prev) =>
-      prev.map((form) => (form.id === poFormId ? { ...form, supplierCode: value } : form)),
-    );
-    // Clear errors
-    if (apiErrors[`${poFormId}_supplierCode`]) {
-      setApiErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[`${poFormId}_supplierCode`];
-        return newErrors;
-      });
-    }
   };
 
   const handleVendorSelect = (poFormId: string, vendor: Vendor | null) => {
@@ -429,16 +393,16 @@ export default function Step3Page() {
       initialFormPayloadsRef.current = Object.fromEntries(
         forms.map((form) => [form.id, getPayloadSnapshot(form)]),
       );
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing form state with fetched data is a valid pattern
       setPoForms(forms);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Existing receipt hydration should only run when fetched receipts change.
   }, [existingPOReceipts]);
 
   const handlePrevious = () => {
     if (isEditMode && entryId) {
-      navigate(`/gate/raw-materials/edit/${entryId}/step2`);
+      navigate(`/gate/raw-materials/edit/${entryId}/step1`);
     } else {
-      navigate(`/gate/raw-materials/new/step2?entryId=${entryId}`);
+      navigate(`/gate/raw-materials/edit/${entryId}/step1`);
     }
   };
 
@@ -614,8 +578,6 @@ export default function Step3Page() {
               isPageReadOnly || (Boolean(poForm.receiptId) && poForm.isEditable === false)
             }
             fillDataMode={fillDataModeForPO[poForm.id] || false}
-            onSupplierNameChange={(value) => handleSupplierNameChange(poForm.id, value)}
-            onSupplierCodeChange={(value) => handleSupplierCodeChange(poForm.id, value)}
             onVendorSelect={(vendor) => handleVendorSelect(poForm.id, vendor)}
             onPOFocus={() => handlePOFocus(poForm.id)}
             onPOSelect={(po) => handlePOSelect(poForm.id, po)}
@@ -675,8 +637,6 @@ interface POCardProps {
   poForm: POFormData;
   isReadOnly: boolean;
   fillDataMode: boolean;
-  onSupplierNameChange: (value: string) => void;
-  onSupplierCodeChange: (value: string) => void;
   onVendorSelect: (vendor: Vendor | null) => void;
   onPOFocus: () => void;
   onPOSelect: (po: PurchaseOrder) => void;
@@ -697,8 +657,6 @@ function POCard({
   poForm,
   isReadOnly,
   fillDataMode,
-  onSupplierNameChange: _onSupplierNameChange,
-  onSupplierCodeChange: _onSupplierCodeChange,
   onVendorSelect,
   onPOFocus,
   onPOSelect,

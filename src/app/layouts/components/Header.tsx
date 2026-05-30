@@ -36,7 +36,7 @@ export function Header({ onMenuClick, sidebarWidth }: HeaderProps) {
 
   return (
     <header
-      className="fixed right-0 top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 transition-all duration-300"
+      className="fixed right-0 top-0 z-30 flex h-16 items-center justify-between border-b border-border/70 bg-card/90 px-4 shadow-sm backdrop-blur transition-all duration-300"
       style={{ left: sidebarWidth }}
     >
       <div className="flex items-center gap-4">
@@ -47,7 +47,7 @@ export function Header({ onMenuClick, sidebarWidth }: HeaderProps) {
         {currentCompany && (
           <button
             onClick={() => navigate(ROUTES.COMPANY_SELECTION.path)}
-            className="text-sm font-semibold truncate max-w-48 hover:underline cursor-pointer"
+            className="max-w-48 truncate rounded-md px-2 py-1 text-sm font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             {currentCompany.company_name}
           </button>
@@ -93,7 +93,6 @@ export function Header({ onMenuClick, sidebarWidth }: HeaderProps) {
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-
       </div>
     </header>
   );

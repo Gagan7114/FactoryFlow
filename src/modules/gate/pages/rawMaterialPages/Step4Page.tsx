@@ -83,7 +83,7 @@ export default function Step4Page() {
   const queryClient = useQueryClient();
   const { entryId, entryIdNumber, isEditMode } = useEntryId();
   useEntryStepTracker();
-  const currentStep = WIZARD_CONFIG.STEPS.ATTACHMENTS;
+  const currentStep = WIZARD_CONFIG.STEPS.WEIGHMENT;
   const createWeighment = useCreateWeighment(entryIdNumber || 0);
   const {
     data: weighmentData,

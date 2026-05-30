@@ -49,13 +49,13 @@ export function DashboardHeader({
   return (
     <header
       className={cn(
-        'flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between',
+        'flex flex-col gap-4 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between',
         className,
       )}
     >
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-        {description && <p className="text-muted-foreground">{description}</p>}
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">{title}</h2>
+        {description && <p className="max-w-3xl text-muted-foreground">{description}</p>}
       </div>
       <div className="flex items-center gap-2">
         {children}

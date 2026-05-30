@@ -33,7 +33,7 @@ export function MainLayout() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background text-foreground">
         {/* Desktop Sidebar */}
         {!isMobile && (
           <Sidebar isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />

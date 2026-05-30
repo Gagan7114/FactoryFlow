@@ -7,8 +7,6 @@ import type { ApiError } from '@/core/api/types';
 import { RecordTimestamps } from '@/shared/components';
 import { getServerErrorMessage, isServerError as checkServerError } from '@/shared/utils';
 
-import { useEntryStepTracker } from '../../hooks';
-
 import {
   useCreateVehicleEntry,
   useUpdateVehicleEntry,
@@ -22,6 +20,7 @@ import {
   type VehicleSelection,
 } from '../../components';
 import type { EntryFlowConfig } from '../../constants/entryFlowConfig';
+import { useEntryStepTracker } from '../../hooks';
 
 interface SharedStep1PageProps {
   config: EntryFlowConfig;
@@ -45,7 +44,7 @@ export default function SharedStep1Page({ config }: SharedStep1PageProps) {
   const hasServerError = checkServerError(entryError);
 
   // State to track if Update button has been clicked (enables editing)
-  const [updateMode, _setUpdateMode] = useState(false);
+  const [updateMode] = useState(false);
 
   // State to keep button disabled after API success until navigation completes
   const [isNavigating, setIsNavigating] = useState(false);
@@ -150,7 +149,7 @@ export default function SharedStep1Page({ config }: SharedStep1PageProps) {
   const handleNext = async () => {
     // In edit mode, navigate to next step without API call (unless in updateMode)
     if (isEditMode && !updateMode && entryId) {
-      navigate(`${config.routePrefix}/edit/${entryId}/step2`);
+      navigate(`${config.routePrefix}/edit/${entryId}/step3`);
       return;
     }
 
@@ -185,9 +184,9 @@ export default function SharedStep1Page({ config }: SharedStep1PageProps) {
         entry_type: config.entryType,
       });
 
-      // Navigate to step 2 in edit mode (prevents duplicate submissions on back/forward navigation)
+      // Navigate to details in edit mode (prevents duplicate submissions on back/forward navigation)
       setIsNavigating(true);
-      navigate(`${config.routePrefix}/edit/${result.id}/step2`);
+      navigate(`${config.routePrefix}/edit/${result.id}/step3`);
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.errors) {
@@ -229,9 +228,9 @@ export default function SharedStep1Page({ config }: SharedStep1PageProps) {
         },
       });
 
-      // Navigate to step 2
+      // Navigate to details
       setIsNavigating(true);
-      navigate(`${config.routePrefix}/edit/${entryId}/step2`);
+      navigate(`${config.routePrefix}/edit/${entryId}/step3`);
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.errors) {
