@@ -357,11 +357,6 @@ export default function BarcodeDispatchSummaryPage() {
               <Badge className={STATUS_TONE[report.session.status] || 'border-slate-200 bg-slate-50 text-slate-700'}>
                 {report.session.status.replaceAll('_', ' ')}
               </Badge>
-              {session?.sap_sync_status && (
-                <Badge className="border-cyan-200 bg-cyan-50 text-cyan-700">
-                  SAP {session.sap_sync_status.replaceAll('_', ' ')}
-                </Badge>
-              )}
             </div>
             <h2 className="mt-2 text-2xl font-semibold">{report.session.bill_number}</h2>
             <p className="mt-1 text-sm text-muted-foreground">

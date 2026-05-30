@@ -24,9 +24,9 @@ import {
 import {
   useAddBoxesToPallet,
   useGenerateBoxes,
+  useOitmItems,
   usePallets,
   usePrintBulk,
-  useProductionReleaseOil,
 } from '../api';
 import type { BoxLabelData } from '../components/BoxLabel';
 import BoxLabel from '../components/BoxLabel';
@@ -36,49 +36,22 @@ import PalletLabel from '../components/PalletLabel';
 import PrinterProfileControls from '../components/PrinterProfileControls';
 import ScanSearchButton from '../components/ScanSearchButton';
 import { usePrinterProfile } from '../hooks/usePrinterProfile';
-import type { Box, LabelData, Pallet, ProductionReleaseOilRow } from '../types';
+import type { Box, LabelData, OitmItemRow, Pallet } from '../types';
 import { toastBarcodeError } from '../utils/errors';
 
 const MAX_BOX_LABELS_PER_REQUEST = 5000;
 
-const getProductionReleaseLabel = (release: ProductionReleaseOilRow) => {
-  const docNumber = release.doc_num ?? release.doc_entry ?? '';
-  return `${docNumber} - ${release.item_code} - ${release.item_name}`;
-};
-
-const toPositiveNumber = (value: string) => {
-  const numberValue = Number(value);
-  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
-};
-
-const getReleaseLabelCount = (release: ProductionReleaseOilRow) => {
-  const boxCount = toPositiveNumber(release.box_count);
-  if (boxCount) return String(Math.ceil(boxCount));
-
-  const plannedQty = toPositiveNumber(release.planned_qty);
-  const boxSize = toPositiveNumber(release.box_size);
-  if (plannedQty && boxSize) return String(Math.ceil(plannedQty / boxSize));
-
-  return '';
-};
-
-const getReleaseQtyPerBox = (release: ProductionReleaseOilRow) => {
-  const plannedQty = toPositiveNumber(release.planned_qty);
-  const boxSize = toPositiveNumber(release.box_size);
-  if (boxSize) return String(boxSize);
-  if (plannedQty) return String(plannedQty);
-  return '';
-};
+const getOitmItemLabel = (item: OitmItemRow) => `${item.item_code} - ${item.item_name}`;
 
 export default function LabelGeneratePage() {
   const generateMutation = useGenerateBoxes();
   const addBoxesMutation = useAddBoxesToPallet();
   const printBulkMutation = usePrintBulk();
   const [palletSearch, setPalletSearch] = useState('');
-  const [releaseSearch, setReleaseSearch] = useState('');
+  const [itemSearch, setItemSearch] = useState('');
   const [scannedPalletSearch, setScannedPalletSearch] = useState('');
   const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
-  const [selectedRelease, setSelectedRelease] = useState<ProductionReleaseOilRow | null>(null);
+  const [selectedItem, setSelectedItem] = useState<OitmItemRow | null>(null);
   const [generatedBoxes, setGeneratedBoxes] = useState<Box[]>([]);
   const [labelDataList, setLabelDataList] = useState<LabelData[]>([]);
   const { printerName, printMode, setPrinterName, setPrintMode } = usePrinterProfile();
@@ -92,10 +65,10 @@ export default function LabelGeneratePage() {
       (pallet.status === 'ACTIVE' || pallet.status === 'CLEARED') && pallet.box_count === 0,
   );
   const {
-    data: productionReleaseRows = [],
-    isLoading: isProductionReleaseLoading,
-    isError: isProductionReleaseError,
-  } = useProductionReleaseOil(releaseSearch);
+    data: oitmItems = [],
+    isLoading: isOitmItemsLoading,
+    isError: isOitmItemsError,
+  } = useOitmItems(itemSearch);
 
   const { data: lines = [] } = useLines(true);
   const [selectedLineId, setSelectedLineId] = useState<number | null>(null);
@@ -139,19 +112,20 @@ export default function LabelGeneratePage() {
     }
   };
 
-  const handleProductionReleaseSelect = (release: ProductionReleaseOilRow) => {
-    setSelectedRelease(release);
+  const handleOitmItemSelect = (item: OitmItemRow) => {
+    setSelectedItem(item);
     setGeneratedBoxes([]);
     setLabelDataList([]);
     setForm((prev) => ({
       ...prev,
-      item_code: release.item_code.trim(),
-      item_name: release.item_name.trim(),
-      batch_number: release.batch_number.trim(),
-      qty: getReleaseQtyPerBox(release),
-      box_count: getReleaseLabelCount(release),
-      mfg_date: release.mfg_date.trim(),
-      exp_date: release.exp_date.trim(),
+      item_code: item.item_code.trim(),
+      item_name: item.item_name.trim(),
+      batch_number: '',
+      qty: '',
+      box_count: '',
+      uom: item.inventory_uom.trim() || prev.uom || 'PCS',
+      mfg_date: '',
+      exp_date: '',
     }));
   };
 
@@ -298,60 +272,62 @@ export default function LabelGeneratePage() {
               onSearchChange={setPalletSearch}
             />
 
-            <SearchableSelect<ProductionReleaseOilRow>
-              items={productionReleaseRows}
-              isLoading={isProductionReleaseLoading}
-              isError={isProductionReleaseError}
-              getItemKey={(release) =>
-                `${release.doc_entry ?? release.doc_num ?? ''}-${release.item_code}-${release.batch_number}`
-              }
-              getItemLabel={getProductionReleaseLabel}
-              renderItem={(release) => (
+            <SearchableSelect<OitmItemRow>
+              items={oitmItems}
+              isLoading={isOitmItemsLoading}
+              isError={isOitmItemsError}
+              getItemKey={(item) => item.item_code}
+              getItemLabel={getOitmItemLabel}
+              renderItem={(item) => (
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-medium">{release.doc_num}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {release.item_code}
-                    </span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="font-mono font-medium">{item.item_code}</span>
+                    {item.inventory_uom && (
+                      <Badge variant="secondary">{item.inventory_uom}</Badge>
+                    )}
+                    {item.manage_batch_numbers && (
+                      <Badge className="bg-emerald-100 text-emerald-800">Batch</Badge>
+                    )}
+                    {item.manage_serial_numbers && (
+                      <Badge className="bg-blue-100 text-blue-800">Serial</Badge>
+                    )}
                   </div>
-                  <div className="truncate text-sm">{release.item_name}</div>
+                  <div className="truncate text-sm">{item.item_name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Planned {release.planned_qty || '0'} | Boxes {release.box_count || '0'} | Box
-                    size {release.box_size || '0'}
+                    Group {item.item_group_code ?? '-'} | Sales {item.sales_uom || '-'} | Purchase{' '}
+                    {item.purchase_uom || '-'}
                   </div>
                 </div>
               )}
-              filterFn={(release, search) => {
+              filterFn={(item, search) => {
                 const term = search.toLowerCase();
                 return [
-                  release.doc_num,
-                  release.doc_entry,
-                  release.item_code,
-                  release.item_name,
-                  release.batch_number,
+                  item.item_code,
+                  item.item_name,
+                  item.inventory_uom,
+                  item.sales_uom,
+                  item.purchase_uom,
                 ]
                   .filter(Boolean)
                   .some((value) => String(value).toLowerCase().includes(term));
               }}
-              placeholder="Search SAP production release..."
-              label="SAP HANA Item"
-              inputId="barcode-production-release-oil"
-              loadingText="Loading releases..."
-              emptyText="No released oil orders available"
-              notFoundText="No matching release"
-              errorText="Unable to load released oil orders"
-              value={selectedRelease ? getProductionReleaseLabel(selectedRelease) : ''}
-              defaultDisplayText={selectedRelease ? getProductionReleaseLabel(selectedRelease) : ''}
-              onItemSelect={handleProductionReleaseSelect}
+              placeholder="Search SAP item by code or name..."
+              label="SAP OITM Item"
+              inputId="barcode-oitm-item"
+              loadingText="Loading SAP items..."
+              emptyText="No active inventory items available"
+              notFoundText="No matching item"
+              errorText="Unable to load SAP OITM items"
+              value={selectedItem ? getOitmItemLabel(selectedItem) : ''}
+              defaultDisplayText={selectedItem ? getOitmItemLabel(selectedItem) : ''}
+              onItemSelect={handleOitmItemSelect}
               onClear={() => {
-                setSelectedRelease(null);
-                setReleaseSearch('');
+                setSelectedItem(null);
+                setItemSearch('');
               }}
               onSearchChange={(search) => {
-                const selectedLabel = selectedRelease
-                  ? getProductionReleaseLabel(selectedRelease)
-                  : '';
-                if (search !== selectedLabel) setReleaseSearch(search);
+                const selectedLabel = selectedItem ? getOitmItemLabel(selectedItem) : '';
+                if (search !== selectedLabel) setItemSearch(search);
               }}
             />
           </div>
@@ -413,7 +389,7 @@ export default function LabelGeneratePage() {
                 className="mt-1 w-full rounded border px-3 py-2 text-sm"
                 value={form.item_name}
                 onChange={(e) => updateForm('item_name', e.target.value)}
-                readOnly={!!selectedRelease}
+                readOnly={!!selectedItem}
               />
             </div>
             <div>

@@ -234,6 +234,22 @@ export interface ProductionReleaseOilRow {
   status: string;
 }
 
+export interface OitmItemRow {
+  item_code: string;
+  item_name: string;
+  inventory_uom: string;
+  sales_uom: string;
+  purchase_uom: string;
+  item_group_code: number | null;
+  manage_batch_numbers: boolean;
+  manage_serial_numbers: boolean;
+  is_inventory_item: boolean;
+  is_sales_item: boolean;
+  is_purchase_item: boolean;
+  valid_for: boolean;
+  frozen_for: boolean;
+}
+
 export interface VoidPayload {
   reason?: string;
 }
@@ -721,10 +737,15 @@ export interface DispatchDetailReport {
     customer_code: string;
     customer_name: string;
     status: DispatchSessionStatus;
+    started_at: string | null;
+    completed_at: string | null;
+    completed_by: string;
     total_expected_qty: string;
     total_dispatched_qty: string;
+    pending_qty: string;
     total_expected_boxes?: string;
     total_dispatched_boxes?: string;
+    total_pallets?: number;
   };
   lines: Array<{
     line_id: number;
@@ -739,6 +760,28 @@ export interface DispatchDetailReport {
     pending_boxes?: string;
     uom: string;
     status: string;
+  }>;
+  scanned_units: Array<{
+    id: number;
+    scan_id: number;
+    barcode: string;
+    barcode_type: DispatchScanEntityType;
+    pallet_barcode: string;
+    box_barcode: string;
+    item_code: string;
+    item_name: string;
+    batch_number: string;
+    warehouse: string;
+    original_qty: string;
+    dispatch_qty: string;
+    remaining_qty: string;
+    uom: string;
+    scan_status: string;
+    status_after_scan: string;
+    scanned_by: string;
+    scanned_at: string;
+    dispatch_doc_no: string;
+    dispatch_date_time: string | null;
   }>;
   scans: Array<{
     scan_id: number;

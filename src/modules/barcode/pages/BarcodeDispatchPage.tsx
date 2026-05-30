@@ -10,7 +10,6 @@ import {
   Loader2,
   Lock,
   Play,
-  RefreshCw,
   ScanLine,
   Settings,
   ShieldCheck,
@@ -49,7 +48,6 @@ import {
   useDispatchSettings,
   useLookupDispatchBill,
   useRemoveDispatchScannedBox,
-  useRetryDispatchSapSync,
   useSubmitDispatchScan,
   useUpdateDispatchScannedBoxQty,
   useUpdateDispatchSettings,
@@ -311,9 +309,6 @@ function SessionHero({ session }: { session: DispatchSession | null }) {
             <Badge className={statusBadgeClass(session.status)}>
               {SESSION_STATUS_LABEL[session.status] ?? session.status}
             </Badge>
-            <Badge className="border-slate-200 bg-slate-50 text-slate-700">
-              {session.sap_sync_status || session.sap_update_status}
-            </Badge>
           </div>
           <h2 className="mt-3 truncate text-2xl font-semibold">{session.bill_number}</h2>
           <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -523,7 +518,6 @@ function ActionPanel({
   onComplete,
   onClose,
   onCancel,
-  onRetrySap,
   loading,
 }: {
   session: DispatchSession;
@@ -533,12 +527,10 @@ function ActionPanel({
   onComplete: () => void;
   onClose: () => void;
   onCancel: () => void;
-  onRetrySap: () => void;
   loading: {
     complete: boolean;
     close: boolean;
     cancel: boolean;
-    retry: boolean;
   };
 }) {
   const closed = CLOSED_STATUSES.has(session.status);
@@ -563,16 +555,6 @@ function ActionPanel({
           )}
           Confirm Dispatch
         </Button>
-        {session.status === 'SAP_SYNC_FAILED' && (
-          <Button variant="outline" onClick={onRetrySap} disabled={loading.retry} className="h-11">
-            {loading.retry ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Retry SAP
-          </Button>
-        )}
       </div>
 
       {!closed && (
@@ -1099,7 +1081,6 @@ function DispatchSettingsPanel() {
     ['allow_partial_pallet_dispatch', 'Partial pallet'],
     ['allow_box_dispatch_from_pallet', 'Box from pallet'],
     ['require_sequential_item_scanning', 'Sequential scan'],
-    ['require_sap_sync_on_completion', 'SAP sync required'],
     ['allow_manual_close', 'Manual close'],
     ['allow_admin_override', 'Admin override'],
   ];
@@ -1153,7 +1134,6 @@ export default function BarcodeDispatchPage() {
   const completeMutation = useDispatchSessionDispatch();
   const closeMutation = useCloseDispatchSession();
   const cancelMutation = useCancelDispatchSession();
-  const retrySapMutation = useRetryDispatchSapSync();
 
   const activeSessions = useDispatchSessions({ ...filters, status_group: 'active' });
   const completedSessions = useDispatchSessions({ ...filters, status_group: 'completed' });
@@ -1325,16 +1305,6 @@ export default function BarcodeDispatchPage() {
     }
   };
 
-  const handleRetrySap = async () => {
-    if (!session) return;
-    try {
-      await retrySapMutation.mutateAsync(session.id);
-      toast.success('SAP sync retry submitted');
-    } catch (err: unknown) {
-      toastBarcodeError(err, 'Unable to retry SAP sync.');
-    }
-  };
-
   const handleUpdateScannedBoxQty = async (unit: DispatchScannedUnit, dispatchQty: number) => {
     if (!session) return;
     try {
@@ -1470,12 +1440,10 @@ export default function BarcodeDispatchPage() {
                 onComplete={handleComplete}
                 onClose={handleClose}
                 onCancel={handleCancel}
-                onRetrySap={handleRetrySap}
                 loading={{
                   complete: completeMutation.isPending,
                   close: closeMutation.isPending,
                   cancel: cancelMutation.isPending,
-                  retry: retrySapMutation.isPending,
                 }}
               />
             </>
