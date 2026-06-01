@@ -26,6 +26,14 @@ function formatRemainingSpace(pallet: Pallet) {
   return `${getRemainingSpace(pallet)} free of ${pallet.max_box_count}`;
 }
 
+function asList<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function sameText(left?: string | null, right?: string | null) {
+  return (left ?? '') === (right ?? '');
+}
+
 export default function BoxTransferPage() {
   const navigate = useNavigate();
   const [sourceSearch, setSourceSearch] = useState('');
@@ -36,9 +44,10 @@ export default function BoxTransferPage() {
   const [targetPalletId, setTargetPalletId] = useState<number | null>(null);
   const [selectedBoxIds, setSelectedBoxIds] = useState<number[]>([]);
 
-  const { data: sourcePallets = [], isLoading: loadingSourcePallets } = usePallets(
-    { search: sourceSearch.trim() || undefined, status: 'ACTIVE' },
-  );
+  const { data: sourcePallets = [], isLoading: loadingSourcePallets } = usePallets({
+    search: sourceSearch.trim() || undefined,
+    status: 'ACTIVE',
+  });
   const { data: sourcePallet } = usePalletDetail(sourcePalletId);
   const { data: targetPallets = [], isLoading: loadingTargetPallets } = usePallets(
     { search: targetSearch.trim() || undefined },
@@ -47,13 +56,17 @@ export default function BoxTransferPage() {
   const { data: selectedTargetPallet } = usePalletDetail(targetPalletId);
   const transferMutation = useTransferBoxes();
 
-  const activeBoxes =
-    sourcePallet?.boxes?.filter((box) => box.status === 'ACTIVE' || box.status === 'PARTIAL') ?? [];
+  const sourcePalletOptions = asList(sourcePallets);
+  const targetPalletOptions = asList(targetPallets);
+  const sourceBoxes = asList(sourcePallet?.boxes);
+  const activeBoxes = sourceBoxes.filter(
+    (box) => box.status === 'ACTIVE' || box.status === 'PARTIAL',
+  );
   const selectedBoxes = activeBoxes.filter((box) => selectedBoxIds.includes(box.id));
   const targetPallet =
-    selectedTargetPallet ?? targetPallets.find((pallet) => pallet.id === targetPalletId);
+    selectedTargetPallet ?? targetPalletOptions.find((pallet) => pallet.id === targetPalletId);
 
-  const eligibleTargetPallets = targetPallets.filter((pallet) => {
+  const eligibleTargetPallets = targetPalletOptions.filter((pallet) => {
     if (!sourcePallet || pallet.id === sourcePalletId) {
       return false;
     }
@@ -62,9 +75,9 @@ export default function BoxTransferPage() {
     const hasNoContext = !pallet.item_code && !pallet.batch_number && !pallet.uom;
     const isReusableClearedPallet = pallet.status === 'CLEARED' && isEmpty;
     const matchesSourceContext =
-      pallet.item_code === sourcePallet.item_code &&
-      pallet.batch_number === sourcePallet.batch_number &&
-      pallet.uom === sourcePallet.uom;
+      sameText(pallet.item_code, sourcePallet.item_code) &&
+      sameText(pallet.batch_number, sourcePallet.batch_number) &&
+      sameText(pallet.uom, sourcePallet.uom);
     const canReceiveByStatus =
       pallet.status === 'CLEARED' ||
       (pallet.status === 'ACTIVE' && (isEmpty || matchesSourceContext));
@@ -84,15 +97,15 @@ export default function BoxTransferPage() {
   }, []);
 
   useEffect(() => {
-    if (!sourceSearch.trim() || sourcePallets.length !== 1) return;
-    const [pallet] = sourcePallets;
+    if (!sourceSearch.trim() || sourcePalletOptions.length !== 1) return;
+    const [pallet] = sourcePalletOptions;
     if (pallet.pallet_id.toLowerCase() !== sourceSearch.trim().toLowerCase()) return;
     if (sourcePalletId === pallet.id) return;
 
     setSourcePalletId(pallet.id);
     setTargetPalletId(null);
     setSelectedBoxIds([]);
-  }, [sourcePalletId, sourcePallets, sourceSearch]);
+  }, [sourcePalletId, sourcePalletOptions, sourceSearch]);
 
   useEffect(() => {
     if (!targetSearch.trim() || eligibleTargetPallets.length !== 1) return;
@@ -128,7 +141,7 @@ export default function BoxTransferPage() {
     }
   };
 
-  const selectedQty = selectedBoxes.reduce((sum, box) => sum + Number(box.qty), 0);
+  const selectedQty = selectedBoxes.reduce((sum, box) => sum + (Number(box.qty) || 0), 0);
   const targetRemainingAfterTransfer = targetPallet
     ? getRemainingSpace(targetPallet) - selectedBoxIds.length
     : null;
@@ -144,7 +157,7 @@ export default function BoxTransferPage() {
         <CardContent className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SearchableSelect<Pallet>
-              items={sourcePallets}
+              items={sourcePalletOptions}
               isLoading={loadingSourcePallets}
               getItemKey={(pallet) => pallet.id}
               getItemLabel={(pallet) => pallet.pallet_id}
