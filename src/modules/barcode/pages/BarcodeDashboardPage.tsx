@@ -1,4 +1,4 @@
-import { Boxes, Clock, Package, ScanBarcode, XCircle } from 'lucide-react';
+import { ArrowRightLeft, Boxes, Clock, Package, ScanBarcode, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
@@ -37,6 +37,13 @@ export default function BarcodeDashboardPage() {
       path: '/barcode/pallets',
     },
     {
+      title: 'Intercompany',
+      value: 'Transfer',
+      icon: ArrowRightLeft,
+      color: 'text-cyan-700 bg-cyan-50',
+      path: '/barcode/intercompany',
+    },
+    {
       title: 'Voided Pallets',
       value: voidedPallets,
       icon: XCircle,
@@ -49,7 +56,7 @@ export default function BarcodeDashboardPage() {
     <div className="space-y-6">
       <DashboardHeader title="Barcode" subtitle="Pallet and box tracking, label management" />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (

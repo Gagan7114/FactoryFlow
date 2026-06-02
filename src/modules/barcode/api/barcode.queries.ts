@@ -15,6 +15,9 @@ import type {
   DispatchSessionFilters,
   DispatchSettings,
   GenerateBoxesPayload,
+  IntercompanyReversePayload,
+  IntercompanyScanPayload,
+  IntercompanyTransferPayload,
   LooseStockFilters,
   OitmItemRow,
   PalletAddBoxesPayload,
@@ -82,6 +85,12 @@ export const BARCODE_QUERY_KEYS = {
     [...BARCODE_QUERY_KEYS.all, 'dispatch-box-report', filters] as const,
   dispatchRejectedScanReport: (filters?: DispatchReportFilters) =>
     [...BARCODE_QUERY_KEYS.all, 'dispatch-rejected-scan-report', filters] as const,
+  intercompanyDashboard: () => [...BARCODE_QUERY_KEYS.all, 'intercompany-dashboard'] as const,
+  intercompanyTransfers: (filters?: { search?: string; page?: number; page_size?: number }) =>
+    [...BARCODE_QUERY_KEYS.all, 'intercompany-transfers', filters] as const,
+  intercompanyTransfer: (id: number) =>
+    [...BARCODE_QUERY_KEYS.all, 'intercompany-transfer', id] as const,
+  barcodeTrace: (search: string) => [...BARCODE_QUERY_KEYS.all, 'barcode-trace', search] as const,
 };
 
 // ============================================================================
@@ -275,6 +284,71 @@ export function useTransferBoxes() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.all });
     },
+  });
+}
+
+// ============================================================================
+// Intercompany Transfer Queries & Mutations
+// ============================================================================
+
+export function useIntercompanyDashboard() {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.intercompanyDashboard(),
+    queryFn: () => barcodeApi.getIntercompanyDashboard(),
+  });
+}
+
+export function useIntercompanyTransfers(filters?: {
+  search?: string;
+  page?: number;
+  page_size?: number;
+}) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.intercompanyTransfers(filters),
+    queryFn: () => barcodeApi.getIntercompanyTransfers(filters),
+  });
+}
+
+export function useIntercompanyTransfer(transferId: number | null) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.intercompanyTransfer(transferId!),
+    queryFn: () => barcodeApi.getIntercompanyTransfer(transferId!),
+    enabled: transferId !== null,
+  });
+}
+
+export function useScanIntercompanyBarcode() {
+  return useMutation({
+    mutationFn: (data: IntercompanyScanPayload) => barcodeApi.scanIntercompanyBarcode(data),
+  });
+}
+
+export function useCreateIntercompanyTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: IntercompanyTransferPayload) => barcodeApi.createIntercompanyTransfer(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.all });
+    },
+  });
+}
+
+export function useReverseIntercompanyTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ transferId, data }: { transferId: number; data: IntercompanyReversePayload }) =>
+      barcodeApi.reverseIntercompanyTransfer(transferId, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: BARCODE_QUERY_KEYS.all });
+    },
+  });
+}
+
+export function useBarcodeTrace(search: string, enabled = false) {
+  return useQuery({
+    queryKey: BARCODE_QUERY_KEYS.barcodeTrace(search),
+    queryFn: () => barcodeApi.traceBarcode(search),
+    enabled: enabled && search.trim().length > 0,
   });
 }
 

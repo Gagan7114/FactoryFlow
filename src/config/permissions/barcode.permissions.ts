@@ -19,6 +19,11 @@ export const BARCODE_PERMISSIONS = {
   RETRY_DISPATCH_SAP: 'barcode.can_retry_barcode_dispatch_sap',
   MANAGE_DISPATCH_SETTINGS: 'barcode.can_manage_barcode_dispatch_settings',
   VIEW_DISPATCH_REPORTS: 'barcode.can_view_barcode_dispatch_reports',
+  VIEW_INTERCOMPANY_TRANSFER: 'barcode.can_view_intercompany_transfer',
+  CREATE_INTERCOMPANY_TRANSFER: 'barcode.can_create_intercompany_transfer',
+  SCAN_INTERCOMPANY_TRANSFER: 'barcode.can_scan_intercompany_transfer',
+  REVERSE_INTERCOMPANY_TRANSFER: 'barcode.can_reverse_intercompany_transfer',
+  MANAGE_INTERCOMPANY_TRANSFER_SETTINGS: 'barcode.can_manage_intercompany_transfer_settings',
 } as const;
 
 export const BARCODE_MODULE_PREFIX = 'barcode';

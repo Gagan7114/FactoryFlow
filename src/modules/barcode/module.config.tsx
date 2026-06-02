@@ -20,6 +20,9 @@ const ScanPage = lazy(() => import('./pages/ScanPage'));
 const BarcodeDispatchPage = lazy(() => import('./pages/BarcodeDispatchPage'));
 const BarcodeDispatchReportsPage = lazy(() => import('./pages/BarcodeDispatchReportsPage'));
 const BarcodeDispatchSummaryPage = lazy(() => import('./pages/BarcodeDispatchSummaryPage'));
+const BarcodeTraceabilityPage = lazy(() => import('./pages/BarcodeTraceabilityPage'));
+const IntercompanyTransferPage = lazy(() => import('./pages/IntercompanyTransferPage'));
+const IntercompanyTransferDetailPage = lazy(() => import('./pages/IntercompanyTransferDetailPage'));
 
 // Pallet Operations
 const PalletMovePage = lazy(() => import('./pages/PalletMovePage'));
@@ -109,6 +112,27 @@ export const barcodeModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
     },
+    {
+      path: '/barcode/intercompany',
+      element: <IntercompanyTransferPage />,
+      layout: 'main',
+      permissions: [
+        BARCODE_PERMISSIONS.VIEW_INTERCOMPANY_TRANSFER,
+        BARCODE_PERMISSIONS.SCAN_INTERCOMPANY_TRANSFER,
+      ],
+    },
+    {
+      path: '/barcode/intercompany/:transferId',
+      element: <IntercompanyTransferDetailPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_INTERCOMPANY_TRANSFER],
+    },
+    {
+      path: '/barcode/traceability',
+      element: <BarcodeTraceabilityPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_INTERCOMPANY_TRANSFER],
+    },
     // Pallet Operations
     {
       path: '/barcode/move',
@@ -192,6 +216,16 @@ export const barcodeModuleConfig: ModuleConfig = {
           path: '/barcode/dispatch/reports',
           title: 'Dispatch Reports',
           permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH, BARCODE_PERMISSIONS.VIEW_BOX],
+        },
+        {
+          path: '/barcode/intercompany',
+          title: 'Intercompany Transfer',
+          permissions: [BARCODE_PERMISSIONS.VIEW_INTERCOMPANY_TRANSFER],
+        },
+        {
+          path: '/barcode/traceability',
+          title: 'Traceability',
+          permissions: [BARCODE_PERMISSIONS.VIEW_INTERCOMPANY_TRANSFER],
         },
         {
           path: '/barcode/generate',

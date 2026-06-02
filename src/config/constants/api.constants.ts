@@ -539,6 +539,15 @@ export const API_ENDPOINTS = {
     SCAN: '/barcode/scan/',
     SCAN_HISTORY: '/barcode/scan/history/',
     LOOKUP: (barcode: string) => `/barcode/lookup/${encodeURIComponent(barcode)}/`,
+    // Intercompany barcode transfer
+    INTERCOMPANY_DASHBOARD: '/barcode/intercompany/dashboard/',
+    INTERCOMPANY_TRANSFERS: '/barcode/intercompany/transfers/',
+    INTERCOMPANY_TRANSFER_DETAIL: (transferId: number) =>
+      `/barcode/intercompany/transfers/${transferId}/`,
+    INTERCOMPANY_TRANSFER_REVERSE: (transferId: number) =>
+      `/barcode/intercompany/transfers/${transferId}/reverse/`,
+    INTERCOMPANY_SCAN: '/barcode/intercompany/scan/',
+    INTERCOMPANY_TRACE: '/barcode/intercompany/trace/',
     // Dispatch scanning
     DISPATCH_BILL_LOOKUP: '/barcode/dispatch/bills/lookup/',
     DISPATCH_SETTINGS: '/barcode/dispatch/settings/',
@@ -548,10 +557,8 @@ export const API_ENDPOINTS = {
     DISPATCH_SESSIONS_COMPLETED: '/barcode/dispatch/sessions/completed/',
     DISPATCH_SESSIONS_CLOSED: '/barcode/dispatch/sessions/closed/',
     DISPATCH_SESSION_DETAIL: (sessionId: number) => `/barcode/dispatch/sessions/${sessionId}/`,
-    DISPATCH_SESSION_SCANS: (sessionId: number) =>
-      `/barcode/dispatch/sessions/${sessionId}/scans/`,
-    DISPATCH_SESSION_SCAN: (sessionId: number) =>
-      `/barcode/dispatch/sessions/${sessionId}/scan/`,
+    DISPATCH_SESSION_SCANS: (sessionId: number) => `/barcode/dispatch/sessions/${sessionId}/scans/`,
+    DISPATCH_SESSION_SCAN: (sessionId: number) => `/barcode/dispatch/sessions/${sessionId}/scan/`,
     DISPATCH_SCANNED_BOX: (sessionId: number, unitId: number) =>
       `/barcode/dispatch/sessions/${sessionId}/scanned-boxes/${unitId}/`,
     DISPATCH_SCANNED_BOX_REMOVE: (sessionId: number, unitId: number) =>
@@ -560,8 +567,7 @@ export const API_ENDPOINTS = {
       `/barcode/dispatch/sessions/${sessionId}/dispatch/`,
     DISPATCH_SESSION_COMPLETE: (sessionId: number) =>
       `/barcode/dispatch/sessions/${sessionId}/complete/`,
-    DISPATCH_SESSION_CLOSE: (sessionId: number) =>
-      `/barcode/dispatch/sessions/${sessionId}/close/`,
+    DISPATCH_SESSION_CLOSE: (sessionId: number) => `/barcode/dispatch/sessions/${sessionId}/close/`,
     DISPATCH_SESSION_CANCEL: (sessionId: number) =>
       `/barcode/dispatch/sessions/${sessionId}/cancel/`,
     DISPATCH_SESSION_RETRY_SAP_SYNC: (sessionId: number) =>

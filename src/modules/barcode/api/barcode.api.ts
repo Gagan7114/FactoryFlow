@@ -29,6 +29,13 @@ import type {
   DispatchSettings,
   DispatchSummaryReportRow,
   GenerateBoxesPayload,
+  BarcodeTraceability,
+  IntercompanyDashboard,
+  IntercompanyReversePayload,
+  IntercompanyScanPayload,
+  IntercompanyScannedBarcode,
+  IntercompanyTransfer,
+  IntercompanyTransferPayload,
   LabelData,
   LabelPrintLog,
   ListResponse,
@@ -192,6 +199,61 @@ export const barcodeApi = {
 
   async transferBoxes(data: BoxTransferPayload): Promise<Box[]> {
     const res = await apiClient.post<Box[]>(EP.TRANSFER_BOX, data);
+    return res.data;
+  },
+
+  async getIntercompanyDashboard(): Promise<IntercompanyDashboard> {
+    const res = await apiClient.get<IntercompanyDashboard>(EP.INTERCOMPANY_DASHBOARD);
+    return res.data;
+  },
+
+  async getIntercompanyTransfers(params?: {
+    search?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<IntercompanyTransfer>> {
+    const res = await apiClient.get<ListResponse<IntercompanyTransfer>>(EP.INTERCOMPANY_TRANSFERS, {
+      params,
+    });
+    return normalizePage(res.data, params);
+  },
+
+  async getIntercompanyTransfer(transferId: number): Promise<IntercompanyTransfer> {
+    const res = await apiClient.get<IntercompanyTransfer>(
+      EP.INTERCOMPANY_TRANSFER_DETAIL(transferId),
+    );
+    return res.data;
+  },
+
+  async scanIntercompanyBarcode(
+    data: IntercompanyScanPayload,
+  ): Promise<IntercompanyScannedBarcode> {
+    const res = await apiClient.post<IntercompanyScannedBarcode>(EP.INTERCOMPANY_SCAN, data);
+    return res.data;
+  },
+
+  async createIntercompanyTransfer(
+    data: IntercompanyTransferPayload,
+  ): Promise<IntercompanyTransfer> {
+    const res = await apiClient.post<IntercompanyTransfer>(EP.INTERCOMPANY_TRANSFERS, data);
+    return res.data;
+  },
+
+  async reverseIntercompanyTransfer(
+    transferId: number,
+    data: IntercompanyReversePayload,
+  ): Promise<IntercompanyTransfer> {
+    const res = await apiClient.post<IntercompanyTransfer>(
+      EP.INTERCOMPANY_TRANSFER_REVERSE(transferId),
+      data,
+    );
+    return res.data;
+  },
+
+  async traceBarcode(search: string): Promise<BarcodeTraceability> {
+    const res = await apiClient.get<BarcodeTraceability>(EP.INTERCOMPANY_TRACE, {
+      params: { search },
+    });
     return res.data;
   },
 

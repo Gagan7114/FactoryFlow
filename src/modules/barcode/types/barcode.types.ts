@@ -282,6 +282,137 @@ export interface BoxTransferPayload {
   to_pallet_id?: number | null;
 }
 
+export type IntercompanyTransferStatus = 'DRAFT' | 'COMPLETED' | 'REVERSED' | 'SAP_SYNC_FAILED';
+export type IntercompanyTransferType = 'BOX' | 'PALLET';
+
+export interface IntercompanyScannedBarcode {
+  id: number;
+  entity_type: IntercompanyTransferType;
+  barcode: string;
+  item_code: string;
+  item_name: string;
+  batch_number: string;
+  qty: string;
+  uom: string;
+  box_count?: number;
+  current_company: string;
+  current_company_name: string;
+  current_warehouse: string;
+  status: BoxStatus | PalletStatus;
+  dispatch_status: string;
+}
+
+export interface IntercompanyTransferLine {
+  id: number;
+  box: number;
+  barcode: string;
+  item_code: string;
+  item_name: string;
+  batch_number: string;
+  qty: string;
+  uom: string;
+  from_company_code: string;
+  from_company_name: string;
+  to_company_code: string;
+  to_company_name: string;
+  created_at: string;
+}
+
+export interface IntercompanyTransfer {
+  id: number;
+  transfer_number: string;
+  source_company_code: string;
+  source_company_name: string;
+  destination_company_code: string;
+  destination_company_name: string;
+  entity_type: IntercompanyTransferType;
+  status: IntercompanyTransferStatus;
+  total_barcodes: number;
+  total_qty: string;
+  uom: string;
+  sap_enabled: boolean;
+  sap_doc_entry: number | null;
+  sap_doc_num: string;
+  sap_status: string;
+  sap_error: string;
+  notes: string;
+  device_id: string;
+  reversed_at: string | null;
+  reversed_by_name: string;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  lines: IntercompanyTransferLine[];
+}
+
+export interface IntercompanyDashboard {
+  today: {
+    transfer_count: number;
+    barcode_count: number;
+    carton_count: number;
+    total_qty: string;
+  };
+  routes: Array<{
+    source_company_code: string;
+    source_company_name: string;
+    destination_company_code: string;
+    destination_company_name: string;
+    transfer_count: number;
+    barcode_count: number;
+    total_qty: string;
+  }>;
+  recent_transfers: IntercompanyTransfer[];
+}
+
+export interface IntercompanyScanPayload {
+  barcode: string;
+  source_company_code: string;
+  destination_company_code: string;
+  transfer_type?: IntercompanyTransferType;
+  device_id?: string;
+}
+
+export interface IntercompanyTransferPayload {
+  source_company_code: string;
+  destination_company_code: string;
+  transfer_type?: IntercompanyTransferType;
+  barcodes: string[];
+  notes?: string;
+  device_id?: string;
+  sap_enabled?: boolean;
+}
+
+export interface IntercompanyReversePayload {
+  reason?: string;
+  device_id?: string;
+}
+
+export interface BarcodeAuditLog {
+  id: number;
+  barcode: string;
+  transaction_type: string;
+  transfer: number | null;
+  transfer_number: string;
+  from_company_code: string;
+  from_company_name: string;
+  to_company_code: string;
+  to_company_name: string;
+  user_name: string;
+  device_id: string;
+  notes: string;
+  created_at: string;
+}
+
+export interface BarcodeTraceability {
+  barcode: string;
+  current_company: string;
+  current_company_name: string;
+  manufacturing_company: string;
+  dispatch_status: string;
+  current_location: string;
+  history: BarcodeAuditLog[];
+}
+
 // ============================================================================
 // Filter Types
 // ============================================================================
