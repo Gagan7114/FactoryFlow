@@ -138,7 +138,16 @@ export default function ServicePendingEntriesPage() {
                         {entry.invoice_count || 1}
                       </td>
                       <td className="p-3 text-sm whitespace-nowrap">{entry.source_state || '-'}</td>
-                      <td className="p-3 text-sm whitespace-nowrap">{entry.vehicle_no || '-'}</td>
+                      <td className="p-3 text-sm whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span>{entry.vehicle_no || '-'}</span>
+                          {entry.linked_vehicle_entry_no && (
+                            <span className="text-xs text-muted-foreground">
+                              Entry {entry.linked_vehicle_entry_no}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3 text-sm">
                         <div className="flex flex-col">
                           <span>{entry.transporter_name || '-'}</span>
