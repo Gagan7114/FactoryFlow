@@ -694,6 +694,11 @@ export default function ServiceGRPOPreviewPage() {
                 <div>
                   <p className="text-xs text-muted-foreground">Vehicle</p>
                   <p className="text-sm font-medium">{preview.vehicle_no || '-'}</p>
+                  {preview.linked_vehicle_entry_no && (
+                    <p className="text-xs text-muted-foreground">
+                      Entry {preview.linked_vehicle_entry_no}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Transporter</p>

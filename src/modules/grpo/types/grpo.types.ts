@@ -247,6 +247,8 @@ export interface ServiceGRPOPendingEntry {
   driver_name: string;
   transporter_name: string;
   transporter_gstin: string;
+  linked_vehicle_entry_id?: number | null;
+  linked_vehicle_entry_no?: string;
   source_state?: string;
   bilty_no: string;
   bilty_date: string | null;
@@ -445,6 +447,8 @@ export interface ServiceGRPOHistoryEntry {
   sap_invoice_doc_entry: number;
   vehicle_no: string;
   transporter_name: string;
+  linked_vehicle_entry_id?: number | null;
+  linked_vehicle_entry_no?: string;
   vendor_code: string;
   vendor_name: string;
   sap_doc_entry: number | null;

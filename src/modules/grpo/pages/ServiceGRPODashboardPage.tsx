@@ -165,6 +165,7 @@ export default function ServiceGRPODashboardPage() {
                       </span>
                       <span className="text-xs text-muted-foreground truncate">
                         {entry.vehicle_no || '-'} - {entry.transporter_name || '-'}
+                        {entry.linked_vehicle_entry_no ? ` - Entry ${entry.linked_vehicle_entry_no}` : ''}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
