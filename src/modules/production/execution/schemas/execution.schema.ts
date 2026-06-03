@@ -40,6 +40,10 @@ export type CreateRunFormData = z.infer<typeof createRunSchema>;
 
 export const addBreakdownSchema = z.object({
   breakdown_category_id: z.number({ required_error: 'Breakdown type is required' }),
+  machine_id: z.number().nullable().optional(),
+  maintenance_asset_id: z.number().nullable().optional(),
+  create_maintenance_work_order: z.boolean().optional().default(true),
+  maintenance_priority: z.enum(['NORMAL', 'HIGH', 'CRITICAL']).optional().default('CRITICAL'),
   reason: z.string().min(1, 'Reason is required'),
   produced_cases: z.string().optional().default('0'),
   remarks: z.string().optional(),

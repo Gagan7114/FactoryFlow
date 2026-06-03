@@ -1,0 +1,61 @@
+import type { AssetStatus, WorkOrderStatus } from '../types';
+
+const ASSET_STATUS_LABELS: Record<AssetStatus, string> = {
+  RUNNING: 'Running',
+  IDLE: 'Idle',
+  BREAKDOWN: 'Breakdown',
+  UNDER_PM: 'Under PM',
+  UNDER_REPAIR: 'Under Repair',
+  RETIRED: 'Retired',
+};
+
+const ASSET_STATUS_CLASSES: Record<AssetStatus, string> = {
+  RUNNING: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  IDLE: 'border-slate-200 bg-slate-50 text-slate-700',
+  BREAKDOWN: 'border-rose-200 bg-rose-50 text-rose-700',
+  UNDER_PM: 'border-sky-200 bg-sky-50 text-sky-700',
+  UNDER_REPAIR: 'border-amber-200 bg-amber-50 text-amber-700',
+  RETIRED: 'border-zinc-200 bg-zinc-50 text-zinc-700',
+};
+
+const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
+  DRAFT: 'Draft',
+  OPEN: 'Open',
+  ASSIGNED: 'Assigned',
+  IN_PROGRESS: 'In Progress',
+  WAITING_SPARE: 'Waiting Spare',
+  WAITING_VENDOR: 'Waiting Vendor',
+  ON_HOLD: 'On Hold',
+  COMPLETED: 'Completed',
+  APPROVED: 'Approved',
+  CLOSED: 'Closed',
+};
+
+const WORK_ORDER_STATUS_CLASSES: Record<WorkOrderStatus, string> = {
+  DRAFT: 'border-slate-200 bg-slate-50 text-slate-700',
+  OPEN: 'border-sky-200 bg-sky-50 text-sky-700',
+  ASSIGNED: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  IN_PROGRESS: 'border-amber-200 bg-amber-50 text-amber-700',
+  WAITING_SPARE: 'border-orange-200 bg-orange-50 text-orange-700',
+  WAITING_VENDOR: 'border-purple-200 bg-purple-50 text-purple-700',
+  ON_HOLD: 'border-zinc-200 bg-zinc-50 text-zinc-700',
+  COMPLETED: 'border-teal-200 bg-teal-50 text-teal-700',
+  APPROVED: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  CLOSED: 'border-neutral-200 bg-neutral-50 text-neutral-700',
+};
+
+export function getAssetStatusLabel(status: AssetStatus) {
+  return ASSET_STATUS_LABELS[status] ?? status;
+}
+
+export function getAssetStatusClass(status: AssetStatus) {
+  return ASSET_STATUS_CLASSES[status];
+}
+
+export function getWorkOrderStatusLabel(status: WorkOrderStatus) {
+  return WORK_ORDER_STATUS_LABELS[status] ?? status;
+}
+
+export function getWorkOrderStatusClass(status: WorkOrderStatus) {
+  return WORK_ORDER_STATUS_CLASSES[status];
+}

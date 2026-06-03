@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { type CreateMaintenanceRequest, maintenanceApi } from './maintenance.api';
+import {
+  type CreateMaintenanceRequest,
+  maintenanceApi,
+  type ReceiveMaintenanceSpareRequest,
+} from './maintenance.api';
 
 /**
  * Hook to fetch unit choices for dropdown
@@ -96,6 +100,23 @@ export function useCompleteMaintenanceEntry() {
       queryClient.invalidateQueries({ queryKey: ['vehicleEntries'] });
       queryClient.invalidateQueries({ queryKey: ['vehicleEntriesCount'] });
       queryClient.invalidateQueries({ queryKey: ['vehicleEntry'] });
+    },
+  });
+}
+
+/**
+ * Hook to receive a linked maintenance spare into store stock
+ */
+export function useReceiveMaintenanceSpare(entryId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ReceiveMaintenanceSpareRequest) =>
+      maintenanceApi.receiveSpare(entryId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['maintenanceEntry', entryId] });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceFullView', entryId] });
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
     },
   });
 }

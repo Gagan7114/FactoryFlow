@@ -9,6 +9,7 @@ import {
   FileCheck,
   FileText,
   Home,
+  PackageCheck,
   ShieldCheck,
   Truck,
   User,
@@ -34,6 +35,7 @@ import {
 import {
   useCompleteMaintenanceEntry,
   useMaintenanceFullView,
+  useReceiveMaintenanceSpare,
 } from '../../api/maintenance/maintenance.queries';
 import { securityCheckApi } from '../../api/securityCheck/securityCheck.api';
 import { useEntryId, useEntryStepTracker } from '../../hooks';
@@ -168,6 +170,9 @@ export default function ReviewPage() {
   const { data: gateEntry, isLoading, error: fetchError } = useMaintenanceFullView(entryIdNumber);
 
   const completeMaintenanceEntry = useCompleteMaintenanceEntry();
+  const receiveMaintenanceSpare = useReceiveMaintenanceSpare(entryIdNumber || 0);
+  const maintenanceDetails = gateEntry?.maintenance_details;
+  const maintenanceLink = maintenanceDetails?.maintenance_link;
 
   const handlePrevious = () => {
     if (isEditMode && entryId) {
@@ -243,6 +248,26 @@ export default function ReviewPage() {
     }
   };
 
+  const handleReceiveSpare = async () => {
+    if (!entryIdNumber || !maintenanceDetails?.maintenance_link) {
+      setApiErrors({ general: 'Maintenance spare link is missing.' });
+      return;
+    }
+    setApiErrors({});
+    try {
+      await receiveMaintenanceSpare.mutateAsync({
+        qc_status: maintenanceDetails.maintenance_link.qc_status,
+        grpo_reference: maintenanceDetails.maintenance_link.grpo_reference || undefined,
+        grpo_doc_entry: maintenanceDetails.maintenance_link.grpo_doc_entry || undefined,
+        grpo_doc_num: maintenanceDetails.maintenance_link.grpo_doc_num || undefined,
+        remarks: 'Received from maintenance gate review',
+      });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceFullView', entryIdNumber] });
+    } catch (error) {
+      setApiErrors({ general: getErrorMessage(error, 'Failed to receive spare into stock') });
+    }
+  };
+
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('en-IN', {
@@ -299,7 +324,11 @@ export default function ReviewPage() {
   }
 
   const isAlreadyCompleted = gateEntry.gate_entry.status === ENTRY_STATUS.COMPLETED;
-  const maintenanceDetails = gateEntry.maintenance_details;
+  const canReceiveLinkedSpare =
+    !!maintenanceLink?.spare &&
+    maintenanceLink.receipt_status !== 'RECEIVED' &&
+    (!maintenanceLink.qc_required ||
+      ['ACCEPTED', 'WAIVED', 'NOT_REQUIRED'].includes(maintenanceLink.qc_status));
 
   return (
     <div className="space-y-6 pb-6">
@@ -568,6 +597,100 @@ export default function ReviewPage() {
                   </div>
                 </div>
               </div>
+
+              {maintenanceLink && (
+                <div className="border-t pt-4">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <PackageCheck className="h-4 w-4" />
+                      Maintenance Links
+                    </h4>
+                    {maintenanceLink.spare && maintenanceLink.receipt_status !== 'RECEIVED' && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void handleReceiveSpare()}
+                        disabled={!canReceiveLinkedSpare || receiveMaintenanceSpare.isPending}
+                      >
+                        <PackageCheck className="h-4 w-4 mr-2" />
+                        {receiveMaintenanceSpare.isPending ? 'Receiving...' : 'Receive Spare'}
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Asset</Label>
+                      <p className="font-medium">
+                        {maintenanceLink.asset_code
+                          ? `${maintenanceLink.asset_code} - ${maintenanceLink.asset_name}`
+                          : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Work Order</Label>
+                      <p className="font-medium">
+                        {maintenanceLink.work_order_no
+                          ? `${maintenanceLink.work_order_no} - ${maintenanceLink.work_order_title}`
+                          : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Spare</Label>
+                      <p className="font-medium">
+                        {maintenanceLink.spare_part_number
+                          ? `${maintenanceLink.spare_part_number} - ${maintenanceLink.spare_name}`
+                          : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">QC Status</Label>
+                      <p className="font-medium">
+                        {maintenanceLink.qc_required
+                          ? maintenanceLink.qc_status.replaceAll('_', ' ')
+                          : 'Not Required'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Receipt Status</Label>
+                      <p className="font-medium">{maintenanceLink.receipt_status.replaceAll('_', ' ')}</p>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Received Qty</Label>
+                      <p className="font-medium">
+                        {maintenanceLink.received_quantity} {maintenanceLink.spare_uom}
+                      </p>
+                    </div>
+                    {(maintenanceLink.grpo_reference ||
+                      maintenanceLink.grpo_doc_entry ||
+                      maintenanceLink.grpo_doc_num) && (
+                      <div className="md:col-span-3">
+                        <Label className="text-muted-foreground text-xs">GRPO</Label>
+                        <p className="font-medium">
+                          {[
+                            maintenanceLink.grpo_reference,
+                            maintenanceLink.grpo_doc_entry
+                              ? `DocEntry ${maintenanceLink.grpo_doc_entry}`
+                              : '',
+                            maintenanceLink.grpo_doc_num
+                              ? `DocNum ${maintenanceLink.grpo_doc_num}`
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' | ')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {maintenanceLink.spare &&
+                    maintenanceLink.receipt_status !== 'RECEIVED' &&
+                    !canReceiveLinkedSpare && (
+                      <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">
+                        QC must be accepted or waived before this spare can be received.
+                      </p>
+                    )}
+                </div>
+              )}
 
               {/* Remarks */}
               {maintenanceDetails.remarks && (

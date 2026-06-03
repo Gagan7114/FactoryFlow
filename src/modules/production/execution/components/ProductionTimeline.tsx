@@ -243,6 +243,11 @@ function BreakdownCard({
           <span className="text-lg font-bold text-red-800 dark:text-red-200">
             Breakdown
           </span>
+          {breakdown.maintenance_work_order_no && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-900/40 dark:text-red-200">
+              {breakdown.maintenance_work_order_no}
+            </span>
+          )}
           <RemarksBadge remarks={remarks} tone="red" />
         </div>
         <span className="text-sm text-muted-foreground">

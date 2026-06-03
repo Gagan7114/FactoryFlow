@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+import { describe, expect,it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // Step3Page — File Content Verification
@@ -12,7 +13,7 @@ import { resolve } from 'node:path';
 
 describe('Step3Page', () => {
   const content = readFileSync(
-    resolve(process.cwd(), 'src/modules/gate/pages/maintenancepages/Step3Page.tsx'),
+    resolve(process.cwd(), 'src/modules/gate/pages/maintenancePages/Step3Page.tsx'),
     'utf-8',
   );
 
