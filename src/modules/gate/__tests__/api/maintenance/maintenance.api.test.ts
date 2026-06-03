@@ -5,7 +5,7 @@
 // expected method names for managing maintenance entries.
 // ═══════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/core/api', () => ({
   apiClient: {
@@ -61,6 +61,10 @@ describe('maintenanceApi', () => {
     expect(typeof maintenanceApi.getUnitChoices).toBe('function');
   });
 
+  it('has a receiveSpare method', () => {
+    expect(typeof maintenanceApi.receiveSpare).toBe('function');
+  });
+
   // ═══════════════════════════════════════════════════════════════
   // No unexpected methods
   // ═══════════════════════════════════════════════════════════════
@@ -74,6 +78,7 @@ describe('maintenanceApi', () => {
       'getFullView',
       'getTypes',
       'getUnitChoices',
+      'receiveSpare',
       'update',
     ]);
   });

@@ -17,6 +17,7 @@ src/modules/
 │   ├── Maintenance    # Maintenance and spare parts
 │   └── Visitor/Labour # Person gate-in (visitors and labours)
 ├── grpo/              # Goods receipt posting to ERP
+├── maintenance/       # Assets, work orders, PM, breakdowns, spares
 ├── qc/                # Quality control inspections
 └── notifications/     # Push notification management
 ```
@@ -199,7 +200,20 @@ Main application dashboard providing an overview of factory operations.
 
 See: [Dashboard Module Documentation](./dashboard.md)
 
-### 4. Dashboards Module (`/modules/dashboards/`)
+### 4. Maintenance Module (`/modules/maintenance/`)
+
+Planned full maintenance module for plant assets, preventive maintenance, breakdown work orders, spare consumption, vendor/AMC visits, and reports.
+
+**Key Features:**
+- Asset master with QR tagging, status, photos, and lifecycle history
+- Complaint, breakdown, PM, inspection, and AMC work orders
+- Production downtime integration
+- Spare issue, consumption, critical spare alerts, and WMS/SAP stock linkage
+- Maintenance dashboard and daily/monthly reports
+
+See: [Maintenance Module Documentation](./maintenance.md)
+
+### 5. Dashboards Module (`/modules/dashboards/`)
 
 SAP-backed operational dashboards for planning, inventory, and stock movement analysis.
 
@@ -218,7 +232,7 @@ SAP-backed operational dashboards for planning, inventory, and stock movement an
 
 See: [Stock Benchmark Dashboard Documentation](./stock-benchmark.md)
 
-### 5. GRPO Module (`/modules/grpo/`)
+### 6. GRPO Module (`/modules/grpo/`)
 
 Handles posting received materials into the ERP system after gate entry completion.
 
@@ -236,7 +250,7 @@ Handles posting received materials into the ERP system after gate entry completi
 
 See: [GRPO Module Documentation](./grpo.md)
 
-### 6. QC Module (`/modules/qc/`)
+### 7. QC Module (`/modules/qc/`)
 
 Quality control inspections with multi-role approval workflow.
 
@@ -256,7 +270,7 @@ Quality control inspections with multi-role approval workflow.
 
 See: [QC Module Documentation](./qc.md)
 
-### 7. Notifications Module (`/modules/notifications/`)
+### 8. Notifications Module (`/modules/notifications/`)
 
 Push notification management via Firebase Cloud Messaging.
 

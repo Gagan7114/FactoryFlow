@@ -23,6 +23,31 @@ export interface MaintenanceEntryDepartment {
   name: string;
 }
 
+export interface MaintenanceGateLink {
+  id: number;
+  asset: number | null;
+  asset_code: string;
+  asset_name: string;
+  work_order: number | null;
+  work_order_no: string;
+  work_order_title: string;
+  spare: number | null;
+  spare_part_number: string;
+  spare_name: string;
+  spare_uom: string;
+  spare_is_critical: boolean;
+  qc_required: boolean;
+  qc_status: string;
+  grpo_reference: string;
+  grpo_doc_entry: number | null;
+  grpo_doc_num: string;
+  receipt_status: string;
+  received_quantity: string | number;
+  received_at: string | null;
+  received_by: number | null;
+  received_by_name: string;
+}
+
 export interface MaintenanceEntry {
   id: number;
   maintenance_type: MaintenanceEntryType | number;
@@ -38,6 +63,7 @@ export interface MaintenanceEntry {
   urgency_level: string;
   inward_time?: string;
   remarks?: string;
+  maintenance_link?: MaintenanceGateLink | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -54,6 +80,14 @@ export interface CreateMaintenanceRequest {
   receiving_department: number;
   urgency_level: string;
   remarks?: string;
+  maintenance_asset?: number | null;
+  maintenance_work_order?: number | null;
+  maintenance_spare?: number | null;
+  qc_required?: boolean;
+  qc_status?: string;
+  grpo_reference?: string;
+  grpo_doc_entry?: number | null;
+  grpo_doc_num?: string;
 }
 
 export interface CreateMaintenanceResponse {
@@ -113,6 +147,7 @@ export interface MaintenanceFullViewDetails {
   created_by: string;
   created_at: string;
   updated_at?: string;
+  maintenance_link?: MaintenanceGateLink | null;
 }
 
 export interface MaintenanceFullView {
@@ -121,6 +156,44 @@ export interface MaintenanceFullView {
   driver: MaintenanceFullViewDriver;
   security_check?: MaintenanceFullViewSecurityCheck;
   maintenance_details?: MaintenanceFullViewDetails;
+}
+
+export interface ReceiveMaintenanceSpareRequest {
+  quantity?: number | string;
+  unit_cost?: number | string;
+  qc_status?: string;
+  grpo_reference?: string;
+  grpo_doc_entry?: number | null;
+  grpo_doc_num?: string;
+  remarks?: string;
+}
+
+export interface MaintenanceSpareReceipt {
+  id: number;
+  gate_link: number;
+  gate_entry: number;
+  gate_entry_no: string;
+  vehicle_entry: number;
+  asset: number | null;
+  asset_code: string;
+  asset_name: string;
+  work_order: number | null;
+  work_order_no: string;
+  spare: number;
+  spare_part_number: string;
+  spare_name: string;
+  spare_uom: string;
+  quantity: string | number;
+  unit_cost: string | number;
+  qc_status: string;
+  grpo_reference: string;
+  grpo_doc_entry: number | null;
+  grpo_doc_num: string;
+  invoice_number: string;
+  received_at: string;
+  received_by: number | null;
+  received_by_name: string;
+  remarks: string;
 }
 
 // API functions
@@ -197,6 +270,20 @@ export const maintenanceApi = {
   complete: async (entryId: number): Promise<{ detail: string }> => {
     const response = await apiClient.post<{ detail: string }>(
       `/maintenance-gatein/gate-entries/${entryId}/complete/`,
+    );
+    return response.data;
+  },
+
+  /**
+   * Receive linked maintenance spare into store stock
+   */
+  receiveSpare: async (
+    entryId: number,
+    data: ReceiveMaintenanceSpareRequest,
+  ): Promise<MaintenanceSpareReceipt> => {
+    const response = await apiClient.post<MaintenanceSpareReceipt>(
+      `/maintenance-gatein/gate-entries/${entryId}/maintenance/receive-spare/`,
+      data,
     );
     return response.data;
   },

@@ -13,21 +13,22 @@ import {
   Trash2,
   Warehouse,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useWarehouses } from '@/modules/grpo/api';
 import type { Warehouse as SAPWarehouse } from '@/modules/grpo/types';
+import { useMaintenanceAssets } from '@/modules/maintenance/api';
 import { useProductionQCRunSessions, useRequestFinalProductionQC } from '@/modules/qc/api/productionQC';
 import { useCreateBOMRequest, useCreateFGReceipt, useFGReceipts } from '@/modules/warehouse/api';
 import type { FGReceipt } from '@/modules/warehouse/types';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import {
-  Button, Card, CardContent,
+  Button, Card, CardContent, Checkbox,
   Dialog, DialogContent, DialogHeader, DialogTitle,
-  Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Input, Label, NativeSelect, Select, SelectContent, SelectItem, SelectOption, SelectTrigger, SelectValue,
   Tabs, TabsContent, TabsList, TabsTrigger, Textarea,
 } from '@/shared/components/ui';
 
@@ -39,6 +40,7 @@ import {
   useDeleteLabour,
   useLabour,
   useLineClearances,
+  useMachines,
   useMaterials,
   useResolveBreakdown,
   useRunDetail,
@@ -153,6 +155,8 @@ function RunDetailPage() {
   const { data: breakdownCategories = [] } = useBreakdownCategories();
   const { data: clearances = [] } = useLineClearances(run?.line);
   const { data: wasteLogs = [] } = useWasteLogs(numRunId);
+  const { data: lineMachines = [] } = useMachines(run?.line);
+  const { data: maintenanceAssets = [] } = useMaintenanceAssets({ is_active: true });
 
   const { data: qcSessions = [] } = useProductionQCRunSessions(numRunId || null);
   const { data: fgReceipts = [], isLoading: fgReceiptsLoading } = useFGReceipts(
@@ -218,6 +222,12 @@ function RunDetailPage() {
   const hasActiveBreakdown = run?.breakdowns?.some((b) => b.is_active) ?? false;
   const canComplete = !hasActiveSegment && !hasActiveBreakdown && run?.status === 'IN_PROGRESS';
   const runClearance = clearances.find((c) => c.production_run === run?.id);
+  const machineOptions = useMemo(() => {
+    if (!run?.machine_ids?.length) return lineMachines;
+    const runMachineIds = new Set(run.machine_ids);
+    const runMachines = lineMachines.filter((machine) => runMachineIds.has(machine.id));
+    return runMachines.length > 0 ? runMachines : lineMachines;
+  }, [lineMachines, run?.machine_ids]);
   const hasClearedClearance = runClearance?.status === 'CLEARED';
   const startProductionBlockReason =
     run?.warehouse_approval_status === 'NOT_REQUESTED'
@@ -235,14 +245,63 @@ function RunDetailPage() {
   // ---------------------------------------------------------------------------
   const breakdownForm = useForm<AddBreakdownFormData>({
     resolver: zodResolver(addBreakdownSchema),
-    defaultValues: { produced_cases: '0', remarks: '' },
+    defaultValues: {
+      produced_cases: '0',
+      remarks: '',
+      create_maintenance_work_order: true,
+      maintenance_priority: 'CRITICAL',
+    },
   });
+  const selectedBreakdownMachineId = breakdownForm.watch('machine_id');
+  const selectedMaintenanceAssetId = breakdownForm.watch('maintenance_asset_id');
+  const createMaintenanceWork = breakdownForm.watch('create_maintenance_work_order') ?? true;
+  const linkedMaintenanceAsset = useMemo(
+    () =>
+      selectedBreakdownMachineId
+        ? maintenanceAssets.find((asset) => asset.production_machine === selectedBreakdownMachineId)
+        : undefined,
+    [maintenanceAssets, selectedBreakdownMachineId],
+  );
+
+  useEffect(() => {
+    if (dialog !== 'breakdown' || !linkedMaintenanceAsset || selectedMaintenanceAssetId) return;
+    breakdownForm.setValue('maintenance_asset_id', linkedMaintenanceAsset.id);
+  }, [breakdownForm, dialog, linkedMaintenanceAsset, selectedMaintenanceAssetId]);
+
+  const openBreakdownDialog = () => {
+    const defaultMachineId = machineOptions.length === 1 ? machineOptions[0].id : undefined;
+    const defaultAsset = defaultMachineId
+      ? maintenanceAssets.find((asset) => asset.production_machine === defaultMachineId)
+      : undefined;
+    breakdownForm.reset({
+      machine_id: defaultMachineId,
+      maintenance_asset_id: defaultAsset?.id,
+      create_maintenance_work_order: true,
+      maintenance_priority: 'CRITICAL',
+      produced_cases: '0',
+      remarks: '',
+    });
+    setDialog('breakdown');
+  };
   const onSubmitBreakdown = async (data: AddBreakdownFormData) => {
+    if (data.create_maintenance_work_order !== false && !data.maintenance_asset_id) {
+      toast.error('Select a maintenance asset or turn off maintenance work creation');
+      return;
+    }
     try {
       await addBreakdown.mutateAsync(data);
-      toast.success('Breakdown added');
+      toast.success(
+        data.create_maintenance_work_order === false
+          ? 'Breakdown added'
+          : 'Breakdown added and maintenance work created',
+      );
       setDialog(null);
-      breakdownForm.reset();
+      breakdownForm.reset({
+        produced_cases: '0',
+        remarks: '',
+        create_maintenance_work_order: true,
+        maintenance_priority: 'CRITICAL',
+      });
     } catch {
       toast.error('Failed to add breakdown');
     }
@@ -556,7 +615,7 @@ function RunDetailPage() {
                 breakdowns={run.breakdowns}
                 isCompleted={isCompleted}
                 ratedSpeed={run.rated_speed ? parseFloat(run.rated_speed) : null}
-                onAddBreakdown={() => setDialog('breakdown')}
+                onAddBreakdown={openBreakdownDialog}
                 onStopProduction={() => setDialog('stop')}
                 onResolveBreakdown={handleResolveBreakdown}
                 onSegmentClick={handleSegmentClick}
@@ -599,6 +658,87 @@ function RunDetailPage() {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="breakdown_machine">Machine</Label>
+              <NativeSelect
+                id="breakdown_machine"
+                value={selectedBreakdownMachineId ? String(selectedBreakdownMachineId) : ''}
+                onChange={(event) => {
+                  const machineId = event.target.value ? Number(event.target.value) : null;
+                  const linkedAsset = machineId
+                    ? maintenanceAssets.find((asset) => asset.production_machine === machineId)
+                    : undefined;
+                  breakdownForm.setValue('machine_id', machineId);
+                  breakdownForm.setValue('maintenance_asset_id', linkedAsset?.id ?? null);
+                }}
+              >
+                <SelectOption value="">Line-level breakdown</SelectOption>
+                {machineOptions.map((machine) => (
+                  <SelectOption key={machine.id} value={String(machine.id)}>
+                    {machine.name} - {machine.machine_type}
+                  </SelectOption>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="create_maintenance_work_order"
+                  checked={createMaintenanceWork}
+                  onCheckedChange={(checked) =>
+                    breakdownForm.setValue('create_maintenance_work_order', checked)
+                  }
+                />
+                <Label htmlFor="create_maintenance_work_order">Create maintenance work</Label>
+              </div>
+              {createMaintenanceWork && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="breakdown_asset">Maintenance Asset</Label>
+                    <NativeSelect
+                      id="breakdown_asset"
+                      value={selectedMaintenanceAssetId ? String(selectedMaintenanceAssetId) : ''}
+                      onChange={(event) =>
+                        breakdownForm.setValue(
+                          'maintenance_asset_id',
+                          event.target.value ? Number(event.target.value) : null,
+                        )
+                      }
+                      required
+                    >
+                      <SelectOption value="">Select asset</SelectOption>
+                      {maintenanceAssets.map((asset) => (
+                        <SelectOption key={asset.id} value={String(asset.id)}>
+                          {asset.asset_code} - {asset.name}
+                        </SelectOption>
+                      ))}
+                    </NativeSelect>
+                    {linkedMaintenanceAsset && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Linked asset for selected machine
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="breakdown_priority">Maintenance Priority</Label>
+                    <NativeSelect
+                      id="breakdown_priority"
+                      value={breakdownForm.watch('maintenance_priority') ?? 'CRITICAL'}
+                      onChange={(event) =>
+                        breakdownForm.setValue(
+                          'maintenance_priority',
+                          event.target.value as AddBreakdownFormData['maintenance_priority'],
+                        )
+                      }
+                    >
+                      <SelectOption value="CRITICAL">Critical</SelectOption>
+                      <SelectOption value="HIGH">High</SelectOption>
+                      <SelectOption value="NORMAL">Normal</SelectOption>
+                    </NativeSelect>
+                  </div>
+                </div>
+              )}
             </div>
             <div><Label>Reason</Label><Input {...breakdownForm.register('reason')} /></div>
             <div><Label>Cases Produced</Label><Input type="number" {...breakdownForm.register('produced_cases')} /></div>
@@ -703,7 +843,28 @@ function RunDetailPage() {
                   <span className="text-muted-foreground">Duration</span>
                   <p className="font-medium">{selectedBreakdown.breakdown_minutes} min</p>
                 </div>
+                <div>
+                  <span className="text-muted-foreground">Machine</span>
+                  <p className="font-medium">{selectedBreakdown.machine_name || 'Line-level'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Maintenance Work</span>
+                  <p className="font-medium">
+                    {selectedBreakdown.maintenance_work_order_no || 'Not created'}
+                  </p>
+                </div>
               </div>
+              {selectedBreakdown.maintenance_work_order_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    navigate(`/maintenance/work-orders/${selectedBreakdown.maintenance_work_order_id}`)
+                  }
+                >
+                  Open Maintenance Work
+                </Button>
+              )}
               <div>
                 <span className="text-sm text-muted-foreground">Reason</span>
                 <p className="text-sm font-medium">{selectedBreakdown.reason}</p>

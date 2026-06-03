@@ -5,13 +5,13 @@
 // are exported as defined functions.
 // ═══════════════════════════════════════════════════════════════
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => ({ data: undefined, isLoading: false })),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
-  queryOptions: vi.fn((opts: any) => opts),
+  queryOptions: vi.fn((opts: unknown) => opts),
 }));
 
 vi.mock('../../../api/maintenance/maintenance.api', () => ({
@@ -23,17 +23,19 @@ vi.mock('../../../api/maintenance/maintenance.api', () => ({
     update: vi.fn(),
     getFullView: vi.fn(),
     complete: vi.fn(),
+    receiveSpare: vi.fn(),
   },
 }));
 
 import {
-  useUnitChoices,
-  useMaintenanceTypes,
-  useMaintenanceEntry,
-  useCreateMaintenanceEntry,
-  useUpdateMaintenanceEntry,
-  useMaintenanceFullView,
   useCompleteMaintenanceEntry,
+  useCreateMaintenanceEntry,
+  useMaintenanceEntry,
+  useMaintenanceFullView,
+  useMaintenanceTypes,
+  useReceiveMaintenanceSpare,
+  useUnitChoices,
+  useUpdateMaintenanceEntry,
 } from '../../../api/maintenance/maintenance.queries';
 
 // ═══════════════════════════════════════════════════════════════
@@ -67,5 +69,9 @@ describe('maintenance queries', () => {
 
   it('exports useCompleteMaintenanceEntry as a function', () => {
     expect(typeof useCompleteMaintenanceEntry).toBe('function');
+  });
+
+  it('exports useReceiveMaintenanceSpare as a function', () => {
+    expect(typeof useReceiveMaintenanceSpare).toBe('function');
   });
 });

@@ -265,6 +265,12 @@ export interface MachineBreakdown {
   breakdown_minutes: number;
   is_unrecovered: boolean;
   is_active: boolean;
+  maintenance_work_order_id: number | null;
+  maintenance_work_order_no: string;
+  maintenance_work_order_status: string;
+  maintenance_asset_id: number | null;
+  maintenance_asset_code: string;
+  maintenance_asset_name: string;
   reason: string;
   remarks: string;
   created_at: string;
@@ -686,6 +692,9 @@ export interface UpdateRunRequest {
 export interface AddBreakdownRequest {
   breakdown_category_id: number;
   machine_id?: number | null;
+  maintenance_asset_id?: number | null;
+  create_maintenance_work_order?: boolean;
+  maintenance_priority?: 'NORMAL' | 'HIGH' | 'CRITICAL';
   reason: string;
   produced_cases?: string;
   remarks?: string;

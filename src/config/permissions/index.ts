@@ -69,3 +69,10 @@ export {
   BARCODE_PERMISSIONS,
   type BarcodePermission,
 } from './barcode.permissions';
+
+// Maintenance Module
+export {
+  MAINTENANCE_MODULE_PREFIX,
+  MAINTENANCE_PERMISSIONS,
+  type MaintenancePermission,
+} from './maintenance.permissions';

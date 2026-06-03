@@ -1,0 +1,40 @@
+import { describe, expect, it } from 'vitest';
+
+import { MAINTENANCE_PERMISSIONS } from '@/config/permissions';
+
+import { maintenanceModuleConfig } from '../module.config';
+
+describe('maintenanceModuleConfig', () => {
+  it('registers dashboard, asset, work order, detail, and master routes', () => {
+    const paths = maintenanceModuleConfig.routes.map((route) => route.path);
+
+    expect(paths).toContain('/maintenance');
+    expect(paths).toContain('/maintenance/assets');
+    expect(paths).toContain('/maintenance/assets/:assetId');
+    expect(paths).toContain('/maintenance/work-orders');
+    expect(paths).toContain('/maintenance/work-orders/:workOrderId');
+    expect(paths).toContain('/maintenance/masters');
+  });
+
+  it('protects core routes with maintenance permissions', () => {
+    expect(maintenanceModuleConfig.routes[0].permissions).toContain(
+      MAINTENANCE_PERMISSIONS.VIEW_DASHBOARD,
+    );
+    expect(maintenanceModuleConfig.routes[1].permissions).toContain(
+      MAINTENANCE_PERMISSIONS.VIEW_ASSET,
+    );
+  });
+
+  it('adds a Maintenance sidebar group with phase one and two children', () => {
+    const [nav] = maintenanceModuleConfig.navigation ?? [];
+    const childPaths = nav.children?.map((child) => child.path) ?? [];
+
+    expect(nav.title).toBe('Maintenance');
+    expect(nav.showInSidebar).toBe(true);
+    expect(childPaths).toContain('/maintenance');
+    expect(childPaths).toContain('/maintenance/assets');
+    expect(childPaths).toContain('/maintenance/work-orders');
+    expect(childPaths).toContain('/maintenance/masters');
+    expect(childPaths).toContain('/gate/maintenance');
+  });
+});

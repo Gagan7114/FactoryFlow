@@ -5,7 +5,22 @@ import { useNavigate } from 'react-router-dom';
 
 import { ENTRY_STATUS } from '@/config/constants';
 import type { ApiError } from '@/core/api';
-import { Card, CardContent, CardHeader, CardTitle, Input, Label } from '@/shared/components/ui';
+import {
+  useMaintenanceAssets,
+  useMaintenanceOptions,
+  useMaintenanceSpares,
+  useMaintenanceWorkOrders,
+} from '@/modules/maintenance/api';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  NativeSelect,
+  SelectOption,
+} from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
 import {
   getErrorMessage,
@@ -53,6 +68,14 @@ interface FormData {
   receivingDepartmentName: string; // Display name from API
   urgencyLevel: string;
   remarks: string;
+  maintenanceAsset: string;
+  maintenanceWorkOrder: string;
+  maintenanceSpare: string;
+  qcRequired: boolean;
+  qcStatus: string;
+  grpoReference: string;
+  grpoDocEntry: string;
+  grpoDocNum: string;
 }
 
 export default function Step3Page() {
@@ -73,6 +96,10 @@ export default function Step3Page() {
   const { data: vehicleEntryData } = useVehicleEntry(
     isEditMode && entryIdNumber ? entryIdNumber : null,
   );
+  const maintenanceOptionsQuery = useMaintenanceOptions();
+  const assetsQuery = useMaintenanceAssets({ is_active: true });
+  const workOrdersQuery = useMaintenanceWorkOrders({ is_active: true });
+  const sparesQuery = useMaintenanceSpares({ is_active: true });
 
   // State
   const [fillDataMode, setFillDataMode] = useState(false);
@@ -108,6 +135,14 @@ export default function Step3Page() {
     receivingDepartmentName: '',
     urgencyLevel: '',
     remarks: '',
+    maintenanceAsset: '',
+    maintenanceWorkOrder: '',
+    maintenanceSpare: '',
+    qcRequired: false,
+    qcStatus: 'NOT_REQUIRED',
+    grpoReference: '',
+    grpoDocEntry: '',
+    grpoDocNum: '',
   });
 
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
@@ -117,6 +152,7 @@ export default function Step3Page() {
 
   // Load maintenance data when in edit mode
   useEffect(() => {
+    let cancelled = false;
     if (effectiveEditMode && maintenanceData) {
       // Extract ID and name from nested objects
       const maintenanceTypeId =
@@ -142,8 +178,9 @@ export default function Step3Page() {
           : maintenanceData.unit?.toString() || '';
       const unitName =
         typeof maintenanceData.unit === 'object' ? maintenanceData.unit?.name || '' : '';
+      const maintenanceLink = maintenanceData.maintenance_link;
 
-      setFormData({
+      const nextFormData: FormData = {
         maintenanceType: maintenanceTypeId,
         maintenanceTypeName: maintenanceTypeName,
         supplierName: maintenanceData.supplier_name || '',
@@ -158,8 +195,24 @@ export default function Step3Page() {
         receivingDepartmentName: receivingDeptName,
         urgencyLevel: maintenanceData.urgency_level || '',
         remarks: maintenanceData.remarks || '',
+        maintenanceAsset: maintenanceLink?.asset ? String(maintenanceLink.asset) : '',
+        maintenanceWorkOrder: maintenanceLink?.work_order ? String(maintenanceLink.work_order) : '',
+        maintenanceSpare: maintenanceLink?.spare ? String(maintenanceLink.spare) : '',
+        qcRequired: maintenanceLink?.qc_required ?? false,
+        qcStatus: maintenanceLink?.qc_status || 'NOT_REQUIRED',
+        grpoReference: maintenanceLink?.grpo_reference || '',
+        grpoDocEntry: maintenanceLink?.grpo_doc_entry ? String(maintenanceLink.grpo_doc_entry) : '',
+        grpoDocNum: maintenanceLink?.grpo_doc_num || '',
+      };
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setFormData(nextFormData);
+        }
       });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [effectiveEditMode, maintenanceData]);
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -173,6 +226,41 @@ export default function Step3Page() {
         return newErrors;
       });
     }
+  };
+
+  const handleAssetChange = (assetId: string) => {
+    if (isReadOnly) return;
+    const selectedAsset = assetsQuery.data?.find((asset) => String(asset.id) === assetId);
+    setFormData((prev) => ({
+      ...prev,
+      maintenanceAsset: assetId,
+      equipmentId: selectedAsset?.asset_code || prev.equipmentId,
+    }));
+  };
+
+  const handleWorkOrderChange = (workOrderId: string) => {
+    if (isReadOnly) return;
+    const selectedWorkOrder = workOrdersQuery.data?.find(
+      (workOrder) => String(workOrder.id) === workOrderId,
+    );
+    setFormData((prev) => ({
+      ...prev,
+      maintenanceWorkOrder: workOrderId,
+      maintenanceAsset: selectedWorkOrder ? String(selectedWorkOrder.asset) : prev.maintenanceAsset,
+      equipmentId: selectedWorkOrder?.asset_code || prev.equipmentId,
+    }));
+  };
+
+  const handleSpareChange = (spareId: string) => {
+    if (isReadOnly) return;
+    const selectedSpare = sparesQuery.data?.find((spare) => String(spare.id) === spareId);
+    setFormData((prev) => ({
+      ...prev,
+      maintenanceSpare: spareId,
+      partNumber: selectedSpare?.part_number || prev.partNumber,
+      qcRequired: selectedSpare?.is_critical || prev.qcRequired,
+      qcStatus: selectedSpare?.is_critical && prev.qcStatus === 'NOT_REQUIRED' ? 'PENDING' : prev.qcStatus,
+    }));
   };
 
   const handlePrevious = () => {
@@ -257,6 +345,20 @@ export default function Step3Page() {
         receiving_department: parseInt(formData.receivingDepartment),
         urgency_level: formData.urgencyLevel,
         remarks: formData.remarks.trim() || undefined,
+        maintenance_asset: formData.maintenanceAsset
+          ? parseInt(formData.maintenanceAsset)
+          : undefined,
+        maintenance_work_order: formData.maintenanceWorkOrder
+          ? parseInt(formData.maintenanceWorkOrder)
+          : undefined,
+        maintenance_spare: formData.maintenanceSpare
+          ? parseInt(formData.maintenanceSpare)
+          : undefined,
+        qc_required: formData.qcRequired,
+        qc_status: formData.qcStatus || undefined,
+        grpo_reference: formData.grpoReference.trim() || undefined,
+        grpo_doc_entry: formData.grpoDocEntry ? parseInt(formData.grpoDocEntry) : undefined,
+        grpo_doc_num: formData.grpoDocNum.trim() || undefined,
       };
 
       // Use update API when in edit mode with update mode active
@@ -341,6 +443,149 @@ export default function Step3Page() {
                   required
                   initialDisplayText={formData.maintenanceTypeName || undefined}
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Maintenance Module Links */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                Maintenance Module Links
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="maintenanceWorkOrder">Work Order</Label>
+                  <NativeSelect
+                    id="maintenanceWorkOrder"
+                    value={formData.maintenanceWorkOrder}
+                    onChange={(event) => handleWorkOrderChange(event.target.value)}
+                    disabled={isReadOnly || workOrdersQuery.isLoading}
+                  >
+                    <SelectOption value="">Auto / not linked</SelectOption>
+                    {(workOrdersQuery.data ?? []).map((workOrder) => (
+                      <SelectOption key={workOrder.id} value={String(workOrder.id)}>
+                        {workOrder.work_order_no} - {workOrder.title}
+                      </SelectOption>
+                    ))}
+                  </NativeSelect>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maintenanceAsset">Asset</Label>
+                  <NativeSelect
+                    id="maintenanceAsset"
+                    value={formData.maintenanceAsset}
+                    onChange={(event) => handleAssetChange(event.target.value)}
+                    disabled={isReadOnly || assetsQuery.isLoading}
+                  >
+                    <SelectOption value="">Auto from equipment ID</SelectOption>
+                    {(assetsQuery.data ?? []).map((asset) => (
+                      <SelectOption key={asset.id} value={String(asset.id)}>
+                        {asset.asset_code} - {asset.name}
+                      </SelectOption>
+                    ))}
+                  </NativeSelect>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="maintenanceSpare">Spare Master</Label>
+                  <NativeSelect
+                    id="maintenanceSpare"
+                    value={formData.maintenanceSpare}
+                    onChange={(event) => handleSpareChange(event.target.value)}
+                    disabled={isReadOnly || sparesQuery.isLoading}
+                  >
+                    <SelectOption value="">Auto from part number</SelectOption>
+                    {(sparesQuery.data ?? []).map((spare) => (
+                      <SelectOption key={spare.id} value={String(spare.id)}>
+                        {spare.part_number} - {spare.name}
+                      </SelectOption>
+                    ))}
+                  </NativeSelect>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+                  <input
+                    id="qcRequired"
+                    type="checkbox"
+                    checked={formData.qcRequired}
+                    onChange={(event) => {
+                      if (isReadOnly) return;
+                      setFormData((prev) => ({
+                        ...prev,
+                        qcRequired: event.target.checked,
+                        qcStatus: event.target.checked ? prev.qcStatus || 'PENDING' : 'NOT_REQUIRED',
+                      }));
+                    }}
+                    disabled={isReadOnly}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="qcRequired" className="text-sm">
+                    QC required
+                  </Label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="qcStatus">QC Status</Label>
+                  <NativeSelect
+                    id="qcStatus"
+                    value={formData.qcStatus}
+                    onChange={(event) => handleInputChange('qcStatus', event.target.value)}
+                    disabled={isReadOnly || !formData.qcRequired}
+                  >
+                    {(maintenanceOptionsQuery.data?.gate_qc_statuses ?? [
+                      { value: 'NOT_REQUIRED', label: 'Not Required' },
+                      { value: 'PENDING', label: 'Pending' },
+                      { value: 'ACCEPTED', label: 'Accepted' },
+                      { value: 'REJECTED', label: 'Rejected' },
+                      { value: 'WAIVED', label: 'Waived' },
+                    ]).map((option) => (
+                      <SelectOption key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectOption>
+                    ))}
+                  </NativeSelect>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="grpoReference">GRPO Reference</Label>
+                  <Input
+                    id="grpoReference"
+                    value={formData.grpoReference}
+                    onChange={(event) => handleInputChange('grpoReference', event.target.value)}
+                    placeholder="Reference / posting note"
+                    disabled={isReadOnly}
+                    className="border-2 font-medium"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="grpoDocEntry">GRPO Doc Entry</Label>
+                  <Input
+                    id="grpoDocEntry"
+                    type="number"
+                    min="1"
+                    value={formData.grpoDocEntry}
+                    onChange={(event) => handleInputChange('grpoDocEntry', event.target.value)}
+                    disabled={isReadOnly}
+                    className="border-2 font-medium"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="grpoDocNum">GRPO Doc Num</Label>
+                  <Input
+                    id="grpoDocNum"
+                    value={formData.grpoDocNum}
+                    onChange={(event) => handleInputChange('grpoDocNum', event.target.value)}
+                    disabled={isReadOnly}
+                    className="border-2 font-medium"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
