@@ -343,10 +343,15 @@ export const API_ENDPOINTS = {
   MAINTENANCE: {
     DASHBOARD: '/maintenance/dashboard/',
     REPORTS: '/maintenance/reports/',
+    SCAN_LOOKUP: '/maintenance/scan/lookup/',
+    SCAN_WORK_ORDER: '/maintenance/scan/work-order/',
+    SPARE_STOCK: '/maintenance/spares/stock/',
+    ALERTS: '/maintenance/alerts/',
     OPTIONS: '/maintenance/options/',
     ASSETS: '/maintenance/assets/',
     ASSET_DETAIL: (assetId: number) => `/maintenance/assets/${assetId}/`,
     ASSET_DEACTIVATE: (assetId: number) => `/maintenance/assets/${assetId}/deactivate/`,
+    ASSET_QR: (assetId: number) => `/maintenance/assets/${assetId}/qr/`,
     ASSET_CATEGORIES: '/maintenance/asset-categories/',
     ASSET_CATEGORY_DETAIL: (categoryId: number) =>
       `/maintenance/asset-categories/${categoryId}/`,

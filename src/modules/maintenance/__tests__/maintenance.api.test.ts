@@ -13,10 +13,15 @@ vi.mock('@/config/constants', () => ({
     MAINTENANCE: {
       DASHBOARD: '/maintenance/dashboard/',
       REPORTS: '/maintenance/reports/',
+      SCAN_LOOKUP: '/maintenance/scan/lookup/',
+      SCAN_WORK_ORDER: '/maintenance/scan/work-order/',
+      SPARE_STOCK: '/maintenance/spares/stock/',
+      ALERTS: '/maintenance/alerts/',
       OPTIONS: '/maintenance/options/',
       ASSETS: '/maintenance/assets/',
       ASSET_DETAIL: (assetId: number) => `/maintenance/assets/${assetId}/`,
       ASSET_DEACTIVATE: (assetId: number) => `/maintenance/assets/${assetId}/deactivate/`,
+      ASSET_QR: (assetId: number) => `/maintenance/assets/${assetId}/qr/`,
       ASSET_CATEGORIES: '/maintenance/asset-categories/',
       ASSET_CATEGORY_DETAIL: (categoryId: number) =>
         `/maintenance/asset-categories/${categoryId}/`,
@@ -119,6 +124,47 @@ describe('maintenanceApi', () => {
         export: 'excel',
       },
       responseType: 'blob',
+    });
+  });
+
+  it('handles phase ten scan, stock, QR, and alert endpoints', async () => {
+    await maintenanceApi.lookupScan('QR-FILLER-001');
+    await maintenanceApi.createWorkOrderFromScan({
+      code: 'QR-FILLER-001',
+      title: 'Mobile complaint',
+      problem_statement: 'Vibration found during mobile scan.',
+      priority: 'HIGH',
+      impact: 'DEGRADED',
+      target_date: '2026-06-03',
+    });
+    await maintenanceApi.getSpareStock({ spare: 12, warehouse: 'MNT', code: '' });
+    await maintenanceApi.getAlerts();
+    await maintenanceApi.sendAlerts({ alert_types: ['LOW_CRITICAL_SPARE'], limit: 5 });
+    await maintenanceApi.getAssetQr(9);
+    await maintenanceApi.assignAssetQr(9, { qr_code: 'QR-MCH-009' });
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/scan/lookup/', {
+      params: { code: 'QR-FILLER-001' },
+    });
+    expect(mockedApiClient.post).toHaveBeenCalledWith('/maintenance/scan/work-order/', {
+      code: 'QR-FILLER-001',
+      title: 'Mobile complaint',
+      problem_statement: 'Vibration found during mobile scan.',
+      priority: 'HIGH',
+      impact: 'DEGRADED',
+      target_date: '2026-06-03',
+    });
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/spares/stock/', {
+      params: { spare: 12, warehouse: 'MNT' },
+    });
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/alerts/');
+    expect(mockedApiClient.post).toHaveBeenCalledWith('/maintenance/alerts/', {
+      alert_types: ['LOW_CRITICAL_SPARE'],
+      limit: 5,
+    });
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/assets/9/qr/');
+    expect(mockedApiClient.post).toHaveBeenCalledWith('/maintenance/assets/9/qr/', {
+      qr_code: 'QR-MCH-009',
     });
   });
 

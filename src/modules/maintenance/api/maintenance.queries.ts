@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
+  MaintenanceAlertSendPayload,
   AssetCategoryPayload,
   AssetDepartmentPayload,
   AssetDocumentUploadPayload,
@@ -8,10 +9,13 @@ import type {
   AssetPhotoUploadPayload,
   MaintenanceAssetFilters,
   MaintenanceAssetPayload,
+  MaintenanceAssetQrPayload,
   MaintenanceDashboardFilters,
   MaintenanceReportFilters,
+  MaintenanceScanWorkOrderPayload,
   MaintenanceSpareFilters,
   MaintenanceSparePayload,
+  MaintenanceSpareStockFilters,
   MaintenanceVendorVisitFilters,
   MaintenanceVendorVisitPayload,
   MaintenanceWorkOrderApprovalPayload,
@@ -37,6 +41,10 @@ export const MAINTENANCE_QUERY_KEYS = {
     [...MAINTENANCE_QUERY_KEYS.all, 'dashboard', filters ?? {}] as const,
   reports: (filters?: MaintenanceReportFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'reports', filters ?? {}] as const,
+  scanLookup: (code?: string) => [...MAINTENANCE_QUERY_KEYS.all, 'scan-lookup', code ?? ''] as const,
+  spareStock: (filters?: MaintenanceSpareStockFilters) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'spare-stock', filters ?? {}] as const,
+  alerts: () => [...MAINTENANCE_QUERY_KEYS.all, 'alerts'] as const,
   options: () => [...MAINTENANCE_QUERY_KEYS.all, 'options'] as const,
   assets: (filters?: MaintenanceAssetFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'assets', filters ?? {}] as const,
@@ -75,6 +83,30 @@ export function useMaintenanceReport(filters?: MaintenanceReportFilters) {
   return useQuery({
     queryKey: MAINTENANCE_QUERY_KEYS.reports(filters),
     queryFn: () => maintenanceApi.getReport(filters),
+  });
+}
+
+export function useMaintenanceScanLookup(code: string, enabled = true) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.scanLookup(code),
+    queryFn: () => maintenanceApi.lookupScan(code),
+    enabled: enabled && code.trim().length > 0,
+    retry: false,
+  });
+}
+
+export function useMaintenanceSpareStock(filters?: MaintenanceSpareStockFilters, enabled = true) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.spareStock(filters),
+    queryFn: () => maintenanceApi.getSpareStock(filters ?? {}),
+    enabled: enabled && Boolean(filters?.spare || filters?.code),
+  });
+}
+
+export function useMaintenanceAlerts() {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.alerts(),
+    queryFn: maintenanceApi.getAlerts,
   });
 }
 
@@ -214,6 +246,42 @@ export function useDeactivateMaintenanceAsset() {
   return useMutation({
     mutationFn: (assetId: number) => maintenanceApi.deactivateAsset(assetId),
     onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useAssignMaintenanceAssetQr() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assetId, payload }: { assetId: number; payload: MaintenanceAssetQrPayload }) =>
+      maintenanceApi.assignAssetQr(assetId, payload),
+    onSuccess: (_qr, variables) => {
+      invalidateMaintenance(queryClient);
+      queryClient.invalidateQueries({ queryKey: MAINTENANCE_QUERY_KEYS.asset(variables.assetId) });
+    },
+  });
+}
+
+export function useCreateWorkOrderFromScan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MaintenanceScanWorkOrderPayload) =>
+      maintenanceApi.createWorkOrderFromScan(payload),
+    onSuccess: (workOrder) => {
+      invalidateMaintenance(queryClient);
+      queryClient.invalidateQueries({
+        queryKey: MAINTENANCE_QUERY_KEYS.asset(workOrder.asset),
+      });
+    },
+  });
+}
+
+export function useSendMaintenanceAlerts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MaintenanceAlertSendPayload) => maintenanceApi.sendAlerts(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MAINTENANCE_QUERY_KEYS.alerts() });
+    },
   });
 }
 

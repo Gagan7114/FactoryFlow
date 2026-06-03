@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   Boxes,
   ClipboardList,
   Factory,
@@ -21,6 +22,7 @@ import type { ModuleConfig } from '@/core/types';
 const MaintenanceDashboardPage = lazy(() => import('./pages/MaintenanceDashboardPage'));
 const MaintenanceAssetsPage = lazy(() => import('./pages/MaintenanceAssetsPage'));
 const MaintenanceAssetDetailPage = lazy(() => import('./pages/MaintenanceAssetDetailPage'));
+const MaintenanceAutomationPage = lazy(() => import('./pages/MaintenanceAutomationPage'));
 const MaintenanceMastersPage = lazy(() => import('./pages/MaintenanceMastersPage'));
 const MaintenanceReportsPage = lazy(() => import('./pages/MaintenanceReportsPage'));
 const MaintenanceSparesPage = lazy(() => import('./pages/MaintenanceSparesPage'));
@@ -82,6 +84,13 @@ export const maintenanceModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Reports' },
     },
     {
+      path: '/maintenance/automation',
+      element: <MaintenanceAutomationPage />,
+      layout: 'main',
+      permissions: [MAINTENANCE_PERMISSIONS.VIEW_MODULE],
+      breadcrumb: { label: 'Automation' },
+    },
+    {
       path: '/maintenance/masters',
       element: <MaintenanceMastersPage />,
       layout: 'main',
@@ -132,6 +141,12 @@ export const maintenanceModuleConfig: ModuleConfig = {
           title: 'Reports',
           icon: BarChart3,
           permissions: [MAINTENANCE_PERMISSIONS.VIEW_REPORTS],
+        },
+        {
+          path: '/maintenance/automation',
+          title: 'Automation',
+          icon: Bell,
+          permissions: [MAINTENANCE_PERMISSIONS.VIEW_MODULE],
         },
         {
           path: '/maintenance/masters',

@@ -674,6 +674,119 @@ export interface MaintenanceReportResponse {
   rows: MaintenanceReportRow[];
 }
 
+export interface MaintenanceAssetQrResponse {
+  asset: MaintenanceAsset;
+  qr_code: string;
+  print_label: string;
+  scan_url: string;
+  asset_url: string;
+}
+
+export interface MaintenanceAssetQrPayload {
+  qr_code?: string;
+}
+
+export interface MaintenanceScanLookupResponse {
+  found: boolean;
+  type?: 'asset' | 'spare';
+  code: string;
+  qr_code?: string;
+  barcode?: string;
+  asset?: MaintenanceAsset;
+  spare?: MaintenanceSpare;
+  actions?: {
+    view_url?: string;
+    create_work_order?: boolean;
+    stock_lookup?: boolean;
+  };
+  detail?: string;
+}
+
+export interface MaintenanceScanWorkOrderPayload {
+  code: string;
+  title: string;
+  problem_statement: string;
+  priority?: MaintenancePriority;
+  impact?: WorkImpact;
+  target_date?: string | null;
+  assigned_to?: number | null;
+}
+
+export interface MaintenanceSpareStockFilters {
+  spare?: number;
+  code?: string;
+  warehouse?: string;
+}
+
+export interface MaintenanceSpareStockRow {
+  item_code: string;
+  item_name: string;
+  uom: string;
+  warehouse: string;
+  warehouse_name: string;
+  on_hand: MaintenanceDecimal;
+  committed: MaintenanceDecimal;
+  on_order: MaintenanceDecimal;
+  available_qty: MaintenanceDecimal;
+}
+
+export interface MaintenanceSpareStockResponse {
+  spare: MaintenanceSpare;
+  barcode: string;
+  warehouse: string;
+  local: {
+    current_stock: MaintenanceDecimal;
+    minimum_stock: MaintenanceDecimal;
+    reorder_level: MaintenanceDecimal;
+    shortage_qty: MaintenanceDecimal;
+    is_low_stock: boolean;
+    is_below_minimum: boolean;
+  };
+  sap: {
+    available: boolean;
+    source: 'sap' | 'local';
+    message: string;
+    rows: MaintenanceSpareStockRow[];
+    total_available_qty: MaintenanceDecimal;
+  };
+}
+
+export type MaintenanceAlertType =
+  | 'PM_DUE'
+  | 'BREAKDOWN_ESCALATION'
+  | 'LOW_CRITICAL_SPARE'
+  | 'AMC_WARRANTY_EXPIRY';
+
+export type MaintenanceAlertSeverity = 'warning' | 'critical';
+
+export interface MaintenanceAlert {
+  type: MaintenanceAlertType;
+  severity: MaintenanceAlertSeverity;
+  title: string;
+  message: string;
+  reference_type: string;
+  reference_id: number;
+  url: string;
+  due_date: string | null;
+}
+
+export interface MaintenanceAlertsResponse {
+  generated_at: string;
+  counts: Partial<Record<MaintenanceAlertType, number>>;
+  total: number;
+  alerts: MaintenanceAlert[];
+}
+
+export interface MaintenanceAlertSendPayload {
+  alert_types?: MaintenanceAlertType[];
+  limit?: number;
+}
+
+export interface MaintenanceAlertSendResponse {
+  notifications_sent: number;
+  notification_ids: number[];
+}
+
 export interface MaintenanceOptions {
   statuses: MaintenanceChoice<AssetStatus>[];
   priorities: MaintenanceChoice<MaintenancePriority>[];

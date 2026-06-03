@@ -14,6 +14,7 @@ describe('maintenanceModuleConfig', () => {
     expect(paths).toContain('/maintenance/work-orders');
     expect(paths).toContain('/maintenance/work-orders/:workOrderId');
     expect(paths).toContain('/maintenance/reports');
+    expect(paths).toContain('/maintenance/automation');
     expect(paths).toContain('/maintenance/masters');
   });
 
@@ -36,6 +37,7 @@ describe('maintenanceModuleConfig', () => {
     expect(childPaths).toContain('/maintenance/assets');
     expect(childPaths).toContain('/maintenance/work-orders');
     expect(childPaths).toContain('/maintenance/reports');
+    expect(childPaths).toContain('/maintenance/automation');
     expect(childPaths).toContain('/maintenance/masters');
     expect(childPaths).toContain('/gate/maintenance');
   });

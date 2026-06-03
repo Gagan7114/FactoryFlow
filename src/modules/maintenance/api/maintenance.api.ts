@@ -12,18 +12,27 @@ import type {
   AssetLocationPayload,
   AssetPhoto,
   AssetPhotoUploadPayload,
+  MaintenanceAlertSendPayload,
+  MaintenanceAlertSendResponse,
+  MaintenanceAlertsResponse,
   MaintenanceAsset,
   MaintenanceAssetFilters,
   MaintenanceAssetPayload,
+  MaintenanceAssetQrPayload,
+  MaintenanceAssetQrResponse,
   MaintenanceDashboardFilters,
   MaintenanceDashboardSummary,
   MaintenanceOptions,
   MaintenanceReportExportFormat,
   MaintenanceReportFilters,
   MaintenanceReportResponse,
+  MaintenanceScanLookupResponse,
+  MaintenanceScanWorkOrderPayload,
   MaintenanceSpare,
   MaintenanceSpareFilters,
   MaintenanceSparePayload,
+  MaintenanceSpareStockFilters,
+  MaintenanceSpareStockResponse,
   MaintenanceVendorVisit,
   MaintenanceVendorVisitFilters,
   MaintenanceVendorVisitPayload,
@@ -94,6 +103,37 @@ export const maintenanceApi = {
     return response.data;
   },
 
+  async lookupScan(code: string): Promise<MaintenanceScanLookupResponse> {
+    const response = await apiClient.get<MaintenanceScanLookupResponse>(EP.SCAN_LOOKUP, {
+      params: { code },
+    });
+    return response.data;
+  },
+
+  async createWorkOrderFromScan(
+    payload: MaintenanceScanWorkOrderPayload,
+  ): Promise<MaintenanceWorkOrder> {
+    const response = await apiClient.post<MaintenanceWorkOrder>(EP.SCAN_WORK_ORDER, payload);
+    return response.data;
+  },
+
+  async getSpareStock(filters: MaintenanceSpareStockFilters): Promise<MaintenanceSpareStockResponse> {
+    const response = await apiClient.get<MaintenanceSpareStockResponse>(EP.SPARE_STOCK, {
+      params: cleanFilters(filters),
+    });
+    return response.data;
+  },
+
+  async getAlerts(): Promise<MaintenanceAlertsResponse> {
+    const response = await apiClient.get<MaintenanceAlertsResponse>(EP.ALERTS);
+    return response.data;
+  },
+
+  async sendAlerts(payload: MaintenanceAlertSendPayload): Promise<MaintenanceAlertSendResponse> {
+    const response = await apiClient.post<MaintenanceAlertSendResponse>(EP.ALERTS, payload);
+    return response.data;
+  },
+
   async getOptions(): Promise<MaintenanceOptions> {
     const response = await apiClient.get<MaintenanceOptions>(EP.OPTIONS);
     return response.data;
@@ -123,6 +163,19 @@ export const maintenanceApi = {
 
   async deactivateAsset(assetId: number): Promise<MaintenanceAsset> {
     const response = await apiClient.post<MaintenanceAsset>(EP.ASSET_DEACTIVATE(assetId));
+    return response.data;
+  },
+
+  async getAssetQr(assetId: number): Promise<MaintenanceAssetQrResponse> {
+    const response = await apiClient.get<MaintenanceAssetQrResponse>(EP.ASSET_QR(assetId));
+    return response.data;
+  },
+
+  async assignAssetQr(
+    assetId: number,
+    payload: MaintenanceAssetQrPayload,
+  ): Promise<MaintenanceAssetQrResponse> {
+    const response = await apiClient.post<MaintenanceAssetQrResponse>(EP.ASSET_QR(assetId), payload);
     return response.data;
   },
 
