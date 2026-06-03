@@ -284,6 +284,7 @@ export interface ServiceGRPOPreview extends ServiceGRPOPendingEntry {
   default_sac_entry: number | null;
   default_sac_code: string;
   default_product_variety: string;
+  default_product_dimension?: string;
   default_total_litres: string | null;
   default_sub_account: string;
   invoice_number: string;
@@ -312,6 +313,7 @@ export interface ServiceGRPOInvoiceLinePreview {
   source_city: string;
   service_description: string;
   product_variety: string;
+  product_dimension?: string;
   total_litres: string | null;
   invoice_weight: string | null;
   invoice_amount: string | null;
@@ -391,6 +393,11 @@ export interface ServiceGRPOLocationOption {
   state: string;
 }
 
+export interface ServiceGRPOVarietyOption {
+  variety_code: string;
+  variety_name: string;
+}
+
 export interface ServiceGRPOProjectOption {
   project_code: string;
   project_name: string;
@@ -415,6 +422,7 @@ export interface ServiceGRPOOptions {
   gl_accounts: ServiceGRPOGLAccountOption[];
   sac_codes: ServiceGRPOSACCodeOption[];
   locations: ServiceGRPOLocationOption[];
+  varieties?: ServiceGRPOVarietyOption[];
   projects: ServiceGRPOProjectOption[];
   sub_accounts: ServiceGRPOSubAccountOption[];
   expense_codes: ServiceGRPOExpenseCodeOption[];

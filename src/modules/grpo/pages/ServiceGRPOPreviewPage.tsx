@@ -50,6 +50,7 @@ import type {
   ServiceGRPOSACCodeOption,
   ServiceGRPOSubAccountOption,
   ServiceGRPOTaxCodeOption,
+  ServiceGRPOVarietyOption,
 } from '../types';
 
 interface ServiceFormState {
@@ -266,6 +267,61 @@ const subAccountLabel = (subAccount: ServiceGRPOSubAccountOption) =>
     ? subAccount.sub_account_code
     : `${subAccount.sub_account_code} - ${subAccount.sub_account_name}`;
 
+const varietyLabel = (variety: ServiceGRPOVarietyOption) =>
+  variety.variety_code === variety.variety_name
+    ? variety.variety_code
+    : `${variety.variety_name} (${variety.variety_code})`;
+
+const normalizeDimensionText = (value?: string | null) =>
+  (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const findDefaultVarietyCode = (
+  options: ServiceGRPOVarietyOption[],
+  defaultCode?: string,
+  defaultLabel?: string,
+  itemSummary?: string,
+) => {
+  const candidates = [defaultCode, defaultLabel].filter(Boolean).map((value) => value!.trim());
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeDimensionText(candidate);
+    const match = options.find(
+      (option) =>
+        option.variety_code.toLowerCase() === candidate.toLowerCase() ||
+        normalizeDimensionText(option.variety_name) === normalizedCandidate,
+    );
+    if (match) return match.variety_code;
+  }
+
+  const normalizedSummary = normalizeDimensionText(itemSummary);
+  if (normalizedSummary) {
+    const fromSummary = options.find((option) => {
+      const code = normalizeDimensionText(option.variety_code);
+      const name = normalizeDimensionText(option.variety_name);
+      return (
+        (code.length >= 4 && normalizedSummary.includes(code)) ||
+        (name.length >= 4 && normalizedSummary.includes(name))
+      );
+    });
+    if (fromSummary) return fromSummary.variety_code;
+  }
+
+  const normalizedLabel = normalizeDimensionText(defaultLabel);
+  const synonymTokens = normalizedLabel.includes('beverage')
+    ? ['beverage', 'water', 'juice', 'drink']
+    : normalizedLabel.includes('oil') || normalizedLabel.includes('transport')
+      ? ['oil', 'crude', 'edible']
+      : [];
+  if (synonymTokens.length > 0) {
+    const synonymMatch = options.find((option) => {
+      const searchable = normalizeDimensionText(`${option.variety_code} ${option.variety_name}`);
+      return synonymTokens.some((token) => searchable.includes(token));
+    });
+    if (synonymMatch) return synonymMatch.variety_code;
+  }
+
+  return defaultCode || defaultLabel || '';
+};
+
 const sortExpenseCodeOptions = (
   options: ServiceGRPOExpenseCodeOption[],
 ): ServiceGRPOExpenseCodeOption[] => [...options].sort((a, b) => a.expense_code - b.expense_code);
@@ -302,6 +358,7 @@ export default function ServiceGRPOPreviewPage() {
   const glAccountOptions = serviceOptions?.gl_accounts ?? [];
   const sacOptions = serviceOptions?.sac_codes ?? [];
   const locationOptions = serviceOptions?.locations ?? [];
+  const varietyOptions = serviceOptions?.varieties ?? [];
   const sapProjectOptions = serviceOptions?.projects ?? [];
   const subAccountOptions = serviceOptions?.sub_accounts ?? [];
   const expenseCodeOptions = useMemo(
@@ -328,10 +385,15 @@ export default function ServiceGRPOPreviewPage() {
     if (!preview) return null;
     const date = preview.dispatch_date || today();
     const isMultiInvoice = (preview.invoice_count || 1) > 1;
-    const productVariety = preview.default_product_variety || '';
+    const productVariety = findDefaultVarietyCode(
+      varietyOptions,
+      preview.default_product_dimension,
+      preview.default_product_variety,
+      preview.item_summary,
+    );
     const defaultSac = findDefaultSac(
       sacOptions,
-      productVariety,
+      preview.default_product_variety || productVariety,
       preview.default_sac_entry,
       preview.default_sac_code,
     );
@@ -376,7 +438,7 @@ export default function ServiceGRPOPreviewPage() {
       taxDate: date,
       shouldRoundoff: true,
     };
-  }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions]);
+  }, [branchOptions, locationOptions, preview, sacOptions, taxCodeOptions, varietyOptions]);
 
   const currentPlanId = preview?.dispatch_plan_id ?? null;
   const form = formDraft && formDraft.planId === currentPlanId ? formDraft.value : defaultForm;
@@ -1112,25 +1174,41 @@ export default function ServiceGRPOPreviewPage() {
                       <p className="text-xs text-destructive">{apiErrors.effectiveMonth}</p>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">
-                      Variety <span className="text-destructive">*</span>
-                    </Label>
-                    <NativeSelect
-                      value={form.productVariety}
-                      onChange={(e) => updateFormField('productVariety', e.target.value)}
-                      placeholder="Select variety"
-                      className={`h-8 text-sm${
-                        apiErrors.productVariety ? ' border-destructive' : ''
-                      }`}
-                    >
-                      <SelectOption value="Oil">Oil</SelectOption>
-                      <SelectOption value="Beverage">Beverage</SelectOption>
-                    </NativeSelect>
-                    {apiErrors.productVariety && (
-                      <p className="text-xs text-destructive">{apiErrors.productVariety}</p>
+                  <SearchableSelect<ServiceGRPOVarietyOption>
+                    value={form.productVariety}
+                    items={varietyOptions}
+                    isLoading={isOptionsLoading}
+                    isError={isOptionsError && varietyOptions.length === 0}
+                    error={apiErrors.productVariety}
+                    label="Variety"
+                    required
+                    placeholder="Select variety"
+                    inputId="service-grpo-variety"
+                    inputClassName="h-8 text-sm"
+                    defaultDisplayText={form.productVariety}
+                    getItemKey={(variety) => variety.variety_code}
+                    getItemLabel={varietyLabel}
+                    filterFn={(variety, search) =>
+                      `${variety.variety_code} ${variety.variety_name}`
+                        .toLowerCase()
+                        .includes(search.toLowerCase())
+                    }
+                    renderItem={(variety) => (
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{variety.variety_name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {variety.variety_code}
+                        </span>
+                      </div>
                     )}
-                  </div>
+                    loadingText="Loading varieties..."
+                    emptyText="No varieties available"
+                    notFoundText="No varieties found"
+                    onItemSelect={(variety) =>
+                      updateFormField('productVariety', variety.variety_code)
+                    }
+                    onClear={() => updateFormField('productVariety', '')}
+                  />
                   <div className="space-y-1">
                     <Label className="text-xs">Total Litre</Label>
                     <Input
