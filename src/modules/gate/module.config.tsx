@@ -2,7 +2,7 @@ import { Truck } from 'lucide-react';
 import { lazy } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
-import { GATE_PERMISSIONS } from '@/config/permissions';
+import { BARCODE_PERMISSIONS, GATE_PERMISSIONS } from '@/config/permissions';
 import type { ModuleConfig } from '@/core/types';
 
 import {
@@ -134,6 +134,9 @@ const SalesDispatchGatepassPage = lazy(
 const SalesDispatchDetailPage = lazy(
   () => import('./pages/customerSalesFlow/SalesDispatchDetailPage'),
 );
+const BarcodeDispatchReportsPage = lazy(
+  () => import('@/modules/barcode/pages/BarcodeDispatchReportsPage'),
+);
 const RepairPartsOutDashboardPage = lazy(
   () => import('./pages/repairMovementPages/RepairPartsOutDashboardPage'),
 );
@@ -168,7 +171,11 @@ const GATE_DASHBOARD_ACCESS_PERMISSIONS = Array.from(
 );
 
 const GATE_NAVIGATION_PERMISSIONS = Array.from(
-  new Set([...GATE_DASHBOARD_ACCESS_PERMISSIONS, ...GATE_ENTRY_CREATE_PERMISSIONS]),
+  new Set([
+    ...GATE_DASHBOARD_ACCESS_PERMISSIONS,
+    ...GATE_ENTRY_CREATE_PERMISSIONS,
+    BARCODE_PERMISSIONS.VIEW_DISPATCH_REPORTS,
+  ]),
 );
 
 function RedirectWithSearch({ to }: { to: string }) {
@@ -917,6 +924,13 @@ export const gateModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Sales Dispatch Out' },
     },
     {
+      path: '/gate/sales-dispatch/barcode-reports',
+      element: <BarcodeDispatchReportsPage />,
+      layout: 'main',
+      permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH_REPORTS],
+      breadcrumb: { label: 'Barcode Dispatch Reports' },
+    },
+    {
       path: '/gate/sales-dispatch/:entryId',
       element: <SalesDispatchDetailPage />,
       layout: 'main',
@@ -1031,6 +1045,11 @@ export const gateModuleConfig: ModuleConfig = {
           path: '/gate/new',
           title: 'New Entry',
           permissions: GATE_ENTRY_CREATE_PERMISSIONS,
+        },
+        {
+          path: '/gate/sales-dispatch/barcode-reports',
+          title: 'Barcode Dispatch Reports',
+          permissions: [BARCODE_PERMISSIONS.VIEW_DISPATCH_REPORTS],
         },
       ],
     },

@@ -40,6 +40,10 @@ describe('Gate Module Config', () => {
     expect(content).toContain("import { Truck } from 'lucide-react'");
   });
 
+  it('imports barcode permissions for shared dispatch reports', () => {
+    expect(content).toContain('BARCODE_PERMISSIONS');
+  });
+
   it('imports lazy from react', () => {
     expect(content).toContain("import { lazy } from 'react'");
   });
@@ -54,7 +58,7 @@ describe('Gate Module Config', () => {
 
   it('lazy-loads RawMaterialsDashboard', () => {
     expect(content).toContain(
-      "lazy(() => import('./pages/rawmaterialpages/RawMaterialsDashboard'))",
+      "lazy(() => import('./pages/rawMaterialPages/RawMaterialsDashboard'))",
     );
   });
 
@@ -67,25 +71,30 @@ describe('Gate Module Config', () => {
   });
 
   it('lazy-loads DailyNeedsAllPage', () => {
-    expect(content).toContain("lazy(() => import('./pages/dailyneedspages/DailyNeedsAllPage'))");
+    expect(content).toContain("lazy(() => import('./pages/dailyNeedsPages/DailyNeedsAllPage'))");
   });
 
   it('lazy-loads MaintenanceDashboard', () => {
     expect(content).toContain(
-      "lazy(() => import('./pages/maintenancepages/MaintenanceDashboard'))",
+      "lazy(() => import('./pages/maintenancePages/MaintenanceDashboard'))",
     );
   });
 
   it('lazy-loads ConstructionDashboard', () => {
     expect(content).toContain(
-      "lazy(() => import('./pages/constructionpages/ConstructionDashboard'))",
+      "lazy(() => import('./pages/constructionPages/ConstructionDashboard'))",
     );
   });
 
   it('lazy-loads PersonGateInDashboard', () => {
     expect(content).toContain(
-      "lazy(() => import('./pages/persongateinpages/PersonGateInDashboard'))",
+      "lazy(() => import('./pages/personGateInPages/PersonGateInDashboard'))",
     );
+  });
+
+  it('lazy-loads BarcodeDispatchReportsPage from barcode module', () => {
+    expect(content).toContain('const BarcodeDispatchReportsPage = lazy(');
+    expect(content).toContain("import('@/modules/barcode/pages/BarcodeDispatchReportsPage')");
   });
 
   // ═══════════════════════════════════════════════════════════════
@@ -175,6 +184,12 @@ describe('Gate Module Config', () => {
     expect(content).toContain("path: '/gate/visitor-labour/contractors'");
   });
 
+  it('includes barcode dispatch reports route under Gate', () => {
+    expect(content).toContain("path: '/gate/sales-dispatch/barcode-reports'");
+    expect(content).toContain('element: <BarcodeDispatchReportsPage />');
+    expect(content).toContain('BARCODE_PERMISSIONS.VIEW_DISPATCH_REPORTS');
+  });
+
   it('all routes use main layout', () => {
     // Count layout: 'main' occurrences - should match routes count
     const layoutMatches = content.match(/layout:\s*'main'/g);
@@ -199,23 +214,16 @@ describe('Gate Module Config', () => {
     expect(content).toContain('hasSubmenu: true');
   });
 
-  it('children include Raw Materials', () => {
-    expect(content).toContain("title: 'Raw Materials (RM/PM/Assets)'");
+  it('children include Dashboard', () => {
+    expect(content).toContain("title: 'Dashboard'");
   });
 
-  it('children include Daily Needs', () => {
-    expect(content).toContain("title: 'Daily Needs (Food/Consumables)'");
+  it('children include New Entry', () => {
+    expect(content).toContain("title: 'New Entry'");
   });
 
-  it('children include Maintenance', () => {
-    expect(content).toContain("title: 'Maintenance (Spare parts/Tools)'");
-  });
-
-  it('children include Construction', () => {
-    expect(content).toContain("title: 'Construction (Civil/Building Work)'");
-  });
-
-  it('children include Visitor/Labour', () => {
-    expect(content).toContain("title: 'Visitor/Labour'");
+  it('children include Barcode Dispatch Reports', () => {
+    expect(content).toContain("title: 'Barcode Dispatch Reports'");
+    expect(content).toContain("path: '/gate/sales-dispatch/barcode-reports'");
   });
 });
