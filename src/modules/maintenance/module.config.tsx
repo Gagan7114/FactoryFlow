@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Boxes,
   ClipboardList,
   Factory,
@@ -21,6 +22,7 @@ const MaintenanceDashboardPage = lazy(() => import('./pages/MaintenanceDashboard
 const MaintenanceAssetsPage = lazy(() => import('./pages/MaintenanceAssetsPage'));
 const MaintenanceAssetDetailPage = lazy(() => import('./pages/MaintenanceAssetDetailPage'));
 const MaintenanceMastersPage = lazy(() => import('./pages/MaintenanceMastersPage'));
+const MaintenanceReportsPage = lazy(() => import('./pages/MaintenanceReportsPage'));
 const MaintenanceSparesPage = lazy(() => import('./pages/MaintenanceSparesPage'));
 const MaintenanceWorkOrdersPage = lazy(() => import('./pages/MaintenanceWorkOrdersPage'));
 const MaintenanceWorkOrderDetailPage = lazy(
@@ -73,6 +75,13 @@ export const maintenanceModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Store / Spares' },
     },
     {
+      path: '/maintenance/reports',
+      element: <MaintenanceReportsPage />,
+      layout: 'main',
+      permissions: [MAINTENANCE_PERMISSIONS.VIEW_REPORTS],
+      breadcrumb: { label: 'Reports' },
+    },
+    {
       path: '/maintenance/masters',
       element: <MaintenanceMastersPage />,
       layout: 'main',
@@ -117,6 +126,12 @@ export const maintenanceModuleConfig: ModuleConfig = {
           title: 'Store / Spares',
           icon: Boxes,
           permissions: [MAINTENANCE_PERMISSIONS.VIEW_SPARE],
+        },
+        {
+          path: '/maintenance/reports',
+          title: 'Reports',
+          icon: BarChart3,
+          permissions: [MAINTENANCE_PERMISSIONS.VIEW_REPORTS],
         },
         {
           path: '/maintenance/masters',

@@ -628,6 +628,52 @@ export interface MaintenanceDashboardFilters {
   date_to?: string;
 }
 
+export type MaintenanceReportType =
+  | 'daily'
+  | 'monthly'
+  | 'pm_compliance'
+  | 'breakdown'
+  | 'downtime_pareto'
+  | 'mttr'
+  | 'mtbf'
+  | 'asset_history'
+  | 'spare_consumption'
+  | 'critical_spare'
+  | 'vendor_visit'
+  | 'utility_downtime';
+
+export type MaintenanceReportExportFormat = 'csv' | 'excel' | 'pdf';
+
+export interface MaintenanceReportFilters {
+  report_type?: MaintenanceReportType;
+  department?: number | 'ALL';
+  asset?: number | 'ALL';
+  line?: string;
+  priority?: MaintenancePriority | 'ALL';
+  date_from?: string;
+  date_to?: string;
+}
+
+export type MaintenanceReportCell = string | number | boolean | null;
+export type MaintenanceReportRow = Record<string, MaintenanceReportCell>;
+export type MaintenanceReportSummary = Record<string, MaintenanceReportCell>;
+
+export interface MaintenanceReportResponse {
+  report_type: MaintenanceReportType;
+  title: string;
+  generated_at: string;
+  filters: {
+    date_from: string;
+    date_to: string;
+    department: number | null;
+    asset: number | null;
+    line: string;
+    priority: MaintenancePriority | null;
+  };
+  summary: MaintenanceReportSummary;
+  rows: MaintenanceReportRow[];
+}
+
 export interface MaintenanceOptions {
   statuses: MaintenanceChoice<AssetStatus>[];
   priorities: MaintenanceChoice<MaintenancePriority>[];

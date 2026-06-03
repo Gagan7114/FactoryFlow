@@ -9,6 +9,7 @@ import type {
   MaintenanceAssetFilters,
   MaintenanceAssetPayload,
   MaintenanceDashboardFilters,
+  MaintenanceReportFilters,
   MaintenanceSpareFilters,
   MaintenanceSparePayload,
   MaintenanceVendorVisitFilters,
@@ -34,6 +35,8 @@ export const MAINTENANCE_QUERY_KEYS = {
   all: ['maintenance'] as const,
   dashboard: (filters?: MaintenanceDashboardFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'dashboard', filters ?? {}] as const,
+  reports: (filters?: MaintenanceReportFilters) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'reports', filters ?? {}] as const,
   options: () => [...MAINTENANCE_QUERY_KEYS.all, 'options'] as const,
   assets: (filters?: MaintenanceAssetFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'assets', filters ?? {}] as const,
@@ -65,6 +68,13 @@ export function useMaintenanceDashboard(filters?: MaintenanceDashboardFilters) {
   return useQuery({
     queryKey: MAINTENANCE_QUERY_KEYS.dashboard(filters),
     queryFn: () => maintenanceApi.getDashboard(filters),
+  });
+}
+
+export function useMaintenanceReport(filters?: MaintenanceReportFilters) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.reports(filters),
+    queryFn: () => maintenanceApi.getReport(filters),
   });
 }
 

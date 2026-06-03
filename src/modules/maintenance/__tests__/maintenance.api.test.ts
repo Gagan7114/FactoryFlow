@@ -12,6 +12,7 @@ vi.mock('@/config/constants', () => ({
   API_ENDPOINTS: {
     MAINTENANCE: {
       DASHBOARD: '/maintenance/dashboard/',
+      REPORTS: '/maintenance/reports/',
       OPTIONS: '/maintenance/options/',
       ASSETS: '/maintenance/assets/',
       ASSET_DETAIL: (assetId: number) => `/maintenance/assets/${assetId}/`,
@@ -80,6 +81,44 @@ describe('maintenanceApi', () => {
         line: 'Line 1',
         date_from: '2026-06-01',
       },
+    });
+  });
+
+  it('loads report data and exports reports with cleaned filters', async () => {
+    await maintenanceApi.getReport({
+      report_type: 'breakdown',
+      department: 'ALL',
+      line: 'Line 1',
+      priority: 'CRITICAL',
+      date_from: '2026-06-01',
+      date_to: '',
+    });
+    await maintenanceApi.exportReport(
+      {
+        report_type: 'spare_consumption',
+        asset: 12,
+        priority: 'ALL',
+        date_from: '2026-06-01',
+      },
+      'excel',
+    );
+
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/reports/', {
+      params: {
+        report_type: 'breakdown',
+        line: 'Line 1',
+        priority: 'CRITICAL',
+        date_from: '2026-06-01',
+      },
+    });
+    expect(mockedApiClient.get).toHaveBeenCalledWith('/maintenance/reports/', {
+      params: {
+        report_type: 'spare_consumption',
+        asset: 12,
+        date_from: '2026-06-01',
+        export: 'excel',
+      },
+      responseType: 'blob',
     });
   });
 

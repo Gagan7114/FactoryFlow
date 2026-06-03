@@ -18,6 +18,9 @@ import type {
   MaintenanceDashboardFilters,
   MaintenanceDashboardSummary,
   MaintenanceOptions,
+  MaintenanceReportExportFormat,
+  MaintenanceReportFilters,
+  MaintenanceReportResponse,
   MaintenanceSpare,
   MaintenanceSpareFilters,
   MaintenanceSparePayload,
@@ -70,6 +73,24 @@ export const maintenanceApi = {
     const response = params
       ? await apiClient.get<MaintenanceDashboardSummary>(EP.DASHBOARD, { params })
       : await apiClient.get<MaintenanceDashboardSummary>(EP.DASHBOARD);
+    return response.data;
+  },
+
+  async getReport(filters?: MaintenanceReportFilters): Promise<MaintenanceReportResponse> {
+    const response = await apiClient.get<MaintenanceReportResponse>(EP.REPORTS, {
+      params: cleanFilters(filters),
+    });
+    return response.data;
+  },
+
+  async exportReport(
+    filters: MaintenanceReportFilters,
+    exportFormat: MaintenanceReportExportFormat,
+  ): Promise<Blob> {
+    const response = await apiClient.get<Blob>(EP.REPORTS, {
+      params: cleanFilters({ ...filters, export: exportFormat }),
+      responseType: 'blob',
+    });
     return response.data;
   },
 

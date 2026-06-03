@@ -342,6 +342,7 @@ export const API_ENDPOINTS = {
   // Maintenance
   MAINTENANCE: {
     DASHBOARD: '/maintenance/dashboard/',
+    REPORTS: '/maintenance/reports/',
     OPTIONS: '/maintenance/options/',
     ASSETS: '/maintenance/assets/',
     ASSET_DETAIL: (assetId: number) => `/maintenance/assets/${assetId}/`,
