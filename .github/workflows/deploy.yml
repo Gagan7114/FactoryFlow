@@ -54,7 +54,9 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -T 60 -H "$SERVER_HOST" >> ~/.ssh/known_hosts
+          touch ~/.ssh/known_hosts
+          ssh-keyscan -T 60 -H "$SERVER_HOST" >> ~/.ssh/known_hosts || \
+            echo "::warning::ssh-keyscan failed for SERVER_HOST; deploy will use accept-new host key checking"
 
       - name: Upload Build
         env:
@@ -67,6 +69,7 @@ jobs:
           timeout 5m scp \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
@@ -83,6 +86,7 @@ jobs:
           timeout 10m ssh \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
