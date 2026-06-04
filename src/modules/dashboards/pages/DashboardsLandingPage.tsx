@@ -1,4 +1,11 @@
-import { ArrowLeftRight, BarChart3, CalendarClock, Package, PackageX } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  BarChart3,
+  CalendarClock,
+  Package,
+  PackageX,
+  Target,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,6 +54,14 @@ const dashboardsModules: DashboardsModuleCard[] = [
     route: '/dashboards/non-moving',
     color: 'text-amber-600',
     permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
+  },
+  {
+    title: 'Sales Plan vs Req.',
+    description: 'Compare monthly forecast demand against stock, minimum stock, and open POs',
+    icon: <Target className="h-5 w-5" />,
+    route: '/dashboards/sales-planning-requirement',
+    color: 'text-rose-600',
+    permissions: [DASHBOARDS_PERMISSIONS.VIEW_SALES_PLANNING_REQUIREMENT],
   },
   {
     title: 'Production Movement',

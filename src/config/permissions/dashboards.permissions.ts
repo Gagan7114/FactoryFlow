@@ -6,6 +6,10 @@ export const DASHBOARDS_PERMISSIONS = {
   VIEW_STOCK_DASHBOARD: 'stock_dashboard.can_view_stock_dashboard',
   VIEW_INVENTORY_AGE: 'inventory_age.can_view_inventory_age',
   VIEW_NON_MOVING_RM: 'non_moving_rm.can_view_non_moving_rm',
+  VIEW_SALES_PLANNING_REQUIREMENT:
+    'sales_planning_requirement.can_view_sales_planning_requirement',
+  REFRESH_SALES_PLANNING_REQUIREMENT:
+    'sales_planning_requirement.can_refresh_sales_planning_requirement',
   VIEW_PRODUCTION_MOVEMENT: 'production_execution.can_view_reports',
   VIEW_DISPATCH_PLANS: 'dispatch_plans.can_view_dispatch_plans',
   EDIT_DISPATCH_PLANS: 'dispatch_plans.can_edit_dispatch_plans',
