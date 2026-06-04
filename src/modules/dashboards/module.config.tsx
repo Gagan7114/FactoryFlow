@@ -16,6 +16,9 @@ const InventoryAgeDashboardPage = lazy(
 const NonMovingDashboardPage = lazy(
   () => import('./non-moving/pages/NonMovingDashboardPage'),
 );
+const SalesPlanningRequirementDashboardPage = lazy(
+  () => import('./sales-planning-requirement/pages/SalesPlanningRequirementDashboardPage'),
+);
 const ProductionMovementDashboardPage = lazy(
   () => import('./production-movement/pages/ProductionMovementDashboardPage'),
 );
@@ -31,6 +34,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
+        DASHBOARDS_PERMISSIONS.VIEW_SALES_PLANNING_REQUIREMENT,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
       ],
     },
@@ -63,6 +67,13 @@ export const dashboardsModuleConfig: ModuleConfig = {
       breadcrumb: { label: 'Non-Moving' },
     },
     {
+      path: '/dashboards/sales-planning-requirement',
+      element: <SalesPlanningRequirementDashboardPage />,
+      layout: 'main',
+      permissions: [DASHBOARDS_PERMISSIONS.VIEW_SALES_PLANNING_REQUIREMENT],
+      breadcrumb: { label: 'Sales Planning vs Requirement' },
+    },
+    {
       path: '/dashboards/production-movement',
       element: <ProductionMovementDashboardPage />,
       layout: 'main',
@@ -88,6 +99,7 @@ export const dashboardsModuleConfig: ModuleConfig = {
         DASHBOARDS_PERMISSIONS.VIEW_STOCK_DASHBOARD,
         DASHBOARDS_PERMISSIONS.VIEW_INVENTORY_AGE,
         DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM,
+        DASHBOARDS_PERMISSIONS.VIEW_SALES_PLANNING_REQUIREMENT,
         DASHBOARDS_PERMISSIONS.VIEW_PRODUCTION_MOVEMENT,
       ],
       hasSubmenu: true,
@@ -111,6 +123,11 @@ export const dashboardsModuleConfig: ModuleConfig = {
           path: '/dashboards/non-moving',
           title: 'Non-Moving',
           permissions: [DASHBOARDS_PERMISSIONS.VIEW_NON_MOVING_RM],
+        },
+        {
+          path: '/dashboards/sales-planning-requirement',
+          title: 'Sales Plan vs Req.',
+          permissions: [DASHBOARDS_PERMISSIONS.VIEW_SALES_PLANNING_REQUIREMENT],
         },
         {
           path: '/dashboards/production-movement',

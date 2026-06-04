@@ -262,6 +262,23 @@ describe('API_ENDPOINTS.STOCK_DASHBOARD', () => {
   });
 });
 
+describe('API_ENDPOINTS.SALES_PLANNING_REQUIREMENT', () => {
+  it('has report, status, analysis, and refresh endpoints', () => {
+    expect(API_ENDPOINTS.SALES_PLANNING_REQUIREMENT.REPORT).toBe(
+      '/dashboards/sales-planning-requirement/report/',
+    );
+    expect(API_ENDPOINTS.SALES_PLANNING_REQUIREMENT.STATUS).toBe(
+      '/dashboards/sales-planning-requirement/status/',
+    );
+    expect(API_ENDPOINTS.SALES_PLANNING_REQUIREMENT.ANALYSIS).toBe(
+      '/dashboards/sales-planning-requirement/analysis/',
+    );
+    expect(API_ENDPOINTS.SALES_PLANNING_REQUIREMENT.REFRESH).toBe(
+      '/dashboards/sales-planning-requirement/refresh/',
+    );
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════
 // API_ENDPOINTS — BARCODE DISPATCH
 // ═══════════════════════════════════════════════════════════════

@@ -309,6 +309,13 @@ export const API_ENDPOINTS = {
     REPORT: '/non-moving-rm/report/',
     ITEM_GROUPS: '/non-moving-rm/item-groups/',
   },
+  // Sales Planning vs Requirement Dashboard
+  SALES_PLANNING_REQUIREMENT: {
+    REPORT: '/dashboards/sales-planning-requirement/report/',
+    STATUS: '/dashboards/sales-planning-requirement/status/',
+    ANALYSIS: '/dashboards/sales-planning-requirement/analysis/',
+    REFRESH: '/dashboards/sales-planning-requirement/refresh/',
+  },
   // Dispatch Plans Dashboard
   DISPATCH_PLANS: {
     BILLS: '/dispatch-plans/bills/',
