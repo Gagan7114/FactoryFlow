@@ -43,6 +43,13 @@ jobs:
       - name: Compress Build
         run: tar -czf build.tar.gz dist
 
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-build-${{ github.sha }}
+          path: build.tar.gz
+          retention-days: 7
+
       - name: Prepare SSH
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -59,23 +66,30 @@ jobs:
             echo "::warning::ssh-keyscan failed for SERVER_HOST; deploy will use accept-new host key checking"
 
       - name: Upload Build
+        id: upload-build
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           test -n "$SERVER_HOST"
           test -n "$SERVER_USER"
-          timeout 5m scp \
+          if ! timeout 5m scp \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
-            build.tar.gz "$SERVER_USER@$SERVER_HOST:/tmp/build.tar.gz"
+            build.tar.gz "$SERVER_USER@$SERVER_HOST:/tmp/build.tar.gz"; then
+            echo "::warning::Build succeeded, but upload to the deployment server failed. The build artifact is attached to this workflow run. Check SERVER_HOST connectivity, firewall, and SSH access."
+            echo "uploaded=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "uploaded=true" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Server
+        if: steps.upload-build.outputs.uploaded == 'true'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
