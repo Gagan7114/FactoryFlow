@@ -52,6 +52,12 @@ export type GateReceiptStatus = 'NOT_RECEIVED' | 'RECEIVED' | 'BLOCKED';
 
 export type VendorVisitStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+export type PMFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
+
+export type PMExecutionStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED' | 'OVERDUE';
+
+export type ChecklistInputType = 'CHECKBOX' | 'PASS_FAIL' | 'NUMBER' | 'TEXT';
+
 export type AssetDocumentType =
   | 'MANUAL'
   | 'WARRANTY'
@@ -461,6 +467,212 @@ export interface MaintenanceWorkOrderPhotoUploadPayload {
   taken_on?: string;
 }
 
+export interface PreventiveMaintenancePlan {
+  id: number;
+  company: number;
+  plan_code: string;
+  title: string;
+  asset: number;
+  asset_code: string;
+  asset_name: string;
+  department: number;
+  department_name: string;
+  line: string;
+  frequency: PMFrequency;
+  work_type: WorkType;
+  priority: MaintenancePriority;
+  assigned_to: number | null;
+  assigned_to_name: string;
+  start_date: string;
+  next_due_date: string;
+  last_generated_date: string | null;
+  advance_days: number;
+  auto_create_work_order: boolean;
+  checklist_required: boolean;
+  description: string;
+  checklist_count: number;
+  execution_count: number;
+  open_execution_count: number;
+  is_due: boolean;
+  is_active: boolean;
+  created_by: number | null;
+  created_by_name: string;
+  updated_by: number | null;
+  updated_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PreventiveMaintenancePlanPayload {
+  title: string;
+  asset: number;
+  frequency: PMFrequency;
+  work_type: Extract<WorkType, 'PREVENTIVE' | 'INSPECTION' | 'CALIBRATION'>;
+  priority: MaintenancePriority;
+  assigned_to?: number | null;
+  start_date: string;
+  next_due_date?: string;
+  advance_days?: number;
+  auto_create_work_order?: boolean;
+  checklist_required?: boolean;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface PreventiveMaintenancePlanFilters {
+  search?: string;
+  frequency?: PMFrequency | 'ALL';
+  priority?: MaintenancePriority | 'ALL';
+  work_type?: WorkType | 'ALL';
+  asset?: number | 'ALL';
+  department?: number | 'ALL';
+  assigned_to?: number | 'ALL';
+  due_until?: string;
+  due_only?: boolean;
+  is_active?: boolean | 'ALL';
+}
+
+export interface PMGenerateDuePayload {
+  due_until?: string;
+  plan_ids?: number[];
+}
+
+export interface PMGenerateDueResponse {
+  generated_count: number;
+  executions: PreventiveMaintenanceExecution[];
+}
+
+export interface MaintenanceChecklistTemplateItem {
+  id: number;
+  company: number;
+  pm_plan: number;
+  pm_plan_code: string;
+  pm_plan_title: string;
+  task: string;
+  input_type: ChecklistInputType;
+  is_required: boolean;
+  expected_text: string;
+  min_value: MaintenanceDecimal | null;
+  max_value: MaintenanceDecimal | null;
+  uom: string;
+  safety_critical: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_by: number | null;
+  created_by_name: string;
+  updated_by: number | null;
+  updated_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MaintenanceChecklistTemplateItemPayload {
+  pm_plan: number;
+  task: string;
+  input_type: ChecklistInputType;
+  is_required?: boolean;
+  expected_text?: string;
+  min_value?: MaintenanceDecimal | null;
+  max_value?: MaintenanceDecimal | null;
+  uom?: string;
+  safety_critical?: boolean;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
+export interface MaintenanceChecklistTemplateItemFilters {
+  pm_plan?: number | 'ALL';
+  is_active?: boolean | 'ALL';
+}
+
+export interface MaintenanceChecklistResult {
+  id: number;
+  company: number;
+  execution: number;
+  template_item: number;
+  template_task: string;
+  sort_order: number;
+  task_snapshot: string;
+  input_type: ChecklistInputType;
+  value_text: string;
+  value_number: MaintenanceDecimal | null;
+  is_ok: boolean;
+  remarks: string;
+  uom: string;
+  safety_critical: boolean;
+  is_active: boolean;
+  created_by_name: string;
+  updated_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PreventiveMaintenanceExecution {
+  id: number;
+  company: number;
+  pm_plan: number;
+  pm_plan_code: string;
+  pm_plan_title: string;
+  frequency: PMFrequency;
+  work_order: number | null;
+  work_order_no: string;
+  work_order_status: WorkOrderStatus | '';
+  asset: number;
+  asset_code: string;
+  asset_name: string;
+  department_name: string;
+  line: string;
+  due_date: string;
+  status: PMExecutionStatus;
+  effective_status: PMExecutionStatus;
+  is_overdue: boolean;
+  started_at: string | null;
+  completed_at: string | null;
+  skipped_at: string | null;
+  skip_reason: string;
+  completed_by: number | null;
+  completed_by_name: string;
+  remarks: string;
+  results: MaintenanceChecklistResult[];
+  is_active: boolean;
+  created_by_name: string;
+  updated_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PreventiveMaintenanceExecutionFilters {
+  status?: PMExecutionStatus | 'ALL';
+  pm_plan?: number | 'ALL';
+  asset?: number | 'ALL';
+  work_order?: number | 'ALL';
+  frequency?: PMFrequency | 'ALL';
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface PMChecklistResultInput {
+  template_item: number;
+  value_text?: string;
+  value_number?: MaintenanceDecimal | null;
+  is_ok?: boolean;
+  remarks?: string;
+}
+
+export interface PMExecutionCompletePayload {
+  checklist_results?: PMChecklistResultInput[];
+  technician_remarks?: string;
+  completion_remarks?: string;
+  root_cause?: string;
+  corrective_action?: string;
+  preventive_action?: string;
+  remarks?: string;
+}
+
+export interface PMExecutionSkipPayload {
+  skip_reason: string;
+}
+
 export interface SpareRequest {
   id: number;
   company: number;
@@ -790,6 +1002,9 @@ export interface MaintenanceAlertSendResponse {
 export interface MaintenanceOptions {
   statuses: MaintenanceChoice<AssetStatus>[];
   priorities: MaintenanceChoice<MaintenancePriority>[];
+  pm_frequencies: MaintenanceChoice<PMFrequency>[];
+  pm_execution_statuses: MaintenanceChoice<PMExecutionStatus>[];
+  checklist_input_types: MaintenanceChoice<ChecklistInputType>[];
   hierarchy_levels: MaintenanceChoice<AssetHierarchyLevel>[];
   document_types: MaintenanceChoice<AssetDocumentType>[];
   work_types: MaintenanceChoice<WorkType>[];

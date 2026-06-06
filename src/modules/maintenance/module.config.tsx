@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bell,
   Boxes,
+  CalendarCheck,
   ClipboardList,
   Factory,
   FileText,
@@ -24,12 +25,11 @@ const MaintenanceAssetsPage = lazy(() => import('./pages/MaintenanceAssetsPage')
 const MaintenanceAssetDetailPage = lazy(() => import('./pages/MaintenanceAssetDetailPage'));
 const MaintenanceAutomationPage = lazy(() => import('./pages/MaintenanceAutomationPage'));
 const MaintenanceMastersPage = lazy(() => import('./pages/MaintenanceMastersPage'));
+const MaintenancePMPage = lazy(() => import('./pages/MaintenancePMPage'));
 const MaintenanceReportsPage = lazy(() => import('./pages/MaintenanceReportsPage'));
 const MaintenanceSparesPage = lazy(() => import('./pages/MaintenanceSparesPage'));
 const MaintenanceWorkOrdersPage = lazy(() => import('./pages/MaintenanceWorkOrdersPage'));
-const MaintenanceWorkOrderDetailPage = lazy(
-  () => import('./pages/MaintenanceWorkOrderDetailPage'),
-);
+const MaintenanceWorkOrderDetailPage = lazy(() => import('./pages/MaintenanceWorkOrderDetailPage'));
 
 export const maintenanceModuleConfig: ModuleConfig = {
   name: 'maintenance',
@@ -75,6 +75,13 @@ export const maintenanceModuleConfig: ModuleConfig = {
       layout: 'main',
       permissions: [MAINTENANCE_PERMISSIONS.VIEW_SPARE],
       breadcrumb: { label: 'Store / Spares' },
+    },
+    {
+      path: '/maintenance/pm',
+      element: <MaintenancePMPage />,
+      layout: 'main',
+      permissions: [MAINTENANCE_PERMISSIONS.VIEW_PM],
+      breadcrumb: { label: 'PM / Checklist' },
     },
     {
       path: '/maintenance/reports',
@@ -137,6 +144,12 @@ export const maintenanceModuleConfig: ModuleConfig = {
           permissions: [MAINTENANCE_PERMISSIONS.VIEW_SPARE],
         },
         {
+          path: '/maintenance/pm',
+          title: 'PM / Checklist',
+          icon: CalendarCheck,
+          permissions: [MAINTENANCE_PERMISSIONS.VIEW_PM],
+        },
+        {
           path: '/maintenance/reports',
           title: 'Reports',
           icon: BarChart3,
@@ -163,10 +176,7 @@ export const maintenanceModuleConfig: ModuleConfig = {
           path: '/gate/maintenance',
           title: 'Gate Material In',
           icon: Package,
-          permissions: [
-            GATE_PERMISSIONS.MAINTENANCE.VIEW,
-            GATE_PERMISSIONS.MAINTENANCE.VIEW_FULL,
-          ],
+          permissions: [GATE_PERMISSIONS.MAINTENANCE.VIEW, GATE_PERMISSIONS.MAINTENANCE.VIEW_FULL],
         },
         {
           path: '/gate/repair-parts-out',

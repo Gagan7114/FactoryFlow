@@ -360,11 +360,9 @@ export const API_ENDPOINTS = {
     ASSET_DEACTIVATE: (assetId: number) => `/maintenance/assets/${assetId}/deactivate/`,
     ASSET_QR: (assetId: number) => `/maintenance/assets/${assetId}/qr/`,
     ASSET_CATEGORIES: '/maintenance/asset-categories/',
-    ASSET_CATEGORY_DETAIL: (categoryId: number) =>
-      `/maintenance/asset-categories/${categoryId}/`,
+    ASSET_CATEGORY_DETAIL: (categoryId: number) => `/maintenance/asset-categories/${categoryId}/`,
     ASSET_LOCATIONS: '/maintenance/asset-locations/',
-    ASSET_LOCATION_DETAIL: (locationId: number) =>
-      `/maintenance/asset-locations/${locationId}/`,
+    ASSET_LOCATION_DETAIL: (locationId: number) => `/maintenance/asset-locations/${locationId}/`,
     ASSET_DEPARTMENTS: '/maintenance/asset-departments/',
     ASSET_DEPARTMENT_DETAIL: (departmentId: number) =>
       `/maintenance/asset-departments/${departmentId}/`,
@@ -372,43 +370,47 @@ export const API_ENDPOINTS = {
     ASSET_DOCUMENTS: '/maintenance/asset-documents/',
     WORK_ORDERS: '/maintenance/work-orders/',
     WORK_ORDER_DETAIL: (workOrderId: number) => `/maintenance/work-orders/${workOrderId}/`,
-    WORK_ORDER_ASSIGN: (workOrderId: number) =>
-      `/maintenance/work-orders/${workOrderId}/assign/`,
-    WORK_ORDER_START: (workOrderId: number) =>
-      `/maintenance/work-orders/${workOrderId}/start/`,
+    WORK_ORDER_ASSIGN: (workOrderId: number) => `/maintenance/work-orders/${workOrderId}/assign/`,
+    WORK_ORDER_START: (workOrderId: number) => `/maintenance/work-orders/${workOrderId}/start/`,
     WORK_ORDER_COMPLETE: (workOrderId: number) =>
       `/maintenance/work-orders/${workOrderId}/complete/`,
-    WORK_ORDER_APPROVE: (workOrderId: number) =>
-      `/maintenance/work-orders/${workOrderId}/approve/`,
-    WORK_ORDER_CLOSE: (workOrderId: number) =>
-      `/maintenance/work-orders/${workOrderId}/close/`,
+    WORK_ORDER_APPROVE: (workOrderId: number) => `/maintenance/work-orders/${workOrderId}/approve/`,
+    WORK_ORDER_CLOSE: (workOrderId: number) => `/maintenance/work-orders/${workOrderId}/close/`,
     WORK_ORDER_SET_STATUS: (workOrderId: number) =>
       `/maintenance/work-orders/${workOrderId}/set-status/`,
     WORK_ORDER_REQUEST_SPARE: (workOrderId: number) =>
       `/maintenance/work-orders/${workOrderId}/request-spare/`,
     WORK_ORDER_PHOTOS: '/maintenance/work-order-photos/',
+    PM_PLANS: '/maintenance/pm-plans/',
+    PM_PLAN_DETAIL: (planId: number) => `/maintenance/pm-plans/${planId}/`,
+    PM_PLAN_GENERATE: (planId: number) => `/maintenance/pm-plans/${planId}/generate/`,
+    PM_PLANS_GENERATE_DUE: '/maintenance/pm-plans/generate-due/',
+    PM_CHECKLIST_ITEMS: '/maintenance/pm-checklist-items/',
+    PM_CHECKLIST_ITEM_DETAIL: (itemId: number) => `/maintenance/pm-checklist-items/${itemId}/`,
+    PM_EXECUTIONS: '/maintenance/pm-executions/',
+    PM_EXECUTION_DETAIL: (executionId: number) => `/maintenance/pm-executions/${executionId}/`,
+    PM_EXECUTION_START: (executionId: number) => `/maintenance/pm-executions/${executionId}/start/`,
+    PM_EXECUTION_COMPLETE: (executionId: number) =>
+      `/maintenance/pm-executions/${executionId}/complete/`,
+    PM_EXECUTION_SKIP: (executionId: number) => `/maintenance/pm-executions/${executionId}/skip/`,
     SPARE_CATEGORIES: '/maintenance/spare-categories/',
-    SPARE_CATEGORY_DETAIL: (categoryId: number) =>
-      `/maintenance/spare-categories/${categoryId}/`,
+    SPARE_CATEGORY_DETAIL: (categoryId: number) => `/maintenance/spare-categories/${categoryId}/`,
     SPARES: '/maintenance/spares/',
     SPARE_DETAIL: (spareId: number) => `/maintenance/spares/${spareId}/`,
     SPARES_LOW_STOCK: '/maintenance/spares/low-stock/',
     SPARE_REQUESTS: '/maintenance/spare-requests/',
     SPARE_REQUEST_DETAIL: (requestId: number) => `/maintenance/spare-requests/${requestId}/`,
-    SPARE_REQUEST_ISSUE: (requestId: number) =>
-      `/maintenance/spare-requests/${requestId}/issue/`,
+    SPARE_REQUEST_ISSUE: (requestId: number) => `/maintenance/spare-requests/${requestId}/issue/`,
     SPARE_REQUEST_CONSUME: (requestId: number) =>
       `/maintenance/spare-requests/${requestId}/consume/`,
     SPARE_REQUEST_RETURN_UNUSED: (requestId: number) =>
       `/maintenance/spare-requests/${requestId}/return-unused/`,
-    SPARE_REQUEST_CANCEL: (requestId: number) =>
-      `/maintenance/spare-requests/${requestId}/cancel/`,
+    SPARE_REQUEST_CANCEL: (requestId: number) => `/maintenance/spare-requests/${requestId}/cancel/`,
     SPARE_MOVEMENTS: '/maintenance/spare-movements/',
     VENDOR_VISITS: '/maintenance/vendor-visits/',
     VENDOR_VISIT_DETAIL: (visitId: number) => `/maintenance/vendor-visits/${visitId}/`,
     VENDOR_VISIT_START: (visitId: number) => `/maintenance/vendor-visits/${visitId}/start/`,
-    VENDOR_VISIT_COMPLETE: (visitId: number) =>
-      `/maintenance/vendor-visits/${visitId}/complete/`,
+    VENDOR_VISIT_COMPLETE: (visitId: number) => `/maintenance/vendor-visits/${visitId}/complete/`,
     VENDOR_VISIT_CANCEL: (visitId: number) => `/maintenance/vendor-visits/${visitId}/cancel/`,
   },
   // Production Execution

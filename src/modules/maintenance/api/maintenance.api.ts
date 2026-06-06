@@ -20,6 +20,9 @@ import type {
   MaintenanceAssetPayload,
   MaintenanceAssetQrPayload,
   MaintenanceAssetQrResponse,
+  MaintenanceChecklistTemplateItem,
+  MaintenanceChecklistTemplateItemFilters,
+  MaintenanceChecklistTemplateItemPayload,
   MaintenanceDashboardFilters,
   MaintenanceDashboardSummary,
   MaintenanceOptions,
@@ -45,6 +48,15 @@ import type {
   MaintenanceWorkOrderPhoto,
   MaintenanceWorkOrderPhotoUploadPayload,
   MaintenanceWorkOrderStatusPayload,
+  PMExecutionCompletePayload,
+  PMExecutionSkipPayload,
+  PMGenerateDuePayload,
+  PMGenerateDueResponse,
+  PreventiveMaintenanceExecution,
+  PreventiveMaintenanceExecutionFilters,
+  PreventiveMaintenancePlan,
+  PreventiveMaintenancePlanFilters,
+  PreventiveMaintenancePlanPayload,
   SpareCategory,
   SpareCategoryPayload,
   SpareIssuePayload,
@@ -62,11 +74,17 @@ const EP = API_ENDPOINTS.MAINTENANCE;
 function cleanFilters(filters?: object) {
   if (!filters) return undefined;
   return Object.fromEntries(
-    Object.entries(filters).filter(([, value]) => value !== undefined && value !== '' && value !== 'ALL'),
+    Object.entries(filters).filter(
+      ([, value]) => value !== undefined && value !== '' && value !== 'ALL',
+    ),
   );
 }
 
-function appendOptionalField(formData: FormData, key: string, value: string | boolean | null | undefined) {
+function appendOptionalField(
+  formData: FormData,
+  key: string,
+  value: string | boolean | null | undefined,
+) {
   if (value === undefined || value === null || value === '') return;
   formData.append(key, String(value));
 }
@@ -117,7 +135,9 @@ export const maintenanceApi = {
     return response.data;
   },
 
-  async getSpareStock(filters: MaintenanceSpareStockFilters): Promise<MaintenanceSpareStockResponse> {
+  async getSpareStock(
+    filters: MaintenanceSpareStockFilters,
+  ): Promise<MaintenanceSpareStockResponse> {
     const response = await apiClient.get<MaintenanceSpareStockResponse>(EP.SPARE_STOCK, {
       params: cleanFilters(filters),
     });
@@ -175,7 +195,10 @@ export const maintenanceApi = {
     assetId: number,
     payload: MaintenanceAssetQrPayload,
   ): Promise<MaintenanceAssetQrResponse> {
-    const response = await apiClient.post<MaintenanceAssetQrResponse>(EP.ASSET_QR(assetId), payload);
+    const response = await apiClient.post<MaintenanceAssetQrResponse>(
+      EP.ASSET_QR(assetId),
+      payload,
+    );
     return response.data;
   },
 
@@ -230,9 +253,7 @@ export const maintenanceApi = {
   },
 
   async getWorkOrder(workOrderId: number): Promise<MaintenanceWorkOrder> {
-    const response = await apiClient.get<MaintenanceWorkOrder>(
-      EP.WORK_ORDER_DETAIL(workOrderId),
-    );
+    const response = await apiClient.get<MaintenanceWorkOrder>(EP.WORK_ORDER_DETAIL(workOrderId));
     return response.data;
   },
 
@@ -333,6 +354,123 @@ export const maintenanceApi = {
     return response.data;
   },
 
+  async getPMPlans(
+    filters?: PreventiveMaintenancePlanFilters,
+  ): Promise<PreventiveMaintenancePlan[]> {
+    const response = await apiClient.get<PreventiveMaintenancePlan[]>(EP.PM_PLANS, {
+      params: cleanFilters(filters),
+    });
+    return response.data;
+  },
+
+  async createPMPlan(
+    payload: PreventiveMaintenancePlanPayload,
+  ): Promise<PreventiveMaintenancePlan> {
+    const response = await apiClient.post<PreventiveMaintenancePlan>(EP.PM_PLANS, payload);
+    return response.data;
+  },
+
+  async updatePMPlan(
+    planId: number,
+    payload: PreventiveMaintenancePlanPayload,
+  ): Promise<PreventiveMaintenancePlan> {
+    const response = await apiClient.put<PreventiveMaintenancePlan>(
+      EP.PM_PLAN_DETAIL(planId),
+      payload,
+    );
+    return response.data;
+  },
+
+  async generatePMPlan(
+    planId: number,
+    payload?: PMGenerateDuePayload,
+  ): Promise<PMGenerateDueResponse> {
+    const response = await apiClient.post<PMGenerateDueResponse>(
+      EP.PM_PLAN_GENERATE(planId),
+      payload ?? {},
+    );
+    return response.data;
+  },
+
+  async generateDuePM(payload?: PMGenerateDuePayload): Promise<PMGenerateDueResponse> {
+    const response = await apiClient.post<PMGenerateDueResponse>(
+      EP.PM_PLANS_GENERATE_DUE,
+      payload ?? {},
+    );
+    return response.data;
+  },
+
+  async getPMChecklistItems(
+    filters?: MaintenanceChecklistTemplateItemFilters,
+  ): Promise<MaintenanceChecklistTemplateItem[]> {
+    const response = await apiClient.get<MaintenanceChecklistTemplateItem[]>(
+      EP.PM_CHECKLIST_ITEMS,
+      {
+        params: cleanFilters(filters),
+      },
+    );
+    return response.data;
+  },
+
+  async createPMChecklistItem(
+    payload: MaintenanceChecklistTemplateItemPayload,
+  ): Promise<MaintenanceChecklistTemplateItem> {
+    const response = await apiClient.post<MaintenanceChecklistTemplateItem>(
+      EP.PM_CHECKLIST_ITEMS,
+      payload,
+    );
+    return response.data;
+  },
+
+  async updatePMChecklistItem(
+    itemId: number,
+    payload: MaintenanceChecklistTemplateItemPayload,
+  ): Promise<MaintenanceChecklistTemplateItem> {
+    const response = await apiClient.put<MaintenanceChecklistTemplateItem>(
+      EP.PM_CHECKLIST_ITEM_DETAIL(itemId),
+      payload,
+    );
+    return response.data;
+  },
+
+  async getPMExecutions(
+    filters?: PreventiveMaintenanceExecutionFilters,
+  ): Promise<PreventiveMaintenanceExecution[]> {
+    const response = await apiClient.get<PreventiveMaintenanceExecution[]>(EP.PM_EXECUTIONS, {
+      params: cleanFilters(filters),
+    });
+    return response.data;
+  },
+
+  async startPMExecution(executionId: number): Promise<PreventiveMaintenanceExecution> {
+    const response = await apiClient.post<PreventiveMaintenanceExecution>(
+      EP.PM_EXECUTION_START(executionId),
+    );
+    return response.data;
+  },
+
+  async completePMExecution(
+    executionId: number,
+    payload: PMExecutionCompletePayload,
+  ): Promise<PreventiveMaintenanceExecution> {
+    const response = await apiClient.post<PreventiveMaintenanceExecution>(
+      EP.PM_EXECUTION_COMPLETE(executionId),
+      payload,
+    );
+    return response.data;
+  },
+
+  async skipPMExecution(
+    executionId: number,
+    payload: PMExecutionSkipPayload,
+  ): Promise<PreventiveMaintenanceExecution> {
+    const response = await apiClient.post<PreventiveMaintenanceExecution>(
+      EP.PM_EXECUTION_SKIP(executionId),
+      payload,
+    );
+    return response.data;
+  },
+
   async getSpares(filters?: MaintenanceSpareFilters): Promise<MaintenanceSpare[]> {
     const response = await apiClient.get<MaintenanceSpare[]>(EP.SPARES, {
       params: cleanFilters(filters),
@@ -350,10 +488,7 @@ export const maintenanceApi = {
     return response.data;
   },
 
-  async updateSpare(
-    spareId: number,
-    payload: MaintenanceSparePayload,
-  ): Promise<MaintenanceSpare> {
+  async updateSpare(spareId: number, payload: MaintenanceSparePayload): Promise<MaintenanceSpare> {
     const response = await apiClient.put<MaintenanceSpare>(EP.SPARE_DETAIL(spareId), payload);
     return response.data;
   },
@@ -404,14 +539,8 @@ export const maintenanceApi = {
     return response.data;
   },
 
-  async issueSpareRequest(
-    requestId: number,
-    payload: SpareIssuePayload,
-  ): Promise<SpareRequest> {
-    const response = await apiClient.post<SpareRequest>(
-      EP.SPARE_REQUEST_ISSUE(requestId),
-      payload,
-    );
+  async issueSpareRequest(requestId: number, payload: SpareIssuePayload): Promise<SpareRequest> {
+    const response = await apiClient.post<SpareRequest>(EP.SPARE_REQUEST_ISSUE(requestId), payload);
     return response.data;
   },
 
@@ -449,16 +578,16 @@ export const maintenanceApi = {
     return response.data;
   },
 
-  async getVendorVisits(filters?: MaintenanceVendorVisitFilters): Promise<MaintenanceVendorVisit[]> {
+  async getVendorVisits(
+    filters?: MaintenanceVendorVisitFilters,
+  ): Promise<MaintenanceVendorVisit[]> {
     const response = await apiClient.get<MaintenanceVendorVisit[]>(EP.VENDOR_VISITS, {
       params: cleanFilters(filters),
     });
     return response.data;
   },
 
-  async createVendorVisit(
-    payload: MaintenanceVendorVisitPayload,
-  ): Promise<MaintenanceVendorVisit> {
+  async createVendorVisit(payload: MaintenanceVendorVisitPayload): Promise<MaintenanceVendorVisit> {
     const formData = new FormData();
     formData.append('work_order', String(payload.work_order));
     appendOptionalNumber(formData, 'asset', payload.asset);

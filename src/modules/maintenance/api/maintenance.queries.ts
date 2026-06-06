@@ -1,15 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
-  MaintenanceAlertSendPayload,
   AssetCategoryPayload,
   AssetDepartmentPayload,
   AssetDocumentUploadPayload,
   AssetLocationPayload,
   AssetPhotoUploadPayload,
+  MaintenanceAlertSendPayload,
   MaintenanceAssetFilters,
   MaintenanceAssetPayload,
   MaintenanceAssetQrPayload,
+  MaintenanceChecklistTemplateItemFilters,
+  MaintenanceChecklistTemplateItemPayload,
   MaintenanceDashboardFilters,
   MaintenanceReportFilters,
   MaintenanceScanWorkOrderPayload,
@@ -25,6 +27,12 @@ import type {
   MaintenanceWorkOrderPayload,
   MaintenanceWorkOrderPhotoUploadPayload,
   MaintenanceWorkOrderStatusPayload,
+  PMExecutionCompletePayload,
+  PMExecutionSkipPayload,
+  PMGenerateDuePayload,
+  PreventiveMaintenanceExecutionFilters,
+  PreventiveMaintenancePlanFilters,
+  PreventiveMaintenancePlanPayload,
   SpareCategoryPayload,
   SpareIssuePayload,
   SpareMovementFilters,
@@ -41,7 +49,8 @@ export const MAINTENANCE_QUERY_KEYS = {
     [...MAINTENANCE_QUERY_KEYS.all, 'dashboard', filters ?? {}] as const,
   reports: (filters?: MaintenanceReportFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'reports', filters ?? {}] as const,
-  scanLookup: (code?: string) => [...MAINTENANCE_QUERY_KEYS.all, 'scan-lookup', code ?? ''] as const,
+  scanLookup: (code?: string) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'scan-lookup', code ?? ''] as const,
   spareStock: (filters?: MaintenanceSpareStockFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'spare-stock', filters ?? {}] as const,
   alerts: () => [...MAINTENANCE_QUERY_KEYS.all, 'alerts'] as const,
@@ -59,6 +68,12 @@ export const MAINTENANCE_QUERY_KEYS = {
     [...MAINTENANCE_QUERY_KEYS.all, 'work-order', workOrderId] as const,
   workOrderPhotos: (workOrderId: number) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'work-order-photos', workOrderId] as const,
+  pmPlans: (filters?: PreventiveMaintenancePlanFilters) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'pm-plans', filters ?? {}] as const,
+  pmChecklistItems: (filters?: MaintenanceChecklistTemplateItemFilters) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'pm-checklist-items', filters ?? {}] as const,
+  pmExecutions: (filters?: PreventiveMaintenanceExecutionFilters) =>
+    [...MAINTENANCE_QUERY_KEYS.all, 'pm-executions', filters ?? {}] as const,
   spares: (filters?: MaintenanceSpareFilters) =>
     [...MAINTENANCE_QUERY_KEYS.all, 'spares', filters ?? {}] as const,
   spare: (spareId: number) => [...MAINTENANCE_QUERY_KEYS.all, 'spare', spareId] as const,
@@ -169,6 +184,33 @@ export function useWorkOrderPhotos(workOrderId: number | null) {
     queryKey: MAINTENANCE_QUERY_KEYS.workOrderPhotos(workOrderId!),
     queryFn: () => maintenanceApi.getWorkOrderPhotos(workOrderId!),
     enabled: workOrderId !== null,
+  });
+}
+
+export function usePMPlans(filters?: PreventiveMaintenancePlanFilters, enabled = true) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.pmPlans(filters),
+    queryFn: () => maintenanceApi.getPMPlans(filters),
+    enabled,
+  });
+}
+
+export function usePMChecklistItems(
+  filters?: MaintenanceChecklistTemplateItemFilters,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.pmChecklistItems(filters),
+    queryFn: () => maintenanceApi.getPMChecklistItems(filters),
+    enabled,
+  });
+}
+
+export function usePMExecutions(filters?: PreventiveMaintenanceExecutionFilters, enabled = true) {
+  return useQuery({
+    queryKey: MAINTENANCE_QUERY_KEYS.pmExecutions(filters),
+    queryFn: () => maintenanceApi.getPMExecutions(filters),
+    enabled,
   });
 }
 
@@ -302,7 +344,8 @@ export function useUploadAssetPhoto() {
 export function useUploadAssetDocument() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: AssetDocumentUploadPayload) => maintenanceApi.uploadAssetDocument(payload),
+    mutationFn: (payload: AssetDocumentUploadPayload) =>
+      maintenanceApi.uploadAssetDocument(payload),
     onSuccess: (_document, payload) => {
       invalidateMaintenance(queryClient);
       queryClient.invalidateQueries({
@@ -455,6 +498,104 @@ export function useUploadWorkOrderPhoto() {
   });
 }
 
+export function useCreatePMPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PreventiveMaintenancePlanPayload) => maintenanceApi.createPMPlan(payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useUpdatePMPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      planId,
+      payload,
+    }: {
+      planId: number;
+      payload: PreventiveMaintenancePlanPayload;
+    }) => maintenanceApi.updatePMPlan(planId, payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useGeneratePMPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, payload }: { planId: number; payload?: PMGenerateDuePayload }) =>
+      maintenanceApi.generatePMPlan(planId, payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useGenerateDuePM() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload?: PMGenerateDuePayload) => maintenanceApi.generateDuePM(payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useCreatePMChecklistItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: MaintenanceChecklistTemplateItemPayload) =>
+      maintenanceApi.createPMChecklistItem(payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useUpdatePMChecklistItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      itemId,
+      payload,
+    }: {
+      itemId: number;
+      payload: MaintenanceChecklistTemplateItemPayload;
+    }) => maintenanceApi.updatePMChecklistItem(itemId, payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useStartPMExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (executionId: number) => maintenanceApi.startPMExecution(executionId),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useCompletePMExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      executionId,
+      payload,
+    }: {
+      executionId: number;
+      payload: PMExecutionCompletePayload;
+    }) => maintenanceApi.completePMExecution(executionId, payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
+export function useSkipPMExecution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      executionId,
+      payload,
+    }: {
+      executionId: number;
+      payload: PMExecutionSkipPayload;
+    }) => maintenanceApi.skipPMExecution(executionId, payload),
+    onSuccess: () => invalidateMaintenance(queryClient),
+  });
+}
+
 export function useCreateMaintenanceSpare() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -567,7 +708,8 @@ export function useCancelSpareRequest() {
 export function useCreateVendorVisit() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: MaintenanceVendorVisitPayload) => maintenanceApi.createVendorVisit(payload),
+    mutationFn: (payload: MaintenanceVendorVisitPayload) =>
+      maintenanceApi.createVendorVisit(payload),
     onSuccess: () => invalidateMaintenance(queryClient),
   });
 }
