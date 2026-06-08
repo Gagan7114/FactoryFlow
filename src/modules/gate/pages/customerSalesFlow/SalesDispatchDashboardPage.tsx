@@ -189,7 +189,7 @@ export default function SalesDispatchDashboardPage() {
 
   const handleToggleLock = async () => {
     if (!canManageDockingLock) {
-      toast.error('You do not have permission to manage Docking printing lock');
+      toast.error('You do not have permission to manage Gate pass printing lock');
       return;
     }
 
@@ -197,19 +197,19 @@ export default function SalesDispatchDashboardPage() {
     try {
       if (isLocked) {
         await updateLock.mutateAsync({ is_locked: false });
-        toast.success('Docking printing unlocked');
+        toast.success('Gate pass printing unlocked');
         return;
       }
 
-      const reason = window.prompt('Reason for locking Docking printing');
+      const reason = window.prompt('Reason for locking Gate pass printing');
       if (reason === null) return;
       const trimmedReason = reason.trim();
       if (!trimmedReason) {
-        toast.error('A reason is required to lock Docking printing');
+        toast.error('A reason is required to lock Gate pass printing');
         return;
       }
       await updateLock.mutateAsync({ is_locked: true, reason: trimmedReason });
-      toast.success('Docking printing locked');
+      toast.success('Gate pass printing locked');
     } catch (lockError) {
       toast.error(getErrorMessage(lockError, 'Failed to update Docking lock'));
     }
@@ -549,7 +549,7 @@ function DockingLockPanel({
           )}
           <div>
             <p className="font-medium">
-              {isLocked ? 'Docking printing is locked' : 'Docking printing is open'}
+              {isLocked ? 'Gate pass printing is locked' : 'Gate pass printing is open'}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {isLocked
@@ -941,17 +941,23 @@ function sortDockingDashboardEntries(
   first: SalesDispatchDashboardEntry,
   second: SalesDispatchDashboardEntry,
 ) {
-  const firstPriority = isPendingBookingEntry(first) ? 0 : 1;
-  const secondPriority = isPendingBookingEntry(second) ? 0 : 1;
+  const firstDispatchDate = dateValue(getPlannedDispatchDate(first));
+  const secondDispatchDate = dateValue(getPlannedDispatchDate(second));
 
-  if (firstPriority !== secondPriority) {
-    return firstPriority - secondPriority;
+  if (firstDispatchDate !== secondDispatchDate) {
+    return secondDispatchDate - firstDispatchDate;
   }
 
   return (
     timestampValue(second.updated_at || second.created_at) -
     timestampValue(first.updated_at || first.created_at)
   );
+}
+
+function dateValue(value?: string | null) {
+  if (!value) return 0;
+  const timestamp = new Date(`${value}T00:00:00`).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 function sortSalesDispatchOutEntries(first: SalesDispatchGateOut, second: SalesDispatchGateOut) {

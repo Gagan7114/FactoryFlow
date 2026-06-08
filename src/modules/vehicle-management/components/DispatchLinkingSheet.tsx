@@ -131,9 +131,7 @@ function invoiceWeightForPayload(bill: DispatchBill): string | null {
 function inferProductVariety(itemSummary: string): string {
   const normalized = itemSummary.toLowerCase();
   if (
-    ['water', 'mineral', 'drink', 'beverage', 'juice'].some((token) =>
-      normalized.includes(token),
-    )
+    ['water', 'mineral', 'drink', 'beverage', 'juice'].some((token) => normalized.includes(token))
   ) {
     return 'Beverage';
   }
@@ -267,7 +265,7 @@ export function DispatchLinkingSheet({
       showFormError('Please enter the bilty number.');
       return;
     }
-    if (!form.bilty_attachment && !bill.plan.bilty_attachment) {
+    if (!form.bilty_attachment && !hasExistingBiltyAttachment(bill)) {
       showFormError('Please upload the bilty attachment.');
       return;
     }
@@ -345,9 +343,13 @@ export function DispatchLinkingSheet({
         {activeBills.length > 1 && (
           <div className="mt-4 rounded-md border bg-primary/5 p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="font-medium">{activeBills.length} invoices selected for one bilty</div>
+              <div className="font-medium">
+                {activeBills.length} invoices selected for one bilty
+              </div>
               <div className="text-xs text-muted-foreground">
-                {formatNumber(selectedTotals.litres, 3)} L / {formatNumber(selectedTotals.weight, 3)} kg / Rs {formatNumber(selectedTotals.amount)}
+                {formatNumber(selectedTotals.litres, 3)} L /{' '}
+                {formatNumber(selectedTotals.weight, 3)} kg / Rs{' '}
+                {formatNumber(selectedTotals.amount)}
               </div>
             </div>
             <div className="mt-3 max-h-48 overflow-auto rounded border bg-background">
@@ -771,6 +773,12 @@ function InfoItem({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function hasExistingBiltyAttachment(bill: DispatchBill | null | undefined) {
+  return Boolean(
+    bill?.plan.bilty_attachment || String(bill?.plan.bilty_attachment_name || '').trim(),
+  );
+}
+
 function BiltyAttachmentField({
   existingFileName,
   existingFileUrl,
@@ -850,7 +858,12 @@ function BiltyAttachmentField({
               Remove
             </Button>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Upload
           </Button>
@@ -859,4 +872,3 @@ function BiltyAttachmentField({
     </div>
   );
 }
-

@@ -10,8 +10,8 @@ import {
   Truck,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { GATE_PERMISSIONS } from '@/config/permissions';
@@ -54,6 +54,10 @@ import {
   formatValue,
 } from './salesDispatchFlow.helpers';
 import { getSalesDispatchRoutes, isSalesDispatchOutPath } from './salesDispatchRoutes';
+import {
+  SAP_GATEPASS_PRINT_PAGE_STYLE,
+  SalesDispatchSapGatepassPrint,
+} from './SalesDispatchSapGatepassPrint';
 
 interface GatepassDraft {
   uom: string;
@@ -102,9 +106,9 @@ export default function SalesDispatchGatepassPage() {
   const { entryId, entryIdNumber } = useEntryId();
   const [draft, setDraft] = useState<GatepassDraft>(() => buildDraft());
   const [error, setError] = useState('');
-  const [isPrintAuthorized, setIsPrintAuthorized] = useState(false);
-  const [pendingOriginalPrint, setPendingOriginalPrint] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
+  const sapPrintRef = useRef<HTMLDivElement>(null);
+  const [entryToPrint, setEntryToPrint] = useState<SalesDispatchGateOut | null>(null);
+  const [pendingFrontendPrint, setPendingFrontendPrint] = useState(false);
 
   const {
     data: entry,
@@ -117,12 +121,10 @@ export default function SalesDispatchGatepassPage() {
   const printGatepass = usePrintSalesDispatchGatepass();
   const commitPrint = useCommitSalesDispatchPrint();
   const markDispatched = useMarkSalesDispatchDispatched();
-
-  const printBrowserCopy = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: buildGatepassDocumentTitle(entry),
-    onAfterPrint: () => setIsPrintAuthorized(false),
-    onPrintError: () => setIsPrintAuthorized(false),
+  const printFrontendGatepass = useReactToPrint({
+    contentRef: sapPrintRef,
+    documentTitle: buildFrontendGatepassDocumentTitle(entryToPrint || entry),
+    pageStyle: SAP_GATEPASS_PRINT_PAGE_STYLE,
   });
 
   useEffect(() => {
@@ -136,18 +138,13 @@ export default function SalesDispatchGatepassPage() {
   }, [entry]);
 
   useEffect(() => {
-    if (!pendingOriginalPrint || !entry?.gatepass_no) return;
+    if (!pendingFrontendPrint || !entryToPrint) return;
 
-    const timerId = window.setTimeout(() => {
-      setPendingOriginalPrint(false);
-      setIsPrintAuthorized(true);
-      window.setTimeout(() => {
-        printBrowserCopy();
-      }, 100);
+    setPendingFrontendPrint(false);
+    window.setTimeout(() => {
+      printFrontendGatepass();
     }, 0);
-
-    return () => window.clearTimeout(timerId);
-  }, [entry?.gatepass_no, pendingOriginalPrint, printBrowserCopy]);
+  }, [entryToPrint, pendingFrontendPrint, printFrontendGatepass]);
 
   const isSaving =
     previewGatepass.isPending ||
@@ -203,7 +200,7 @@ export default function SalesDispatchGatepassPage() {
     }
 
     try {
-      await printGatepass.mutateAsync({
+      const printedEntry = await printGatepass.mutateAsync({
         id: entry.id,
         data: {
           uom: draft.uom,
@@ -213,13 +210,12 @@ export default function SalesDispatchGatepassPage() {
           eway_bill: draft.ewayBill,
         },
       });
-      setPendingOriginalPrint(true);
       await refetch();
-      toast.success('Gatepass created. Opening one-time print dialog...');
+      setEntryToPrint(printedEntry);
+      setPendingFrontendPrint(true);
+      toast.success('Gatepass created. Opening print dialog...');
     } catch (printError) {
-      setPendingOriginalPrint(false);
-      setIsPrintAuthorized(false);
-      setError(getErrorMessage(printError, 'Failed to print gatepass'));
+      setError(getErrorMessage(printError, 'Failed to create gatepass print'));
     }
   };
 
@@ -331,13 +327,7 @@ export default function SalesDispatchGatepassPage() {
 
   return (
     <>
-      <div
-        ref={printRef}
-        className={cn(
-          'sales-dispatch-gatepass-page space-y-6 pb-6',
-          isPrintAuthorized && 'sales-dispatch-gatepass-print-authorized',
-        )}
-      >
+      <div className="sales-dispatch-gatepass-page space-y-6 pb-6">
         <div className="print-hide">
           <StepHeader
             currentStep={4}
@@ -351,7 +341,7 @@ export default function SalesDispatchGatepassPage() {
           <div className="print-hide flex items-start gap-3 rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900">
             <Lock className="mt-0.5 h-5 w-5" />
             <div>
-              <p className="font-medium">Docking printing is locked</p>
+              <p className="font-medium">Gate pass printing is locked</p>
               <p className="mt-1">
                 {dispatchLock?.reason || 'Gatepass print and commit are temporarily held.'}
               </p>
@@ -598,8 +588,21 @@ export default function SalesDispatchGatepassPage() {
       <div className="sales-dispatch-gatepass-print-blocked">
         Gatepass browser printing is blocked from this screen. Use the audited reprint workflow.
       </div>
+      <div className="sap-gatepass-print-host" aria-hidden>
+        <SalesDispatchSapGatepassPrint
+          ref={sapPrintRef}
+          entry={entryToPrint || entry}
+          companyName={companyName}
+        />
+      </div>
     </>
   );
+}
+
+function buildFrontendGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
+  return ['gatepass', entry?.gatepass_no || entry?.sap_doc_num || entry?.entry_no]
+    .filter(Boolean)
+    .join('_');
 }
 
 function getGatepassPageTitle(entry: SalesDispatchGateOut, isGateOutMode: boolean) {
@@ -655,12 +658,9 @@ function buildReadinessError(entry: SalesDispatchGateOut) {
 }
 
 function buildLockError(reason?: string) {
-  return reason ? `Docking printing is locked. Reason: ${reason}` : 'Docking printing is locked.';
-}
-
-function buildGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
-  const reference = entry?.gatepass_no || entry?.sap_doc_num || entry?.entry_no || 'draft';
-  return `Gatepass ${reference}`;
+  return reason
+    ? `Gate pass printing is locked. Reason: ${reason}`
+    : 'Gate pass printing is locked.';
 }
 
 function getScannedQuantity(entry?: SalesDispatchGateOut | null) {

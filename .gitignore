@@ -35,3 +35,4 @@ ssh_key*
 *.sln
 *.sw?
 *markdown*
+*codex*

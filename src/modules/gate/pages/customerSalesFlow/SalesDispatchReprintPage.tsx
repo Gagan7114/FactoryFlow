@@ -9,9 +9,9 @@ import {
   Truck,
 } from 'lucide-react';
 import type { Ref } from 'react';
-import { useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { GATE_PERMISSIONS } from '@/config/permissions';
@@ -49,6 +49,10 @@ import {
   formatValue,
 } from './salesDispatchFlow.helpers';
 import { DOCKING_ROUTES } from './salesDispatchRoutes';
+import {
+  SAP_GATEPASS_PRINT_PAGE_STYLE,
+  SalesDispatchSapGatepassPrint,
+} from './SalesDispatchSapGatepassPrint';
 
 interface PrintableDocument {
   key: string;
@@ -76,7 +80,10 @@ export default function SalesDispatchReprintPage() {
   const [latestReprintLog, setLatestReprintLog] = useState<SalesDispatchGatepassPrintLog | null>(
     null,
   );
-  const printRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const sapPrintRef = useRef<HTMLDivElement>(null);
+  const [entryToPrint, setEntryToPrint] = useState<SalesDispatchGateOut | null>(null);
+  const [pendingFrontendPrint, setPendingFrontendPrint] = useState(false);
 
   const { data: entry, isLoading, error, refetch } = useSalesDispatch(id);
   const {
@@ -86,6 +93,11 @@ export default function SalesDispatchReprintPage() {
   } = useSalesDispatchGatepassPrintHistory(id);
   const { data: dispatchLock } = useSalesDispatchLock();
   const reprintGatepass = useReprintSalesDispatchGatepass();
+  const printFrontendGatepass = useReactToPrint({
+    contentRef: sapPrintRef,
+    documentTitle: buildFrontendGatepassDocumentTitle(entryToPrint || entry),
+    pageStyle: SAP_GATEPASS_PRINT_PAGE_STYLE,
+  });
 
   const companyName = entry
     ? currentCompany?.company_name || entry.sap_branch_name || String(entry.company)
@@ -98,11 +110,6 @@ export default function SalesDispatchReprintPage() {
       null,
     [latestReprintLog, printHistory],
   );
-  const printBrowserCopy = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: entry?.gatepass_no ? `Reprint ${entry.gatepass_no}` : 'Docking Gatepass Reprint',
-  });
-
   const isBlockedStatus = entry ? ['CANCELLED', 'REJECTED'].includes(entry.status) : false;
   const canReprint = Boolean(
     entry?.gatepass_no &&
@@ -113,6 +120,15 @@ export default function SalesDispatchReprintPage() {
   );
   const trimmedReason = reason.trim();
   const isSaving = reprintGatepass.isPending;
+
+  useEffect(() => {
+    if (!pendingFrontendPrint || !entryToPrint) return;
+
+    setPendingFrontendPrint(false);
+    window.setTimeout(() => {
+      printFrontendGatepass();
+    }, 0);
+  }, [entryToPrint, pendingFrontendPrint, printFrontendGatepass]);
 
   if (!id) {
     return <SalesDispatchReprintSearchPage />;
@@ -136,13 +152,12 @@ export default function SalesDispatchReprintPage() {
       });
       const newestLog = findNewestReprintLog(updatedEntry, trimmedReason);
       setLatestReprintLog(newestLog);
+      setEntryToPrint(updatedEntry);
       setReason('');
       await refetch();
       await refetchPrintHistory();
-      toast.success('Reprint logged');
-      window.setTimeout(() => {
-        printBrowserCopy();
-      }, 150);
+      setPendingFrontendPrint(true);
+      toast.success('Reprint logged. Opening print dialog...');
     } catch (reprintError) {
       setErrorMessage(getErrorMessage(reprintError, 'Failed to log gatepass reprint'));
     }
@@ -192,7 +207,7 @@ export default function SalesDispatchReprintPage() {
       {dispatchLock?.is_locked && (
         <StatusNotice
           tone="danger"
-          title="Docking printing is locked"
+          title="Gate pass printing is locked"
           description={dispatchLock.reason || 'Reprints are blocked until printing is unlocked.'}
         />
       )}
@@ -298,12 +313,20 @@ export default function SalesDispatchReprintPage() {
           Reprint Preview
         </h3>
         <PrintableGatepass
-          printRef={printRef}
+          printRef={previewRef}
           entry={entry}
           companyName={companyName}
           printLog={currentPrintLog}
         />
       </section>
+      <div className="sap-gatepass-print-host" aria-hidden>
+        <SalesDispatchSapGatepassPrint
+          ref={sapPrintRef}
+          entry={entryToPrint || entry}
+          companyName={companyName}
+          printLog={currentPrintLog}
+        />
+      </div>
     </div>
   );
 }
@@ -321,7 +344,8 @@ function SalesDispatchReprintSearchPage() {
     null,
   );
   const [entryToPrint, setEntryToPrint] = useState<SalesDispatchGateOut | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const sapPrintRef = useRef<HTMLDivElement>(null);
+  const [pendingFrontendPrint, setPendingFrontendPrint] = useState(false);
 
   const trimmedSearch = searchTerm.trim();
   const shouldSearch = trimmedSearch.length >= 2;
@@ -366,13 +390,11 @@ function SalesDispatchReprintSearchPage() {
     [latestReprintLog, printHistory],
   );
   const printEntry = entryToPrint || selectedEntry || null;
-  const printBrowserCopy = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: selectedEntry?.gatepass_no
-      ? `Reprint ${selectedEntry.gatepass_no}`
-      : 'Docking Gatepass Reprint',
+  const printFrontendGatepass = useReactToPrint({
+    contentRef: sapPrintRef,
+    documentTitle: buildFrontendGatepassDocumentTitle(printEntry),
+    pageStyle: SAP_GATEPASS_PRINT_PAGE_STYLE,
   });
-
   const isBlockedStatus = selectedEntry
     ? ['CANCELLED', 'REJECTED'].includes(selectedEntry.status)
     : false;
@@ -385,6 +407,15 @@ function SalesDispatchReprintSearchPage() {
   );
   const trimmedReason = reason.trim();
   const isSaving = reprintGatepass.isPending;
+
+  useEffect(() => {
+    if (!pendingFrontendPrint || !printEntry) return;
+
+    setPendingFrontendPrint(false);
+    window.setTimeout(() => {
+      printFrontendGatepass();
+    }, 0);
+  }, [pendingFrontendPrint, printEntry, printFrontendGatepass]);
 
   const handleReprint = async () => {
     if (!selectedEntry) return;
@@ -408,10 +439,8 @@ function SalesDispatchReprintSearchPage() {
       setReason('');
       await refetchSelectedEntry();
       await refetchPrintHistory();
-      toast.success('Reprint logged');
-      window.setTimeout(() => {
-        printBrowserCopy();
-      }, 150);
+      setPendingFrontendPrint(true);
+      toast.success('Reprint logged. Opening print dialog...');
     } catch (reprintError) {
       setErrorMessage(getErrorMessage(reprintError, 'Failed to log gatepass reprint'));
     }
@@ -437,7 +466,7 @@ function SalesDispatchReprintSearchPage() {
       {dispatchLock?.is_locked && (
         <StatusNotice
           tone="danger"
-          title="Docking printing is locked"
+          title="Gate pass printing is locked"
           description={dispatchLock.reason || 'Reprints are blocked until printing is unlocked.'}
         />
       )}
@@ -624,20 +653,26 @@ function SalesDispatchReprintSearchPage() {
         </Card>
       </div>
 
-      <div aria-hidden style={{ position: 'fixed', left: '-10000px', top: 0, width: '210mm' }}>
+      <div className="sap-gatepass-print-host" aria-hidden>
         {printEntry ? (
-          <PrintableGatepass
-            printRef={printRef}
+          <SalesDispatchSapGatepassPrint
+            ref={sapPrintRef}
             entry={printEntry}
             companyName={companyName}
             printLog={currentPrintLog}
           />
         ) : (
-          <div ref={printRef} />
+          <div ref={sapPrintRef} />
         )}
       </div>
     </div>
   );
+}
+
+function buildFrontendGatepassDocumentTitle(entry?: SalesDispatchGateOut | null) {
+  return ['gatepass', entry?.gatepass_no || entry?.sap_doc_num || entry?.entry_no]
+    .filter(Boolean)
+    .join('_');
 }
 
 function StatusNotice({
