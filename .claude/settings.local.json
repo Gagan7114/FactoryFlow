@@ -61,7 +61,19 @@
       "Bash(DJANGO_SETTINGS_MODULE=factory_app_v2.settings python -c \"import django; django.setup\\(\\); from production_execution.services.production_service import ProductionService; print\\('OK'\\)\")",
       "Bash(git -C d:/Test_CompanyJivo/FactoryFlow log --oneline -5 -- src/modules/grpo/pages/GRPOPreviewPage.tsx)",
       "Bash(pip list:*)",
-      "Bash(awk '{print $NF}')"
+      "Bash(awk '{print $NF}')",
+      "Bash(cd /home/jashan/Desktop/factory_app && pwd && ls -la)",
+      "Read(//home/jashan/Desktop/factory_app/**)",
+      "Bash(env)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -c \"import hdbcli; print\\('hdbcli OK'\\)\")",
+      "Bash(rm -f /tmp/inspect_grpo.py /tmp/inspect2.py /tmp/inspect3.py)",
+      "Bash(python3 -m py_compile grpo/services.py)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json)",
+      "Bash(python3 -m py_compile production_execution/services/production_movement_reader.py)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }

@@ -49,12 +49,16 @@ export function useProductionMovementFilterOptions() {
   });
 }
 
-export function useProductionMovementReport(filters: ProductionMovementFilters) {
+export function useProductionMovementReport(
+  filters: ProductionMovementFilters,
+  enabled = true,
+) {
   const { currentCompany } = useAuth();
 
   return useQuery({
     queryKey: PRODUCTION_MOVEMENT_QUERY_KEYS.report(filters, currentCompany?.company_id),
     queryFn: () => productionMovementApi.getReport(filters),
+    enabled,
     staleTime: PRODUCTION_MOVEMENT_STALE_TIME,
     retry: sapRetry,
   });
@@ -63,6 +67,7 @@ export function useProductionMovementReport(filters: ProductionMovementFilters) 
 export function useProductionMovementWarehouseBalanceReports(
   filters: ProductionMovementFilters,
   warehouses: string[],
+  enabled = true,
 ) {
   const { currentCompany } = useAuth();
 
@@ -76,6 +81,7 @@ export function useProductionMovementWarehouseBalanceReports(
           currentCompany?.company_id,
         ),
         queryFn: () => productionMovementApi.getReport(warehouseFilters),
+        enabled,
         staleTime: PRODUCTION_MOVEMENT_STALE_TIME,
         retry: sapRetry,
       };

@@ -1,136 +1,184 @@
+import { ArrowLeft } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { ApiError } from '@/core/api';
-import { useTransferOverview } from '@/modules/warehouse/api';
 import { DashboardHeader } from '@/shared/components/dashboard/DashboardHeader';
+import { Button } from '@/shared/components/ui';
+import { useDebounce } from '@/shared/hooks';
 
 import { SAPUnavailableBanner } from '../../sap-plan/components/SAPUnavailableBanner';
 import {
-  useProductionMovementFilterOptions,
+  useProductionMovementReport,
   useProductionMovementWarehouseBalanceReports,
 } from '../api';
 import {
-  ProductionMovementFilters,
-  ProductionMovementMetaCards,
-  ProductionMovementRouteFlow,
-  ProductionMovementTable,
+  ProductionMovementItemPicker,
+  ProductionMovementPositionFilters,
+  ProductionMovementPositionGrid,
+  type WarehousePosition,
 } from '../components';
-import { getDefaultProductionMovementFilters, PRODUCTION_FLOW_ROUTES } from '../constants';
-import type { ProductionMovementFilters as ProductionMovementFiltersType } from '../types';
+import {
+  getDefaultProductionMovementFilters,
+  getPositionBalanceFilters,
+  POSITION_WAREHOUSE_CODES,
+  POSITION_WAREHOUSES,
+} from '../constants';
+import type { ProductionMovementFilters } from '../types';
+import { deriveRecentItems } from '../utils';
 
 function isSAPError(err: unknown): err is ApiError {
   const status = (err as ApiError)?.status;
   return status === 502 || status === 503;
 }
 
+interface PositionDateRange {
+  date_from: string;
+  date_to: string;
+}
+
+interface SelectedItem {
+  code: string;
+  name: string;
+}
+
 export default function ProductionMovementDashboardPage() {
-  const [filters, setFilters] = useState<ProductionMovementFiltersType>(() =>
-    getDefaultProductionMovementFilters(),
-  );
-
-  const optionsQuery = useProductionMovementFilterOptions();
-  const routeMovementFilters = useMemo<ProductionMovementFiltersType>(
-    () => ({
-      date_from: filters.date_from,
-      date_to: filters.date_to,
-      direction: 'all',
-      production_only: false,
-      limit: 1000,
-    }),
-    [filters.date_from, filters.date_to],
-  );
-  const routeBalanceWarehouses = useMemo(
-    () => Array.from(new Set(PRODUCTION_FLOW_ROUTES.flatMap((route) => route.toCodes))),
-    [],
-  );
-  const routeBalanceQueries = useProductionMovementWarehouseBalanceReports(
-    routeMovementFilters,
-    routeBalanceWarehouses,
-  );
-  const transferOverviewQuery = useTransferOverview({
-    from_date: filters.date_from,
-    to_date: filters.date_to,
-    from_warehouse: filters.from_warehouse,
-    to_warehouse: filters.to_warehouse,
-    limit: filters.limit ?? 500,
+  const [range, setRange] = useState<PositionDateRange>(() => {
+    const defaults = getDefaultProductionMovementFilters();
+    return { date_from: defaults.date_from, date_to: defaults.date_to };
   });
+  const [itemCode, setItemCode] = useState('');
+  const [warehouse, setWarehouse] = useState('');
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
-  const sapError = optionsQuery.error ?? transferOverviewQuery.error;
+  const debouncedItemCode = useDebounce(itemCode, 400);
+  const debouncedWarehouse = useDebounce(warehouse, 400);
 
-  const routeWarehouseBalances = useMemo(() => {
-    return routeBalanceQueries.reduce<Record<string, { openingQty: number; closingQty: number }>>(
-      (balances, query, index) => {
-        const warehouse = routeBalanceWarehouses[index];
-        const summary = query.data?.summary;
-        if (warehouse && summary) {
-          balances[warehouse] = {
-            openingQty: summary.opening_qty,
-            closingQty: summary.closing_qty,
-          };
-        }
-        return balances;
-      },
-      {},
-    );
-  }, [routeBalanceQueries, routeBalanceWarehouses]);
-
-  const routeBalanceLoading = routeBalanceQueries.some(
-    (query) => query.isLoading || query.isFetching,
+  // ----- Recent items (picker view) -----
+  const recentFilters = useMemo<ProductionMovementFilters>(
+    () => ({
+      date_from: range.date_from,
+      date_to: range.date_to,
+      direction: 'out',
+      production_only: false,
+      limit: 500,
+      search: debouncedItemCode.trim().toUpperCase() || undefined,
+      warehouse: debouncedWarehouse.trim().toUpperCase() || undefined,
+    }),
+    [range.date_from, range.date_to, debouncedItemCode, debouncedWarehouse],
   );
 
-  const handleSearchSelect = useCallback((term: string) => {
-    const search = term.trim().toUpperCase();
-    if (!search) return;
-    setFilters((current) => ({ ...current, search }));
+  const recentQuery = useProductionMovementReport(recentFilters, !selectedItem);
+  const recentItems = useMemo(
+    () => deriveRecentItems(recentQuery.data?.data ?? []),
+    [recentQuery.data],
+  );
+
+  // ----- Item position (detail view) -----
+  const balanceFilters = useMemo<ProductionMovementFilters>(
+    () => ({
+      ...getPositionBalanceFilters(range.date_from, range.date_to),
+      search: selectedItem?.code,
+    }),
+    [range.date_from, range.date_to, selectedItem?.code],
+  );
+
+  const balanceQueries = useProductionMovementWarehouseBalanceReports(
+    balanceFilters,
+    POSITION_WAREHOUSE_CODES,
+    Boolean(selectedItem),
+  );
+
+  const positions = useMemo<WarehousePosition[]>(() => {
+    return POSITION_WAREHOUSES.map((wh, index) => {
+      const query = balanceQueries[index];
+      const summary = query?.data?.summary;
+
+      return {
+        code: wh.code,
+        name: wh.name,
+        opening: summary?.opening_qty ?? 0,
+        received: summary?.total_in_qty ?? 0,
+        issued: summary?.total_out_qty ?? 0,
+        closing: summary?.closing_qty ?? 0,
+        isLoading: Boolean(query?.isLoading),
+        isError: Boolean(query?.error),
+      };
+    });
+  }, [balanceQueries]);
+
+  const sapError = selectedItem
+    ? balanceQueries.find((query) => query.error)?.error
+    : recentQuery.error;
+  const isFetching = selectedItem
+    ? balanceQueries.some((query) => query.isFetching)
+    : recentQuery.isFetching;
+
+  const handleLoadItem = useCallback(() => {
+    const code = itemCode.trim().toUpperCase();
+    if (!code) return;
+    const match = recentItems.find((item) => item.item_code === code);
+    setSelectedItem({ code, name: match?.item_name ?? '' });
+  }, [itemCode, recentItems]);
+
+  const handleClear = useCallback(() => {
+    setItemCode('');
+    setWarehouse('');
   }, []);
+
+  const handleRetry = useCallback(() => {
+    if (selectedItem) {
+      balanceQueries.forEach((query) => query.refetch());
+    } else {
+      recentQuery.refetch();
+    }
+  }, [selectedItem, balanceQueries, recentQuery]);
 
   return (
     <div className="space-y-6 p-6">
       <DashboardHeader
         title="Production Movement"
-        description="Inventory entries moving in and out of production warehouses"
+        description="Item-wise warehouse position: opening + received - issued = closing"
       />
 
-      <ProductionMovementFilters
-        filters={filters}
-        filterOptions={optionsQuery.data}
-        isFetching={optionsQuery.isFetching || transferOverviewQuery.isFetching}
-        onFiltersChange={setFilters}
+      <ProductionMovementPositionFilters
+        range={range}
+        isFetching={isFetching}
+        onRangeChange={setRange}
       />
 
-      {sapError && isSAPError(sapError) && (
-        <SAPUnavailableBanner
-          error={sapError as ApiError}
-          onRetry={transferOverviewQuery.refetch}
+      {sapError && isSAPError(sapError) ? (
+        <SAPUnavailableBanner error={sapError as ApiError} onRetry={handleRetry} />
+      ) : selectedItem ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => setSelectedItem(null)}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              Back to items
+            </Button>
+            <div>
+              <div className="text-lg font-bold">{selectedItem.code}</div>
+              {selectedItem.name && (
+                <div className="text-sm text-muted-foreground">{selectedItem.name}</div>
+              )}
+            </div>
+          </div>
+
+          <ProductionMovementPositionGrid positions={positions} />
+        </div>
+      ) : (
+        <ProductionMovementItemPicker
+          itemCode={itemCode}
+          warehouse={warehouse}
+          recentItems={recentItems}
+          isLoading={recentQuery.isLoading || recentQuery.isFetching}
+          onItemCodeChange={setItemCode}
+          onWarehouseChange={setWarehouse}
+          onLoadItem={handleLoadItem}
+          onClear={handleClear}
+          onSelectItem={(item) =>
+            setSelectedItem({ code: item.item_code, name: item.item_name })
+          }
         />
-      )}
-
-      {!(sapError && isSAPError(sapError)) && (
-        <>
-          <ProductionMovementMetaCards
-            direction={filters.direction ?? 'all'}
-            search={filters.search}
-            transferLines={transferOverviewQuery.data?.transfers ?? []}
-          />
-          <ProductionMovementRouteFlow
-            balanceFilters={routeMovementFilters}
-            transferLines={transferOverviewQuery.data?.transfers}
-            transferRoutes={transferOverviewQuery.data?.routes}
-            warehouseBalances={routeWarehouseBalances}
-            isLoading={
-              routeBalanceLoading ||
-              transferOverviewQuery.isLoading ||
-              transferOverviewQuery.isFetching
-            }
-          />
-          <ProductionMovementTable
-            direction={filters.direction ?? 'all'}
-            search={filters.search}
-            transferLines={transferOverviewQuery.data?.transfers ?? []}
-            isLoading={transferOverviewQuery.isLoading || transferOverviewQuery.isFetching}
-            onSearchSelect={handleSearchSelect}
-          />
-        </>
       )}
     </div>
   );

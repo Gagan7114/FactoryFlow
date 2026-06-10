@@ -64,6 +64,48 @@ export const PRODUCTION_FLOW_ROUTES: ProductionFlowRouteDefinition[] = [
   },
 ];
 
+export interface PositionWarehouseDefinition {
+  code: string;
+  name: string;
+}
+
+/**
+ * Warehouses shown on the position-calculation grid
+ * (opening + received - issued = closing).
+ */
+// Ordered to follow the production flow: BH-PM / BH-BS -> BH-PC -> BH-PF -> rest.
+export const POSITION_WAREHOUSES: PositionWarehouseDefinition[] = [
+  { code: 'BH-PM', name: 'PM Store' },
+  { code: 'BH-BS', name: 'Bhakharpur Basement' },
+  { code: 'BH-PC', name: 'PC Issue' },
+  { code: 'BH-PF', name: 'Produced' },
+  { code: 'BH-GR', name: 'Bhakharpur GR' },
+  { code: 'BH-NM', name: 'Bhakharpur Non-Moving' },
+  { code: 'BH-PP', name: 'Bhakharpur Production Process 1st Floor' },
+  { code: 'BH-WST', name: 'Bhakharpur Wastage' },
+];
+
+export const POSITION_WAREHOUSE_CODES = POSITION_WAREHOUSES.map((warehouse) => warehouse.code);
+
+export const POSITION_UNIT = 'PCS';
+
+/**
+ * Filters used to fetch each warehouse's balance report for the position grid.
+ * Counts every movement (all directions, not just production) within the range.
+ */
+export function getPositionBalanceFilters(
+  dateFrom: string,
+  dateTo: string,
+): ProductionMovementFilters {
+  return {
+    date_from: dateFrom,
+    date_to: dateTo,
+    direction: 'all',
+    production_only: false,
+    limit: 1000,
+  };
+}
+
 export const DIRECTION_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'in', label: 'In' },
