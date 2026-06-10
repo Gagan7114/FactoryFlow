@@ -42,6 +42,16 @@ export interface ProductionMovementItem {
   created_by: string;
 }
 
+/** A recently-issued item, derived from the production-movement report. */
+export interface ProductionMovementRecentItem {
+  item_code: string;
+  item_name: string;
+  last_issue_qty: number;
+  warehouse: string;
+  doc_num: string;
+  date: string;
+}
+
 export interface ProductionMovementSummary {
   total_entries: number;
   inward_entries: number;
