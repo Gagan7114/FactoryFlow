@@ -4,12 +4,12 @@ import type { ApiError } from '@/core/api/types';
 
 import type {
   ApprovalRequest,
-  CreateInspectionRequest,
   FactoryHeadDecisionRequest,
   Inspection,
   InspectionCounts,
   InspectionListItem,
   InspectionListParams,
+  InspectionSavePayload,
   UpdateParameterResultRequest,
 } from '../../types';
 
@@ -136,18 +136,31 @@ export const inspectionApi = {
   },
 
   // Create inspection for arrival slip
-  async create(slipId: number, data: CreateInspectionRequest): Promise<Inspection> {
-    const response = await apiClient.post<Inspection>(
-      API_ENDPOINTS.QUALITY_CONTROL_V2.INSPECTION_FOR_SLIP(slipId),
-      data,
-    );
+  async create(slipId: number, data: InspectionSavePayload): Promise<Inspection> {
+    const endpoint = API_ENDPOINTS.QUALITY_CONTROL_V2.INSPECTION_FOR_SLIP(slipId);
+    if (data instanceof FormData) {
+      const response = await apiClient.post<Inspection>(endpoint, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
+    const response = await apiClient.post<Inspection>(endpoint, data);
     return response.data;
   },
 
   // Update inspection (before submission)
-  async update(slipId: number, data: CreateInspectionRequest): Promise<Inspection> {
+  async update(slipId: number, data: InspectionSavePayload): Promise<Inspection> {
+    const endpoint = API_ENDPOINTS.QUALITY_CONTROL_V2.INSPECTION_FOR_SLIP(slipId);
+    if (data instanceof FormData) {
+      const response = await apiClient.post<Inspection>(endpoint, data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
+
     const response = await apiClient.post<Inspection>(
-      API_ENDPOINTS.QUALITY_CONTROL_V2.INSPECTION_FOR_SLIP(slipId),
+      endpoint,
       data,
     );
     return response.data;

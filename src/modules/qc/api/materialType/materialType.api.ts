@@ -1,10 +1,15 @@
 import { API_ENDPOINTS } from '@/config/constants';
 import { apiClient } from '@/core/api';
 
-import type { CreateMaterialTypeRequest, MaterialType } from '../../types';
+import type { CreateMaterialTypeRequest, MaterialType, SAPItemMasterOption } from '../../types';
 
 export interface ListMaterialTypesParams {
   search?: string;
+}
+
+export interface ListSAPItemsParams {
+  search?: string;
+  limit?: number;
 }
 
 export const materialTypeApi = {
@@ -21,6 +26,23 @@ export const materialTypeApi = {
   async getById(id: number): Promise<MaterialType> {
     const response = await apiClient.get<MaterialType>(
       API_ENDPOINTS.QUALITY_CONTROL_V2.MATERIAL_TYPE_BY_ID(id),
+    );
+    return response.data;
+  },
+
+  // Get material type linked to a SAP item
+  async getBySapItem(itemCode: string): Promise<MaterialType> {
+    const response = await apiClient.get<MaterialType>(
+      API_ENDPOINTS.QUALITY_CONTROL_V2.MATERIAL_TYPE_BY_SAP_ITEM(itemCode),
+    );
+    return response.data;
+  },
+
+  // Search SAP item master for linking to material types
+  async searchSAPItems(params?: ListSAPItemsParams): Promise<SAPItemMasterOption[]> {
+    const response = await apiClient.get<SAPItemMasterOption[]>(
+      API_ENDPOINTS.QUALITY_CONTROL_V2.SAP_ITEMS,
+      { params },
     );
     return response.data;
   },

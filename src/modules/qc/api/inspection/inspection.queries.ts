@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
   ApprovalRequest,
-  CreateInspectionRequest,
   FactoryHeadDecisionRequest,
+  InspectionSavePayload,
   InspectionListItem,
   InspectionListParams,
   UpdateParameterResultRequest,
@@ -175,7 +175,7 @@ export function useInspectionForSlip(slipId: number | null) {
 export function useCreateInspection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ slipId, data }: { slipId: number; data: CreateInspectionRequest }) =>
+    mutationFn: ({ slipId, data }: { slipId: number; data: InspectionSavePayload }) =>
       inspectionApi.create(slipId, data),
     onSuccess: (_, { slipId }) => {
       queryClient.invalidateQueries({ queryKey: INSPECTION_QUERY_KEYS.all });
@@ -187,7 +187,7 @@ export function useCreateInspection() {
 export function useUpdateInspection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ slipId, data }: { slipId: number; data: CreateInspectionRequest }) =>
+    mutationFn: ({ slipId, data }: { slipId: number; data: InspectionSavePayload }) =>
       inspectionApi.update(slipId, data),
     onSuccess: (result, { slipId }) => {
       queryClient.invalidateQueries({ queryKey: INSPECTION_QUERY_KEYS.all });
