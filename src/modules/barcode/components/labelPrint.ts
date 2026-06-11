@@ -5,6 +5,29 @@ export type LabelPrintMode = 'TSC_DA310_100X40';
 
 export const DEFAULT_THERMAL_PRINTER_NAME = 'TSC DA310';
 
+export const MONO_LABEL_TYPE_STYLES = {
+  PALLET: {
+    outerBorder: '0.35mm solid #000',
+    identityAccentBorder: '1.3mm solid #000',
+    headerBackground: '#000',
+    headerColor: '#fff',
+    headerBorderBottom: '0.35mm solid #000',
+    scanBackground: '#fff',
+    scanTextColor: '#000',
+    scanTopBorder: '1mm solid #000',
+  },
+  BOX: {
+    outerBorder: '0.35mm dashed #000',
+    identityAccentBorder: '1.3mm double #000',
+    headerBackground: '#fff',
+    headerColor: '#000',
+    headerBorderBottom: '0.45mm double #000',
+    scanBackground: '#fff',
+    scanTextColor: '#000',
+    scanTopBorder: '0.45mm dashed #000',
+  },
+} as const;
+
 const TSC_DA310_100X40_PAGE_STYLE = `
   @page {
     size: 100mm 40mm;

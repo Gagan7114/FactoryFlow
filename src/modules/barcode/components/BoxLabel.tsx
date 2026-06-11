@@ -1,7 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { type CSSProperties, forwardRef } from 'react';
 
-import { LABEL_HEIGHT, LABEL_WIDTH } from './labelPrint';
+import { LABEL_HEIGHT, LABEL_WIDTH, MONO_LABEL_TYPE_STYLES } from './labelPrint';
 
 export interface BoxLabelData {
   type: string;
@@ -34,6 +34,7 @@ const OUTER_BORDER = '0.35mm solid #000';
 const TEXT_WEIGHT = 600;
 const EMPHASIS_WEIGHT = 700;
 const HEADER_WEIGHT = 800;
+const BOX_MARKS = MONO_LABEL_TYPE_STYLES.BOX;
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return EMPTY_VALUE;
@@ -139,14 +140,14 @@ function InfoCell({ label, value, strong = false }: LabelField) {
   );
 }
 
-function BoxIcon() {
+function BoxIcon({ color = '#fff' }: { color?: string }) {
   return (
     <span
       aria-hidden="true"
       style={{
         width: '4.8mm',
         height: '4.8mm',
-        border: '0.45mm solid #fff',
+        border: `0.45mm solid ${color}`,
         display: 'inline-block',
         position: 'relative',
         flex: '0 0 auto',
@@ -159,7 +160,7 @@ function BoxIcon() {
           top: 0,
           bottom: 0,
           width: '0.35mm',
-          background: '#fff',
+          background: color,
         }}
       />
       <span
@@ -169,7 +170,7 @@ function BoxIcon() {
           right: 0,
           top: '1.9mm',
           height: '0.35mm',
-          background: '#fff',
+          background: color,
         }}
       />
     </span>
@@ -208,7 +209,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
         display: 'grid',
         gridTemplateColumns: '66mm 34mm',
         alignItems: 'stretch',
-        border: OUTER_BORDER,
+        border: BOX_MARKS.outerBorder,
       }}
     >
       <div
@@ -224,10 +225,11 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
           style={{
             display: 'grid',
             alignItems: 'center',
-            backgroundColor: '#000',
-            color: '#fff',
+            backgroundColor: BOX_MARKS.headerBackground,
+            color: BOX_MARKS.headerColor,
             minWidth: 0,
             padding: '0 1.2mm',
+            borderBottom: BOX_MARKS.headerBorderBottom,
           }}
         >
           <div
@@ -243,8 +245,21 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
               letterSpacing: 0,
             }}
           >
-            <BoxIcon />
+            <BoxIcon color={BOX_MARKS.headerColor} />
             <span>BOX</span>
+            <span
+              style={{
+                marginLeft: 'auto',
+                border: `0.3mm solid ${BOX_MARKS.headerColor}`,
+                padding: '0.3mm 1mm',
+                fontSize: '6.4px',
+                fontWeight: HEADER_WEIGHT,
+                lineHeight: 1,
+                letterSpacing: 0,
+              }}
+            >
+              ITEM
+            </span>
           </div>
         </div>
 
@@ -255,6 +270,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
             alignItems: 'center',
             minWidth: 0,
             borderBottom: LABEL_BORDER,
+            borderLeft: BOX_MARKS.identityAccentBorder,
           }}
         >
           <div
@@ -333,6 +349,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
             justifyContent: 'center',
             backgroundColor: '#fff',
             padding: '0.9mm',
+            borderTop: BOX_MARKS.scanTopBorder,
           }}
         >
           <QRCodeSVG
@@ -355,6 +372,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
             gap: '0.35mm',
             textAlign: 'center',
             overflow: 'hidden',
+            backgroundColor: BOX_MARKS.scanBackground,
           }}
         >
           <div
@@ -362,7 +380,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
               fontSize: '5.4px',
               fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
-              color: '#000',
+              color: BOX_MARKS.scanTextColor,
             }}
           >
             Scan Box Barcode
@@ -378,6 +396,7 @@ const BoxLabel = forwardRef<HTMLDivElement, BoxLabelProps>(({ data }, ref) => {
               fontWeight: EMPHASIS_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
+              color: BOX_MARKS.scanTextColor,
             }}
           >
             Box Code: {compactText(data.barcode)}

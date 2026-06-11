@@ -1,7 +1,7 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { type CSSProperties, forwardRef } from 'react';
 
-import { LABEL_HEIGHT, LABEL_WIDTH } from './labelPrint';
+import { LABEL_HEIGHT, LABEL_WIDTH, MONO_LABEL_TYPE_STYLES } from './labelPrint';
 
 export interface PalletLabelData {
   type: string;
@@ -32,6 +32,7 @@ const LABEL_BORDER = '0.25mm solid #111';
 const OUTER_BORDER = '0.35mm solid #000';
 const EMPHASIS_WEIGHT = 700;
 const HEADER_WEIGHT = 800;
+const PALLET_MARKS = MONO_LABEL_TYPE_STYLES.PALLET;
 
 const formatNumber = (value?: string | number | null) => {
   if (value === null || value === undefined || value === '') return EMPTY_VALUE;
@@ -123,7 +124,15 @@ function PalletIcon() {
   );
 }
 
-function DetailRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+function DetailRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
   return (
     <div
       style={{
@@ -196,7 +205,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
         display: 'grid',
         gridTemplateColumns: '34mm 66mm',
         alignItems: 'stretch',
-        border: OUTER_BORDER,
+        border: PALLET_MARKS.outerBorder,
       }}
     >
       <div
@@ -215,6 +224,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
             justifyContent: 'center',
             backgroundColor: '#fff',
             padding: '0.9mm',
+            borderTop: PALLET_MARKS.scanTopBorder,
           }}
         >
           <QRCodeSVG
@@ -237,6 +247,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
             gap: '0.35mm',
             textAlign: 'center',
             overflow: 'hidden',
+            backgroundColor: PALLET_MARKS.scanBackground,
           }}
         >
           <div
@@ -244,7 +255,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               fontSize: '6.2px',
               fontWeight: HEADER_WEIGHT,
               lineHeight: 1,
-              color: '#000',
+              color: PALLET_MARKS.scanTextColor,
             }}
           >
             SCAN PALLET
@@ -260,6 +271,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
               fontWeight: EMPHASIS_WEIGHT,
               lineHeight: 1,
               letterSpacing: 0,
+              color: PALLET_MARKS.scanTextColor,
             }}
           >
             {compactText(data.barcode)}
@@ -281,18 +293,32 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
             display: 'flex',
             alignItems: 'center',
             gap: '1mm',
-            backgroundColor: '#000',
-            color: '#fff',
+            backgroundColor: PALLET_MARKS.headerBackground,
+            color: PALLET_MARKS.headerColor,
             minWidth: 0,
             padding: '0 1.2mm',
             fontSize: '13px',
             fontWeight: HEADER_WEIGHT,
             lineHeight: 1,
             letterSpacing: 0,
+            borderBottom: PALLET_MARKS.headerBorderBottom,
           }}
         >
           <PalletIcon />
           <span>PALLET</span>
+          <span
+            style={{
+              marginLeft: 'auto',
+              border: `0.3mm solid ${PALLET_MARKS.headerColor}`,
+              padding: '0.3mm 1mm',
+              fontSize: '6.4px',
+              fontWeight: HEADER_WEIGHT,
+              lineHeight: 1,
+              letterSpacing: 0,
+            }}
+          >
+            MASTER
+          </span>
         </div>
 
         <div
@@ -301,6 +327,7 @@ const PalletLabel = forwardRef<HTMLDivElement, PalletLabelProps>(({ data }, ref)
             alignItems: 'center',
             minWidth: 0,
             borderBottom: OUTER_BORDER,
+            borderLeft: PALLET_MARKS.identityAccentBorder,
             padding: '0.8mm 1mm',
             overflow: 'hidden',
           }}
