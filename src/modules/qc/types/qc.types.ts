@@ -59,6 +59,7 @@ export interface CreateMaterialTypeRequest {
   name: string;
   description?: string;
   sap_items?: MaterialTypeSAPItem[];
+  copy_parameters_from_material_type_id?: number | null;
 }
 
 // QC Parameter

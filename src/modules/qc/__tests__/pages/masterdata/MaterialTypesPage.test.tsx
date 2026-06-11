@@ -1,12 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // MaterialTypesPage — File Content Verification
 // ═══════════════════════════════════════════════════════════════
 
 function readSource(): string {
-  const { readFileSync } = require('node:fs');
-  const { resolve } = require('node:path');
   return readFileSync(
     resolve(process.cwd(), 'src/modules/qc/pages/masterdata/MaterialTypesPage.tsx'),
     'utf-8',
@@ -93,6 +94,13 @@ describe('MaterialTypesPage — CRUD', () => {
   it('has delete functionality', () => {
     const content = readSource();
     expect(content).toContain('deleteMaterialType');
+  });
+
+  it('has create-time copy parameter functionality', () => {
+    const content = readSource();
+    expect(content).toContain('Copy QC Parameters From');
+    expect(content).toContain('createCopySourceMaterialTypeId');
+    expect(content).toContain('Save & Copy Parameters');
   });
 
   it('uses useScrollToError for error display', () => {

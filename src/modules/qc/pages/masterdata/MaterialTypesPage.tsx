@@ -2,7 +2,9 @@ import { AlertCircle, ArrowLeft, Edit, FlaskConical, Plus, Trash2 } from 'lucide
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { QC_PERMISSIONS } from '@/config/permissions';
 import type { ApiError } from '@/core/api/types';
+import { usePermission } from '@/core/auth';
 import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import {
   Badge,
@@ -45,6 +47,8 @@ const emptyMaterialTypeForm: CreateMaterialTypeRequest = {
 
 export default function MaterialTypesPage() {
   const navigate = useNavigate();
+  const { hasAnyPermission } = usePermission();
+  const canCopyQCParameters = hasAnyPermission([QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS]);
   const { data: materialTypes = [], isLoading, error } = useMaterialTypes();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -52,6 +56,7 @@ export default function MaterialTypesPage() {
   const [formData, setFormData] = useState<CreateMaterialTypeRequest>(emptyMaterialTypeForm);
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
   const [sapItemSearch, setSapItemSearch] = useState('');
+  const [createCopySourceMaterialTypeId, setCreateCopySourceMaterialTypeId] = useState('');
   const {
     data: sapItemOptions = [],
     isLoading: isSAPItemsLoading,
@@ -82,6 +87,7 @@ export default function MaterialTypesPage() {
       setEditingType(null);
       setFormData(emptyMaterialTypeForm);
     }
+    setCreateCopySourceMaterialTypeId('');
     setApiErrors({});
     setIsDialogOpen(true);
   };
@@ -91,6 +97,7 @@ export default function MaterialTypesPage() {
     setEditingType(null);
     setFormData(emptyMaterialTypeForm);
     setSapItemSearch('');
+    setCreateCopySourceMaterialTypeId('');
     setApiErrors({});
   };
 
@@ -177,6 +184,9 @@ export default function MaterialTypesPage() {
         ...formData,
         sap_items: sapItems,
       };
+      if (!editingType && createCopySourceMaterialTypeId) {
+        payload.copy_parameters_from_material_type_id = Number(createCopySourceMaterialTypeId);
+      }
       if (editingType) {
         await updateMaterialType.mutateAsync({ id: editingType.id, data: payload });
       } else {
@@ -433,6 +443,39 @@ export default function MaterialTypesPage() {
               />
             </div>
 
+            {!editingType && canCopyQCParameters && materialTypes.length > 0 && (
+              <div className="space-y-2 rounded-md border p-3">
+                <Label>Copy QC Parameters From</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={createCopySourceMaterialTypeId}
+                  onChange={(e) => {
+                    setCreateCopySourceMaterialTypeId(e.target.value);
+                    if (apiErrors.copy_parameters_from_material_type_id) {
+                      setApiErrors((prev) => {
+                        const next = { ...prev };
+                        delete next.copy_parameters_from_material_type_id;
+                        return next;
+                      });
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  <option value="">Do not copy parameters</option>
+                  {materialTypes.map((type) => (
+                    <option key={type.id} value={type.id}>
+                      {type.code} - {type.name}
+                    </option>
+                  ))}
+                </select>
+                {apiErrors.copy_parameters_from_material_type_id && (
+                  <p className="text-sm text-destructive">
+                    {apiErrors.copy_parameters_from_material_type_id}
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3 rounded-md border p-3">
               <div className="flex items-center justify-between gap-3">
                 <Label>Linked SAP Items</Label>
@@ -519,7 +562,11 @@ export default function MaterialTypesPage() {
               Cancel
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? 'Saving...' : 'Save'}
+              {isSaving
+                ? 'Saving...'
+                : !editingType && createCopySourceMaterialTypeId
+                  ? 'Save & Copy Parameters'
+                  : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
