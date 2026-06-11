@@ -13,7 +13,7 @@ import {
   Undo2,
   XCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
@@ -44,8 +44,9 @@ import {
   useUpdateInspection,
   useUpdateParameterResults,
 } from '../api/inspection/inspection.queries';
+import { useMaterialTypeBySapItem } from '../api/materialType';
 import { useQCParametersByMaterialType } from '../api/qcParameter/qcParameter.queries';
-import { MaterialTypeSelect, QCSuccessScreen } from '../components';
+import { QCSuccessScreen } from '../components';
 import {
   FINAL_STATUS,
   FINAL_STATUS_CONFIG,
@@ -101,6 +102,8 @@ export default function InspectionDetailPage() {
     material_type_id: 0,
     remarks: '',
   });
+  const [qcAttachmentFiles, setQcAttachmentFiles] = useState<File[]>([]);
+  const qcAttachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   // Parameter results state
   const [parameterResults, setParameterResults] = useState<
@@ -127,11 +130,24 @@ export default function InspectionDetailPage() {
   // Scroll to first error when errors occur
   useScrollToError(apiErrors);
 
+  const sapItemCode = (formData.sap_code || arrivalSlip?.po_item_code || '').trim().toUpperCase();
+  const shouldResolveMaterialType = isNewInspection || isEditing;
+  const {
+    data: linkedMaterialType,
+    isFetching: isResolvingMaterialType,
+    isError: isMaterialTypeLookupError,
+  } = useMaterialTypeBySapItem(sapItemCode || null, shouldResolveMaterialType);
+  const materialTypeDisplay = linkedMaterialType
+    ? `${linkedMaterialType.name} (${linkedMaterialType.code})`
+    : formData.material_type_id && inspection?.material_type_name
+      ? inspection.material_type_name
+      : '';
+
   // Fetch parameters when material type changes
   const { data: qcParameters = [] } = useQCParametersByMaterialType(
     formData.material_type_id || null,
   );
-  const parametersToShow = isEditing ? qcParameters : (inspection?.parameter_results || qcParameters);
+  const parametersToShow = isEditing ? qcParameters : inspection?.parameter_results || qcParameters;
 
   // Mutations
   const createInspection = useCreateInspection();
@@ -242,21 +258,67 @@ export default function InspectionDetailPage() {
     }
   }, [arrivalSlip, inspection, isNewInspection]);
 
-  const handleInputChange = (field: keyof CreateInspectionRequest, value: string | number) => {
-  setFormData((prev) => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    if (!linkedMaterialType || !shouldResolveMaterialType) return;
 
-  if (field === "material_type_id") {
-    setParameterResults({});
-  }
+    if (formData.material_type_id !== linkedMaterialType.id) {
+      setFormData((prev) => ({
+        ...prev,
+        material_type_id: linkedMaterialType.id,
+      }));
+      setParameterResults({});
+    }
 
-  if (apiErrors[field]) {
     setApiErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[field];
-      return newErrors;
+      const next = { ...prev };
+      delete next.material_type_id;
+      delete next.sap_code;
+      return next;
     });
-  }
-};
+  }, [linkedMaterialType, shouldResolveMaterialType, formData.material_type_id]);
+
+  useEffect(() => {
+    if (!sapItemCode || !shouldResolveMaterialType || !isMaterialTypeLookupError) return;
+
+    if (formData.material_type_id) {
+      setFormData((prev) => ({ ...prev, material_type_id: 0 }));
+      setParameterResults({});
+    }
+
+    setApiErrors((prev) => ({
+      ...prev,
+      material_type_id: `No material type mapping found for SAP item ${sapItemCode}`,
+    }));
+  }, [
+    sapItemCode,
+    shouldResolveMaterialType,
+    isMaterialTypeLookupError,
+    formData.material_type_id,
+  ]);
+
+  const handleInputChange = (field: keyof CreateInspectionRequest, value: string | number) => {
+    setFormData((prev) => {
+      if (field === 'sap_code') {
+        return { ...prev, [field]: value, material_type_id: 0 };
+      }
+      return { ...prev, [field]: value };
+    });
+
+    if (field === 'material_type_id' || field === 'sap_code') {
+      setParameterResults({});
+    }
+
+    if (apiErrors[field] || field === 'sap_code') {
+      setApiErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        if (field === 'sap_code') {
+          delete newErrors.material_type_id;
+        }
+        return newErrors;
+      });
+    }
+  };
 
   const handleParameterChange = (
     parameterId: number,
@@ -301,7 +363,11 @@ export default function InspectionDetailPage() {
           const min = typeof minValue === 'string' ? parseFloat(minValue) : minValue;
           const max = typeof maxValue === 'string' ? parseFloat(maxValue) : maxValue;
           if (!isNaN(min) && !isNaN(max)) {
-            handleParameterChange(parameterId, 'is_within_spec', numericVal >= min && numericVal <= max);
+            handleParameterChange(
+              parameterId,
+              'is_within_spec',
+              numericVal >= min && numericVal <= max,
+            );
           }
         }
       }
@@ -312,12 +378,55 @@ export default function InspectionDetailPage() {
 
   const getResultPlaceholder = (paramType: string) => {
     switch (paramType) {
-      case 'NUMERIC': return 'Enter numeric value';
-      case 'RANGE': return 'Enter numeric value';
-      case 'BOOLEAN': return 'Select Pass or Fail';
-      case 'TEXT': default: return 'Enter text value';
+      case 'NUMERIC':
+        return 'Enter numeric value';
+      case 'RANGE':
+        return 'Enter numeric value';
+      case 'BOOLEAN':
+        return 'Select Pass or Fail';
+      case 'TEXT':
+      default:
+        return 'Enter text value';
     }
   };
+
+  const buildInspectionPayload = (): CreateInspectionRequest | FormData => {
+    const inspectionPayload = formData as CreateInspectionRequest;
+    if (qcAttachmentFiles.length === 0) return inspectionPayload;
+
+    const payload = new FormData();
+    Object.entries(inspectionPayload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        payload.append(key, String(value));
+      }
+    });
+    qcAttachmentFiles.forEach((file) => {
+      payload.append('qc_attachments', file);
+    });
+    return payload;
+  };
+
+  const clearSelectedQcAttachments = () => {
+    setQcAttachmentFiles([]);
+    if (qcAttachmentInputRef.current) {
+      qcAttachmentInputRef.current.value = '';
+    }
+  };
+
+  const removeSelectedQcAttachment = (indexToRemove: number) => {
+    setQcAttachmentFiles((files) => files.filter((_, index) => index !== indexToRemove));
+    if (qcAttachmentFiles.length === 1 && qcAttachmentInputRef.current) {
+      qcAttachmentInputRef.current.value = '';
+    }
+  };
+
+  const getAttachmentFileName = (fileUrl: string, originalName?: string) => {
+    if (originalName?.trim()) return originalName;
+    return decodeURIComponent(fileUrl.split('/').pop()?.split('?')[0] || 'Attachment');
+  };
+
+  const isImageAttachment = (fileUrl: string) =>
+    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(fileUrl);
 
   const handleSave = async () => {
     if (!arrivalSlipId) return;
@@ -327,8 +436,15 @@ export default function InspectionDetailPage() {
 
       // Validate required fields
       const errors: Record<string, string> = {};
-      if (!formData.material_type_id) {
-        errors.material_type_id = 'Please select a material type';
+      if (!sapItemCode) {
+        errors.sap_code = 'SAP code is required';
+      }
+      if (isResolvingMaterialType) {
+        errors.material_type_id = 'Material type mapping is still loading';
+      } else if (!formData.material_type_id || isMaterialTypeLookupError) {
+        errors.material_type_id = sapItemCode
+          ? `No material type mapping found for SAP item ${sapItemCode}`
+          : 'No linked material type found';
       }
       // Validate mandatory parameters have result values
       const mandatoryParams = qcParameters.filter((p) => p.is_mandatory);
@@ -345,19 +461,20 @@ export default function InspectionDetailPage() {
       }
 
       let currentInspectionId = inspection?.id;
+      const inspectionPayload = buildInspectionPayload();
 
       if (!inspection) {
         // Create new inspection
         const newInspection = await createInspection.mutateAsync({
           slipId: arrivalSlipId,
-          data: formData as CreateInspectionRequest,
+          data: inspectionPayload,
         });
         currentInspectionId = newInspection.id;
       } else {
         // Update existing inspection data
         await updateInspection.mutateAsync({
           slipId: arrivalSlipId,
-          data: formData as CreateInspectionRequest,
+          data: inspectionPayload,
         });
       }
 
@@ -381,6 +498,7 @@ export default function InspectionDetailPage() {
 
       // Exit edit mode after successful save
       setIsEditing(false);
+      clearSelectedQcAttachments();
     } catch (error) {
       const apiError = error as ApiError;
       if (apiError.errors) {
@@ -398,6 +516,10 @@ export default function InspectionDetailPage() {
   const handleSubmit = async () => {
     if (!inspection) {
       setApiErrors({ general: 'Please save the inspection first' });
+      return;
+    }
+    if (qcAttachmentFiles.length > 0) {
+      setApiErrors({ general: 'Please save selected QC attachments before submitting' });
       return;
     }
 
@@ -562,13 +684,13 @@ export default function InspectionDetailPage() {
           savedAt: inspection.factory_head_decided_at || '',
         }
       : inspection && savedFactoryHeadDecision
-      ? {
-          inspectionId: inspection.id,
-          decision: savedFactoryHeadDecision,
-          remarks: factoryHeadRemarks,
-          savedAt: factoryHeadSavedAt,
-        }
-      : null,
+        ? {
+            inspectionId: inspection.id,
+            decision: savedFactoryHeadDecision,
+            remarks: factoryHeadRemarks,
+            savedAt: factoryHeadSavedAt,
+          }
+        : null,
   );
 
   const isSaving =
@@ -705,7 +827,13 @@ export default function InspectionDetailPage() {
         if (apiErrors.general) messages.push(apiErrors.general);
         // Show field-level errors that aren't rendered inline (e.g. internal_lot_no)
         Object.entries(apiErrors).forEach(([key, msg]) => {
-          if (key !== 'general' && key !== 'material_type_id' && !key.startsWith('param_') && key !== 'approval_remarks') {
+          if (
+            key !== 'general' &&
+            key !== 'sap_code' &&
+            key !== 'material_type_id' &&
+            !key.startsWith('param_') &&
+            key !== 'approval_remarks'
+          ) {
             messages.push(msg);
           }
         });
@@ -743,7 +871,13 @@ export default function InspectionDetailPage() {
                 value={formData.sap_code || ''}
                 onChange={(e) => handleInputChange('sap_code', e.target.value)}
                 disabled={!canEdit || isSaving}
+                className={
+                  apiErrors.sap_code ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
+              {apiErrors.sap_code && (
+                <p className="text-sm text-destructive">{apiErrors.sap_code}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -793,14 +927,32 @@ export default function InspectionDetailPage() {
               />
             </div>
 
-            <MaterialTypeSelect
-              label="Material Type"
-              required
-              value={formData.material_type_id || undefined}
-              onChange={(type) => handleInputChange('material_type_id', type?.id || 0)}
-              disabled={!canEdit || isSaving}
-              error={apiErrors.material_type_id}
-            />
+            <div className="space-y-2">
+              <Label>
+                Material Type <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={materialTypeDisplay}
+                readOnly
+                disabled
+                placeholder="Auto-loaded from SAP item"
+                className={
+                  apiErrors.material_type_id
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : ''
+                }
+              />
+              {apiErrors.material_type_id && (
+                <p className="text-sm text-destructive">{apiErrors.material_type_id}</p>
+              )}
+              {isResolvingMaterialType ? (
+                <p className="text-xs text-muted-foreground">Resolving from SAP item...</p>
+              ) : linkedMaterialType && shouldResolveMaterialType ? (
+                <p className="text-xs text-muted-foreground">
+                  Auto-loaded from SAP item {sapItemCode}
+                </p>
+              ) : null}
+            </div>
 
             <div className="space-y-2">
               <Label>Internal Lot No.</Label>
@@ -851,97 +1003,200 @@ export default function InspectionDetailPage() {
                 rows={2}
               />
             </div>
+
+            <div className="space-y-2 md:col-span-2 lg:col-span-3 print-hide">
+              <Label htmlFor="qc_attachments">QC Attachments</Label>
+              <Input
+                ref={qcAttachmentInputRef}
+                id="qc_attachments"
+                type="file"
+                multiple
+                onChange={(event) => {
+                  setQcAttachmentFiles(Array.from(event.target.files ?? []));
+                }}
+                disabled={!canEdit || isSaving}
+              />
+              {qcAttachmentFiles.length > 0 && (
+                <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+                  {qcAttachmentFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2 text-sm"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-medium">{file.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => removeSelectedQcAttachment(index)}
+                        disabled={isSaving}
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Certificate of Analysis (COA) - separate page when printing */}
-      {arrivalSlip && arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS') && (
-        <Card className="print-page-break">
+      {inspection?.qc_attachments?.length ? (
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Paperclip className="h-5 w-5" />
-              Certificate of Analysis (COA)
+              QC Attachments
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {arrivalSlip.attachments
-                .filter((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS')
-                .map((attachment) => {
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(attachment.file);
-                  return (
-                    <a
-                      key={attachment.id}
-                      href={attachment.file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                    >
-                      {isImage ? (
+              {inspection.qc_attachments.map((attachment) => {
+                const fileName = getAttachmentFileName(attachment.file, attachment.original_name);
+                return (
+                  <a
+                    key={attachment.id}
+                    href={attachment.file}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                  >
+                    {isImageAttachment(attachment.file) ? (
+                      <>
                         <img
                           src={attachment.file}
-                          alt="Certificate of Analysis"
-                          className="w-full print-attachment-img"
+                          alt={fileName}
+                          className="w-full max-h-80 object-contain bg-muted/20 print-attachment-img"
                         />
-                      ) : (
-                        <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
-                          <FileText className="h-8 w-8" />
-                          <span className="text-xs">View File</span>
-                          <ExternalLink className="h-3 w-3" />
+                        <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
+                          <span className="truncate font-medium">{fileName}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                         </div>
-                      )}
-                    </a>
-                  );
-                })}
+                      </>
+                    ) : (
+                      <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground px-4 text-center">
+                        <FileText className="h-8 w-8" />
+                        <span className="max-w-full truncate text-sm font-medium text-foreground">
+                          {fileName}
+                        </span>
+                        <ExternalLink className="h-3 w-3" />
+                      </div>
+                    )}
+                    {attachment.uploaded_at && (
+                      <div className="border-t px-3 py-2 text-xs text-muted-foreground">
+                        Uploaded {new Date(attachment.uploaded_at).toLocaleString()}
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
+
+      {/* Certificate of Analysis (COA) - separate page when printing */}
+      {arrivalSlip &&
+        arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS') && (
+          <Card className="print-page-break">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Certificate of Analysis (COA)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {arrivalSlip.attachments
+                  .filter((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS')
+                  .map((attachment) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(
+                      attachment.file,
+                    );
+                    return (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                      >
+                        {isImage ? (
+                          <img
+                            src={attachment.file}
+                            alt="Certificate of Analysis"
+                            className="w-full print-attachment-img"
+                          />
+                        ) : (
+                          <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
+                            <FileText className="h-8 w-8" />
+                            <span className="text-xs">View File</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Certificate of Quantity (COQ) - separate page when printing */}
-      {arrivalSlip && arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY') && (
-        <Card className="print-page-break">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Paperclip className="h-5 w-5" />
-              Certificate of Quantity (COQ)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {arrivalSlip.attachments
-                .filter((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY')
-                .map((attachment) => {
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(attachment.file);
-                  return (
-                    <a
-                      key={attachment.id}
-                      href={attachment.file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                    >
-                      {isImage ? (
-                        <img
-                          src={attachment.file}
-                          alt="Certificate of Quantity"
-                          className="w-full print-attachment-img"
-                        />
-                      ) : (
-                        <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
-                          <FileText className="h-8 w-8" />
-                          <span className="text-xs">View File</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </div>
-                      )}
-                    </a>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {arrivalSlip &&
+        arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY') && (
+          <Card className="print-page-break">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Certificate of Quantity (COQ)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {arrivalSlip.attachments
+                  .filter((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY')
+                  .map((attachment) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(
+                      attachment.file,
+                    );
+                    return (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                      >
+                        {isImage ? (
+                          <img
+                            src={attachment.file}
+                            alt="Certificate of Quantity"
+                            className="w-full print-attachment-img"
+                          />
+                        ) : (
+                          <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
+                            <FileText className="h-8 w-8" />
+                            <span className="text-xs">View File</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Parameter Results */}
       {((inspection?.parameter_results?.length ?? 0) > 0 || qcParameters.length > 0) && (
@@ -952,101 +1207,119 @@ export default function InspectionDetailPage() {
           <CardContent>
             {/* Mobile: stacked card layout */}
             <div className="md:hidden space-y-4">
-              {(isEditing ? qcParameters : inspection?.parameter_results || qcParameters).map((param) => {
-                const parameterId = 'parameter_master' in param ? param.parameter_master : param.id;
-                const paramName = param.parameter_name;
-                const standardValue = param.standard_value;
-                const paramType = param.parameter_type;
-                const minValue = param.min_value;
-                const maxValue = param.max_value;
-                const isMandatory =
-                  'is_mandatory' in param
-                    ? param.is_mandatory
-                    : (qcParameters.find((p) => p.id === parameterId)?.is_mandatory ?? false);
-                const paramError = apiErrors[`param_${parameterId}`];
-                const currentValue = parameterResults[parameterId] || {
-                  result_value: '',
-                  is_within_spec: true,
-                  remarks: '',
-                };
+              {(isEditing ? qcParameters : inspection?.parameter_results || qcParameters).map(
+                (param) => {
+                  const parameterId =
+                    'parameter_master' in param ? param.parameter_master : param.id;
+                  const paramName = param.parameter_name;
+                  const standardValue = param.standard_value;
+                  const paramType = param.parameter_type;
+                  const minValue = param.min_value;
+                  const maxValue = param.max_value;
+                  const isMandatory =
+                    'is_mandatory' in param
+                      ? param.is_mandatory
+                      : (qcParameters.find((p) => p.id === parameterId)?.is_mandatory ?? false);
+                  const paramError = apiErrors[`param_${parameterId}`];
+                  const currentValue = parameterResults[parameterId] || {
+                    result_value: '',
+                    is_within_spec: true,
+                    remarks: '',
+                  };
 
-                return (
-                  <div
-                    key={parameterId}
-                    className={cn(
-                      'border rounded-lg p-3 space-y-3',
-                      paramError && 'border-destructive',
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">
-                        {paramName}
-                        {isMandatory && <span className="text-destructive"> *</span>}
-                      </span>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={currentValue.is_within_spec ?? true}
-                          onChange={(e) =>
-                            handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
-                          }
-                          disabled={!canEdit || isSaving || paramType === 'BOOLEAN' || paramType === 'RANGE'}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <span className="text-muted-foreground">Within Spec</span>
-                      </label>
-                    </div>
-                    <div className="text-sm text-muted-foreground">Standard: {standardValue}</div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">
-                        Result{isMandatory && <span className="text-destructive"> *</span>}
-                      </Label>
-                      {paramType === 'BOOLEAN' ? (
-                        <select
-                          value={currentValue.result_value}
-                          onChange={(e) =>
-                            handleResultValueChange(parameterId, e.target.value, paramType)
-                          }
-                          disabled={!canEdit || isSaving}
-                          className={cn(
-                            'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-                            paramError && 'border-destructive',
-                          )}
-                        >
-                          <option value="">Select Pass or Fail</option>
-                          <option value="Pass">Pass</option>
-                          <option value="Fail">Fail</option>
-                        </select>
-                      ) : (
-                        <Input
-                          type={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'}
-                          step={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined}
-                          value={currentValue.result_value}
-                          onChange={(e) =>
-                            handleResultValueChange(parameterId, e.target.value, paramType, minValue, maxValue)
-                          }
-                          disabled={!canEdit || isSaving}
-                          className={cn('w-full', paramError && 'border-destructive')}
-                          placeholder={getResultPlaceholder(paramType)}
-                        />
+                  return (
+                    <div
+                      key={parameterId}
+                      className={cn(
+                        'border rounded-lg p-3 space-y-3',
+                        paramError && 'border-destructive',
                       )}
-                      {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">
+                          {paramName}
+                          {isMandatory && <span className="text-destructive"> *</span>}
+                        </span>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={currentValue.is_within_spec ?? true}
+                            onChange={(e) =>
+                              handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
+                            }
+                            disabled={
+                              !canEdit ||
+                              isSaving ||
+                              paramType === 'BOOLEAN' ||
+                              paramType === 'RANGE'
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-muted-foreground">Within Spec</span>
+                        </label>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Standard: {standardValue}</div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Result{isMandatory && <span className="text-destructive"> *</span>}
+                        </Label>
+                        {paramType === 'BOOLEAN' ? (
+                          <select
+                            value={currentValue.result_value}
+                            onChange={(e) =>
+                              handleResultValueChange(parameterId, e.target.value, paramType)
+                            }
+                            disabled={!canEdit || isSaving}
+                            className={cn(
+                              'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+                              paramError && 'border-destructive',
+                            )}
+                          >
+                            <option value="">Select Pass or Fail</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Fail">Fail</option>
+                          </select>
+                        ) : (
+                          <Input
+                            type={
+                              paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'
+                            }
+                            step={
+                              paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined
+                            }
+                            value={currentValue.result_value}
+                            onChange={(e) =>
+                              handleResultValueChange(
+                                parameterId,
+                                e.target.value,
+                                paramType,
+                                minValue,
+                                maxValue,
+                              )
+                            }
+                            disabled={!canEdit || isSaving}
+                            className={cn('w-full', paramError && 'border-destructive')}
+                            placeholder={getResultPlaceholder(paramType)}
+                          />
+                        )}
+                        {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Remarks</Label>
+                        <Input
+                          value={currentValue.remarks}
+                          onChange={(e) =>
+                            handleParameterChange(parameterId, 'remarks', e.target.value)
+                          }
+                          disabled={!canEdit || isSaving}
+                          className="w-full"
+                          placeholder="Optional"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Remarks</Label>
-                      <Input
-                        value={currentValue.remarks}
-                        onChange={(e) =>
-                          handleParameterChange(parameterId, 'remarks', e.target.value)
-                        }
-                        disabled={!canEdit || isSaving}
-                        className="w-full"
-                        placeholder="Optional"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                },
+              )}
             </div>
 
             {/* Desktop: table layout */}
@@ -1109,11 +1382,21 @@ export default function InspectionDetailPage() {
                             </select>
                           ) : (
                             <Input
-                              type={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'}
-                              step={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined}
+                              type={
+                                paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'
+                              }
+                              step={
+                                paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined
+                              }
                               value={currentValue.result_value}
                               onChange={(e) =>
-                                handleResultValueChange(parameterId, e.target.value, paramType, minValue, maxValue)
+                                handleResultValueChange(
+                                  parameterId,
+                                  e.target.value,
+                                  paramType,
+                                  minValue,
+                                  maxValue,
+                                )
                               }
                               disabled={!canEdit || isSaving}
                               className={cn('w-full', paramError && 'border-destructive')}
@@ -1131,7 +1414,12 @@ export default function InspectionDetailPage() {
                             onChange={(e) =>
                               handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
                             }
-                            disabled={!canEdit || isSaving || paramType === 'BOOLEAN' || paramType === 'RANGE'}
+                            disabled={
+                              !canEdit ||
+                              isSaving ||
+                              paramType === 'BOOLEAN' ||
+                              paramType === 'RANGE'
+                            }
                             className="h-4 w-4 rounded border-gray-300"
                           />
                         </td>
@@ -1311,16 +1599,10 @@ export default function InspectionDetailPage() {
 
       {/* Record Timestamps */}
       {inspection && (
-        <RecordTimestamps
-          createdAt={inspection.created_at}
-          updatedAt={inspection.updated_at}
-        />
+        <RecordTimestamps createdAt={inspection.created_at} updatedAt={inspection.updated_at} />
       )}
       {!inspection && arrivalSlip && (
-        <RecordTimestamps
-          createdAt={arrivalSlip.created_at}
-          updatedAt={arrivalSlip.updated_at}
-        />
+        <RecordTimestamps createdAt={arrivalSlip.created_at} updatedAt={arrivalSlip.updated_at} />
       )}
 
       {/* Footer Actions */}
@@ -1343,7 +1625,10 @@ export default function InspectionDetailPage() {
             </Button>
           )}
           {canEdit && (
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || (shouldResolveMaterialType && isResolvingMaterialType)}
+            >
               <Save className="h-4 w-4 mr-2" />
               {isSaving ? 'Saving...' : 'Save'}
             </Button>

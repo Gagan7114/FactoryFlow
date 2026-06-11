@@ -34,17 +34,31 @@ export interface InspectionListParams {
 export type ParameterType = 'NUMERIC' | 'TEXT' | 'BOOLEAN' | 'RANGE';
 
 // Material Type
+export interface MaterialTypeSAPItem {
+  id?: number;
+  item_code: string;
+  item_name?: string;
+}
+
+export interface SAPItemMasterOption {
+  item_code: string;
+  item_name: string;
+  uom: string;
+}
+
 export interface MaterialType {
   id: number;
   code: string;
   name: string;
   description: string;
+  sap_items?: MaterialTypeSAPItem[];
 }
 
 export interface CreateMaterialTypeRequest {
   code: string;
   name: string;
   description?: string;
+  sap_items?: MaterialTypeSAPItem[];
 }
 
 // QC Parameter
@@ -105,6 +119,16 @@ export interface ArrivalSlipAttachment {
   id: number;
   file: string;
   attachment_type: ArrivalSlipAttachmentType;
+  uploaded_at: string;
+}
+
+// Inspection Attachment
+export interface InspectionAttachment {
+  id: number;
+  file: string;
+  original_name: string;
+  uploaded_by: number | null;
+  uploaded_by_name: string | null;
   uploaded_at: string;
 }
 
@@ -226,6 +250,8 @@ export interface Inspection {
   is_locked: boolean;
   remarks: string;
   parameter_results: ParameterResult[];
+  attachments: ArrivalSlipAttachment[];
+  qc_attachments: InspectionAttachment[];
   created_at: string;
   updated_at: string;
 }
@@ -247,6 +273,8 @@ export interface CreateInspectionRequest {
   remarks?: string;
 }
 
+export type InspectionSavePayload = CreateInspectionRequest | FormData;
+
 export interface ApprovalRequest {
   remarks?: string;
   final_status?: InspectionFinalStatus;
@@ -256,7 +284,6 @@ export interface FactoryHeadDecisionRequest {
   decision: FactoryHeadDecision;
   remarks?: string;
 }
-
 
 // ============================================================================
 // Production QC Types

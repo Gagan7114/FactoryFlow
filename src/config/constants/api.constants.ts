@@ -193,8 +193,11 @@ export const API_ENDPOINTS = {
     // Material Types
     MATERIAL_TYPES: '/quality-control/material-types/',
     MATERIAL_TYPE_BY_ID: (id: number) => `/quality-control/material-types/${id}/`,
+    MATERIAL_TYPE_BY_SAP_ITEM: (itemCode: string) =>
+      `/quality-control/material-types/by-sap-item/${encodeURIComponent(itemCode)}/`,
     MATERIAL_TYPE_PARAMETERS: (materialTypeId: number) =>
       `/quality-control/material-types/${materialTypeId}/parameters/`,
+    SAP_ITEMS: '/quality-control/sap-items/',
 
     // QC Parameters
     QC_PARAMETER_BY_ID: (id: number) => `/quality-control/parameters/${id}/`,

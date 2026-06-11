@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { ApiError } from '@/core/api/types';
+import { SearchableSelect } from '@/shared/components/SearchableSelect';
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -23,9 +25,23 @@ import {
   useCreateMaterialType,
   useDeleteMaterialType,
   useMaterialTypes,
+  useSAPItems,
   useUpdateMaterialType,
 } from '../../api/materialType/materialType.queries';
-import type { CreateMaterialTypeRequest, MaterialType } from '../../types';
+import type { CreateMaterialTypeRequest, MaterialType, SAPItemMasterOption } from '../../types';
+
+const getSAPItemLabel = (item: SAPItemMasterOption) =>
+  item.item_name ? `${item.item_code} - ${item.item_name}` : item.item_code;
+
+const getLinkedSAPItemLabel = (item: { item_code: string; item_name?: string }) =>
+  item.item_name ? `${item.item_code} - ${item.item_name}` : item.item_code;
+
+const emptyMaterialTypeForm: CreateMaterialTypeRequest = {
+  code: '',
+  name: '',
+  description: '',
+  sap_items: [],
+};
 
 export default function MaterialTypesPage() {
   const navigate = useNavigate();
@@ -33,12 +49,14 @@ export default function MaterialTypesPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<MaterialType | null>(null);
-  const [formData, setFormData] = useState<CreateMaterialTypeRequest>({
-    code: '',
-    name: '',
-    description: '',
-  });
+  const [formData, setFormData] = useState<CreateMaterialTypeRequest>(emptyMaterialTypeForm);
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
+  const [sapItemSearch, setSapItemSearch] = useState('');
+  const {
+    data: sapItemOptions = [],
+    isLoading: isSAPItemsLoading,
+    isError: isSAPItemsError,
+  } = useSAPItems(sapItemSearch);
 
   // Scroll to first error when errors occur
   useScrollToError(apiErrors);
@@ -48,16 +66,21 @@ export default function MaterialTypesPage() {
   const deleteMaterialType = useDeleteMaterialType();
 
   const handleOpenDialog = (type?: MaterialType) => {
+    setSapItemSearch('');
     if (type) {
       setEditingType(type);
       setFormData({
         code: type.code,
         name: type.name,
         description: type.description || '',
+        sap_items: (type.sap_items || []).map((item) => ({
+          item_code: item.item_code,
+          item_name: item.item_name || '',
+        })),
       });
     } else {
       setEditingType(null);
-      setFormData({ code: '', name: '', description: '' });
+      setFormData(emptyMaterialTypeForm);
     }
     setApiErrors({});
     setIsDialogOpen(true);
@@ -66,8 +89,55 @@ export default function MaterialTypesPage() {
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingType(null);
-    setFormData({ code: '', name: '', description: '' });
+    setFormData(emptyMaterialTypeForm);
+    setSapItemSearch('');
     setApiErrors({});
+  };
+
+  const clearSapItemError = () => {
+    if (apiErrors.sap_items) {
+      setApiErrors((prev) => {
+        const next = { ...prev };
+        delete next.sap_items;
+        return next;
+      });
+    }
+  };
+
+  const handleSapItemSelect = (index: number, item: SAPItemMasterOption) => {
+    setFormData((prev) => {
+      const sapItems = [...(prev.sap_items || [])];
+      sapItems[index] = {
+        ...sapItems[index],
+        item_code: item.item_code.trim().toUpperCase(),
+        item_name: item.item_name.trim(),
+      };
+      return { ...prev, sap_items: sapItems };
+    });
+    clearSapItemError();
+  };
+
+  const handleSapItemClear = (index: number) => {
+    setFormData((prev) => {
+      const sapItems = [...(prev.sap_items || [])];
+      sapItems[index] = { item_code: '', item_name: '' };
+      return { ...prev, sap_items: sapItems };
+    });
+    clearSapItemError();
+  };
+
+  const handleAddSapItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      sap_items: [...(prev.sap_items || []), { item_code: '', item_name: '' }],
+    }));
+  };
+
+  const handleRemoveSapItem = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      sap_items: (prev.sap_items || []).filter((_, itemIndex) => itemIndex !== index),
+    }));
   };
 
   const handleSave = async () => {
@@ -80,6 +150,22 @@ export default function MaterialTypesPage() {
     if (!formData.name.trim()) {
       errors.name = 'Name is required';
     }
+    const sapItems = (formData.sap_items || [])
+      .map((item) => ({
+        item_code: item.item_code.trim().toUpperCase(),
+        item_name: item.item_name?.trim() || '',
+      }))
+      .filter((item) => item.item_code || item.item_name);
+    if (sapItems.some((item) => !item.item_code)) {
+      errors.sap_items = 'SAP item code is required for every linked item';
+    }
+    const duplicateSapItem = sapItems.find(
+      (item, index) =>
+        sapItems.findIndex((candidate) => candidate.item_code === item.item_code) !== index,
+    );
+    if (duplicateSapItem) {
+      errors.sap_items = `SAP item ${duplicateSapItem.item_code} is duplicated`;
+    }
     if (Object.keys(errors).length > 0) {
       setApiErrors(errors);
       return;
@@ -87,10 +173,14 @@ export default function MaterialTypesPage() {
 
     try {
       setApiErrors({});
+      const payload: CreateMaterialTypeRequest = {
+        ...formData,
+        sap_items: sapItems,
+      };
       if (editingType) {
-        await updateMaterialType.mutateAsync({ id: editingType.id, data: formData });
+        await updateMaterialType.mutateAsync({ id: editingType.id, data: payload });
       } else {
-        await createMaterialType.mutateAsync(formData);
+        await createMaterialType.mutateAsync(payload);
       }
       handleCloseDialog();
     } catch (error) {
@@ -198,6 +288,7 @@ export default function MaterialTypesPage() {
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3 font-medium">Code</th>
                       <th className="text-left p-3 font-medium">Name</th>
+                      <th className="text-left p-3 font-medium">SAP Items</th>
                       <th className="text-left p-3 font-medium">Description</th>
                       <th className="text-center p-3 font-medium">Actions</th>
                     </tr>
@@ -207,6 +298,27 @@ export default function MaterialTypesPage() {
                       <tr key={type.id} className="border-b hover:bg-muted/50">
                         <td className="p-3 font-medium">{type.code}</td>
                         <td className="p-3">{type.name}</td>
+                        <td className="p-3">
+                          {type.sap_items?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {type.sap_items.slice(0, 4).map((item) => (
+                                <span
+                                  key={item.item_code}
+                                  className="rounded border px-2 py-0.5 text-xs font-medium"
+                                >
+                                  {item.item_code}
+                                </span>
+                              ))}
+                              {type.sap_items.length > 4 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{type.sap_items.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
                         <td className="p-3 text-muted-foreground">{type.description || '-'}</td>
                         <td className="p-3 text-center">
                           <div className="flex justify-center gap-2">
@@ -238,8 +350,13 @@ export default function MaterialTypesPage() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) handleCloseDialog() }}>
-        <DialogContent>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) handleCloseDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingType ? 'Edit Material Type' : 'Add Material Type'}</DialogTitle>
           </DialogHeader>
@@ -252,7 +369,9 @@ export default function MaterialTypesPage() {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Code <span className="text-destructive">*</span></Label>
+              <Label>
+                Code <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={formData.code}
                 onChange={(e) => {
@@ -268,13 +387,17 @@ export default function MaterialTypesPage() {
                 }}
                 placeholder="e.g., CAP_BLUE"
                 disabled={isSaving}
-                className={apiErrors.code ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  apiErrors.code ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
               {apiErrors.code && <p className="text-sm text-destructive">{apiErrors.code}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label>Name <span className="text-destructive">*</span></Label>
+              <Label>
+                Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={formData.name}
                 onChange={(e) => {
@@ -293,7 +416,9 @@ export default function MaterialTypesPage() {
                 }}
                 placeholder="e.g., Cap Blue Plain"
                 disabled={isSaving}
-                className={apiErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
+                className={
+                  apiErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
               {apiErrors.name && <p className="text-sm text-destructive">{apiErrors.name}</p>}
             </div>
@@ -306,6 +431,86 @@ export default function MaterialTypesPage() {
                 placeholder="Optional description"
                 disabled={isSaving}
               />
+            </div>
+
+            <div className="space-y-3 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Linked SAP Items</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddSapItem}
+                  disabled={isSaving}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
+
+              {(formData.sap_items || []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No SAP items linked</p>
+              ) : (
+                <div className="space-y-2">
+                  {(formData.sap_items || []).map((item, index) => (
+                    <div
+                      key={`${item.item_code}-${index}`}
+                      className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
+                    >
+                      <SearchableSelect<SAPItemMasterOption>
+                        items={sapItemOptions}
+                        isLoading={isSAPItemsLoading}
+                        isError={isSAPItemsError}
+                        getItemKey={(sapItem) => sapItem.item_code}
+                        getItemLabel={getSAPItemLabel}
+                        renderItem={(sapItem) => (
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="font-mono font-medium">{sapItem.item_code}</span>
+                              {sapItem.uom && <Badge variant="secondary">{sapItem.uom}</Badge>}
+                            </div>
+                            <div className="truncate text-sm">{sapItem.item_name}</div>
+                          </div>
+                        )}
+                        filterFn={(sapItem, search) => {
+                          const term = search.toLowerCase();
+                          return [sapItem.item_code, sapItem.item_name, sapItem.uom]
+                            .filter(Boolean)
+                            .some((value) => String(value).toLowerCase().includes(term));
+                        }}
+                        placeholder="Search and select SAP item..."
+                        inputId={`qc-material-type-sap-item-${index}`}
+                        loadingText="Loading SAP items..."
+                        emptyText="Type at least 2 characters to search SAP items"
+                        notFoundText="No matching SAP item"
+                        errorText="Unable to load SAP items"
+                        value={item.item_code || ''}
+                        defaultDisplayText={item.item_code ? getLinkedSAPItemLabel(item) : ''}
+                        onItemSelect={(selectedItem) => handleSapItemSelect(index, selectedItem)}
+                        onClear={() => handleSapItemClear(index)}
+                        onSearchChange={(search) => {
+                          const selectedLabel = item.item_code ? getLinkedSAPItemLabel(item) : '';
+                          if (search !== selectedLabel) setSapItemSearch(search);
+                        }}
+                        disabled={isSaving}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRemoveSapItem(index)}
+                        disabled={isSaving}
+                        aria-label="Remove SAP item"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {apiErrors.sap_items && (
+                <p className="text-sm text-destructive">{apiErrors.sap_items}</p>
+              )}
             </div>
           </div>
 
