@@ -83,9 +83,13 @@ describe('GRPO Types', () => {
       rejected_qty: 5,
       uom: 'KG',
       qc_status: 'ACCEPTED',
+      arrival_slip_id: 7,
+      inspection_id: 11,
+      inspection_report_no: 'RPT-001',
     };
     expect(item.po_item_receipt_id).toBe(1);
     expect(item.qc_status).toBe('ACCEPTED');
+    expect(item.inspection_report_no).toBe('RPT-001');
   });
 
   // ─── PreviewPOReceipt ──────────────────────────────────────

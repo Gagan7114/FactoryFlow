@@ -131,7 +131,7 @@ export default function InspectionDetailPage() {
   const { data: qcParameters = [] } = useQCParametersByMaterialType(
     formData.material_type_id || null,
   );
-  const parametersToShow = isEditing ? qcParameters : (inspection?.parameter_results || qcParameters);
+  const parametersToShow = isEditing ? qcParameters : inspection?.parameter_results || qcParameters;
 
   // Mutations
   const createInspection = useCreateInspection();
@@ -243,20 +243,20 @@ export default function InspectionDetailPage() {
   }, [arrivalSlip, inspection, isNewInspection]);
 
   const handleInputChange = (field: keyof CreateInspectionRequest, value: string | number) => {
-  setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
 
-  if (field === "material_type_id") {
-    setParameterResults({});
-  }
+    if (field === 'material_type_id') {
+      setParameterResults({});
+    }
 
-  if (apiErrors[field]) {
-    setApiErrors((prev) => {
-      const newErrors = { ...prev };
-      delete newErrors[field];
-      return newErrors;
-    });
-  }
-};
+    if (apiErrors[field]) {
+      setApiErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   const handleParameterChange = (
     parameterId: number,
@@ -301,7 +301,11 @@ export default function InspectionDetailPage() {
           const min = typeof minValue === 'string' ? parseFloat(minValue) : minValue;
           const max = typeof maxValue === 'string' ? parseFloat(maxValue) : maxValue;
           if (!isNaN(min) && !isNaN(max)) {
-            handleParameterChange(parameterId, 'is_within_spec', numericVal >= min && numericVal <= max);
+            handleParameterChange(
+              parameterId,
+              'is_within_spec',
+              numericVal >= min && numericVal <= max,
+            );
           }
         }
       }
@@ -312,10 +316,15 @@ export default function InspectionDetailPage() {
 
   const getResultPlaceholder = (paramType: string) => {
     switch (paramType) {
-      case 'NUMERIC': return 'Enter numeric value';
-      case 'RANGE': return 'Enter numeric value';
-      case 'BOOLEAN': return 'Select Pass or Fail';
-      case 'TEXT': default: return 'Enter text value';
+      case 'NUMERIC':
+        return 'Enter numeric value';
+      case 'RANGE':
+        return 'Enter numeric value';
+      case 'BOOLEAN':
+        return 'Select Pass or Fail';
+      case 'TEXT':
+      default:
+        return 'Enter text value';
     }
   };
 
@@ -562,13 +571,13 @@ export default function InspectionDetailPage() {
           savedAt: inspection.factory_head_decided_at || '',
         }
       : inspection && savedFactoryHeadDecision
-      ? {
-          inspectionId: inspection.id,
-          decision: savedFactoryHeadDecision,
-          remarks: factoryHeadRemarks,
-          savedAt: factoryHeadSavedAt,
-        }
-      : null,
+        ? {
+            inspectionId: inspection.id,
+            decision: savedFactoryHeadDecision,
+            remarks: factoryHeadRemarks,
+            savedAt: factoryHeadSavedAt,
+          }
+        : null,
   );
 
   const isSaving =
@@ -705,7 +714,12 @@ export default function InspectionDetailPage() {
         if (apiErrors.general) messages.push(apiErrors.general);
         // Show field-level errors that aren't rendered inline (e.g. internal_lot_no)
         Object.entries(apiErrors).forEach(([key, msg]) => {
-          if (key !== 'general' && key !== 'material_type_id' && !key.startsWith('param_') && key !== 'approval_remarks') {
+          if (
+            key !== 'general' &&
+            key !== 'material_type_id' &&
+            !key.startsWith('param_') &&
+            key !== 'approval_remarks'
+          ) {
             messages.push(msg);
           }
         });
@@ -856,92 +870,98 @@ export default function InspectionDetailPage() {
       </Card>
 
       {/* Certificate of Analysis (COA) - separate page when printing */}
-      {arrivalSlip && arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS') && (
-        <Card className="print-page-break">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Paperclip className="h-5 w-5" />
-              Certificate of Analysis (COA)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {arrivalSlip.attachments
-                .filter((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS')
-                .map((attachment) => {
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(attachment.file);
-                  return (
-                    <a
-                      key={attachment.id}
-                      href={attachment.file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                    >
-                      {isImage ? (
-                        <img
-                          src={attachment.file}
-                          alt="Certificate of Analysis"
-                          className="w-full print-attachment-img"
-                        />
-                      ) : (
-                        <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
-                          <FileText className="h-8 w-8" />
-                          <span className="text-xs">View File</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </div>
-                      )}
-                    </a>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {arrivalSlip &&
+        arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS') && (
+          <Card className="print-page-break">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Certificate of Analysis (COA)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {arrivalSlip.attachments
+                  .filter((a) => a.attachment_type === 'CERTIFICATE_OF_ANALYSIS')
+                  .map((attachment) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(
+                      attachment.file,
+                    );
+                    return (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                      >
+                        {isImage ? (
+                          <img
+                            src={attachment.file}
+                            alt="Certificate of Analysis"
+                            className="w-full print-attachment-img"
+                          />
+                        ) : (
+                          <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
+                            <FileText className="h-8 w-8" />
+                            <span className="text-xs">View File</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Certificate of Quantity (COQ) - separate page when printing */}
-      {arrivalSlip && arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY') && (
-        <Card className="print-page-break">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Paperclip className="h-5 w-5" />
-              Certificate of Quantity (COQ)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {arrivalSlip.attachments
-                .filter((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY')
-                .map((attachment) => {
-                  const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(attachment.file);
-                  return (
-                    <a
-                      key={attachment.id}
-                      href={attachment.file}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
-                    >
-                      {isImage ? (
-                        <img
-                          src={attachment.file}
-                          alt="Certificate of Quantity"
-                          className="w-full print-attachment-img"
-                        />
-                      ) : (
-                        <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
-                          <FileText className="h-8 w-8" />
-                          <span className="text-xs">View File</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </div>
-                      )}
-                    </a>
-                  );
-                })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {arrivalSlip &&
+        arrivalSlip.attachments?.some((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY') && (
+          <Card className="print-page-break">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Paperclip className="h-5 w-5" />
+                Certificate of Quantity (COQ)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {arrivalSlip.attachments
+                  .filter((a) => a.attachment_type === 'CERTIFICATE_OF_QUANTITY')
+                  .map((attachment) => {
+                    const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(
+                      attachment.file,
+                    );
+                    return (
+                      <a
+                        key={attachment.id}
+                        href={attachment.file}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block border rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                      >
+                        {isImage ? (
+                          <img
+                            src={attachment.file}
+                            alt="Certificate of Quantity"
+                            className="w-full print-attachment-img"
+                          />
+                        ) : (
+                          <div className="w-full h-48 flex flex-col items-center justify-center gap-2 bg-muted/30 text-muted-foreground">
+                            <FileText className="h-8 w-8" />
+                            <span className="text-xs">View File</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </div>
+                        )}
+                      </a>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Parameter Results */}
       {((inspection?.parameter_results?.length ?? 0) > 0 || qcParameters.length > 0) && (
@@ -952,101 +972,119 @@ export default function InspectionDetailPage() {
           <CardContent>
             {/* Mobile: stacked card layout */}
             <div className="md:hidden space-y-4">
-              {(isEditing ? qcParameters : inspection?.parameter_results || qcParameters).map((param) => {
-                const parameterId = 'parameter_master' in param ? param.parameter_master : param.id;
-                const paramName = param.parameter_name;
-                const standardValue = param.standard_value;
-                const paramType = param.parameter_type;
-                const minValue = param.min_value;
-                const maxValue = param.max_value;
-                const isMandatory =
-                  'is_mandatory' in param
-                    ? param.is_mandatory
-                    : (qcParameters.find((p) => p.id === parameterId)?.is_mandatory ?? false);
-                const paramError = apiErrors[`param_${parameterId}`];
-                const currentValue = parameterResults[parameterId] || {
-                  result_value: '',
-                  is_within_spec: true,
-                  remarks: '',
-                };
+              {(isEditing ? qcParameters : inspection?.parameter_results || qcParameters).map(
+                (param) => {
+                  const parameterId =
+                    'parameter_master' in param ? param.parameter_master : param.id;
+                  const paramName = param.parameter_name;
+                  const standardValue = param.standard_value;
+                  const paramType = param.parameter_type;
+                  const minValue = param.min_value;
+                  const maxValue = param.max_value;
+                  const isMandatory =
+                    'is_mandatory' in param
+                      ? param.is_mandatory
+                      : (qcParameters.find((p) => p.id === parameterId)?.is_mandatory ?? false);
+                  const paramError = apiErrors[`param_${parameterId}`];
+                  const currentValue = parameterResults[parameterId] || {
+                    result_value: '',
+                    is_within_spec: true,
+                    remarks: '',
+                  };
 
-                return (
-                  <div
-                    key={parameterId}
-                    className={cn(
-                      'border rounded-lg p-3 space-y-3',
-                      paramError && 'border-destructive',
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">
-                        {paramName}
-                        {isMandatory && <span className="text-destructive"> *</span>}
-                      </span>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={currentValue.is_within_spec ?? true}
-                          onChange={(e) =>
-                            handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
-                          }
-                          disabled={!canEdit || isSaving || paramType === 'BOOLEAN' || paramType === 'RANGE'}
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <span className="text-muted-foreground">Within Spec</span>
-                      </label>
-                    </div>
-                    <div className="text-sm text-muted-foreground">Standard: {standardValue}</div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">
-                        Result{isMandatory && <span className="text-destructive"> *</span>}
-                      </Label>
-                      {paramType === 'BOOLEAN' ? (
-                        <select
-                          value={currentValue.result_value}
-                          onChange={(e) =>
-                            handleResultValueChange(parameterId, e.target.value, paramType)
-                          }
-                          disabled={!canEdit || isSaving}
-                          className={cn(
-                            'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
-                            paramError && 'border-destructive',
-                          )}
-                        >
-                          <option value="">Select Pass or Fail</option>
-                          <option value="Pass">Pass</option>
-                          <option value="Fail">Fail</option>
-                        </select>
-                      ) : (
-                        <Input
-                          type={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'}
-                          step={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined}
-                          value={currentValue.result_value}
-                          onChange={(e) =>
-                            handleResultValueChange(parameterId, e.target.value, paramType, minValue, maxValue)
-                          }
-                          disabled={!canEdit || isSaving}
-                          className={cn('w-full', paramError && 'border-destructive')}
-                          placeholder={getResultPlaceholder(paramType)}
-                        />
+                  return (
+                    <div
+                      key={parameterId}
+                      className={cn(
+                        'border rounded-lg p-3 space-y-3',
+                        paramError && 'border-destructive',
                       )}
-                      {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">
+                          {paramName}
+                          {isMandatory && <span className="text-destructive"> *</span>}
+                        </span>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={currentValue.is_within_spec ?? true}
+                            onChange={(e) =>
+                              handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
+                            }
+                            disabled={
+                              !canEdit ||
+                              isSaving ||
+                              paramType === 'BOOLEAN' ||
+                              paramType === 'RANGE'
+                            }
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-muted-foreground">Within Spec</span>
+                        </label>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Standard: {standardValue}</div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Result{isMandatory && <span className="text-destructive"> *</span>}
+                        </Label>
+                        {paramType === 'BOOLEAN' ? (
+                          <select
+                            value={currentValue.result_value}
+                            onChange={(e) =>
+                              handleResultValueChange(parameterId, e.target.value, paramType)
+                            }
+                            disabled={!canEdit || isSaving}
+                            className={cn(
+                              'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm',
+                              paramError && 'border-destructive',
+                            )}
+                          >
+                            <option value="">Select Pass or Fail</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Fail">Fail</option>
+                          </select>
+                        ) : (
+                          <Input
+                            type={
+                              paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'
+                            }
+                            step={
+                              paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined
+                            }
+                            value={currentValue.result_value}
+                            onChange={(e) =>
+                              handleResultValueChange(
+                                parameterId,
+                                e.target.value,
+                                paramType,
+                                minValue,
+                                maxValue,
+                              )
+                            }
+                            disabled={!canEdit || isSaving}
+                            className={cn('w-full', paramError && 'border-destructive')}
+                            placeholder={getResultPlaceholder(paramType)}
+                          />
+                        )}
+                        {paramError && <p className="text-xs text-destructive">{paramError}</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Remarks</Label>
+                        <Input
+                          value={currentValue.remarks}
+                          onChange={(e) =>
+                            handleParameterChange(parameterId, 'remarks', e.target.value)
+                          }
+                          disabled={!canEdit || isSaving}
+                          className="w-full"
+                          placeholder="Optional"
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Remarks</Label>
-                      <Input
-                        value={currentValue.remarks}
-                        onChange={(e) =>
-                          handleParameterChange(parameterId, 'remarks', e.target.value)
-                        }
-                        disabled={!canEdit || isSaving}
-                        className="w-full"
-                        placeholder="Optional"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                },
+              )}
             </div>
 
             {/* Desktop: table layout */}
@@ -1109,11 +1147,21 @@ export default function InspectionDetailPage() {
                             </select>
                           ) : (
                             <Input
-                              type={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'}
-                              step={paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined}
+                              type={
+                                paramType === 'NUMERIC' || paramType === 'RANGE' ? 'number' : 'text'
+                              }
+                              step={
+                                paramType === 'NUMERIC' || paramType === 'RANGE' ? 'any' : undefined
+                              }
                               value={currentValue.result_value}
                               onChange={(e) =>
-                                handleResultValueChange(parameterId, e.target.value, paramType, minValue, maxValue)
+                                handleResultValueChange(
+                                  parameterId,
+                                  e.target.value,
+                                  paramType,
+                                  minValue,
+                                  maxValue,
+                                )
                               }
                               disabled={!canEdit || isSaving}
                               className={cn('w-full', paramError && 'border-destructive')}
@@ -1131,7 +1179,12 @@ export default function InspectionDetailPage() {
                             onChange={(e) =>
                               handleParameterChange(parameterId, 'is_within_spec', e.target.checked)
                             }
-                            disabled={!canEdit || isSaving || paramType === 'BOOLEAN' || paramType === 'RANGE'}
+                            disabled={
+                              !canEdit ||
+                              isSaving ||
+                              paramType === 'BOOLEAN' ||
+                              paramType === 'RANGE'
+                            }
                             className="h-4 w-4 rounded border-gray-300"
                           />
                         </td>
@@ -1311,16 +1364,10 @@ export default function InspectionDetailPage() {
 
       {/* Record Timestamps */}
       {inspection && (
-        <RecordTimestamps
-          createdAt={inspection.created_at}
-          updatedAt={inspection.updated_at}
-        />
+        <RecordTimestamps createdAt={inspection.created_at} updatedAt={inspection.updated_at} />
       )}
       {!inspection && arrivalSlip && (
-        <RecordTimestamps
-          createdAt={arrivalSlip.created_at}
-          updatedAt={arrivalSlip.updated_at}
-        />
+        <RecordTimestamps createdAt={arrivalSlip.created_at} updatedAt={arrivalSlip.updated_at} />
       )}
 
       {/* Footer Actions */}

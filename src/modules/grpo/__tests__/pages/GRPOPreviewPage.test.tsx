@@ -51,4 +51,13 @@ describe('GRPOPreviewPage file content', () => {
     expect(content).toContain('disabled={isPosting}');
     expect(content).toContain("'Posting...'");
   });
+
+  it('offers QC inspection report printing from preview', () => {
+    expect(content).toContain('printQCReport');
+    expect(content).toContain('grpoApi.getInspectionReport');
+    expect(content).toContain('GRPOInspectionReportPrintView');
+    expect(content).toContain('window.print()');
+    expect(content).toContain('Print Report');
+    expect(content).not.toContain('?print=1');
+  });
 });

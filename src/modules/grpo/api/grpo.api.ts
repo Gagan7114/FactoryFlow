@@ -6,6 +6,7 @@ import type {
   GRPOAttachment,
   GRPODashboardSummary,
   GRPOHistoryEntry,
+  GRPOInspectionReport,
   PendingGRPOEntryWithSuppliers,
   PostGRPORequest,
   PostGRPOResponse,
@@ -50,6 +51,13 @@ export const grpoApi = {
     return response.data;
   },
 
+  async getInspectionReport(arrivalSlipId: number): Promise<GRPOInspectionReport> {
+    const response = await apiClient.get<GRPOInspectionReport>(
+      API_ENDPOINTS.GRPO.INSPECTION_REPORT(arrivalSlipId),
+    );
+    return response.data;
+  },
+
   // Post GRPO to SAP
   // Uses multipart/form-data when attachments are provided, JSON otherwise
   async post(data: PostGRPORequest): Promise<PostGRPOResponse> {
@@ -63,19 +71,14 @@ export const grpoApi = {
       files.forEach((file) => {
         formData.append('attachments', file);
       });
-      const response = await apiClient.post<PostGRPOResponse>(
-        API_ENDPOINTS.GRPO.POST,
-        formData,
-        { headers: { 'Content-Type': 'multipart/form-data' } },
-      );
+      const response = await apiClient.post<PostGRPOResponse>(API_ENDPOINTS.GRPO.POST, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return response.data;
     }
 
     // JSON (no attachments)
-    const response = await apiClient.post<PostGRPOResponse>(
-      API_ENDPOINTS.GRPO.POST,
-      jsonData,
-    );
+    const response = await apiClient.post<PostGRPOResponse>(API_ENDPOINTS.GRPO.POST, jsonData);
     return response.data;
   },
 
