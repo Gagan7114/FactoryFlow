@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // module.config — File Content Verification
@@ -8,8 +11,6 @@ import { describe, it, expect } from 'vitest';
 // ═══════════════════════════════════════════════════════════════
 
 function readSource(): string {
-  const { readFileSync } = require('node:fs');
-  const { resolve } = require('node:path');
   return readFileSync(resolve(process.cwd(), 'src/modules/qc/module.config.tsx'), 'utf-8');
 }
 
@@ -33,11 +34,10 @@ describe('module.config — Exports', () => {
     expect(content).toContain("import { FlaskConical } from 'lucide-react'");
   });
 
-  it('imports QC_PERMISSIONS and QC_MODULE_PREFIX from @/config/permissions', () => {
+  it('imports QC permissions from @/config/permissions', () => {
     const content = readSource();
     expect(content).toContain("from '@/config/permissions'");
     expect(content).toContain('QC_PERMISSIONS');
-    expect(content).toContain('QC_MODULE_PREFIX');
   });
 
   it('imports ModuleConfig type from @/core/types', () => {
@@ -140,16 +140,14 @@ describe('module.config — Navigation', () => {
     expect(content).toContain('hasSubmenu: true');
   });
 
-  it('has modulePrefix for sidebar filtering', () => {
-    const content = readSource();
-    expect(content).toContain('modulePrefix: QC_MODULE_PREFIX');
-  });
-
   it('has children with submenu items', () => {
     const content = readSource();
     expect(content).toContain("title: 'Dashboard'");
-    expect(content).toContain("title: 'Pending Inspections'");
-    expect(content).toContain("title: 'Approvals'");
+    expect(content).toContain("title: 'Arrival Slips'");
+    expect(content).toContain("title: 'Arrival Slip Approvals'");
+    expect(content).toContain("title: 'Production QC'");
+    expect(content).toContain("title: 'Line Clearance QA'");
+    expect(content).toContain("title: 'Customer Return QC'");
     expect(content).toContain("title: 'Material Types'");
     expect(content).toContain("title: 'QC Parameters'");
   });

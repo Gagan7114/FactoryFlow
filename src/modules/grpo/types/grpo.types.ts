@@ -43,6 +43,68 @@ export interface GRPOAttachment {
   uploaded_by: number | null;
 }
 
+export interface GRPOInspectionReportParameter {
+  id: number;
+  parameter_master: number;
+  parameter_code: string;
+  parameter_name: string;
+  standard_value: string;
+  parameter_type: 'NUMERIC' | 'TEXT' | 'BOOLEAN' | 'RANGE';
+  min_value: string | null;
+  max_value: string | null;
+  uom: string;
+  result_value: string;
+  result_numeric: number | null;
+  is_within_spec: boolean | null;
+  remarks: string;
+}
+
+export interface GRPOInspectionReportAttachment {
+  id: number;
+  file: string;
+  attachment_type: 'CERTIFICATE_OF_ANALYSIS' | 'CERTIFICATE_OF_QUANTITY';
+  uploaded_at: string;
+}
+
+export interface GRPOInspectionReport {
+  id: number;
+  arrival_slip_id: number;
+  po_item_receipt_id: number;
+  po_item_code: string;
+  item_name: string;
+  vehicle_entry_id: number | null;
+  entry_no: string | null;
+  report_no: string;
+  internal_lot_no: string;
+  internal_report_no: string;
+  inspection_date: string;
+  description_of_material: string;
+  sap_code: string;
+  supplier_name: string;
+  manufacturer_name: string;
+  supplier_batch_lot_no: string;
+  unit_packing: string;
+  purchase_order_no: string;
+  invoice_bill_no: string;
+  vehicle_no: string;
+  material_type: number;
+  material_type_name: string | null;
+  final_status: QCStatus;
+  workflow_status: string;
+  effective_final_status?: QCStatus;
+  remarks: string;
+  qa_chemist_name: string | null;
+  qa_chemist_approved_at: string | null;
+  qa_chemist_remarks: string;
+  qam_name: string | null;
+  qam_approved_at: string | null;
+  qam_remarks: string;
+  parameter_results: GRPOInspectionReportParameter[];
+  attachments: GRPOInspectionReportAttachment[];
+  created_at: string;
+  updated_at: string;
+}
+
 // Extra charge for GRPO posting
 export interface ExtraCharge {
   expense_code: number;
@@ -75,6 +137,9 @@ export interface PreviewItem {
   rejected_qty: number;
   uom: string;
   qc_status: QCStatus;
+  arrival_slip_id: number | null;
+  inspection_id: number | null;
+  inspection_report_no: string | null;
   unit_price: string | null;
   tax_code: string | null;
   warehouse_code: string | null;

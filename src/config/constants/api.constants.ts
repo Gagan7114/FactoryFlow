@@ -251,6 +251,7 @@ export const API_ENDPOINTS = {
     ALL_ENTRIES: '/grpo/all-entries/',
     PENDING: '/grpo/pending/',
     PREVIEW: (vehicleEntryId: number) => `/grpo/preview/${vehicleEntryId}/`,
+    INSPECTION_REPORT: (arrivalSlipId: number) => `/grpo/inspection-report/${arrivalSlipId}/`,
     POST: '/grpo/post/',
     HISTORY: '/grpo/history/',
     DETAIL: (postingId: number) => `/grpo/${postingId}/`,
