@@ -6,10 +6,18 @@ import { AlertTriangle, CheckCircle2, Clock, type LucideIcon, XCircle } from 'lu
 
 export const ENTRY_STATUS = {
   DRAFT: 'DRAFT',
+  SECURITY_CHECK_DONE: 'SECURITY_CHECK_DONE',
+  ARRIVAL_SLIP_SUBMITTED: 'ARRIVAL_SLIP_SUBMITTED',
+  ARRIVAL_SLIP_REJECTED: 'ARRIVAL_SLIP_REJECTED',
   IN_PROGRESS: 'IN_PROGRESS',
+  QC_PENDING: 'QC_PENDING',
+  QC_IN_REVIEW: 'QC_IN_REVIEW',
+  QC_AWAITING_QAM: 'QC_AWAITING_QAM',
+  QC_REJECTED: 'QC_REJECTED',
+  QC_HOLD: 'QC_HOLD',
+  QC_COMPLETED: 'QC_COMPLETED',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED',
-  QC_COMPLETED: 'QC_COMPLETED',
   REJECTED: 'REJECTED',
 } as const;
 
@@ -104,6 +112,60 @@ export const ENTRY_STATUS_COLORS: Record<EntryStatus, StatusColorConfig> = {
     darkBg: 'dark:bg-blue-900/30',
     darkText: 'dark:text-blue-400',
   },
+  SECURITY_CHECK_DONE: {
+    bg: 'bg-cyan-100',
+    text: 'text-cyan-800',
+    darkBg: 'dark:bg-cyan-900/30',
+    darkText: 'dark:text-cyan-400',
+  },
+  ARRIVAL_SLIP_SUBMITTED: {
+    bg: 'bg-sky-100',
+    text: 'text-sky-800',
+    darkBg: 'dark:bg-sky-900/30',
+    darkText: 'dark:text-sky-400',
+  },
+  ARRIVAL_SLIP_REJECTED: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    darkBg: 'dark:bg-red-900/30',
+    darkText: 'dark:text-red-400',
+  },
+  QC_PENDING: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-800',
+    darkBg: 'dark:bg-yellow-900/30',
+    darkText: 'dark:text-yellow-400',
+  },
+  QC_IN_REVIEW: {
+    bg: 'bg-blue-100',
+    text: 'text-blue-800',
+    darkBg: 'dark:bg-blue-900/30',
+    darkText: 'dark:text-blue-400',
+  },
+  QC_AWAITING_QAM: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    darkBg: 'dark:bg-purple-900/30',
+    darkText: 'dark:text-purple-400',
+  },
+  QC_REJECTED: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    darkBg: 'dark:bg-red-900/30',
+    darkText: 'dark:text-red-400',
+  },
+  QC_HOLD: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    darkBg: 'dark:bg-orange-900/30',
+    darkText: 'dark:text-orange-400',
+  },
+  QC_COMPLETED: {
+    bg: 'bg-purple-100',
+    text: 'text-purple-800',
+    darkBg: 'dark:bg-purple-900/30',
+    darkText: 'dark:text-purple-400',
+  },
   COMPLETED: {
     bg: 'bg-green-100',
     text: 'text-green-800',
@@ -115,12 +177,6 @@ export const ENTRY_STATUS_COLORS: Record<EntryStatus, StatusColorConfig> = {
     text: 'text-gray-800',
     darkBg: 'dark:bg-gray-800',
     darkText: 'dark:text-gray-300',
-  },
-  QC_COMPLETED: {
-    bg: 'bg-purple-100',
-    text: 'text-purple-800',
-    darkBg: 'dark:bg-purple-900/30',
-    darkText: 'dark:text-purple-400',
   },
   REJECTED: {
     bg: 'bg-orange-100',

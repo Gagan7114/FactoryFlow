@@ -5,6 +5,9 @@
 // the expected method names for the PO gate entry full view.
 // ═══════════════════════════════════════════════════════════════
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/core/api', () => ({
@@ -57,5 +60,20 @@ describe('gateEntryFullViewApi', () => {
   it('exposes exactly the expected methods', () => {
     const methodNames = Object.keys(gateEntryFullViewApi).sort();
     expect(methodNames).toEqual(['complete', 'get']);
+  });
+
+  it('types the backend QC summary and nested inspection payload', () => {
+    const content = readFileSync(
+      resolve(process.cwd(), 'src/modules/gate/api/gateEntryFullView/gateEntryFullView.api.ts'),
+      'utf-8',
+    );
+
+    expect(content).toContain('qc_summary');
+    expect(content).toContain('can_complete: boolean');
+    expect(content).toContain('type RawMaterialQcStatusCode');
+    expect(content).toContain("'HOLD'");
+    expect(content).toContain('inspection?:');
+    expect(content).toContain('workflow_status: InspectionWorkflowStatus');
+    expect(content).toContain('final_status: InspectionFinalStatus');
   });
 });

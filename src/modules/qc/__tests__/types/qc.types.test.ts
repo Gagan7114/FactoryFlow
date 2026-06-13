@@ -1,4 +1,4 @@
-import { describe, expect,it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type {
   ApprovalRequest,
@@ -44,15 +44,16 @@ describe('ArrivalSlipStatus', () => {
 });
 
 describe('InspectionWorkflowStatus', () => {
-  it('accepts all 5 workflow statuses', () => {
+  it('accepts all backend workflow statuses', () => {
     const statuses: InspectionWorkflowStatus[] = [
       'DRAFT',
       'SUBMITTED',
       'QA_CHEMIST_APPROVED',
       'QAM_APPROVED',
       'REJECTED',
+      'COMPLETED',
     ];
-    expect(statuses).toHaveLength(5);
+    expect(statuses).toHaveLength(6);
     statuses.forEach((s) => expect(typeof s).toBe('string'));
   });
 });
@@ -66,8 +67,9 @@ describe('InspectionListWorkflowStatus', () => {
       'QA_CHEMIST_APPROVED',
       'QAM_APPROVED',
       'REJECTED',
+      'COMPLETED',
     ];
-    expect(statuses).toHaveLength(6);
+    expect(statuses).toHaveLength(7);
     statuses.forEach((s) => expect(typeof s).toBe('string'));
   });
 });

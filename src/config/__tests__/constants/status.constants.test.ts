@@ -45,14 +45,21 @@ describe('status.constants — ENTRY_STATUS', () => {
     expect(content).toMatch(/ENTRY_STATUS\s*=\s*\{/);
   });
 
-  it('has DRAFT, IN_PROGRESS, COMPLETED, CANCELLED, QC_COMPLETED, REJECTED keys', () => {
+  it('has backend gate entry status keys', () => {
     const content = readSource();
     expect(content).toContain("DRAFT: 'DRAFT'");
+    expect(content).toContain("SECURITY_CHECK_DONE: 'SECURITY_CHECK_DONE'");
+    expect(content).toContain("ARRIVAL_SLIP_SUBMITTED: 'ARRIVAL_SLIP_SUBMITTED'");
+    expect(content).toContain("ARRIVAL_SLIP_REJECTED: 'ARRIVAL_SLIP_REJECTED'");
     expect(content).toContain("IN_PROGRESS: 'IN_PROGRESS'");
+    expect(content).toContain("QC_PENDING: 'QC_PENDING'");
+    expect(content).toContain("QC_IN_REVIEW: 'QC_IN_REVIEW'");
+    expect(content).toContain("QC_AWAITING_QAM: 'QC_AWAITING_QAM'");
+    expect(content).toContain("QC_REJECTED: 'QC_REJECTED'");
+    expect(content).toContain("QC_HOLD: 'QC_HOLD'");
+    expect(content).toContain("QC_COMPLETED: 'QC_COMPLETED'");
     expect(content).toContain("COMPLETED: 'COMPLETED'");
     expect(content).toContain("CANCELLED: 'CANCELLED'");
-    expect(content).toContain("QC_COMPLETED: 'QC_COMPLETED'");
-    expect(content).toContain("REJECTED: 'REJECTED'");
   });
 });
 
@@ -145,16 +152,23 @@ describe('status.constants — ENTRY_STATUS_COLORS', () => {
     expect(content).toContain('Record<EntryStatus, StatusColorConfig>');
   });
 
-  it('has entries for all 6 entry statuses', () => {
+  it('has entries for backend gate entry status colors', () => {
     const content = readSource();
     // Check for each status key in the color config
     const statusKeys = [
       'DRAFT',
+      'SECURITY_CHECK_DONE',
+      'ARRIVAL_SLIP_SUBMITTED',
+      'ARRIVAL_SLIP_REJECTED',
       'IN_PROGRESS',
+      'QC_PENDING',
+      'QC_IN_REVIEW',
+      'QC_AWAITING_QAM',
+      'QC_REJECTED',
+      'QC_HOLD',
+      'QC_COMPLETED',
       'COMPLETED',
       'CANCELLED',
-      'QC_COMPLETED',
-      'REJECTED',
     ];
     for (const key of statusKeys) {
       // Each key appears in ENTRY_STATUS_COLORS block

@@ -22,6 +22,7 @@ export const WORKFLOW_STATUS = {
   QA_CHEMIST_APPROVED: 'QA_CHEMIST_APPROVED',
   QAM_APPROVED: 'QAM_APPROVED',
   REJECTED: 'REJECTED',
+  COMPLETED: 'COMPLETED',
 } as const satisfies Record<string, InspectionListWorkflowStatus>;
 
 // Re-export cross-module constants so existing qc-internal imports still work
@@ -70,6 +71,12 @@ export const WORKFLOW_STATUS_CONFIG: Record<InspectionListWorkflowStatus, Status
     color: 'text-red-600',
     bgColor: 'bg-red-50',
     icon: XCircle,
+  },
+  COMPLETED: {
+    label: 'Completed',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    icon: CheckCircle2,
   },
 };
 
