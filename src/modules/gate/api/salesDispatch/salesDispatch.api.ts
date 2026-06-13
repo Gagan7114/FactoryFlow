@@ -63,6 +63,11 @@ export interface SalesDispatchGatepassReadiness {
   has_box_scans: boolean;
   has_weighment: boolean;
   has_items: boolean;
+  has_bilty_details?: boolean;
+  has_bilty_attachment?: boolean;
+  requires_eway_bill?: boolean;
+  has_eway_bill?: boolean;
+  has_eway_bill_attachment?: boolean;
 }
 
 export interface SalesDispatchItem {
@@ -415,6 +420,7 @@ export interface SalesDispatchCreateRequest {
   driver_id: number;
   dispatch_plan_id?: number | null;
   security_name?: string;
+  eway_bill?: string;
   bilty_no?: string;
   bilty_date?: string | null;
   freight?: string | number | null;
@@ -427,6 +433,7 @@ export type SalesDispatchUpdateRequest = Partial<
   Pick<
     SalesDispatchCreateRequest,
     | 'security_name'
+    | 'eway_bill'
     | 'bilty_no'
     | 'bilty_date'
     | 'freight'

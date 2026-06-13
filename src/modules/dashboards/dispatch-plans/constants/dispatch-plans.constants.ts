@@ -30,5 +30,6 @@ export function createDefaultDispatchPlanFilters(): DispatchPlanFilters {
     date_to: format(today, 'yyyy-MM-dd'),
     booking_status: 'all',
     limit: 500,
+    exclude_jivo_mart_transfer: true,
   };
 }

@@ -1,4 +1,4 @@
-import { Eye, Loader2, Paperclip, Plus, Save, Upload, X } from 'lucide-react';
+import { Loader2, Plus, Save } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { DispatchBill } from '@/modules/dashboards/dispatch-plans/types';
@@ -18,7 +18,6 @@ import {
   Textarea,
 } from '@/shared/components/ui';
 import { useScrollToError } from '@/shared/hooks';
-import { resolveFileUrl } from '@/shared/utils';
 
 import type { DispatchVehicleLinkPayload } from '../types';
 
@@ -33,7 +32,6 @@ interface DispatchLinkingSheetProps {
 
 interface FormState {
   invoice_number: string;
-  eway_bill: string;
   invoice_amount: string;
   place_of_supply: string;
   budget_delivery_point: string;
@@ -44,11 +42,6 @@ interface FormState {
   contact_person: string;
   mobile_no: string;
   vehicle_no: string;
-  bilty_no: string;
-  bilty_date: string;
-  bilty_attachment: File | null;
-  freight: string;
-  total_freight: string;
   remarks: string;
 }
 
@@ -66,7 +59,6 @@ interface VehicleSelection {
 
 const EMPTY_FORM: FormState = {
   invoice_number: '',
-  eway_bill: '',
   invoice_amount: '',
   place_of_supply: '',
   budget_delivery_point: '',
@@ -77,11 +69,6 @@ const EMPTY_FORM: FormState = {
   contact_person: '',
   mobile_no: '',
   vehicle_no: '',
-  bilty_no: '',
-  bilty_date: '',
-  bilty_attachment: null,
-  freight: '',
-  total_freight: '',
   remarks: '',
 };
 
@@ -92,7 +79,6 @@ function formFromBill(bill: DispatchBill | null): FormState {
 
   return {
     invoice_number: bill.plan.invoice_number || bill.doc_num || '',
-    eway_bill: bill.plan.eway_bill || bill.sap_eway_bill || '',
     invoice_amount: bill.plan.invoice_amount ?? numberToString(bill.doc_total),
     place_of_supply: bill.plan.place_of_supply || placeOfSupply,
     budget_delivery_point: bill.plan.budget_delivery_point || bill.city || '',
@@ -103,11 +89,6 @@ function formFromBill(bill: DispatchBill | null): FormState {
     contact_person: bill.plan.contact_person ?? '',
     mobile_no: bill.plan.mobile_no ?? '',
     vehicle_no: bill.plan.vehicle_no || sapVehicleNo,
-    bilty_no: bill.plan.bilty_no || bill.sap_bilty_no || bill.sap_lr_number || '',
-    bilty_date: bill.plan.bilty_date || bill.sap_bilty_date || '',
-    bilty_attachment: null,
-    freight: bill.plan.freight ?? '',
-    total_freight: bill.plan.total_freight ?? '',
     remarks: bill.plan.remarks ?? '',
   };
 }
@@ -261,20 +242,10 @@ export function DispatchLinkingSheet({
       );
       return;
     }
-    if (!form.bilty_no.trim()) {
-      showFormError('Please enter the bilty number.');
-      return;
-    }
-    if (!form.bilty_attachment && !hasExistingBiltyAttachment(bill)) {
-      showFormError('Please upload the bilty attachment.');
-      return;
-    }
-
     await onSave(bill.doc_entry, {
       sap_invoice_doc_num: bill.doc_num,
       linked_invoice_doc_entries: activeBills.map((selected) => selected.doc_entry),
       invoice_number: form.invoice_number.trim(),
-      eway_bill: form.eway_bill.trim(),
       invoice_weight: invoiceWeightForPayload(bill),
       invoice_amount: stringOrNull(form.invoice_amount),
       place_of_supply: form.place_of_supply.trim(),
@@ -295,11 +266,6 @@ export function DispatchLinkingSheet({
       contact_person: form.contact_person.trim(),
       mobile_no: form.mobile_no.trim(),
       vehicle_no: form.vehicle_no.trim(),
-      bilty_no: form.bilty_no.trim(),
-      bilty_date: stringOrNull(form.bilty_date),
-      bilty_attachment: form.bilty_attachment || undefined,
-      freight: stringOrNull(form.freight),
-      total_freight: stringOrNull(form.total_freight),
       remarks: form.remarks.trim(),
     });
   }
@@ -344,7 +310,7 @@ export function DispatchLinkingSheet({
           <div className="mt-4 rounded-md border bg-primary/5 p-4 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="font-medium">
-                {activeBills.length} invoices selected for one bilty
+                {activeBills.length} invoices selected for one vehicle link
               </div>
               <div className="text-xs text-muted-foreground">
                 {formatNumber(selectedTotals.litres, 3)} L /{' '}
@@ -417,15 +383,6 @@ export function DispatchLinkingSheet({
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="dispatch-link-eway-bill">E-way Bill</Label>
-                <Input
-                  id="dispatch-link-eway-bill"
-                  value={form.eway_bill}
-                  onChange={(event) => updateField('eway_bill', event.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1.5">
                 <Label htmlFor="dispatch-link-invoice-amount">Amount</Label>
                 <Input
                   id="dispatch-link-invoice-amount"
@@ -455,59 +412,6 @@ export function DispatchLinkingSheet({
               </div>
             </div>
           )}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-bilty">
-                Bilty No. <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="dispatch-link-bilty"
-                value={form.bilty_no}
-                required
-                onChange={(event) => updateField('bilty_no', event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-bilty-date">Bilty Date</Label>
-              <Input
-                id="dispatch-link-bilty-date"
-                type="date"
-                value={form.bilty_date}
-                onChange={(event) => updateField('bilty_date', event.target.value)}
-              />
-            </div>
-
-            <BiltyAttachmentField
-              existingFileName={bill?.plan.bilty_attachment_name}
-              existingFileUrl={bill?.plan.bilty_attachment}
-              file={form.bilty_attachment}
-              onChange={(file) => updateField('bilty_attachment', file)}
-            />
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-freight">Freight</Label>
-              <Input
-                id="dispatch-link-freight"
-                type="number"
-                step="0.01"
-                value={form.freight}
-                onChange={(event) => updateField('freight', event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="dispatch-link-total-freight">Total Freight</Label>
-              <Input
-                id="dispatch-link-total-freight"
-                type="number"
-                step="0.01"
-                value={form.total_freight}
-                onChange={(event) => updateField('total_freight', event.target.value)}
-              />
-            </div>
-          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="dispatch-link-remarks">Transport Remarks</Label>
@@ -769,106 +673,6 @@ function InfoItem({ label, value }: { label: string; value?: string | null }) {
     <div>
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 font-medium">{compactText(value)}</div>
-    </div>
-  );
-}
-
-function hasExistingBiltyAttachment(bill: DispatchBill | null | undefined) {
-  return Boolean(
-    bill?.plan.bilty_attachment || String(bill?.plan.bilty_attachment_name || '').trim(),
-  );
-}
-
-function BiltyAttachmentField({
-  existingFileName,
-  existingFileUrl,
-  file,
-  onChange,
-}: {
-  existingFileName?: string | null;
-  existingFileUrl?: string | null;
-  file: File | null;
-  onChange: (file: File | null) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const displayName = file?.name || existingFileName || '';
-  const [localPreviewUrl, setLocalPreviewUrl] = useState('');
-
-  useEffect(() => {
-    if (!file) {
-      setLocalPreviewUrl('');
-      return undefined;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setLocalPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
-
-  const previewUrl = localPreviewUrl || resolveFileUrl(existingFileUrl);
-
-  return (
-    <div className="space-y-1.5 sm:col-span-2">
-      <Label htmlFor="dispatch-link-bilty-attachment">
-        Bilty Attachment <span className="text-destructive">*</span>
-      </Label>
-      <input
-        ref={inputRef}
-        id="dispatch-link-bilty-attachment"
-        type="file"
-        accept="image/*,.pdf"
-        className="hidden"
-        onChange={(event) => onChange(event.target.files?.[0] || null)}
-      />
-      <div className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-2 text-sm">
-          <Paperclip className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-          {displayName ? (
-            previewUrl ? (
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="truncate font-medium text-primary hover:underline"
-                title={displayName}
-              >
-                {displayName}
-              </a>
-            ) : (
-              <span className="truncate font-medium" title={displayName}>
-                {displayName}
-              </span>
-            )
-          ) : (
-            <span className="text-muted-foreground">No bilty attachment selected</span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {previewUrl && (
-            <Button asChild variant="ghost" size="sm">
-              <a href={previewUrl} target="_blank" rel="noreferrer">
-                <Eye className="mr-2 h-4 w-4" />
-                Preview
-              </a>
-            </Button>
-          )}
-          {file && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => onChange(null)}>
-              <X className="mr-2 h-4 w-4" />
-              Remove
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Upload
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

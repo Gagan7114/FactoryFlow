@@ -74,6 +74,8 @@ interface ServiceFormState {
   ewayBill: string;
   invoiceWeight: number | null;
   invoiceAmount: number | null;
+  biltyNo: string;
+  biltyDate: string;
   vendorRef: string;
   comments: string;
   extraCharges: ExtraCharge[];
@@ -429,6 +431,8 @@ export default function ServiceGRPOPreviewPage() {
       ewayBill: preview.eway_bill || '',
       invoiceWeight: parseNullableAmount(preview.invoice_weight),
       invoiceAmount: parseNullableAmount(preview.invoice_amount),
+      biltyNo: preview.bilty_no || '',
+      biltyDate: preview.bilty_date || '',
       vendorRef: preview.bilty_no || preview.sap_invoice_doc_num || '',
       comments: '',
       extraCharges: [],
@@ -581,6 +585,9 @@ export default function ServiceGRPOPreviewPage() {
     if (!form.vendorRef.trim()) {
       errors.vendorRef = 'Vendor reference is required';
     }
+    if (!form.biltyNo.trim()) {
+      errors.biltyNo = 'Bilty number is required';
+    }
     if (form.attachments.length === 0 && !preview.bilty_attachment) {
       errors.attachments = 'At least one attachment is required';
     }
@@ -628,6 +635,8 @@ export default function ServiceGRPOPreviewPage() {
         eway_bill: form.ewayBill || undefined,
         invoice_weight: form.invoiceWeight,
         invoice_amount: form.invoiceAmount,
+        bilty_no: form.biltyNo || undefined,
+        bilty_date: form.biltyDate || undefined,
         comments: form.comments || undefined,
         vendor_ref: form.vendorRef || undefined,
         extra_charges: form.extraCharges.length > 0 ? form.extraCharges : undefined,
@@ -1269,6 +1278,26 @@ export default function ServiceGRPOPreviewPage() {
                     </>
                   )}
                   <div className="space-y-1">
+                    <Label className="text-xs">Bilty / LR No.</Label>
+                    <Input
+                      value={form.biltyNo}
+                      onChange={(e) => updateFormField('biltyNo', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                    {apiErrors.biltyNo && (
+                      <p className="text-xs text-destructive">{apiErrors.biltyNo}</p>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Bilty Date</Label>
+                    <Input
+                      type="date"
+                      value={form.biltyDate}
+                      onChange={(e) => updateFormField('biltyDate', e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <Label className="text-xs">Posting Date</Label>
                     <Input
                       type="date"
@@ -1518,7 +1547,7 @@ export default function ServiceGRPOPreviewPage() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Bilty Number</span>
-                <span className="font-semibold">{preview?.bilty_no || '-'}</span>
+                <span className="font-semibold">{form?.biltyNo || preview?.bilty_no || '-'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">SAP Document Number</span>

@@ -28,7 +28,7 @@ export interface DispatchVehicleLinkPayload {
   sap_invoice_doc_num: string;
   linked_invoice_doc_entries?: number[];
   invoice_number: string;
-  eway_bill: string;
+  eway_bill?: string;
   invoice_weight: string | null;
   invoice_amount: string | null;
   place_of_supply: string;
@@ -56,11 +56,11 @@ export interface DispatchVehicleLinkPayload {
   driver_license_no?: string;
   driver_id_proof_type?: string;
   driver_id_proof_number?: string;
-  bilty_no: string;
-  bilty_date: string | null;
+  bilty_no?: string;
+  bilty_date?: string | null;
   bilty_attachment?: File | null;
-  freight: string | null;
-  total_freight: string | null;
+  freight?: string | null;
+  total_freight?: string | null;
   kanta_weight?: string | null;
   remarks: string;
 }

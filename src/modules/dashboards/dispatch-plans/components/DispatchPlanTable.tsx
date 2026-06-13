@@ -14,7 +14,13 @@ interface DispatchPlanTableProps {
   onEdit: (bill: DispatchBill) => void;
 }
 
-type SortCol = 'create_date' | 'doc_num' | 'card_name' | 'doc_total' | 'booking_status';
+type SortCol =
+  | 'create_date'
+  | 'doc_num'
+  | 'card_name'
+  | 'doc_total'
+  | 'total_litres'
+  | 'booking_status';
 
 interface SortState {
   col: SortCol;
@@ -134,6 +140,9 @@ export function DispatchPlanTable({ bills, isLoading, canEdit, onEdit }: Dispatc
                 <th className={thRightClass} onClick={() => toggleSort('doc_total')}>
                   Value <SortIcon col="doc_total" sort={sort} />
                 </th>
+                <th className={thRightClass} onClick={() => toggleSort('total_litres')}>
+                  Total Litres <SortIcon col="total_litres" sort={sort} />
+                </th>
                 <th className={thRightClass}>Load</th>
                 <th className={thClass}>SAP Transport</th>
                 <th className={thClass} onClick={() => toggleSort('booking_status')}>
@@ -206,7 +215,11 @@ export function DispatchPlanTable({ bills, isLoading, canEdit, onEdit }: Dispatc
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right align-top tabular-nums">
-                    <div>{formatNumber(bill.total_litres, 2)} L</div>
+                    {hasQuantity(bill.total_litres)
+                      ? `${formatNumber(bill.total_litres, 2)} L`
+                      : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right align-top tabular-nums">
                     <div className="text-xs text-muted-foreground">
                       {hasQuantity(bill.total_boxes)
                         ? `${formatNumber(bill.total_boxes, 2)} boxes`
