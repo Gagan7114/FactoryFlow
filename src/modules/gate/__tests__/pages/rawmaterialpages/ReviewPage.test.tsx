@@ -39,4 +39,16 @@ describe('ReviewPage', () => {
     expect(content).not.toContain('Fill Weighment');
     expect(content).toContain('No weighment recorded for this entry.');
   });
+
+  it('uses backend QC completion summary before enabling completion', () => {
+    expect(content).toContain('const qcSummary = gateEntry.qc_summary');
+    expect(content).toContain('const isQcReadyToComplete = qcSummary.can_complete');
+    expect(content).toContain('disabled={isCompleting || !isQcReadyToComplete}');
+  });
+
+  it('shows QC blockers when security is done but QC is not complete', () => {
+    expect(content).toContain('QC must be completed before gate entry completion');
+    expect(content).toContain('Pending QC items:');
+    expect(content).toContain('on hold');
+  });
 });

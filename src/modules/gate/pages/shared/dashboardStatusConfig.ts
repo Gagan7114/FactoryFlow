@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   FileText,
+  ShieldCheck,
   type LucideIcon,
   XCircle,
 } from 'lucide-react';
@@ -46,7 +47,21 @@ export const DEFAULT_STATUS_CONFIG: DashboardStatusConfig = {
 };
 
 export const RAW_MATERIAL_STATUS_CONFIG: DashboardStatusConfig = {
-  statusOrder: ['draft', 'in_progress', 'qc_completed', 'completed', 'cancelled', 'rejected'],
+  statusOrder: [
+    'draft',
+    'security_check_done',
+    'arrival_slip_submitted',
+    'arrival_slip_rejected',
+    'in_progress',
+    'qc_pending',
+    'qc_in_review',
+    'qc_awaiting_qam',
+    'qc_rejected',
+    'qc_hold',
+    'qc_completed',
+    'completed',
+    'cancelled',
+  ],
   statusConfig: {
     DRAFT: {
       label: 'Draft',
@@ -54,11 +69,59 @@ export const RAW_MATERIAL_STATUS_CONFIG: DashboardStatusConfig = {
       bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
       icon: FileText,
     },
+    SECURITY_CHECK_DONE: {
+      label: 'Security Done',
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-200 dark:border-cyan-800',
+      icon: ShieldCheck,
+    },
+    ARRIVAL_SLIP_SUBMITTED: {
+      label: 'Slip Submitted',
+      color: 'text-sky-600 dark:text-sky-400',
+      bgColor: 'bg-sky-50 dark:bg-sky-900/20 border-sky-200 dark:border-sky-800',
+      icon: FileText,
+    },
+    ARRIVAL_SLIP_REJECTED: {
+      label: 'Slip Rejected',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+      icon: XCircle,
+    },
     IN_PROGRESS: {
       label: 'In Progress',
       color: 'text-blue-600 dark:text-blue-400',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
       icon: Clock,
+    },
+    QC_PENDING: {
+      label: 'QC Pending',
+      color: 'text-yellow-600 dark:text-yellow-400',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800',
+      icon: Clock,
+    },
+    QC_IN_REVIEW: {
+      label: 'QC In Review',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+      icon: Clock,
+    },
+    QC_AWAITING_QAM: {
+      label: 'Awaiting QAM',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
+      icon: AlertCircle,
+    },
+    QC_REJECTED: {
+      label: 'QC Rejected',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+      icon: XCircle,
+    },
+    QC_HOLD: {
+      label: 'QC On Hold',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
+      icon: AlertCircle,
     },
     QC_COMPLETED: {
       label: 'QC Completed',
@@ -78,12 +141,6 @@ export const RAW_MATERIAL_STATUS_CONFIG: DashboardStatusConfig = {
       bgColor: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
       icon: XCircle,
     },
-    REJECTED: {
-      label: 'Rejected',
-      color: 'text-orange-600 dark:text-orange-400',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800',
-      icon: AlertCircle,
-    },
   },
-  gridCols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6',
+  gridCols: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-7',
 };

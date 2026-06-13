@@ -273,6 +273,23 @@ export default function ReviewPage() {
   }
 
   const isAlreadyCompleted = gateEntry.gate_entry.status === ENTRY_STATUS.COMPLETED;
+  const isSecuritySubmitted = gateEntry.security_check?.is_submitted || securityJustSubmitted;
+  const qcSummary = gateEntry.qc_summary;
+  const isQcReadyToComplete = qcSummary.can_complete;
+  const qcPendingCount =
+    qcSummary.no_slip +
+    qcSummary.slip_draft +
+    qcSummary.awaiting_inspection +
+    qcSummary.inspection_draft +
+    qcSummary.awaiting_chemist +
+    qcSummary.awaiting_qam +
+    qcSummary.pending;
+  const qcBlockerText = [
+    qcPendingCount ? `${qcPendingCount} pending` : null,
+    qcSummary.hold ? `${qcSummary.hold} on hold` : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div className="space-y-6 pb-6">
@@ -566,12 +583,31 @@ export default function ReviewPage() {
         {!isAlreadyCompleted && (
           <Card className="border-primary/50">
             <CardContent className="pt-6">
-              {gateEntry.security_check?.is_submitted || securityJustSubmitted ? (
-                <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">
-                    Security check submitted. Ready to complete entry.
-                  </span>
+              {isSecuritySubmitted ? (
+                <div
+                  className={
+                    isQcReadyToComplete
+                      ? 'flex items-start gap-3 text-green-600 dark:text-green-400'
+                      : 'flex items-start gap-3 text-orange-600 dark:text-orange-400'
+                  }
+                >
+                  {isQcReadyToComplete ? (
+                    <CheckCircle2 className="mt-0.5 h-5 w-5" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 h-5 w-5" />
+                  )}
+                  <div>
+                    <span className="font-medium">
+                      {isQcReadyToComplete
+                        ? 'Security and QC completed. Ready to complete entry.'
+                        : 'Security submitted. QC must be completed before gate entry completion.'}
+                    </span>
+                    {!isQcReadyToComplete && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Pending QC items: {qcBlockerText || 'not ready'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-between">
@@ -615,7 +651,7 @@ export default function ReviewPage() {
           </Button>
           {!isAlreadyCompleted && (
             <>
-              {!gateEntry?.security_check?.is_submitted && !securityJustSubmitted ? (
+              {!isSecuritySubmitted ? (
                 <Button
                   type="button"
                   onClick={handleSubmitSecurity}
@@ -625,7 +661,11 @@ export default function ReviewPage() {
                   {isSubmittingSecurity ? 'Submitting...' : 'Submit Security'}
                 </Button>
               ) : (
-                <Button type="button" onClick={handleComplete} disabled={isCompleting}>
+                <Button
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={isCompleting || !isQcReadyToComplete}
+                >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   {isCompleting ? 'Completing...' : 'Complete Entry'}
                 </Button>

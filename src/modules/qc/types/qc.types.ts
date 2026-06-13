@@ -7,7 +7,8 @@ export type InspectionWorkflowStatus =
   | 'SUBMITTED'
   | 'QA_CHEMIST_APPROVED'
   | 'QAM_APPROVED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'COMPLETED';
 
 // Extended workflow status for list views (includes computed NOT_STARTED)
 export type InspectionListWorkflowStatus = 'NOT_STARTED' | InspectionWorkflowStatus;

@@ -54,7 +54,7 @@ describe('qc.constants — WORKFLOW_STATUS', () => {
     expect(content).toContain('as const satisfies');
   });
 
-  it('has all 6 workflow status keys', () => {
+  it('has all workflow status keys', () => {
     const content = readSource();
     expect(content).toMatch(/WORKFLOW_STATUS\s*=\s*\{/);
     expect(content).toContain("NOT_STARTED: 'NOT_STARTED'");
@@ -63,6 +63,7 @@ describe('qc.constants — WORKFLOW_STATUS', () => {
     expect(content).toContain("QA_CHEMIST_APPROVED: 'QA_CHEMIST_APPROVED'");
     expect(content).toContain("QAM_APPROVED: 'QAM_APPROVED'");
     expect(content).toContain("REJECTED: 'REJECTED'");
+    expect(content).toContain("COMPLETED: 'COMPLETED'");
   });
 });
 
@@ -77,15 +78,16 @@ describe('qc.constants — WORKFLOW_STATUS_CONFIG', () => {
     expect(content).toContain('Record<InspectionListWorkflowStatus, StatusConfig>');
   });
 
-  it('has entries for all 6 workflow statuses with label, color, bgColor, icon', () => {
+  it('has entries for all workflow statuses with label, color, bgColor, icon', () => {
     const content = readSource();
-    // Check all 6 entries exist
+    // Check all entries exist
     expect(content).toMatch(/NOT_STARTED:\s*\{/);
     expect(content).toMatch(/DRAFT:\s*\{/);
     expect(content).toMatch(/SUBMITTED:\s*\{/);
     expect(content).toMatch(/QA_CHEMIST_APPROVED:\s*\{/);
     expect(content).toMatch(/QAM_APPROVED:\s*\{/);
     expect(content).toMatch(/REJECTED:\s*\{/);
+    expect(content).toMatch(/COMPLETED:\s*\{/);
     // Check shape fields
     expect(content).toContain("label: 'Pending'");
     expect(content).toContain("label: 'Draft'");
@@ -93,6 +95,7 @@ describe('qc.constants — WORKFLOW_STATUS_CONFIG', () => {
     expect(content).toContain("label: 'Awaiting Manager'");
     expect(content).toContain("label: 'Approved'");
     expect(content).toContain("label: 'Rejected'");
+    expect(content).toContain("label: 'Completed'");
   });
 });
 
