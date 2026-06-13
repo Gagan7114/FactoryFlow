@@ -76,3 +76,6 @@ export {
   MAINTENANCE_PERMISSIONS,
   type MaintenancePermission,
 } from './maintenance.permissions';
+
+// Audit Module
+export { AUDIT_MODULE_PREFIX, AUDIT_PERMISSIONS, type AuditPermission } from './audit.permissions';

@@ -661,6 +661,14 @@ export const API_ENDPOINTS = {
     PRODUCTION_LABELS: (runId: number) => `/barcode/production/${runId}/generate-labels/`,
     PRODUCTION_PALLET: (runId: number) => `/barcode/production/${runId}/create-pallet/`,
   },
+  AUDIT: {
+    ENTRIES: '/audit/entries/',
+    SUMMARY: '/audit/summary/',
+    DETAIL: (entryId: number) => `/audit/entries/${entryId}/`,
+    RECEIVE_DOCUMENTS: (entryId: number) => `/audit/entries/${entryId}/receive-documents/`,
+    PRE_AUDIT: (entryId: number) => `/audit/entries/${entryId}/pre-audit/`,
+    REMARKS: (entryId: number) => `/audit/entries/${entryId}/remarks/`,
+  },
 } as const;
 
 export const HTTP_STATUS = {

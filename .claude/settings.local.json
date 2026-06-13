@@ -70,7 +70,15 @@
       "Bash(rm -f /tmp/inspect_grpo.py /tmp/inspect2.py /tmp/inspect3.py)",
       "Bash(python3 -m py_compile grpo/services.py)",
       "Bash(node node_modules/typescript/bin/tsc --noEmit -p tsconfig.app.json)",
-      "Bash(python3 -m py_compile production_execution/services/production_movement_reader.py)"
+      "Bash(python3 -m py_compile production_execution/services/production_movement_reader.py)",
+      "Bash(python3 -c \"import openpyxl; print\\('openpyxl OK'\\)\")",
+      "Bash(python3 -c \"import pandas; print\\('pandas OK'\\)\")",
+      "Bash(python3 -c \"import openpyxl; print\\('openpyxl', openpyxl.__version__\\)\")",
+      "Bash(python3)",
+      "Bash(sed -n '1,60p' grpo/permissions.py)",
+      "Bash(sed -n '1,60p' grpo/migrations/0003_create_grpo_group.py)",
+      "Bash(python3 -c \"import django; print\\('django', django.get_version\\(\\)\\)\")",
+      "Bash(python3 -m py_compile audit/*.py audit/migrations/*.py config/settings.py config/urls.py)"
     ],
     "additionalDirectories": [
       "/tmp"
