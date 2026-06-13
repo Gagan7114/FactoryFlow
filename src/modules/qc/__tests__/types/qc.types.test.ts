@@ -1,22 +1,25 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect,it } from 'vitest';
+
 import type {
-  ArrivalSlipStatus,
-  InspectionWorkflowStatus,
-  InspectionListWorkflowStatus,
-  InspectionFinalStatus,
-  ParameterType,
-  MaterialType,
-  CreateMaterialTypeRequest,
-  QCParameter,
-  CreateQCParameterRequest,
-  ParameterResult,
-  UpdateParameterResultRequest,
-  ArrivalSlipForQC,
-  InspectionListItem,
-  InspectionCounts,
-  Inspection,
-  CreateInspectionRequest,
   ApprovalRequest,
+  ArrivalSlipForQC,
+  ArrivalSlipStatus,
+  CreateInspectionRequest,
+  CreateMaterialTypeRequest,
+  CreateQCParameterRequest,
+  Inspection,
+  InspectionCounts,
+  InspectionFinalStatus,
+  InspectionListItem,
+  InspectionListWorkflowStatus,
+  InspectionWorkflowStatus,
+  MaterialType,
+  ParameterResult,
+  ParameterType,
+  QCParameter,
+  QCPrintDocument,
+  SaveQCPrintDocumentRequest,
+  UpdateParameterResultRequest,
 } from '../../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -109,6 +112,32 @@ describe('CreateMaterialTypeRequest', () => {
   it('works with optional description', () => {
     const req: CreateMaterialTypeRequest = { code: 'CAP', name: 'Cap', description: 'A cap' };
     expect(req.description).toBe('A cap');
+  });
+});
+
+describe('QCPrintDocument', () => {
+  it('is usable with all fields', () => {
+    const document: QCPrintDocument = {
+      id: 1,
+      document_key: 'RAW_MATERIAL_INSPECTION',
+      document_key_label: 'Raw Material Inspection Print',
+      document_id: 'QC-FRM-001',
+      notes: 'Footer document ID',
+      is_active: true,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    };
+    expect(document.document_id).toBe('QC-FRM-001');
+  });
+});
+
+describe('SaveQCPrintDocumentRequest', () => {
+  it('works with required fields only', () => {
+    const req: SaveQCPrintDocumentRequest = {
+      document_key: 'RAW_MATERIAL_INSPECTION',
+      document_id: 'QC-FRM-001',
+    };
+    expect(req.notes).toBeUndefined();
   });
 });
 
@@ -318,6 +347,9 @@ describe('Inspection', () => {
       is_locked: false,
       remarks: '',
       parameter_results: [],
+      attachments: [],
+      qc_attachments: [],
+      print_document_id: 'QC-FRM-001',
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     };

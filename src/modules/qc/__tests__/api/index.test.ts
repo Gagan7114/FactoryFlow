@@ -1,12 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect,it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // api/index.ts — Barrel Re-exports
 // ═══════════════════════════════════════════════════════════════
 
 function readSource(): string {
-  const { readFileSync } = require('node:fs');
-  const { resolve } = require('node:path');
   return readFileSync(resolve(process.cwd(), 'src/modules/qc/api/index.ts'), 'utf-8');
 }
 
@@ -24,6 +25,11 @@ describe('api/index.ts — Barrel', () => {
   it('re-exports from ./qcParameter', () => {
     const content = readSource();
     expect(content).toContain("from './qcParameter'");
+  });
+
+  it('re-exports from ./printDocument', () => {
+    const content = readSource();
+    expect(content).toContain("from './printDocument'");
   });
 
   it('does NOT re-export from ./arrivalSlip', () => {

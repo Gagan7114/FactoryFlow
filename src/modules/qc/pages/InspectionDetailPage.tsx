@@ -161,6 +161,19 @@ export default function InspectionDetailPage() {
   const sendBackArrivalSlip = useSendBackArrivalSlip();
   const { currentCompany } = usePermission();
 
+  useEffect(() => {
+    const documentId = inspection?.print_document_id?.trim();
+    if (!documentId) {
+      delete document.body.dataset.qcPrintDocumentId;
+      return undefined;
+    }
+
+    document.body.dataset.qcPrintDocumentId = documentId;
+    return () => {
+      delete document.body.dataset.qcPrintDocumentId;
+    };
+  }, [inspection?.print_document_id]);
+
   // Send-back state
   const [sendBackRemarks, setSendBackRemarks] = useState('');
 

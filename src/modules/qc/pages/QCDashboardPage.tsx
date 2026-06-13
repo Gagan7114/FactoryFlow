@@ -3,6 +3,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Factory,
+  FileText,
   FlaskConical,
   Package,
   RefreshCw,
@@ -286,6 +287,16 @@ export default function QCDashboardPage() {
                   >
                     <FlaskConical className="h-5 w-5" />
                     <span className="text-xs">QC Parameters</span>
+                  </Button>
+                )}
+                {canManageQCParameters && (
+                  <Button
+                    variant="outline"
+                    className="flex h-auto flex-col items-center gap-1 py-3"
+                    onClick={() => navigate('/qc/master/print-documents')}
+                  >
+                    <FileText className="h-5 w-5" />
+                    <span className="text-xs">Print Documents</span>
                   </Button>
                 )}
               </div>

@@ -108,6 +108,11 @@ describe('module.config — Routes', () => {
     expect(content).toContain("path: '/qc/master/parameters'");
   });
 
+  it('has /qc/master/print-documents route', () => {
+    const content = readSource();
+    expect(content).toContain("path: '/qc/master/print-documents'");
+  });
+
   it('lazy loads all page components', () => {
     const content = readSource();
     expect(content).toContain('const QCDashboardPage = lazy(');
@@ -116,6 +121,7 @@ describe('module.config — Routes', () => {
     expect(content).toContain('const ApprovalQueuePage = lazy(');
     expect(content).toContain('const MaterialTypesPage = lazy(');
     expect(content).toContain('const QCParametersPage = lazy(');
+    expect(content).toContain('const PrintDocumentsPage = lazy(');
   });
 });
 
@@ -150,5 +156,6 @@ describe('module.config — Navigation', () => {
     expect(content).toContain("title: 'Customer Return QC'");
     expect(content).toContain("title: 'Material Types'");
     expect(content).toContain("title: 'QC Parameters'");
+    expect(content).toContain("title: 'Print Documents'");
   });
 });

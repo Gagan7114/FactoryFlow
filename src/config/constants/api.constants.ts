@@ -199,6 +199,10 @@ export const API_ENDPOINTS = {
       `/quality-control/material-types/${materialTypeId}/parameters/`,
     SAP_ITEMS: '/quality-control/sap-items/',
 
+    // QC Print Documents
+    PRINT_DOCUMENTS: '/quality-control/print-documents/',
+    PRINT_DOCUMENT_BY_ID: (id: number) => `/quality-control/print-documents/${id}/`,
+
     // QC Parameters
     QC_PARAMETER_BY_ID: (id: number) => `/quality-control/parameters/${id}/`,
 

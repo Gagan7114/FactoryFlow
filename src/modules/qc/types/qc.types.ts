@@ -62,6 +62,26 @@ export interface CreateMaterialTypeRequest {
   copy_parameters_from_material_type_id?: number | null;
 }
 
+// QC Print Documents
+export type QCPrintDocumentKey = 'RAW_MATERIAL_INSPECTION';
+
+export interface QCPrintDocument {
+  id: number;
+  document_key: QCPrintDocumentKey;
+  document_key_label: string;
+  document_id: string;
+  notes: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveQCPrintDocumentRequest {
+  document_key: QCPrintDocumentKey;
+  document_id: string;
+  notes?: string;
+}
+
 // QC Parameter
 export interface QCParameter {
   id: number;
@@ -253,6 +273,7 @@ export interface Inspection {
   parameter_results: ParameterResult[];
   attachments: ArrivalSlipAttachment[];
   qc_attachments: InspectionAttachment[];
+  print_document_id: string;
   created_at: string;
   updated_at: string;
 }

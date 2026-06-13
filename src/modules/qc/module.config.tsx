@@ -15,6 +15,7 @@ const ApprovalQueuePage = lazy(() => import('./pages/ApprovalQueuePage'));
 // Master Data (shared)
 const MaterialTypesPage = lazy(() => import('./pages/masterdata/MaterialTypesPage'));
 const QCParametersPage = lazy(() => import('./pages/masterdata/QCParametersPage'));
+const PrintDocumentsPage = lazy(() => import('./pages/masterdata/PrintDocumentsPage'));
 
 // Line Clearance QA submodule
 const LineClearanceQAPage = lazy(() => import('./pages/LineClearanceQAPage'));
@@ -154,6 +155,13 @@ export const qcModuleConfig: ModuleConfig = {
       permissions: [QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS],
       breadcrumb: { label: 'Params' },
     },
+    {
+      path: '/qc/master/print-documents',
+      element: <PrintDocumentsPage />,
+      layout: 'main',
+      permissions: [QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS],
+      breadcrumb: { label: 'Print Docs' },
+    },
 
     // ==================== Legacy route redirects ====================
     // Keep old routes working (redirect via same components)
@@ -250,6 +258,11 @@ export const qcModuleConfig: ModuleConfig = {
         {
           path: '/qc/master/parameters',
           title: 'QC Parameters',
+          permissions: [QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS],
+        },
+        {
+          path: '/qc/master/print-documents',
+          title: 'Print Documents',
           permissions: [QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS],
         },
       ],

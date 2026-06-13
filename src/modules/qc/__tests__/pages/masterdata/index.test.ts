@@ -1,12 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { describe, expect,it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // pages/masterdata/index.ts — Barrel Re-exports
 // ═══════════════════════════════════════════════════════════════
 
 function readSource(): string {
-  const { readFileSync } = require('node:fs');
-  const { resolve } = require('node:path');
   return readFileSync(resolve(process.cwd(), 'src/modules/qc/pages/masterdata/index.ts'), 'utf-8');
 }
 
@@ -19,6 +20,11 @@ describe('pages/masterdata/index.ts — Barrel', () => {
   it('exports QCParametersPage', () => {
     const content = readSource();
     expect(content).toContain('QCParametersPage');
+  });
+
+  it('exports PrintDocumentsPage', () => {
+    const content = readSource();
+    expect(content).toContain('PrintDocumentsPage');
   });
 
   it('uses default export re-export pattern', () => {
