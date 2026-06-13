@@ -3,7 +3,9 @@ import type { Reducer } from '@reduxjs/toolkit';
 import type { ModuleConfig, ModuleNavItem, ModuleRoute } from '@/core/types';
 // Module configuration imports
 // Each module exports its own routes, navigation, and reducers
+import { adminModuleConfig } from '@/modules/admin/module.config';
 import { authModuleConfig } from '@/modules/auth/module.config';
+import { barcodeModuleConfig } from '@/modules/barcode/module.config';
 import { dashboardModuleConfig } from '@/modules/dashboard/module.config';
 import { dashboardsModuleConfig } from '@/modules/dashboards/module.config';
 import { dispatchModuleConfig } from '@/modules/dispatch/module.config';
@@ -16,7 +18,6 @@ import { qcModuleConfig } from '@/modules/qc/module.config';
 import { settingsModuleConfig } from '@/modules/settings/module.config';
 import { vehicleManagementModuleConfig } from '@/modules/vehicle-management/module.config';
 import { warehouseModuleConfig } from '@/modules/warehouse/module.config';
-import { barcodeModuleConfig } from '@/modules/barcode/module.config';
 
 /**
  * Central registry of all feature modules
@@ -24,6 +25,7 @@ import { barcodeModuleConfig } from '@/modules/barcode/module.config';
  */
 export const moduleRegistry: ModuleConfig[] = [
   authModuleConfig,
+  adminModuleConfig,
   dashboardModuleConfig,
   dashboardsModuleConfig,
   dispatchModuleConfig,

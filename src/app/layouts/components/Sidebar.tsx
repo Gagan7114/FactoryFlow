@@ -144,6 +144,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {navItems.map((item) => {
           // Icon comes directly from module config, fallback to LayoutDashboard
           const Icon = item.icon || LayoutDashboard;
+          const Badge = item.badge;
           const hasSubmenu = item.hasSubmenu && item.children && item.children.length > 0;
           const isOpen = hasSubmenu ? isSubmenuOpen(item.path) : false;
           const isActive = isRouteActive(item);
@@ -156,7 +157,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     to={item.path}
                     className={({ isActive }) =>
                       cn(
-                        'flex h-10 w-10 items-center justify-center rounded-md transition-colors',
+                        'relative flex h-10 w-10 items-center justify-center rounded-md transition-colors',
                         isActive
                           ? 'bg-primary text-primary-foreground'
                           : 'hover:bg-accent hover:text-accent-foreground',
@@ -164,6 +165,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     }
                   >
                     <Icon className="h-5 w-5" />
+                    {Badge ? (
+                      <Badge className="absolute -right-1 -top-1 h-4 min-w-[1rem] px-1 text-[10px]" />
+                    ) : null}
                   </NavLink>
                 </TooltipTrigger>
                 <TooltipContent side="right">{item.title}</TooltipContent>
@@ -192,6 +196,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   >
                     <Icon className="h-5 w-5" />
                     <span>{item.title}</span>
+                    {Badge ? <Badge className="ml-auto" /> : null}
                   </NavLink>
                   <Button
                     variant="ghost"
@@ -213,6 +218,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 <CollapsibleContent className="ml-4 space-y-1 border-l pl-3">
                   {item.children!.map((child) => {
                     const childIsActive = location.pathname === child.path;
+                    const ChildBadge = child.badge;
                     return (
                       <NavLink
                         key={child.path}
@@ -227,6 +233,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                         }
                       >
                         <span>{child.title}</span>
+                        {ChildBadge ? <ChildBadge className="ml-auto" /> : null}
                       </NavLink>
                     );
                   })}
@@ -251,6 +258,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             >
               <Icon className="h-5 w-5" />
               <span>{item.title}</span>
+              {Badge ? <Badge className="ml-auto" /> : null}
             </NavLink>
           );
         })}

@@ -1,5 +1,6 @@
 import type { Reducer } from '@reduxjs/toolkit';
 import type { LucideIcon } from 'lucide-react';
+import type { ComponentType } from 'react';
 
 /**
  * Navigation item configuration for sidebar menu
@@ -21,6 +22,12 @@ export interface ModuleNavItem {
   hasSubmenu?: boolean;
   /** Child navigation items for submenus */
   children?: ModuleNavItem[];
+  /**
+   * Optional badge component rendered next to the title (and overlaid on the icon when
+   * collapsed). Used for live indicators such as a pending-approval count. The component
+   * fetches its own data and should render nothing when there is nothing to show.
+   */
+  badge?: ComponentType<{ className?: string }>;
 }
 
 /**

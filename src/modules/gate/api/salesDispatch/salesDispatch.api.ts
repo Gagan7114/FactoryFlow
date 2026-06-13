@@ -61,6 +61,8 @@ export interface SalesDispatchGatepassReadiness {
   missing: string[];
   has_truck_photo_geolocation: boolean;
   has_box_scans: boolean;
+  /** True when an admin-approved scan-skip request satisfies the box-scan requirement. */
+  scan_skip_approved?: boolean;
   has_weighment: boolean;
   has_items: boolean;
   has_bilty_details?: boolean;
@@ -152,6 +154,8 @@ export interface SalesDispatchBoxScan {
   batch_number?: string;
   quantity?: string | null;
   uom?: string;
+  net_weight?: string | null;
+  gross_weight?: string | null;
   box_status?: string;
   warehouse_code?: string;
   pallet_code?: string;

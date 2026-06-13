@@ -110,6 +110,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
           {navItems.map((item) => {
             // Icon comes directly from module config, fallback to LayoutDashboard
             const Icon = item.icon || LayoutDashboard;
+            const Badge = item.badge;
             const hasSubmenu = item.hasSubmenu && item.children && item.children.length > 0;
             const isOpen = hasSubmenu ? isSubmenuOpen(item.path) : false;
             const isActive = isRouteActive(item);
@@ -135,6 +136,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                     >
                       <Icon className="h-5 w-5" />
                       <span>{item.title}</span>
+                      {Badge ? <Badge className="ml-auto" /> : null}
                     </NavLink>
                     <Button
                       variant="ghost"
@@ -156,6 +158,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                   <CollapsibleContent className="ml-4 space-y-1 border-l pl-3">
                     {item.children!.map((child) => {
                       const childIsActive = location.pathname === child.path;
+                      const ChildBadge = child.badge;
                       return (
                         <NavLink
                           key={child.path}
@@ -171,6 +174,7 @@ function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
                           }
                         >
                           <span>{child.title}</span>
+                          {ChildBadge ? <ChildBadge className="ml-auto" /> : null}
                         </NavLink>
                       );
                     })}
