@@ -41,13 +41,18 @@ jobs:
           VITE_DEFAULT_BRANCH_ID: ${{ secrets.VITE_DEFAULT_BRANCH_ID }}
 
       - name: Compress Build
-        run: tar -czf build.tar.gz dist
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          tar -czf build.tar.gz dist
+          test -s build.tar.gz
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: react-build-${{ github.sha }}
           path: build.tar.gz
+          if-no-files-found: error
           retention-days: 7
 
       - name: Prepare SSH
@@ -56,8 +61,8 @@ jobs:
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
           set -euo pipefail
-          test -n "$SERVER_HOST"
-          test -n "$SERVER_SSH_KEY"
+          : "${SERVER_HOST:?Missing required SERVER_HOST secret}"
+          : "${SERVER_SSH_KEY:?Missing required SERVER_SSH_KEY secret}"
           mkdir -p ~/.ssh
           printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
@@ -66,37 +71,34 @@ jobs:
             echo "::warning::ssh-keyscan failed for SERVER_HOST; deploy will use accept-new host key checking"
 
       - name: Upload Build
-        id: upload-build
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          set -uo pipefail
-          test -n "$SERVER_HOST"
-          test -n "$SERVER_USER"
-          if ! timeout 5m scp \
+          set -euo pipefail
+          : "${SERVER_HOST:?Missing required SERVER_HOST secret}"
+          : "${SERVER_USER:?Missing required SERVER_USER secret}"
+
+          if ! timeout 5m ssh \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=60 \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
-            build.tar.gz "$SERVER_USER@$SERVER_HOST:/tmp/build.tar.gz"; then
-            echo "::warning::Build succeeded, but upload to the deployment server failed. The build artifact is attached to this workflow run. Check SERVER_HOST connectivity, firewall, and SSH access."
-            echo "uploaded=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            "$SERVER_USER@$SERVER_HOST" 'cat > /tmp/build.tar.gz' < build.tar.gz; then
+            echo "::error::Build succeeded, but upload to the deployment server failed. The build artifact is attached to this workflow run. Check SERVER_HOST connectivity, firewall, SSH access, and write permission for /tmp/build.tar.gz."
+            exit 1
           fi
-          echo "uploaded=true" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Server
-        if: steps.upload-build.outputs.uploaded == 'true'
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          test -n "$SERVER_HOST"
-          test -n "$SERVER_USER"
+          : "${SERVER_HOST:?Missing required SERVER_HOST secret}"
+          : "${SERVER_USER:?Missing required SERVER_USER secret}"
           timeout 10m ssh \
             -i ~/.ssh/deploy_key \
             -o BatchMode=yes \
@@ -105,9 +107,11 @@ jobs:
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
             "$SERVER_USER@$SERVER_HOST" <<'EOF'
+            test -s /tmp/build.tar.gz
             sudo rm -rf /var/www/react-app/*
             sudo mkdir -p /var/www/react-app
             sudo tar -xzf /tmp/build.tar.gz -C /var/www/react-app --strip-components=1
+            sudo test -f /var/www/react-app/index.html
             sudo rm /tmp/build.tar.gz
             sudo systemctl restart nginx
           EOF
