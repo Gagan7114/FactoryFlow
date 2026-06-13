@@ -153,9 +153,16 @@ export default function SharedDashboard({
                   navigate(`${config.routePrefix}/edit/${entry.id}/${step}`);
                 }}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <span className="font-medium text-sm">{entry.entry_no}</span>
                   <GateStatusBadge status={entry.status} size="xs" />
+                  {entry.qc_final_status ? (
+                    <GateStatusBadge
+                      status={entry.qc_final_status.code}
+                      label={entry.qc_final_status.display}
+                      size="xs"
+                    />
+                  ) : null}
                   <span className="text-xs text-muted-foreground hidden sm:inline">
                     {entry.vehicle?.vehicle_number} • {entry.driver?.name}
                   </span>

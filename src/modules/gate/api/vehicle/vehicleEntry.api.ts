@@ -9,6 +9,15 @@ export interface VehicleEntry {
   entry_no: string;
   status: string;
   entry_type?: string;
+  qc_final_status?: {
+    code: string;
+    display: string;
+    accepted_count: number;
+    rejected_count: number;
+    hold_count: number;
+    pending_count: number;
+    total_count: number;
+  } | null;
   vehicle?: Vehicle;
   driver?: Driver;
   remarks?: string;

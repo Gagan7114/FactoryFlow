@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
+import { describe, expect,it } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════
 // SharedDashboard — File Content Verification
@@ -34,5 +35,10 @@ describe('SharedDashboard', () => {
 
   it('defines SharedDashboardProps', () => {
     expect(content).toContain('SharedDashboardProps');
+  });
+
+  it('shows row-level QC final status beside recent entry status', () => {
+    expect(content).toContain('entry.qc_final_status');
+    expect(content).toContain('entry.qc_final_status.display');
   });
 });

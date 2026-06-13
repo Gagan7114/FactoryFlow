@@ -42,6 +42,7 @@ export default function RawMaterialsPage() {
         (entry) =>
           entry.entry_no?.toLowerCase().includes(searchLower) ||
           entry.status?.toLowerCase().includes(searchLower) ||
+          entry.qc_final_status?.display?.toLowerCase().includes(searchLower) ||
           entry.remarks?.toLowerCase().includes(searchLower) ||
           entry.vehicle?.vehicle_number?.toLowerCase().includes(searchLower) ||
           entry.driver?.name?.toLowerCase().includes(searchLower),
@@ -190,7 +191,16 @@ export default function RawMaterialsPage() {
                       {formatDateTime(entry.entry_time)}
                     </td>
                     <td className="p-3 text-sm">
-                      <GateStatusBadge status={entry.status} />
+                      <div className="flex flex-col items-start gap-1">
+                        <GateStatusBadge status={entry.status} />
+                        {entry.qc_final_status ? (
+                          <GateStatusBadge
+                            status={entry.qc_final_status.code}
+                            label={entry.qc_final_status.display}
+                            size="xs"
+                          />
+                        ) : null}
+                      </div>
                     </td>
                     <td className="p-3 text-sm text-muted-foreground">{entry.remarks || '-'}</td>
                     <td className="p-3 text-right">
