@@ -10,6 +10,7 @@ const mockInvalidateQueries = vi.fn();
 const mockUseQueryClient = vi.fn(() => ({ invalidateQueries: mockInvalidateQueries }));
 
 vi.mock('@tanstack/react-query', () => ({
+  keepPreviousData: vi.fn(),
   useQuery: (...args: unknown[]) => mockUseQuery(...args),
   useMutation: (...args: unknown[]) => mockUseMutation(...args),
   useQueryClient: () => mockUseQueryClient(),
@@ -69,6 +70,12 @@ describe('useMaterialTypes', () => {
   it('calls useQuery', () => {
     useMaterialTypes();
     expect(mockUseQuery).toHaveBeenCalled();
+  });
+
+  it('keeps previous list data while params change', () => {
+    useMaterialTypes({ search: 'cap' });
+    const config = mockUseQuery.mock.calls[0][0] as Record<string, unknown>;
+    expect(config).toHaveProperty('placeholderData');
   });
 });
 

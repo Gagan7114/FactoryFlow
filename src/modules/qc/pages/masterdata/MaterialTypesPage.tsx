@@ -1,5 +1,15 @@
-import { AlertCircle, ArrowLeft, Edit, FlaskConical, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Edit,
+  FlaskConical,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { QC_PERMISSIONS } from '@/config/permissions';
@@ -49,7 +59,18 @@ export default function MaterialTypesPage() {
   const navigate = useNavigate();
   const { hasAnyPermission } = usePermission();
   const canCopyQCParameters = hasAnyPermission([QC_PERMISSIONS.MASTER_DATA.MANAGE_QC_PARAMETERS]);
-  const { data: materialTypes = [], isLoading, error } = useMaterialTypes();
+  const [materialTypeSearch, setMaterialTypeSearch] = useState('');
+  const [debouncedMaterialTypeSearch, setDebouncedMaterialTypeSearch] = useState('');
+  const normalizedMaterialTypeSearch = materialTypeSearch.trim();
+  const materialTypeSearchTerm = debouncedMaterialTypeSearch.trim();
+  const {
+    data: materialTypes = [],
+    isFetching: isMaterialTypesFetching,
+    isLoading,
+    error,
+  } = useMaterialTypes(
+    materialTypeSearchTerm ? { search: materialTypeSearchTerm } : undefined,
+  );
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<MaterialType | null>(null);
@@ -69,6 +90,14 @@ export default function MaterialTypesPage() {
   const createMaterialType = useCreateMaterialType();
   const updateMaterialType = useUpdateMaterialType();
   const deleteMaterialType = useDeleteMaterialType();
+
+  useEffect(() => {
+    const debounceTimer = window.setTimeout(() => {
+      setDebouncedMaterialTypeSearch(normalizedMaterialTypeSearch);
+    }, 350);
+
+    return () => window.clearTimeout(debounceTimer);
+  }, [normalizedMaterialTypeSearch]);
 
   const handleOpenDialog = (type?: MaterialType) => {
     setSapItemSearch('');
@@ -227,6 +256,9 @@ export default function MaterialTypesPage() {
   };
 
   const isSaving = createMaterialType.isPending || updateMaterialType.isPending;
+  const isSearchDebouncing = normalizedMaterialTypeSearch !== materialTypeSearchTerm;
+  const isInitialLoading = isLoading && materialTypes.length === 0;
+  const isSearchUpdating = !isInitialLoading && (isSearchDebouncing || isMaterialTypesFetching);
 
   return (
     <div className="space-y-6 pb-6">
@@ -268,32 +300,110 @@ export default function MaterialTypesPage() {
         </div>
       )}
 
-      {/* Loading State */}
-      {isLoading && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-muted-foreground">Loading...</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Material Types Table */}
-      {!isLoading && !error && (
+      {!error && (
         <Card>
           <CardHeader>
-            <CardTitle>Material Types ({materialTypes.length})</CardTitle>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <CardTitle>Material Types ({materialTypes.length})</CardTitle>
+              <div className="relative w-full lg:max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  inputMode="search"
+                  value={materialTypeSearch}
+                  onChange={(event) => setMaterialTypeSearch(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape' && materialTypeSearch) {
+                      setMaterialTypeSearch('');
+                    }
+                  }}
+                  placeholder="Search code, name, or SAP item..."
+                  aria-label="Search material types"
+                  className="pl-9 pr-16"
+                />
+                {isSearchUpdating && (
+                  <span className="pointer-events-none absolute right-10 top-0 flex h-full items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </span>
+                )}
+                {materialTypeSearch && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setMaterialTypeSearch('')}
+                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 p-0"
+                    aria-label="Clear material type search"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                <span className="sr-only" aria-live="polite">
+                  {isSearchUpdating ? 'Updating material type results' : ''}
+                </span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            {materialTypes.length === 0 ? (
+            {isInitialLoading ? (
+              <div className="overflow-x-auto">
+                <table className="w-full table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[26%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b bg-muted/50">
+                      <th className="text-left p-3 font-medium">Code</th>
+                      <th className="text-left p-3 font-medium">Name</th>
+                      <th className="text-left p-3 font-medium">SAP Items</th>
+                      <th className="text-left p-3 font-medium">Description</th>
+                      <th className="text-center p-3 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-3">
+                          <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="p-3">
+                          <div className="h-4 w-56 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="p-3">
+                          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="p-3">
+                          <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="p-3">
+                          <div className="mx-auto h-8 w-12 animate-pulse rounded bg-muted" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : materialTypes.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
-                No material types found. Click "Add Material Type" to create one.
+                {materialTypeSearchTerm
+                  ? 'No material types match your search.'
+                  : 'No material types found. Click "Add Material Type" to create one.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full table-fixed text-sm">
+                  <colgroup>
+                    <col className="w-[26%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[10%]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b bg-muted/50">
                       <th className="text-left p-3 font-medium">Code</th>
@@ -306,15 +416,24 @@ export default function MaterialTypesPage() {
                   <tbody>
                     {materialTypes.map((type) => (
                       <tr key={type.id} className="border-b hover:bg-muted/50">
-                        <td className="p-3 font-medium">{type.code}</td>
-                        <td className="p-3">{type.name}</td>
+                        <td className="p-3 font-medium">
+                          <div className="truncate" title={type.code}>
+                            {type.code}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="truncate" title={type.name}>
+                            {type.name}
+                          </div>
+                        </td>
                         <td className="p-3">
                           {type.sap_items?.length ? (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1 overflow-hidden">
                               {type.sap_items.slice(0, 4).map((item) => (
                                 <span
                                   key={item.item_code}
-                                  className="rounded border px-2 py-0.5 text-xs font-medium"
+                                  className="max-w-full truncate rounded border px-2 py-0.5 text-xs font-medium"
+                                  title={item.item_name || item.item_code}
                                 >
                                   {item.item_code}
                                 </span>
@@ -329,7 +448,11 @@ export default function MaterialTypesPage() {
                             <span className="text-muted-foreground">-</span>
                           )}
                         </td>
-                        <td className="p-3 text-muted-foreground">{type.description || '-'}</td>
+                        <td className="p-3 text-muted-foreground">
+                          <div className="truncate" title={type.description || '-'}>
+                            {type.description || '-'}
+                          </div>
+                        </td>
                         <td className="p-3 text-center">
                           <div className="flex justify-center gap-2">
                             <Button

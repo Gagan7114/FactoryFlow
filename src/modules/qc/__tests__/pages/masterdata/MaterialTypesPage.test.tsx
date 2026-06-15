@@ -28,7 +28,9 @@ describe('MaterialTypesPage — Exports', () => {
     const content = readSource();
     expect(content).toContain("from 'lucide-react'");
     expect(content).toContain('FlaskConical');
+    expect(content).toContain('Loader2');
     expect(content).toContain('Plus');
+    expect(content).toContain('Search');
     expect(content).toContain('Edit');
     expect(content).toContain('Trash2');
   });
@@ -101,6 +103,22 @@ describe('MaterialTypesPage — CRUD', () => {
     expect(content).toContain('Copy QC Parameters From');
     expect(content).toContain('createCopySourceMaterialTypeId');
     expect(content).toContain('Save & Copy Parameters');
+  });
+
+  it('has material type search by code, name, or SAP item', () => {
+    const content = readSource();
+    expect(content).toContain('materialTypeSearch');
+    expect(content).toContain('debouncedMaterialTypeSearch');
+    expect(content).toContain('window.setTimeout');
+    expect(content).toContain('350');
+    expect(content).toContain('materialTypeSearchTerm ? { search: materialTypeSearchTerm }');
+    expect(content).toContain('Search code, name, or SAP item...');
+    expect(content).toContain('table-fixed');
+    expect(content).toContain('inputMode="search"');
+    expect(content).toContain('isSearchUpdating');
+    expect(content).toContain('pointer-events-none absolute right-10 top-0 flex h-full items-center');
+    expect(content).toContain('Clear material type search');
+    expect(content).toContain('No material types match your search.');
   });
 
   it('uses useScrollToError for error display', () => {
