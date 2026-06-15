@@ -1,14 +1,17 @@
-import { AlertCircle, FileText, Scale, Truck } from 'lucide-react';
+import { AlertCircle, Boxes, ClipboardList, FileText, PackageCheck, Scale, Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
   type CreateWeighmentRequest,
-  type Weighment,
+  type SalesDispatchBoxScan,
+  type SalesDispatchGateOut,
+  type SalesDispatchItem,
   useCreateWeighment,
   useSalesDispatchByVehicleEntry,
   useWeighment,
+  type Weighment,
 } from '@/modules/gate/api';
 import {
   RequiredWeighmentForm,
@@ -23,8 +26,9 @@ import {
   type RequiredWeighmentValues,
 } from '@/modules/gate/utils';
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui';
-import { getErrorMessage } from '@/shared/utils';
+import { cn, getErrorMessage } from '@/shared/utils';
 
+import { getExpectedDispatchBoxes, parsePositiveNumber } from './salesDispatchBoxCounts';
 import { formatTimestamp, formatValue, toTimeInputValue } from './salesDispatchFlow.helpers';
 import { getSalesDispatchRoutes } from './salesDispatchRoutes';
 
@@ -171,6 +175,23 @@ export default function SalesDispatchGateOutWeighmentPage() {
     ? getErrorMessage(weighmentError, 'Unable to load existing weighment')
     : '';
 
+  const scans = entry.box_scans ?? [];
+  const scannedBoxes = scans.length;
+  const scannedQty = scans.reduce((sum, scan) => sum + parsePositiveNumber(scan.quantity), 0);
+  const scannedNetWeight = scans.reduce(
+    (sum, scan) => sum + parsePositiveNumber(scan.net_weight),
+    0,
+  );
+  const expectedBoxes = getExpectedDispatchBoxes(entry);
+  const invoiceItems = getInvoiceItems(entry);
+  const invoiceWeight = parsePositiveNumber(entry.total_weight);
+  const invoiceBoxes = parsePositiveNumber(entry.total_boxes);
+  const scanSkipApproved = Boolean(entry.gatepass_readiness?.scan_skip_approved);
+
+  const grossNum = toFiniteNumber(values.grossWeight);
+  const tareNum = toFiniteNumber(values.tareWeight);
+  const netWeight = grossNum !== null && tareNum !== null ? grossNum - tareNum : null;
+
   return (
     <div className="space-y-6 pb-6">
       <StepHeader
@@ -225,6 +246,25 @@ export default function SalesDispatchGateOutWeighmentPage() {
         requiredFields={{ grossWeight: true, tareWeight: true }}
       />
 
+      <WeightCheckCard
+        invoiceWeight={invoiceWeight}
+        gross={grossNum}
+        tare={tareNum}
+        net={netWeight}
+      />
+
+      <DockingLoadCard
+        scans={scans}
+        scannedBoxes={scannedBoxes}
+        scannedQty={scannedQty}
+        scannedNetWeight={scannedNetWeight}
+        expectedBoxes={expectedBoxes}
+        invoiceItems={invoiceItems}
+        invoiceWeight={invoiceWeight}
+        invoiceBoxes={invoiceBoxes}
+        scanSkipApproved={scanSkipApproved}
+      />
+
       <StepFooter
         onPrevious={() => navigate(routes.detail(entry.id))}
         onCancel={() => navigate(routes.dashboard)}
@@ -246,6 +286,275 @@ function InfoItem({ label, value }: { label: string; value?: string | number | n
       <div className="mt-1 font-medium">{formatValue(value)}</div>
     </div>
   );
+}
+
+const VARIANCE_TONE = {
+  good: { box: 'border-emerald-200 bg-emerald-50 text-emerald-800', label: 'Within tolerance' },
+  warn: { box: 'border-amber-200 bg-amber-50 text-amber-800', label: 'Check the load' },
+  bad: { box: 'border-red-200 bg-red-50 text-red-800', label: 'Large weight mismatch' },
+  neutral: { box: 'border-slate-200 bg-slate-50 text-slate-700', label: 'Comparison' },
+} as const;
+
+function getVarianceTone(pct: number | null): keyof typeof VARIANCE_TONE {
+  if (pct === null) return 'neutral';
+  const abs = Math.abs(pct);
+  if (abs <= 2) return 'good';
+  if (abs <= 5) return 'warn';
+  return 'bad';
+}
+
+function WeightCheckCard({
+  invoiceWeight,
+  gross,
+  tare,
+  net,
+}: {
+  invoiceWeight: number;
+  gross: number | null;
+  tare: number | null;
+  net: number | null;
+}) {
+  const hasInvoiceWeight = invoiceWeight > 0;
+  const variance = net !== null && hasInvoiceWeight ? net - invoiceWeight : null;
+  const variancePct =
+    variance !== null && hasInvoiceWeight ? (variance / invoiceWeight) * 100 : null;
+  const tone = getVarianceTone(variancePct);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Scale className="h-5 w-5" />
+          Invoice vs Loaded Weight
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricTile
+            label="Invoice Weight"
+            value={hasInvoiceWeight ? formatKg(invoiceWeight) : 'Not on invoice'}
+            hint="Expected product weight"
+          />
+          <MetricTile
+            label="Gross Weight"
+            value={gross !== null ? formatKg(gross) : '—'}
+            hint="Loaded vehicle"
+          />
+          <MetricTile
+            label="Tare Weight"
+            value={tare !== null ? formatKg(tare) : '—'}
+            hint="Empty vehicle"
+          />
+          <MetricTile
+            label="Net Weight"
+            value={net !== null ? formatKg(net) : '—'}
+            hint="Gross − Tare"
+            emphasis
+          />
+        </div>
+
+        {net === null ? (
+          <p className="text-sm text-muted-foreground">
+            Enter gross and tare weight to compare the loaded net weight against the invoice.
+          </p>
+        ) : !hasInvoiceWeight ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            This invoice has no weight to compare against. Net loaded weight is {formatKg(net)}.
+          </div>
+        ) : (
+          <div
+            className={cn(
+              'flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm',
+              VARIANCE_TONE[tone].box,
+            )}
+          >
+            <span className="font-medium">{VARIANCE_TONE[tone].label}</span>
+            <span>
+              Net {formatKg(net)} vs Invoice {formatKg(invoiceWeight)} ·{' '}
+              <span className="font-semibold">
+                {variance !== null && variance >= 0 ? '+' : ''}
+                {variance !== null ? formatKg(variance) : '—'}
+                {variancePct !== null
+                  ? ` (${variancePct >= 0 ? '+' : ''}${variancePct.toFixed(1)}%)`
+                  : ''}
+              </span>
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DockingLoadCard({
+  scans,
+  scannedBoxes,
+  scannedQty,
+  scannedNetWeight,
+  expectedBoxes,
+  invoiceItems,
+  invoiceWeight,
+  invoiceBoxes,
+  scanSkipApproved,
+}: {
+  scans: SalesDispatchBoxScan[];
+  scannedBoxes: number;
+  scannedQty: number;
+  scannedNetWeight: number;
+  expectedBoxes: number;
+  invoiceItems: SalesDispatchItem[];
+  invoiceWeight: number;
+  invoiceBoxes: number;
+  scanSkipApproved: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Boxes className="h-5 w-5" />
+          Docking Load
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <MetricTile
+            label="Scanned Boxes"
+            value={
+              expectedBoxes > 0
+                ? `${scannedBoxes} / ${formatNumber(expectedBoxes)}`
+                : String(scannedBoxes)
+            }
+            hint="Boxes scanned at docking"
+          />
+          <MetricTile label="Scanned Qty" value={scannedQty > 0 ? formatNumber(scannedQty) : '—'} />
+          <MetricTile
+            label="Scanned Net Weight"
+            value={scannedNetWeight > 0 ? formatKg(scannedNetWeight) : '—'}
+            hint="Sum of scanned box weights"
+          />
+          <MetricTile label="Invoice Boxes" value={invoiceBoxes > 0 ? formatNumber(invoiceBoxes) : '—'} />
+          <MetricTile label="Invoice Weight" value={invoiceWeight > 0 ? formatKg(invoiceWeight) : '—'} />
+        </div>
+
+        {scannedBoxes === 0 && scanSkipApproved ? (
+          <div className="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <PackageCheck className="h-4 w-4" />
+            Box scanning was skipped for this entry (approved by admin).
+          </div>
+        ) : null}
+
+        {invoiceItems.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="p-2 text-left font-medium">Item</th>
+                  <th className="p-2 text-right font-medium">Invoice Qty</th>
+                  <th className="p-2 text-right font-medium">Boxes</th>
+                  <th className="p-2 text-right font-medium">Weight</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoiceItems.map((item, index) => {
+                  const weight = parsePositiveNumber(item.total_weight);
+                  const boxes = parsePositiveNumber(item.total_boxes);
+                  const qty = parsePositiveNumber(item.quantity);
+                  return (
+                    <tr key={`${item.id}-${index}`} className="border-b last:border-b-0">
+                      <td className="p-2">
+                        <div className="font-medium">{formatValue(item.item_code)}</div>
+                        <div className="max-w-[280px] truncate text-xs text-muted-foreground">
+                          {item.item_name || '-'}
+                        </div>
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {qty > 0 ? [formatNumber(qty), item.uom].filter(Boolean).join(' ') : '-'}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">{boxes > 0 ? formatNumber(boxes) : '-'}</td>
+                      <td className="p-2 text-right tabular-nums">{weight > 0 ? formatKg(weight) : '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {scans.length > 0 ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <ClipboardList className="h-4 w-4" />
+              Scanned boxes ({scans.length})
+            </div>
+            <div className="max-h-64 overflow-auto rounded-md border">
+              <table className="w-full min-w-[560px] text-sm">
+                <thead className="sticky top-0 border-b bg-muted">
+                  <tr>
+                    <th className="p-2 text-left font-medium">Barcode</th>
+                    <th className="p-2 text-left font-medium">Item</th>
+                    <th className="p-2 text-left font-medium">Batch</th>
+                    <th className="p-2 text-right font-medium">Qty</th>
+                    <th className="p-2 text-right font-medium">Net Weight</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scans.map((scan) => {
+                    const boxNetWeight = parsePositiveNumber(scan.net_weight);
+                    return (
+                      <tr key={scan.id} className="border-b last:border-b-0">
+                        <td className="p-2 font-mono text-xs">{scan.box_barcode}</td>
+                        <td className="p-2">{formatValue(scan.item_code)}</td>
+                        <td className="p-2">{formatValue(scan.batch_number)}</td>
+                        <td className="p-2 text-right tabular-nums">
+                          {[scan.quantity, scan.uom].filter(Boolean).join(' ') || '-'}
+                        </td>
+                        <td className="p-2 text-right tabular-nums">
+                          {boxNetWeight > 0 ? formatKg(boxNetWeight) : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricTile({
+  label,
+  value,
+  hint,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className={cn('rounded-md border bg-muted/20 p-3', emphasis && 'border-primary/40 bg-primary/5')}>
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold">{value}</p>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
+
+function getInvoiceItems(entry: SalesDispatchGateOut): SalesDispatchItem[] {
+  if (entry.items?.length) return entry.items;
+  return entry.documents?.flatMap((document) => document.items || []) || [];
+}
+
+function formatKg(value: number) {
+  return `${formatNumber(value)} kg`;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(value);
 }
 
 function formatWeight(value?: string | number | null) {

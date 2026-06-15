@@ -1,11 +1,14 @@
 import {
   AlertCircle,
+  Ban,
   Camera,
   CheckCircle2,
   ClipboardList,
+  Clock3,
   Loader2,
   PackageCheck,
   ScanLine,
+  ShieldCheck,
   Trash2,
   Truck,
 } from 'lucide-react';
@@ -13,8 +16,13 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { GATE_PERMISSIONS } from '@/config/permissions';
+import { ADMIN_PERMISSIONS, GATE_PERMISSIONS } from '@/config/permissions';
 import { usePermission } from '@/core/auth';
+import {
+  type DockingScanSkipRequest,
+  useCreateDockingScanSkipRequest,
+  useDockingScanSkipRequestByDispatch,
+} from '@/modules/admin/api';
 import { useScanner } from '@/modules/barcode/hooks/useScanner';
 import {
   type SalesDispatchBoxScan,
@@ -35,17 +43,24 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Label,
+  Textarea,
 } from '@/shared/components/ui';
 import { cn, getErrorMessage } from '@/shared/utils';
 
-import { DOCKING_TOTAL_STEPS, formatTimestamp, formatValue } from './salesDispatchFlow.helpers';
 import {
   getExpectedDispatchBoxes,
   getExpectedItemBoxes,
   parsePositiveNumber,
 } from './salesDispatchBoxCounts';
+import { DOCKING_TOTAL_STEPS, formatTimestamp, formatValue } from './salesDispatchFlow.helpers';
 import { DOCKING_ROUTES } from './salesDispatchRoutes';
 
 type ScanSource = 'camera' | 'manual';
@@ -60,10 +75,13 @@ const SCAN_CLOSED_STATUSES = [
 
 export default function SalesDispatchBarcodeScanPage() {
   const navigate = useNavigate();
-  const { hasAnyPermission } = usePermission();
+  const { hasAnyPermission, hasPermission } = usePermission();
   const { entryId, entryIdNumber } = useEntryId();
   const [manualBarcode, setManualBarcode] = useState('');
   const [error, setError] = useState('');
+  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
+  const [skipReason, setSkipReason] = useState('');
+  const [skipError, setSkipError] = useState('');
   const manualInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -73,8 +91,10 @@ export default function SalesDispatchBarcodeScanPage() {
     refetch: refetchEntry,
   } = useSalesDispatchByVehicleEntry(entryIdNumber);
   const { data: scans = [], isLoading: isScansLoading } = useSalesDispatchBoxScans(entry?.id);
+  const { data: skipRequest } = useDockingScanSkipRequestByDispatch(entry?.id);
   const scanBox = useScanSalesDispatchBox();
   const removeScan = useRemoveSalesDispatchBoxScan();
+  const createSkipRequest = useCreateDockingScanSkipRequest();
 
   const isReadOnly = entry ? SCAN_CLOSED_STATUSES.includes(entry.status) : false;
   const closedScanRedirectPath = getClosedScanRedirectPath(entry);
@@ -82,6 +102,10 @@ export default function SalesDispatchBarcodeScanPage() {
     GATE_PERMISSIONS.SALES_DISPATCH.CREATE,
     GATE_PERMISSIONS.SALES_DISPATCH.EDIT,
   ]);
+  const canRequestScanSkip = hasPermission(ADMIN_PERMISSIONS.DOCKING.REQUEST_SCAN_SKIP);
+  const skipStatus = skipRequest?.status ?? null;
+  const isSkipApproved = skipStatus === 'APPROVED';
+  const isSkipPending = skipStatus === 'PENDING';
   const isSaving = scanBox.isPending || removeScan.isPending;
 
   const expectedBoxes = getExpectedDispatchBoxes(entry);
@@ -179,11 +203,35 @@ export default function SalesDispatchBarcodeScanPage() {
       setError('Docking details not found.');
       return;
     }
-    if (scans.length === 0) {
-      setError('Scan at least one box before moving to attachments.');
+    if (scans.length === 0 && !isSkipApproved) {
+      if (isSkipPending) {
+        setError(
+          'Box scanning skip is awaiting admin approval. You can continue once it is approved.',
+        );
+      } else {
+        setError('Scan at least one box, or request approval to skip scanning.');
+      }
       return;
     }
     navigate(DOCKING_ROUTES.attachments(entry.vehicle_entry));
+  };
+
+  const handleSubmitSkipRequest = async () => {
+    if (!entry) return;
+    const trimmedReason = skipReason.trim();
+    if (!trimmedReason) {
+      setSkipError('Enter a reason for skipping box scanning.');
+      return;
+    }
+    setSkipError('');
+    try {
+      await createSkipRequest.mutateAsync({ sales_dispatch: entry.id, reason: trimmedReason });
+      setIsSkipDialogOpen(false);
+      setSkipReason('');
+      toast.success('Scan skip request sent for admin approval');
+    } catch (submitError) {
+      setSkipError(getErrorMessage(submitError, 'Unable to submit the skip request'));
+    }
   };
 
   if (isEntryLoading || isScansLoading) {
@@ -231,6 +279,18 @@ export default function SalesDispatchBarcodeScanPage() {
         items={itemScanSummary.items}
         unplannedScanCount={itemScanSummary.unplannedScanCount}
         itemSummary={entry.item_summary}
+      />
+
+      <ScanSkipPanel
+        skipRequest={skipRequest}
+        canRequest={canRequestScanSkip && !isReadOnly && canEditDocking}
+        hasScans={scans.length > 0}
+        isSubmitting={createSkipRequest.isPending}
+        onRequest={() => {
+          setSkipReason('');
+          setSkipError('');
+          setIsSkipDialogOpen(true);
+        }}
       />
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
@@ -442,6 +502,55 @@ export default function SalesDispatchBarcodeScanPage() {
         isSaving={isSaving}
         nextLabel="Continue to Attachments"
       />
+
+      <Dialog
+        open={isSkipDialogOpen}
+        onOpenChange={(open) => {
+          if (createSkipRequest.isPending) return;
+          setIsSkipDialogOpen(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request to Skip Box Scanning</DialogTitle>
+            <DialogDescription>
+              Send this Docking entry to Admin for approval to continue without scanning boxes. You
+              cannot continue until an admin approves the request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="docking-scan-skip-reason">Reason</Label>
+            <Textarea
+              id="docking-scan-skip-reason"
+              value={skipReason}
+              onChange={(event) => {
+                setSkipReason(event.target.value);
+                setSkipError('');
+              }}
+              placeholder="Why should box scanning be skipped for this Docking entry?"
+            />
+            {skipError ? <p className="text-sm text-destructive">{skipError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsSkipDialogOpen(false)}
+              disabled={createSkipRequest.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSubmitSkipRequest()}
+              disabled={createSkipRequest.isPending || !skipReason.trim()}
+            >
+              {createSkipRequest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Send for Approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -592,6 +701,99 @@ function ScanMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border bg-muted/20 p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function ScanSkipPanel({
+  skipRequest,
+  canRequest,
+  hasScans,
+  isSubmitting,
+  onRequest,
+}: {
+  skipRequest?: DockingScanSkipRequest | null;
+  canRequest: boolean;
+  hasScans: boolean;
+  isSubmitting: boolean;
+  onRequest: () => void;
+}) {
+  const status = skipRequest?.status ?? null;
+
+  if (status === 'APPROVED') {
+    return (
+      <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="space-y-1">
+          <p className="font-medium">Scanning skip approved</p>
+          <p className="text-sm">
+            {skipRequest?.reviewed_by_name
+              ? `Approved by ${skipRequest.reviewed_by_name}. `
+              : ''}
+            You can continue to attachments without scanning boxes.
+          </p>
+          {skipRequest?.review_notes ? (
+            <p className="text-sm text-emerald-800">Note: {skipRequest.review_notes}</p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'PENDING') {
+    return (
+      <div className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900">
+        <Clock3 className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="space-y-1">
+          <p className="font-medium">Scanning skip pending approval</p>
+          <p className="text-sm">
+            An admin must approve this request before you can continue without scanning. You can
+            still scan boxes to proceed normally.
+          </p>
+          {skipRequest?.reason ? (
+            <p className="text-sm text-amber-800">Reason: {skipRequest.reason}</p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  // Rejected or no request yet.
+  const wasRejected = status === 'REJECTED';
+
+  if (!wasRejected && !canRequest) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-3">
+        <Ban className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+        <div className="space-y-1">
+          <p className="font-medium">
+            {wasRejected ? 'Scanning skip rejected' : "Can't scan these boxes?"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {wasRejected
+              ? 'Please scan boxes to continue, or raise a new skip request.'
+              : 'Request admin approval to continue without scanning boxes for this Docking entry.'}
+          </p>
+          {wasRejected && skipRequest?.review_notes ? (
+            <p className="text-sm text-red-700">Reason: {skipRequest.review_notes}</p>
+          ) : null}
+        </div>
+      </div>
+      {canRequest ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onRequest}
+          disabled={isSubmitting || hasScans}
+          title={hasScans ? 'Remove scans before requesting a skip' : undefined}
+        >
+          {wasRejected ? 'Request Again' : 'Request to Skip Scanning'}
+        </Button>
+      ) : null}
     </div>
   );
 }

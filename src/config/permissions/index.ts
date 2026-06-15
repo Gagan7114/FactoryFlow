@@ -9,6 +9,9 @@
  * import { QC_PERMISSIONS } from '@/config/permissions'
  */
 
+// Admin Module
+export { ADMIN_MODULE_PREFIX, ADMIN_PERMISSIONS, type AdminPermission } from './admin.permissions';
+
 // Gate Module
 export { GATE_MODULE_PREFIX, GATE_PERMISSIONS, type GatePermission } from './gate.permissions';
 

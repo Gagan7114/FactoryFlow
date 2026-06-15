@@ -494,7 +494,11 @@ export default function SalesDispatchGatepassPage() {
               <ReadinessItem
                 label="Box Scanning"
                 ready={Boolean(readiness?.has_box_scans)}
-                detail={`${entry.box_scans?.length || 0} boxes`}
+                detail={
+                  readiness?.scan_skip_approved && !entry.box_scans?.length
+                    ? 'Skipped (approved)'
+                    : `${entry.box_scans?.length || 0} boxes`
+                }
               />
               <ReadinessItem label="SAP Items" ready={Boolean(readiness?.has_items)} />
 

@@ -177,6 +177,16 @@ export const API_ENDPOINTS = {
       UNREGISTER: '/notifications/devices/unregister/',
     },
   },
+  // Admin - Docking (scan skip approvals)
+  DOCKING_ADMIN: {
+    SCAN_SKIP_REQUESTS: '/docking-admin/scan-skip-requests/',
+    SCAN_SKIP_REQUEST_BY_DISPATCH: (entryId: number) =>
+      `/docking-admin/scan-skip-requests/by-sales-dispatch/${entryId}/`,
+    SCAN_SKIP_REQUEST_APPROVE: (id: number) =>
+      `/docking-admin/scan-skip-requests/${id}/approve/`,
+    SCAN_SKIP_REQUEST_REJECT: (id: number) =>
+      `/docking-admin/scan-skip-requests/${id}/reject/`,
+  },
   // Quality Control V2 (New QC Module)
   QUALITY_CONTROL_V2: {
     // Arrival Slips
