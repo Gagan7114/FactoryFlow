@@ -5,9 +5,10 @@ import {
   Loader2,
   LocateFixed,
   Paperclip,
+  Save,
   Upload,
 } from 'lucide-react';
-import { type ChangeEvent, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ import {
   usePreviewSalesDispatchGatepass,
   useSalesDispatchAttachments,
   useSalesDispatchByVehicleEntry,
+  useUpdateSalesDispatch,
   useUploadSalesDispatchAttachment,
 } from '@/modules/gate/api';
 import { StepFooter, StepHeader, StepLoadingSpinner } from '@/modules/gate/components';
@@ -29,6 +31,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Input,
   Label,
   Textarea,
 } from '@/shared/components/ui';
@@ -45,6 +48,24 @@ interface UploadPanelConfig {
   needsGeolocation?: boolean;
   accept?: string;
 }
+
+interface TransportDocumentForm {
+  eway_bill: string;
+  bilty_no: string;
+  bilty_date: string;
+  freight: string;
+  total_freight: string;
+}
+
+type TransportDocumentErrors = Partial<Record<keyof TransportDocumentForm | 'attachments', string>>;
+
+const EMPTY_TRANSPORT_DOCUMENT_FORM: TransportDocumentForm = {
+  eway_bill: '',
+  bilty_no: '',
+  bilty_date: '',
+  freight: '',
+  total_freight: '',
+};
 
 const UPLOAD_PANELS: UploadPanelConfig[] = [
   {
@@ -90,6 +111,10 @@ export default function SalesDispatchAttachmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingType, setUploadingType] = useState<SalesDispatchAttachmentType | null>(null);
   const [uploadingMessage, setUploadingMessage] = useState('');
+  const [transportForm, setTransportForm] = useState<TransportDocumentForm>(
+    EMPTY_TRANSPORT_DOCUMENT_FORM,
+  );
+  const [transportErrors, setTransportErrors] = useState<TransportDocumentErrors>({});
 
   const {
     data: entry,
@@ -101,12 +126,14 @@ export default function SalesDispatchAttachmentsPage() {
     entry?.id,
   );
   const uploadAttachment = useUploadSalesDispatchAttachment();
+  const updateSalesDispatch = useUpdateSalesDispatch();
   const previewGatepass = usePreviewSalesDispatchGatepass();
 
   const isReadOnly = entry
     ? ['PRINT_COMMITTED', 'DISPATCHED', 'REJECTED', 'CANCELLED'].includes(entry.status)
     : false;
   const canUploadAttachments = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.UPLOAD_PHOTO);
+  const canEditDispatch = hasPermission(GATE_PERMISSIONS.SALES_DISPATCH.EDIT);
   const isLoading = isEntryLoading || isAttachmentsLoading;
   const hasTruckPhoto =
     attachments.some(
@@ -115,6 +142,104 @@ export default function SalesDispatchAttachmentsPage() {
         attachment.latitude !== null &&
         attachment.longitude !== null,
     ) || Boolean(entry?.gatepass_readiness.has_truck_photo_geolocation);
+  const hasBiltyAttachment = attachments.some(
+    (attachment) => attachment.attachment_type === 'BILTY',
+  );
+  const hasEwayBillAttachment = attachments.some(
+    (attachment) => attachment.attachment_type === 'EWAY_BILL',
+  );
+  const ewayBillRequired = entry ? requiresEwayBill(entry) : false;
+  const uploadPanels = UPLOAD_PANELS.map((panel) => ({
+    ...panel,
+    required:
+      panel.required ||
+      panel.type === 'BILTY' ||
+      (panel.type === 'EWAY_BILL' && ewayBillRequired),
+  }));
+
+  useEffect(() => {
+    if (!entry) {
+      setTransportForm(EMPTY_TRANSPORT_DOCUMENT_FORM);
+      return;
+    }
+
+    setTransportForm({
+      eway_bill: entry.eway_bill || '',
+      bilty_no: entry.bilty_no || '',
+      bilty_date: entry.bilty_date || '',
+      freight: entry.freight ?? '',
+      total_freight: entry.total_freight ?? '',
+    });
+  }, [entry]);
+
+  const updateTransportField = <K extends keyof TransportDocumentForm>(
+    field: K,
+    value: TransportDocumentForm[K],
+  ) => {
+    setTransportForm((prev) => ({ ...prev, [field]: value }));
+    setTransportErrors((prev) => ({ ...prev, [field]: undefined }));
+    setError(null);
+  };
+
+  const validateTransportDocuments = (includeAttachments: boolean) => {
+    const errors: TransportDocumentErrors = {};
+    if (!transportForm.bilty_no.trim()) {
+      errors.bilty_no = 'Bilty / LR number is required.';
+    }
+    if (!transportForm.bilty_date) {
+      errors.bilty_date = 'Bilty date is required.';
+    }
+    if (ewayBillRequired && !transportForm.eway_bill.trim()) {
+      errors.eway_bill = 'E-way bill is required for invoices above Rs 50,000.';
+    }
+    if (includeAttachments && !hasBiltyAttachment) {
+      errors.attachments = 'Bilty / LR attachment is required.';
+    }
+    if (includeAttachments && ewayBillRequired && !hasEwayBillAttachment) {
+      errors.attachments = errors.attachments
+        ? `${errors.attachments} E-way bill attachment is required for invoices above Rs 50,000.`
+        : 'E-way bill attachment is required for invoices above Rs 50,000.';
+    }
+
+    setTransportErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError(Object.values(errors)[0] || 'Please complete required transport document details.');
+      return false;
+    }
+    return true;
+  };
+
+  const saveTransportDocuments = async () => {
+    if (!entry) {
+      setError('Docking details not found.');
+      return false;
+    }
+
+    setError(null);
+    try {
+      await updateSalesDispatch.mutateAsync({
+        id: entry.id,
+        data: {
+          eway_bill: transportForm.eway_bill.trim(),
+          bilty_no: transportForm.bilty_no.trim(),
+          bilty_date: transportForm.bilty_date || null,
+          freight: transportForm.freight || null,
+          total_freight: transportForm.total_freight || null,
+        },
+      });
+      toast.success('Transport document details saved');
+      await refetchEntry();
+      return true;
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, 'Failed to save transport document details'));
+      return false;
+    }
+  };
+
+  const handleSaveTransportDocuments = async () => {
+    if (!validateTransportDocuments(false)) return;
+    await saveTransportDocuments();
+  };
 
   const handleUpload = async (type: SalesDispatchAttachmentType, file: File) => {
     if (!entry) {
@@ -170,9 +295,16 @@ export default function SalesDispatchAttachmentsPage() {
       setError('Truck photo with geolocation is required before gatepass printing.');
       return;
     }
+    if (!validateTransportDocuments(true)) return;
 
     try {
-      await previewGatepass.mutateAsync(entry.id);
+      const saved = await saveTransportDocuments();
+      if (!saved) return;
+      const preview = await previewGatepass.mutateAsync(entry.id);
+      if (!preview.gatepass_readiness.ready) {
+        setError(formatReadinessError(preview.gatepass_readiness.missing));
+        return;
+      }
       navigate(DOCKING_ROUTES.gatepass(entry.vehicle_entry));
     } catch (previewError) {
       setError(getErrorMessage(previewError, 'Failed to prepare gatepass'));
@@ -214,13 +346,110 @@ export default function SalesDispatchAttachmentsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Transport Documents
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-eway-bill">
+                E-way Bill {ewayBillRequired && <span className="text-destructive">*</span>}
+              </Label>
+              <Input
+                id="sales-dispatch-eway-bill"
+                value={transportForm.eway_bill}
+                disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+                aria-invalid={Boolean(transportErrors.eway_bill)}
+                onChange={(event) => updateTransportField('eway_bill', event.target.value)}
+              />
+              {transportErrors.eway_bill && (
+                <p className="text-xs text-destructive">{transportErrors.eway_bill}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-bilty-no">
+                Bilty / LR No. <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="sales-dispatch-bilty-no"
+                value={transportForm.bilty_no}
+                disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+                aria-invalid={Boolean(transportErrors.bilty_no)}
+                onChange={(event) => updateTransportField('bilty_no', event.target.value)}
+              />
+              {transportErrors.bilty_no && (
+                <p className="text-xs text-destructive">{transportErrors.bilty_no}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-bilty-date">
+                Bilty Date <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="sales-dispatch-bilty-date"
+                type="date"
+                value={transportForm.bilty_date}
+                disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+                aria-invalid={Boolean(transportErrors.bilty_date)}
+                onChange={(event) => updateTransportField('bilty_date', event.target.value)}
+              />
+              {transportErrors.bilty_date && (
+                <p className="text-xs text-destructive">{transportErrors.bilty_date}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-freight">Freight</Label>
+              <Input
+                id="sales-dispatch-freight"
+                type="number"
+                min={0}
+                step="0.01"
+                value={transportForm.freight}
+                disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+                onChange={(event) => updateTransportField('freight', event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sales-dispatch-total-freight">Total Freight</Label>
+              <Input
+                id="sales-dispatch-total-freight"
+                type="number"
+                min={0}
+                step="0.01"
+                value={transportForm.total_freight}
+                disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+                onChange={(event) => updateTransportField('total_freight', event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={handleSaveTransportDocuments}
+              disabled={isReadOnly || !canEditDispatch || updateSalesDispatch.isPending}
+            >
+              {updateSalesDispatch.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save Details
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
             Photo & Documents
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-5 lg:grid-cols-3">
-            {UPLOAD_PANELS.map((panel) => (
+            {uploadPanels.map((panel) => (
               <DocumentUploadPanel
                 key={panel.type}
                 panel={panel}
@@ -239,6 +468,9 @@ export default function SalesDispatchAttachmentsPage() {
               />
             ))}
           </div>
+          {transportErrors.attachments && (
+            <p className="text-sm text-destructive">{transportErrors.attachments}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -277,6 +509,24 @@ export default function SalesDispatchAttachmentsPage() {
             label="SAP Items"
             value={entry.gatepass_readiness.has_items ? 'Available' : 'Missing'}
           />
+          <InfoItem
+            label="Bilty Details"
+            value={
+              entry.gatepass_readiness.has_bilty_details && hasBiltyAttachment
+                ? 'Captured'
+                : 'Required'
+            }
+          />
+          {ewayBillRequired && (
+            <InfoItem
+              label="E-way Bill"
+              value={
+                entry.gatepass_readiness.has_eway_bill && hasEwayBillAttachment
+                  ? 'Captured'
+                  : 'Required'
+              }
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -396,6 +646,44 @@ function getBrowserPosition(): Promise<{ latitude: number; longitude: number }> 
 
 function roundCoordinate(value: number) {
   return Number(value.toFixed(6));
+}
+
+function requiresEwayBill(entry: {
+  document_type: string;
+  sap_doc_total?: string | number | null;
+  documents?: Array<{
+    document_type: string;
+    sap_doc_total?: string | number | null;
+  }>;
+}) {
+  const documents = entry.documents?.length
+    ? entry.documents
+    : [{ document_type: entry.document_type, sap_doc_total: entry.sap_doc_total }];
+  return documents.some(
+    (document) =>
+      document.document_type === 'INVOICE' && parseAmount(document.sap_doc_total) > 50000,
+  );
+}
+
+function parseAmount(value?: string | number | null) {
+  const amount = typeof value === 'number' ? value : Number.parseFloat(value || '0');
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+const READINESS_LABELS: Record<string, string> = {
+  truck_photo_geolocation: 'truck photo with location',
+  box_scans: 'box scanning',
+  document_items: 'SAP items',
+  bilty_no: 'bilty / LR number',
+  bilty_date: 'bilty date',
+  bilty_attachment: 'bilty / LR attachment',
+  eway_bill: 'e-way bill number',
+  eway_bill_attachment: 'e-way bill attachment',
+};
+
+function formatReadinessError(missing: string[]) {
+  const labels = missing.map((item) => READINESS_LABELS[item] || item).join(', ');
+  return `Complete required Docking details before preparing the gatepass: ${labels}.`;
 }
 
 function InfoItem({ label, value }: { label: string; value?: string | number | null }) {

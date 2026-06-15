@@ -408,6 +408,8 @@ export interface PostServiceGRPORequest {
   eway_bill?: string;
   invoice_weight?: number | null;
   invoice_amount?: number | null;
+  bilty_no?: string;
+  bilty_date?: string | null;
   comments?: string;
   vendor_ref?: string;
   extra_charges?: ExtraCharge[];

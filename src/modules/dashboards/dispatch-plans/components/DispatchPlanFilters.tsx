@@ -1,7 +1,14 @@
 import { Loader2, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { Button, Input, Label, NativeSelect as Select, SelectOption } from '@/shared/components/ui';
+import {
+  Button,
+  Input,
+  Label,
+  NativeSelect as Select,
+  SelectOption,
+  Switch,
+} from '@/shared/components/ui';
 
 import { BOOKING_STATUS_OPTIONS, createDefaultDispatchPlanFilters } from '../constants';
 import type { DispatchPlanFilters } from '../types';
@@ -126,6 +133,22 @@ export function DispatchPlanFilters({
           <SelectOption value="1000">1000</SelectOption>
           <SelectOption value="2000">2000</SelectOption>
         </Select>
+      </div>
+
+      <div className="flex w-full items-center gap-2 rounded-md border bg-background px-3 py-2 sm:w-auto">
+        <Switch
+          id="dispatch-plan-show-jivo-mart"
+          checked={!filters.exclude_jivo_mart_transfer}
+          onChange={(checked) =>
+            onFiltersChange({
+              ...filters,
+              exclude_jivo_mart_transfer: !checked,
+            })
+          }
+        />
+        <Label htmlFor="dispatch-plan-show-jivo-mart" className="cursor-pointer text-xs">
+          Show Jivo Mart bills
+        </Label>
       </div>
 
       <Button

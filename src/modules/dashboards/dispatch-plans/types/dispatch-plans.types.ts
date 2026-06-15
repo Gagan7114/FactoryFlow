@@ -7,6 +7,7 @@ export interface DispatchPlanFilters {
   search?: string;
   branch?: string;
   limit?: number;
+  exclude_jivo_mart_transfer?: boolean;
 }
 
 export interface DispatchPlan {
