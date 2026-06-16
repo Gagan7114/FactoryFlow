@@ -41,6 +41,12 @@ describe('notifications/index.ts — Barrel Re-exports', () => {
     expect(content).toContain("from './components/NotificationBell'");
   });
 
+  it('re-exports NotificationPermissionPrompt from ./components/NotificationPermissionPrompt', () => {
+    const content = readSource();
+    expect(content).toContain('NotificationPermissionPrompt');
+    expect(content).toContain("from './components/NotificationPermissionPrompt'");
+  });
+
   // ═══════════════════════════════════════════════════════════
   // Hooks
   // ═══════════════════════════════════════════════════════════
@@ -59,11 +65,11 @@ describe('notifications/index.ts — Barrel Re-exports', () => {
     expect(content).toMatch(/export\s+\*\s+from\s+['"]\.\/types['"]/);
   });
 
-  it('has exactly 5 export statements (2 services, 1 component, 1 hooks, 1 types)', () => {
+  it('has exactly 6 export statements (2 services, 2 components, 1 hooks, 1 types)', () => {
     const content = readSource();
     const exportLines = content
       .split('\n')
       .filter((line: string) => line.trim().startsWith('export'));
-    expect(exportLines.length).toBe(5);
+    expect(exportLines.length).toBe(6);
   });
 });

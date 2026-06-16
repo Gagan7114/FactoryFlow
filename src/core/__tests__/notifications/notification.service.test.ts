@@ -46,7 +46,7 @@ describe('Notification Service', () => {
     mockGet.mockResolvedValue({ data: { results: [], count: 0, unread_count: 0 } });
     const result = await notificationService.getNotifications();
     expect(mockGet).toHaveBeenCalledWith('/notifications/', { params: undefined });
-    expect(result).toEqual({ results: [], count: 0, unread_count: 0 });
+    expect(result).toEqual({ results: [], count: 0, total_count: 0, unread_count: 0 });
   });
 
   it('getNotifications passes params', async () => {

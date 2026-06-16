@@ -11,8 +11,47 @@
  * These values are safe to expose as they are also visible in your frontend code.
  * Get these from: Firebase Console > Project Settings > General > Your apps > Web app
  */
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
+
+/**
+ * Handle notification click events.
+ * Register before importing Firebase Messaging so FCM does not override it.
+ */
+self.addEventListener('notificationclick', (event) => {
+  console.log('[FCM SW] Notification clicked:', event.action);
+
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  const urlToOpen = event.notification.data?.url || '/';
+  const fullUrl = new URL(urlToOpen, self.location.origin).href;
+
+  event.waitUntil(
+    clients
+      .matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+            return client.focus().then((focusedClient) => {
+              if ('navigate' in focusedClient) {
+                return focusedClient.navigate(fullUrl);
+              }
+              return focusedClient;
+            });
+          }
+        }
+        return clients.openWindow(fullUrl);
+      }),
+  );
+});
+
+importScripts('https://www.gstatic.com/firebasejs/12.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/12.8.0/firebase-messaging-compat.js');
 
 // Firebase configuration (hardcoded - service workers cannot access import.meta.env)
 firebase.initializeApp({
@@ -34,7 +73,8 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[FCM SW] Background message received:', payload);
 
   // Extract notification data
-  const notificationTitle = payload.notification?.title || payload.data?.title || 'New Notification';
+  const notificationTitle =
+    payload.notification?.title || payload.data?.title || 'New Notification';
   const notificationBody = payload.notification?.body || payload.data?.body || '';
 
   // Build notification options
@@ -42,12 +82,14 @@ messaging.onBackgroundMessage((payload) => {
     body: notificationBody,
     icon: '/pwa-192x192.png',
     badge: '/pwa-64x64.png',
-    tag: payload.data?.tag || payload.data?.type_code || 'default',
+    tag:
+      payload.data?.tag || payload.data?.notification_type || payload.data?.type_code || 'default',
     data: {
       ...payload.data,
       url: payload.data?.url || '/',
       notification_id: payload.data?.notification_id,
-      type_code: payload.data?.type_code,
+      type_code: payload.data?.type_code || payload.data?.notification_type,
+      notification_type: payload.data?.notification_type || payload.data?.type_code,
     },
     // Notification behavior
     requireInteraction: payload.data?.require_interaction === 'true',
@@ -55,7 +97,7 @@ messaging.onBackgroundMessage((payload) => {
     // Actions for notification
     actions: [
       { action: 'open', title: 'Open' },
-      { action: 'dismiss', title: 'Dismiss' }
+      { action: 'dismiss', title: 'Dismiss' },
     ],
     // Vibration pattern (mobile)
     vibrate: [200, 100, 200],
@@ -63,49 +105,6 @@ messaging.onBackgroundMessage((payload) => {
 
   // Show the notification
   self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-/**
- * Handle notification click events
- * Opens the app or focuses existing window when notification is clicked
- */
-self.addEventListener('notificationclick', (event) => {
-  console.log('[FCM SW] Notification clicked:', event.action);
-
-  // Close the notification
-  event.notification.close();
-
-  // Handle dismiss action
-  if (event.action === 'dismiss') {
-    return;
-  }
-
-  // Get the URL to open
-  const urlToOpen = event.notification.data?.url || '/';
-  const fullUrl = new URL(urlToOpen, self.location.origin).href;
-
-  event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    }).then((clientList) => {
-      // Check if app is already open
-      for (const client of clientList) {
-        // If we find a matching window, focus it and navigate
-        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          return client.focus().then((focusedClient) => {
-            // Navigate to the notification URL
-            if ('navigate' in focusedClient) {
-              return focusedClient.navigate(fullUrl);
-            }
-            return focusedClient;
-          });
-        }
-      }
-      // If no matching window found, open a new one
-      return clients.openWindow(fullUrl);
-    })
-  );
 });
 
 /**

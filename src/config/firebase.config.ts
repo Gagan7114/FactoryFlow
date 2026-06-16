@@ -1,18 +1,30 @@
 import { type FirebaseApp, initializeApp } from 'firebase/app';
 import { getMessaging, isSupported, type Messaging } from 'firebase/messaging';
 
+const fallbackFirebaseConfig = {
+  apiKey: 'AIzaSyBanxBLJy0h5_D3inPJP9e850kmsoRDTxo',
+  authDomain: 'sampooran-jivo.firebaseapp.com',
+  projectId: 'sampooran-jivo',
+  storageBucket: 'sampooran-jivo.firebasestorage.app',
+  messagingSenderId: '288727872234',
+  appId: '1:288727872234:web:6fc2628ca56d1d440bdd93',
+};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || fallbackFirebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || fallbackFirebaseConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || fallbackFirebaseConfig.projectId,
+  storageBucket:
+    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || fallbackFirebaseConfig.storageBucket,
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackFirebaseConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || fallbackFirebaseConfig.appId,
 };
 
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
 let fcmServiceWorkerRegistration: ServiceWorkerRegistration | null = null;
+let fcmServiceWorkerRegistrationPromise: Promise<ServiceWorkerRegistration | null> | null = null;
 
 /**
  * Check if Firebase is properly configured
@@ -35,30 +47,36 @@ export const registerFCMServiceWorker = async (): Promise<ServiceWorkerRegistrat
     return fcmServiceWorkerRegistration;
   }
 
+  if (fcmServiceWorkerRegistrationPromise) {
+    return fcmServiceWorkerRegistrationPromise;
+  }
+
   if (!('serviceWorker' in navigator)) {
     console.warn('Service workers are not supported in this browser');
     return null;
   }
 
-  try {
-    // Register the Firebase messaging service worker
-    fcmServiceWorkerRegistration = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js',
-      { scope: '/' },
-    );
+  fcmServiceWorkerRegistrationPromise = navigator.serviceWorker
+    .register('/firebase-messaging-sw.js', { scope: '/' })
+    .then(async (registration) => {
+      fcmServiceWorkerRegistration = registration;
 
-    if (import.meta.env.DEV) {
-      console.log('[FCM] Service worker registered:', fcmServiceWorkerRegistration.scope);
-    }
+      if (import.meta.env.DEV) {
+        console.log('[FCM] Service worker registered:', registration.scope);
+      }
 
-    // Wait for the service worker to be ready
-    await navigator.serviceWorker.ready;
+      await navigator.serviceWorker.ready;
+      return registration;
+    })
+    .catch((error) => {
+      console.error('[FCM] Service worker registration failed:', error);
+      return null;
+    })
+    .finally(() => {
+      fcmServiceWorkerRegistrationPromise = null;
+    });
 
-    return fcmServiceWorkerRegistration;
-  } catch (error) {
-    console.error('[FCM] Service worker registration failed:', error);
-    return null;
-  }
+  return fcmServiceWorkerRegistrationPromise;
 };
 
 /**

@@ -25,10 +25,10 @@ describe('NotificationProvider', () => {
     expect(content).toMatch(/export\s+function\s+NotificationProvider/);
   });
 
-  it('imports useEffect, useRef, useCallback from react', () => {
+  it('imports useCallback, useEffect, useRef, useState from react', () => {
     const content = readSource();
     expect(content).toMatch(
-      /import\s*\{[^}]*useEffect[^}]*useRef[^}]*useCallback[^}]*\}\s*from\s*['"]react['"]/,
+      /import\s*\{[^}]*useCallback[^}]*useEffect[^}]*useRef[^}]*useState[^}]*\}\s*from\s*['"]react['"]/,
     );
   });
 
@@ -123,18 +123,26 @@ describe('NotificationProvider', () => {
 
   it('dispatches fetchUnreadCount after 200ms delay', () => {
     const content = readSource();
-    expect(content).toContain('setTimeout(() => dispatch(fetchUnreadCount()), 200)');
+    expect(content).toContain('const UNREAD_COUNT_FETCH_DELAY_MS = 200');
+    expect(content).toContain(
+      'setTimeout(() => dispatch(fetchUnreadCount()), UNREAD_COUNT_FETCH_DELAY_MS)',
+    );
   });
 
   // ─── useEffect Hooks ───────────────────────────────────
 
-  it('guards FCM setup with setupAttemptedRef and authentication check', () => {
+  it('restores FCM setup only after existing granted permission', () => {
     const content = readSource();
     expect(content).toContain('!isAuthenticated');
     expect(content).toContain('fcmState.token');
-    expect(content).toContain("fcmState.permission === 'denied'");
+    expect(content).toContain("browserPermission !== 'granted'");
     expect(content).toContain('setupAttemptedRef.current');
     expect(content).toContain('dispatch(setupPushNotifications())');
+  });
+
+  it('syncs browser notification permission to Redux', () => {
+    const content = readSource();
+    expect(content).toContain('dispatch(setFCMPermission(permission))');
   });
 
   it('sets up message listener via fcmService.onMessage', () => {

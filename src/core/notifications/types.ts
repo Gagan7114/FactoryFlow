@@ -48,8 +48,10 @@ export interface NotificationType {
 export interface Notification {
   id: number;
   type_code: string;
+  notification_type?: string;
   title: string;
   body: string;
+  click_action_url?: string;
   is_read: boolean;
   created_at: string;
 }
@@ -63,6 +65,7 @@ export interface NotificationDetail extends Notification {
 
 export interface NotificationListResponse {
   count: number;
+  total_count?: number;
   unread_count: number;
   results: Notification[];
 }
