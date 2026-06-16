@@ -214,6 +214,11 @@ export interface SalesDispatchGateOut {
   total_litres?: string | null;
   total_boxes?: string | null;
   total_weight?: string | null;
+  /** Operator-entered challan weight; comparison reference when SAP total_weight is missing/wrong. */
+  challan_weight?: string | null;
+  challan_weight_at?: string | null;
+  challan_weight_by?: number | null;
+  challan_weight_by_name?: string | null;
   vehicle_no: string;
   transporter_name?: string;
   transporter_gstin?: string;
@@ -477,6 +482,11 @@ export interface SalesDispatchReasonRequest {
   reason: string;
 }
 
+export interface SalesDispatchChallanWeightRequest {
+  /** Pass null to clear the operator value and fall back to the SAP document weight. */
+  challan_weight: number | null;
+}
+
 function buildQuery(params?: Record<string, string | number | undefined>) {
   const queryParams = new URLSearchParams();
 
@@ -666,6 +676,17 @@ export const salesDispatchApi = {
   async gatepassPrintHistory(id: number): Promise<SalesDispatchGatepassPrintLog[]> {
     const response = await apiClient.get<SalesDispatchGatepassPrintLog[]>(
       API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_GATEPASS_PRINTS(id),
+    );
+    return response.data;
+  },
+
+  async setChallanWeight(
+    id: number,
+    data: SalesDispatchChallanWeightRequest,
+  ): Promise<SalesDispatchGateOut> {
+    const response = await apiClient.post<SalesDispatchGateOut>(
+      API_ENDPOINTS.GATE_CORE.SALES_DISPATCH_CHALLAN_WEIGHT(id),
+      data,
     );
     return response.data;
   },
