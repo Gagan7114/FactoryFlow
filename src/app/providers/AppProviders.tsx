@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import { queryClient } from '@/core/api';
+import { NotificationPermissionPrompt } from '@/core/notifications';
 import { store } from '@/core/store';
 import { ThemeProvider, useTheme } from '@/shared/contexts';
 
@@ -26,6 +27,7 @@ export function AppProviders({ children }: AppProvidersProps) {
           <ThemeProvider>
             <NotificationProvider>
               {children}
+              <NotificationPermissionPrompt />
               <ThemedToaster />
             </NotificationProvider>
           </ThemeProvider>

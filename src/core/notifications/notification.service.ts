@@ -20,6 +20,30 @@ import type {
  * Handles all notification-related API calls
  */
 class NotificationService {
+  private normalizeNotification(notification: Notification): Notification {
+    const notificationType =
+      typeof notification.notification_type === 'string'
+        ? notification.notification_type
+        : notification.type_code;
+
+    return {
+      ...notification,
+      type_code: notification.type_code || notificationType || 'UNKNOWN',
+      notification_type: notification.notification_type || notificationType || 'UNKNOWN',
+    };
+  }
+
+  private normalizeListResponse(response: NotificationListResponse): NotificationListResponse {
+    const count = response.count ?? response.total_count ?? response.results.length;
+
+    return {
+      ...response,
+      count,
+      total_count: response.total_count ?? count,
+      results: response.results.map((notification) => this.normalizeNotification(notification)),
+    };
+  }
+
   /**
    * Get list of notifications with optional filters
    */
@@ -28,7 +52,7 @@ class NotificationService {
       API_ENDPOINTS.NOTIFICATIONS.LIST,
       { params },
     );
-    return response.data;
+    return this.normalizeListResponse(response.data);
   }
 
   /**
@@ -39,7 +63,7 @@ class NotificationService {
     const response = await apiClient.get<NotificationDetail>(
       API_ENDPOINTS.NOTIFICATIONS.DETAIL(id),
     );
-    return response.data;
+    return this.normalizeNotification(response.data) as NotificationDetail;
   }
 
   /**

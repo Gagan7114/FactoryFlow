@@ -10,6 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       // Include the assets the generator actually created
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'factoryLogoNew.png'],
       manifest: {

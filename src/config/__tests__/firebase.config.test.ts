@@ -57,13 +57,13 @@ describe('firebase.config — firebaseConfig object', () => {
 
   it('includes storageBucket from VITE_FIREBASE_STORAGE_BUCKET', () => {
     const content = readSource();
-    expect(content).toContain('storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET');
+    expect(content).toMatch(/storageBucket:\s*import\.meta\.env\.VITE_FIREBASE_STORAGE_BUCKET/);
   });
 
   it('includes messagingSenderId from VITE_FIREBASE_MESSAGING_SENDER_ID', () => {
     const content = readSource();
-    expect(content).toContain(
-      'messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID',
+    expect(content).toMatch(
+      /messagingSenderId:\s*import\.meta\.env\.VITE_FIREBASE_MESSAGING_SENDER_ID/,
     );
   });
 

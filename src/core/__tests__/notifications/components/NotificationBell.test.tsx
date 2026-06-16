@@ -146,10 +146,10 @@ describe('NotificationBell.tsx — Callbacks', () => {
     expect(content).toContain('useCallback');
   });
 
-  it('defines handleNotificationClick callback that navigates to notification', () => {
+  it('defines handleNotificationClick callback that navigates to deep link or list', () => {
     const content = readSource();
     expect(content).toContain('handleNotificationClick');
-    expect(content).toContain('navigate(`/notifications/${notification.id}`)');
+    expect(content).toContain("navigate(notification.click_action_url || '/notifications')");
   });
 
   it('renders View all notifications footer link', () => {

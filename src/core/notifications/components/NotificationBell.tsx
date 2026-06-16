@@ -123,7 +123,7 @@ export function NotificationBell() {
           // handled by apiClient
         }
       }
-      navigate(`/notifications/${notification.id}`);
+      navigate(notification.click_action_url || '/notifications');
     },
     [navigate, refreshUnreadCount],
   );

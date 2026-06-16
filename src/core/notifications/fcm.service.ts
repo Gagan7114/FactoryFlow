@@ -22,6 +22,7 @@ class FCMService {
   isSupported(): boolean {
     return (
       isFirebaseConfigured() &&
+      Boolean(VAPID_KEY) &&
       'Notification' in window &&
       'serviceWorker' in navigator &&
       'PushManager' in window
@@ -115,6 +116,11 @@ class FCMService {
     const messaging = getFirebaseMessaging();
     if (!messaging) {
       console.warn('[FCM] Messaging not initialized');
+      return null;
+    }
+
+    if (!VAPID_KEY) {
+      console.warn('[FCM] Missing VITE_FIREBASE_VAPID_KEY');
       return null;
     }
 
